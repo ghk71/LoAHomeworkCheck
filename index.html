@@ -161,7 +161,8 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 .badge-weekly{background:rgba(200,168,75,.12);color:var(--gold);border:1px solid rgba(200,168,75,.25);}
 .reset-info{font-size:.67rem;color:var(--dim);}
 .task-actions{display:flex;gap:3px;opacity:0;transition:opacity .15s;flex-shrink:0;}
-.task-item:hover .task-actions{opacity:1;}
+.task-item:hover .task-actions,
+.subtask-item:hover .task-actions{opacity:1;}
 
 /* Subtasks */
 .subtask-list{padding-left:32px;display:flex;flex-direction:column;gap:4px;border-left:2px solid rgba(200,168,75,.2);margin-left:14px;}
