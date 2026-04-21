@@ -71,8 +71,7 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 
 /* Main + Tabs */
 .main{flex:1;overflow:hidden;display:flex;flex-direction:column;}
-.char-tabs-wrap{background:var(--s2);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:stretch;overflow-x:auto;scrollbar-width:none;}
-.char-tabs-wrap::-webkit-scrollbar{display:none;}
+.char-tabs-wrap{background:var(--s2);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:stretch;overflow-x:auto;}
 .char-tab{padding:10px 14px;cursor:pointer;border-right:1px solid var(--border);white-space:nowrap;transition:all .12s;display:flex;align-items:center;gap:6px;flex-shrink:0;position:relative;min-width:100px;}
 .char-tab:hover{background:var(--s3);}
 .char-tab.active{background:var(--s3);color:var(--gold-bright);}
@@ -658,6 +657,8 @@ function renderMain(){
   if(!chars.length){const n=esc(S.accounts.find(a=>a.id===S.selAcc)?.name||'');main.innerHTML=`<div style="padding:12px 16px;background:var(--s2);border-bottom:1px solid var(--border);display:flex;align-items:center;"><span style="font-size:.85rem;color:var(--muted);">${n} 계정</span><button class="btn btn-sec" style="margin-left:auto;padding:6px 12px;font-size:.78rem;" onclick="openModal('modal-char')">+ 캐릭터 추가</button></div><div class="center-state"><div class="center-state-icon">🧙</div><span style="color:var(--muted);font-size:.88rem">캐릭터를 추가하세요</span></div>`;return;}
   main.innerHTML=`<div class="char-tabs-wrap" id="char-tabs"></div><div class="task-area" id="task-area"><div class="loading-row"><div class="spinner"></div> 불러오는 중...</div></div>`;
   renderTabs();
+  const tw = document.getElementById('char-tabs')?.parentElement;
+  if(tw) tw.addEventListener('wheel', e => { if(e.deltaY) { e.preventDefault(); tw.scrollLeft += e.deltaY; } }, { passive:false });
 }
 function renderTabs(){
   const el=document.getElementById('char-tabs');if(!el)return;
