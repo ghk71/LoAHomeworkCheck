@@ -9,15 +9,15 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 :root {
-  --bg:#07090f; --s1:#0d1120; --s2:#131928; --s3:#1a2235;
-  --border:#243050; --border-lit:#3a4d7a;
-  --gold:#c8a84b; --gold-bright:#e8c86a; --gold-dim:#8a6e2a; --gold-glow:rgba(200,168,75,.25);
-  --text:#ddd5c0; --muted:#6a7485; --dim:#3a4050;
-  --green:#3cba78; --green-dim:rgba(60,186,120,.08);
-  --red:#c84040; --blue:#4a8fd4;
-  --purple:#a060d8; --purple-dim:rgba(160,96,216,.12);
-  --teal:#2ab8a0; --teal-dim:rgba(42,184,160,.1);
-  --orange:#e07840; --orange-dim:rgba(224,120,64,.1);
+  --bg:#07090f;--s1:#0d1120;--s2:#131928;--s3:#1a2235;
+  --border:#243050;--border-lit:#3a4d7a;
+  --gold:#c8a84b;--gold-bright:#e8c86a;--gold-dim:#8a6e2a;--gold-glow:rgba(200,168,75,.25);
+  --text:#ddd5c0;--muted:#6a7485;--dim:#3a4050;
+  --green:#3cba78;--green-dim:rgba(60,186,120,.08);
+  --red:#c84040;--blue:#4a8fd4;
+  --purple:#a060d8;--purple-dim:rgba(160,96,216,.12);
+  --teal:#2ab8a0;--teal-dim:rgba(42,184,160,.1);
+  --orange:#e07840;--orange-dim:rgba(224,120,64,.1);
   --r:4px;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -26,16 +26,12 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
   background-image:radial-gradient(ellipse at 15% 50%,rgba(200,168,75,.04) 0%,transparent 55%),radial-gradient(ellipse at 85% 15%,rgba(74,143,212,.04) 0%,transparent 55%);}
 input[type="text"],input:not([type]),textarea{ime-mode:active;}
 
-/* ── Drag and Drop ── */
+/* Drag */
 [draggable="true"]{cursor:grab;user-select:none;}
-[draggable="true"]:active{cursor:grabbing;}
-.dnd-dragging{opacity:.35!important;outline:1px dashed var(--gold)!important;}
-/* vertical lists: show gold bar at bottom of drop target */
-.dnd-over-v{box-shadow:inset 0 -3px 0 var(--gold)!important;background:rgba(200,168,75,.06)!important;}
-/* horizontal lists: show gold bar at right side of drop target */
-.dnd-over-h{box-shadow:inset -3px 0 0 var(--gold)!important;background:rgba(200,168,75,.06)!important;}
-/* drag handle hint */
-.dnd-handle{font-size:.75rem;color:var(--dim);margin-right:2px;cursor:grab;flex-shrink:0;padding:2px;}
+.dnd-dragging{opacity:.35!important;}
+.dnd-over-v{box-shadow:inset 0 -3px 0 var(--gold)!important;background:rgba(200,168,75,.05)!important;}
+.dnd-over-h{box-shadow:inset -3px 0 0 var(--gold)!important;background:rgba(200,168,75,.05)!important;}
+.dnd-handle{font-size:.72rem;color:var(--dim);cursor:grab;flex-shrink:0;padding:0 3px;}
 .dnd-handle:hover{color:var(--muted);}
 
 /* Setup */
@@ -63,13 +59,13 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 .sidebar{width:210px;background:var(--s1);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
 .sidebar-header{padding:12px 16px;border-bottom:1px solid var(--border);font-size:.7rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted);}
 .sidebar-list{flex:1;overflow-y:auto;}
-.account-item{padding:11px 16px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;transition:background .12s;position:relative;}
+.account-item{padding:11px 16px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;transition:background .12s;position:relative;}
 .account-item:hover{background:rgba(255,255,255,.02);}
 .account-item.active{background:var(--s3);}
 .account-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gold);}
-.account-name{font-size:.88rem;font-weight:500;}
+.account-name{font-size:.88rem;font-weight:500;flex:1;min-width:0;}
 .account-meta{font-size:.7rem;color:var(--muted);margin-top:2px;}
-.acc-del-btn{opacity:0;background:none;border:none;color:var(--red);font-size:.85rem;cursor:pointer;padding:2px 5px;border-radius:3px;transition:opacity .2s;}
+.acc-del-btn{opacity:0;background:none;border:none;color:var(--red);font-size:.85rem;cursor:pointer;padding:2px 5px;border-radius:3px;transition:opacity .2s;flex-shrink:0;}
 .account-item:hover .acc-del-btn{opacity:.7;}
 .sidebar-add{padding:12px;border-top:1px solid var(--border);}
 
@@ -77,17 +73,23 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 .main{flex:1;overflow:hidden;display:flex;flex-direction:column;}
 .char-tabs-wrap{background:var(--s2);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:stretch;overflow-x:auto;scrollbar-width:none;}
 .char-tabs-wrap::-webkit-scrollbar{display:none;}
-.char-tab{padding:10px 18px;cursor:pointer;border-right:1px solid var(--border);white-space:nowrap;transition:all .12s;display:flex;align-items:center;gap:8px;flex-shrink:0;position:relative;min-width:110px;}
+.char-tab{padding:10px 14px;cursor:pointer;border-right:1px solid var(--border);white-space:nowrap;transition:all .12s;display:flex;align-items:center;gap:6px;flex-shrink:0;position:relative;min-width:100px;}
 .char-tab:hover{background:var(--s3);}
 .char-tab.active{background:var(--s3);color:var(--gold-bright);}
 .char-tab.active::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);}
-.char-tab-ilvl{font-size:.68rem;color:var(--muted);}
-.char-tab-prog{width:48px;height:3px;background:var(--border);border-radius:2px;margin-top:3px;overflow:hidden;}
+.char-tab-name{font-size:.84rem;font-weight:500;}
+.char-tab-ilvl{font-size:.67rem;color:var(--muted);}
+.char-tab-prog{width:44px;height:3px;background:var(--border);border-radius:2px;margin-top:3px;overflow:hidden;}
 .char-tab-prog-bar{height:100%;background:var(--green);border-radius:2px;transition:width .3s;}
-.char-tab-del{opacity:0;background:none;border:none;color:var(--red);font-size:.72rem;cursor:pointer;padding:2px 4px;border-radius:2px;transition:opacity .2s;flex-shrink:0;}
-.char-tab:hover .char-tab-del{opacity:.7;}
-.tab-add-btn{padding:10px 16px;cursor:pointer;color:var(--muted);font-size:.82rem;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:4px;transition:all .12s;}
-.tab-add-btn:hover{color:var(--gold);background:rgba(200,168,75,.05);}
+.char-tab-btns{display:flex;gap:2px;opacity:0;transition:opacity .2s;flex-shrink:0;}
+.char-tab:hover .char-tab-btns{opacity:1;}
+.char-tab-btn{background:none;border:none;font-size:.72rem;cursor:pointer;padding:2px 4px;border-radius:2px;transition:all .15s;}
+.char-tab-btn-edit{color:var(--muted);}
+.char-tab-btn-edit:hover{color:var(--gold);}
+.char-tab-btn-del{color:var(--red);}
+.char-tab-btn-del:hover{opacity:1!important;}
+.tab-add-btn{padding:10px 14px;cursor:pointer;color:var(--muted);font-size:.82rem;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;transition:all .12s;}
+.tab-add-btn:hover{color:var(--gold);}
 
 /* Task Area */
 .task-area{flex:1;overflow-y:auto;padding:20px 24px;}
@@ -96,56 +98,59 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 .exp-section{background:var(--purple-dim);border:1px solid rgba(160,96,216,.3);border-radius:6px;margin-bottom:14px;overflow:hidden;}
 .exp-header{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;transition:background .12s;user-select:none;}
 .exp-header:hover{background:rgba(160,96,216,.08);}
-.exp-toggle{color:var(--purple);font-size:.7rem;width:10px;flex-shrink:0;}
-.exp-title{font-size:.88rem;font-weight:600;color:#c090e8;font-family:'Cinzel',serif;letter-spacing:.5px;}
-.exp-stat{font-size:.75rem;color:var(--muted);flex-shrink:0;}
-.exp-prog-wrap{height:3px;width:60px;background:var(--border);border-radius:2px;overflow:hidden;flex-shrink:0;}
+.exp-toggle{color:var(--purple);font-size:.7rem;width:10px;}
+.exp-title{font-size:.88rem;font-weight:600;color:#c090e8;font-family:'Cinzel',serif;}
+.exp-stat{font-size:.75rem;color:var(--muted);}
+.exp-prog-wrap{height:3px;width:60px;background:var(--border);border-radius:2px;overflow:hidden;}
 .exp-prog-bar{height:100%;background:var(--purple);border-radius:2px;transition:width .3s;}
 .exp-body{padding:10px 14px 12px;border-top:1px solid rgba(160,96,216,.15);}
 .exp-empty{font-size:.82rem;color:var(--muted);text-align:center;padding:12px 0;}
 
-/* Currency / Popup mini-sections */
+/* Mini Sections */
 .mini-section{background:var(--s2);border:1px solid var(--border);border-radius:6px;margin-bottom:14px;overflow:hidden;}
 .mini-section-header{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid var(--border);}
-.mini-section-title{font-size:.8rem;font-weight:600;color:var(--teal);letter-spacing:.5px;}
+.mini-section-title{font-size:.8rem;font-weight:600;color:var(--teal);}
 .mini-section-body{padding:10px 14px 12px;}
 .currency-chips{display:flex;flex-wrap:wrap;gap:8px;}
 .currency-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;background:var(--s3);border:1px solid var(--border-lit);border-radius:20px;cursor:pointer;transition:all .15s;user-select:none;}
-.currency-chip:hover{border-color:var(--teal);background:var(--teal-dim);}
+.currency-chip:hover{border-color:var(--teal);}
 .curr-chip-icon{font-size:1rem;}
 .curr-chip-name{font-size:.78rem;color:var(--muted);}
-.curr-chip-amount{font-size:.88rem;font-weight:700;color:var(--text);}
-.curr-empty{font-size:.82rem;color:var(--muted);padding:6px 0;}
+.curr-chip-amount{font-size:.88rem;font-weight:700;}
+.curr-empty{font-size:.82rem;color:var(--muted);padding:4px 0;}
 .popup-btn-section{background:var(--orange-dim);border:1px solid rgba(224,120,64,.25);border-radius:6px;margin-bottom:14px;overflow:hidden;}
 .popup-btn-section .mini-section-header{border-color:rgba(224,120,64,.2);}
 .popup-btn-section .mini-section-title{color:var(--orange);}
 .popup-buttons-row{display:flex;flex-wrap:wrap;gap:8px;}
 .popup-btn-item{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;background:var(--s3);border:1px solid rgba(224,120,64,.3);border-radius:6px;cursor:pointer;transition:all .15s;}
-.popup-btn-item:hover{border-color:var(--orange);background:var(--orange-dim);}
+.popup-btn-item:hover{border-color:var(--orange);}
 .popup-btn-icon{font-size:1.1rem;}
 .popup-btn-label{font-size:.82rem;font-weight:500;}
 .no-popup-btns{font-size:.82rem;color:var(--muted);padding:4px 0;}
 
-/* Character Section */
-.char-section-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+/* Character Section Header */
+.char-section-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
 .char-section-title{font-family:'Cinzel',serif;font-size:.95rem;color:var(--gold);letter-spacing:1px;}
 .char-section-class{font-size:.72rem;color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:1px 8px;}
 .section-divider{display:flex;align-items:center;gap:10px;margin:4px 0 12px;font-size:.7rem;color:var(--dim);text-transform:uppercase;letter-spacing:1.5px;}
 .section-divider::before,.section-divider::after{content:'';flex:1;height:1px;background:var(--border);}
 .global-prog-wrap{background:var(--s3);border-radius:3px;height:5px;margin-bottom:4px;overflow:hidden;}
-.global-prog-bar{height:100%;background:var(--green);border-radius:3px;transition:width .4s ease;}
+.global-prog-bar{height:100%;background:var(--green);border-radius:3px;transition:width .4s;}
 .prog-label{font-size:.7rem;color:var(--muted);margin-bottom:14px;}
-.task-count-label{font-size:.78rem;color:var(--muted);}
 
 /* Task Items */
 .tasks-list{display:flex;flex-direction:column;gap:7px;}
-.task-item{background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:10px 13px;display:flex;align-items:center;gap:8px;transition:background .12s,border .12s;}
+.task-group{display:flex;flex-direction:column;gap:4px;}
+.task-item{background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:10px 13px;display:flex;align-items:center;gap:8px;transition:all .12s;}
 .task-item:hover{border-color:var(--border-lit);background:var(--s3);}
 .task-item.done{border-color:rgba(60,186,120,.4);background:var(--green-dim);}
 .task-item.done .task-name{color:var(--muted);text-decoration:line-through;}
+.task-item.is-parent{border-color:var(--border-lit);background:rgba(255,255,255,.02);}
+.task-item.is-parent .checkbox{cursor:default;border-color:var(--dim);}
+.task-item.is-parent.done .checkbox{background:var(--green);border-color:var(--green);cursor:default;}
 .checkbox{width:21px;height:21px;border:2px solid var(--border-lit);border-radius:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;user-select:none;}
-.checkbox:hover{border-color:var(--gold);}
-.task-item.done .checkbox{background:var(--green);border-color:var(--green);box-shadow:0 0 8px rgba(60,186,120,.35);}
+.checkbox:not(.no-click):hover{border-color:var(--gold);}
+.task-item.done .checkbox:not(.no-click){background:var(--green);border-color:var(--green);box-shadow:0 0 8px rgba(60,186,120,.35);}
 .checkbox-icon{color:#fff;font-size:11px;opacity:0;transition:opacity .15s;font-weight:700;}
 .task-item.done .checkbox-icon{opacity:1;}
 .task-body{flex:1;min-width:0;}
@@ -156,26 +161,36 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 .badge-daily{background:rgba(74,143,212,.15);color:var(--blue);border:1px solid rgba(74,143,212,.3);}
 .badge-weekly{background:rgba(200,168,75,.12);color:var(--gold);border:1px solid rgba(200,168,75,.25);}
 .reset-info{font-size:.67rem;color:var(--dim);}
-.task-actions{display:flex;gap:4px;opacity:0;transition:opacity .15s;flex-shrink:0;}
+.task-actions{display:flex;gap:3px;opacity:0;transition:opacity .15s;flex-shrink:0;}
 .task-item:hover .task-actions{opacity:1;}
+
+/* Subtasks */
+.subtask-list{padding-left:32px;display:flex;flex-direction:column;gap:4px;border-left:2px solid rgba(200,168,75,.2);margin-left:14px;}
+.subtask-item{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:8px 11px;display:flex;align-items:center;gap:8px;transition:all .12s;}
+.subtask-item:hover{border-color:var(--border-lit);background:var(--s2);}
+.subtask-item.done{border-color:rgba(60,186,120,.3);background:rgba(60,186,120,.04);}
+.subtask-item.done .task-name{color:var(--muted);text-decoration:line-through;}
+.subtask-item.done .checkbox{background:var(--green);border-color:var(--green);}
+.subtask-item.done .checkbox-icon{opacity:1;}
+.expand-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.72rem;padding:2px 5px;border-radius:3px;transition:all .15s;flex-shrink:0;}
+.expand-btn:hover{color:var(--gold);background:rgba(200,168,75,.1);}
 
 /* Count Input */
 .count-group{display:flex;align-items:center;gap:5px;flex-shrink:0;}
-.count-input{width:54px;text-align:center;background:var(--s1);border:1px solid var(--border-lit);color:var(--text);padding:3px 5px;border-radius:3px;font-size:.85rem;font-family:'Noto Sans KR',sans-serif;outline:none;transition:border .15s;-moz-appearance:textfield;}
+.count-input{width:52px;text-align:center;background:var(--s1);border:1px solid var(--border-lit);color:var(--text);padding:3px 5px;border-radius:3px;font-size:.85rem;font-family:'Noto Sans KR',sans-serif;outline:none;transition:border .15s;-moz-appearance:textfield;}
 .count-input::-webkit-inner-spin-button,.count-input::-webkit-outer-spin-button{-webkit-appearance:none;}
 .count-input:focus{border-color:var(--gold);}
-.task-item.done .count-input{color:var(--muted);}
 
 /* Currency Popup */
 .curr-popup-modal{max-width:360px!important;}
 .curr-popup-top{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
 .curr-popup-icon{font-size:1.8rem;}
 .curr-popup-name{font-size:1.1rem;font-weight:700;flex:1;}
-.curr-amount-display{text-align:center;font-size:2.2rem;font-weight:700;color:var(--teal);letter-spacing:1px;margin:4px 0 16px;padding:10px;background:var(--s1);border-radius:var(--r);border:1px solid var(--border);}
+.curr-amount-display{text-align:center;font-size:2.2rem;font-weight:700;color:var(--teal);margin:4px 0 16px;padding:10px;background:var(--s1);border-radius:var(--r);border:1px solid var(--border);}
 .curr-adj-section{margin-bottom:12px;}
-.curr-adj-label{font-size:.72rem;color:var(--muted);margin-bottom:6px;letter-spacing:.5px;}
+.curr-adj-label{font-size:.72rem;color:var(--muted);margin-bottom:6px;}
 .curr-adj-row{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;}
-.curr-adj-btn{padding:7px 10px;border-radius:var(--r);border:none;cursor:pointer;font-size:.8rem;font-family:'Noto Sans KR',sans-serif;font-weight:600;transition:all .15s;min-width:52px;text-align:center;}
+.curr-adj-btn{padding:7px 10px;border-radius:var(--r);border:none;cursor:pointer;font-size:.8rem;font-family:'Noto Sans KR',sans-serif;font-weight:600;transition:all .15s;min-width:52px;}
 .curr-adj-plus{background:rgba(42,184,160,.2);color:var(--teal);border:1px solid rgba(42,184,160,.35);}
 .curr-adj-plus:hover{background:rgba(42,184,160,.35);}
 .curr-adj-minus{background:rgba(200,64,64,.15);color:#e07070;border:1px solid rgba(200,64,64,.3);}
@@ -186,13 +201,13 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 .popup-viewer-modal{max-width:640px!important;max-height:90vh!important;}
 .popup-viewer-top{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);}
 .popup-viewer-icon{font-size:1.6rem;}
-.popup-viewer-title{font-family:'Cinzel',serif;font-size:1.1rem;color:var(--gold);flex:1;letter-spacing:1px;}
+.popup-viewer-title{font-family:'Cinzel',serif;font-size:1.1rem;color:var(--gold);flex:1;}
 .popup-content{display:flex;flex-direction:column;gap:14px;}
 .block-label-hd{font-size:.78rem;font-weight:600;color:var(--gold-bright);margin-bottom:6px;letter-spacing:.5px;text-transform:uppercase;}
-.block-text-content{font-size:.88rem;line-height:1.7;white-space:pre-wrap;color:var(--text);}
+.block-text-content{font-size:.88rem;line-height:1.7;white-space:pre-wrap;}
 .popup-table{width:100%;border-collapse:collapse;font-size:.84rem;}
 .popup-table th{background:var(--s3);color:var(--gold);padding:7px 10px;border:1px solid var(--border-lit);font-weight:600;text-align:left;}
-.popup-table td{padding:6px 10px;border:1px solid var(--border);color:var(--text);}
+.popup-table td{padding:6px 10px;border:1px solid var(--border);}
 .popup-table tr:nth-child(even) td{background:rgba(255,255,255,.02);}
 .block-divider{border:none;border-top:1px solid var(--border);margin:4px 0;}
 .popup-empty-msg{text-align:center;color:var(--muted);font-size:.85rem;padding:20px 0;}
@@ -217,6 +232,14 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 .icon-opt:hover{background:var(--s3);}
 .icon-opt.selected{border-color:var(--gold);background:rgba(200,168,75,.15);}
 
+/* Copy modal account grouping */
+.copy-acc-header{font-size:.72rem;color:var(--gold);padding:6px 10px 3px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;}
+
+/* Hide completed button */
+.hide-done-btn{font-size:.75rem;padding:4px 10px;border-radius:12px;border:1px solid var(--border);background:var(--s3);color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.hide-done-btn.active{border-color:var(--green);color:var(--green);background:rgba(60,186,120,.08);}
+.hide-done-btn:hover{border-color:var(--border-lit);color:var(--text);}
+
 /* Buttons */
 .btn{padding:8px 16px;border-radius:var(--r);border:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif;font-size:.82rem;font-weight:400;transition:all .15s;display:inline-flex;align-items:center;gap:5px;line-height:1;}
 .btn-gold{background:var(--gold);color:#1a0f00;font-weight:700;}
@@ -234,9 +257,10 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 .btn-danger{background:transparent;color:var(--red);padding:5px 8px;font-size:.75rem;border-radius:3px;}
 .btn-danger:hover{background:rgba(200,64,64,.12);}
 .btn-icon{background:transparent;color:var(--muted);padding:5px 7px;font-size:.8rem;border-radius:3px;}
-.btn-icon:hover{color:var(--text);background:rgba(255,255,255,.05);}
+.btn-icon:hover{color:var(--text);}
 .btn-full{width:100%;justify-content:center;padding:10px;}
 .btn-sm{padding:5px 10px;font-size:.78rem;}
+.btn-xs{padding:3px 7px;font-size:.72rem;}
 
 /* States */
 .center-state{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;color:var(--muted);}
@@ -264,19 +288,18 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 .form-input:focus,.form-select:focus{border-color:var(--gold);}
 .form-select option{background:var(--s2);}
 .form-textarea{resize:vertical;min-height:80px;line-height:1.6;}
-.count-toggle-box{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);cursor:pointer;transition:border .15s;user-select:none;}
-.count-toggle-box:hover{border-color:var(--border-lit);}
-.count-toggle-box input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--gold);flex-shrink:0;pointer-events:none;}
+.count-toggle-box{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);cursor:pointer;user-select:none;}
+.count-toggle-box input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--gold);pointer-events:none;}
 .count-toggle-lbl{font-size:.85rem;flex:1;}
 .count-toggle-lbl small{display:block;font-size:.72rem;color:var(--muted);margin-top:1px;}
 .count-max-row{display:flex;align-items:center;gap:8px;margin-top:10px;padding-left:4px;}
 .count-max-row .form-input{max-width:100px;}
 .count-max-unit{font-size:.82rem;color:var(--muted);}
 .modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:16px;border-top:1px solid var(--border);}
-.copy-list{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);max-height:200px;overflow-y:auto;padding:6px;}
-.copy-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:3px;cursor:pointer;transition:background .1s;}
+.copy-list{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);max-height:240px;overflow-y:auto;padding:4px;}
+.copy-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:3px;cursor:pointer;transition:background .1s;}
 .copy-item:hover{background:var(--s2);}
-.copy-item input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--gold);flex-shrink:0;}
+.copy-item input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--gold);}
 .copy-item label{cursor:pointer;font-size:.87rem;flex:1;}
 .copy-item .ci-meta{font-size:.72rem;color:var(--muted);}
 
@@ -319,10 +342,7 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
   <div class="header">
     <span style="font-size:1.2rem">⚔️</span>
     <div class="header-title">로스트아크 숙제</div>
-    <div class="header-right">
-      <span id="header-time" style="font-size:.72rem;color:var(--muted);"></span>
-      <button class="btn btn-icon" onclick="openSettings()">⚙️</button>
-    </div>
+    <div class="header-right"><span id="header-time" style="font-size:.72rem;color:var(--muted);"></span><button class="btn btn-icon" onclick="openSettings()">⚙️</button></div>
   </div>
   <div class="layout">
     <div class="sidebar">
@@ -336,7 +356,7 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
   </div>
 </div>
 
-<!-- Modals -->
+<!-- ── Modals ── -->
 <div class="overlay" id="modal-account"><div class="modal">
   <div class="modal-title">계정 추가</div>
   <div class="form-group"><label class="form-label">계정명</label><input class="form-input" id="acc-name" lang="ko" inputmode="text" placeholder="예: 본계, 서브계1" maxlength="30" onkeydown="if(event.key==='Enter')createAccount()"></div>
@@ -348,15 +368,27 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
   <div class="form-group"><label class="form-label">캐릭터명</label><input class="form-input" id="char-name" lang="ko" inputmode="text" placeholder="캐릭터 이름" maxlength="30"></div>
   <div class="form-row">
     <div class="form-group"><label class="form-label">직업</label><input class="form-input" id="char-class" lang="ko" inputmode="text" placeholder="예: 워로드, 바드"></div>
-    <div class="form-group"><label class="form-label">아이템 레벨</label><input class="form-input" id="char-ilvl" type="number" placeholder="예: 1620" min="0" max="9999"></div>
+    <div class="form-group"><label class="form-label">아이템 레벨</label><input class="form-input" id="char-ilvl" type="number" placeholder="1620" min="0" max="9999"></div>
   </div>
   <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-char')">취소</button><button class="btn btn-gold" onclick="createChar()">추가</button></div>
 </div></div>
 
+<!-- Character Edit Modal -->
+<div class="overlay" id="modal-edit-char"><div class="modal">
+  <div class="modal-title">캐릭터 수정</div>
+  <div class="form-group"><label class="form-label">캐릭터명</label><input class="form-input" id="edit-char-name" lang="ko" inputmode="text" maxlength="30"></div>
+  <div class="form-row">
+    <div class="form-group"><label class="form-label">직업</label><input class="form-input" id="edit-char-class" lang="ko" inputmode="text"></div>
+    <div class="form-group"><label class="form-label">아이템 레벨</label><input class="form-input" id="edit-char-ilvl" type="number" min="0" max="9999"></div>
+  </div>
+  <input type="hidden" id="edit-char-id">
+  <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-edit-char')">취소</button><button class="btn btn-gold" onclick="updateChar()">저장</button></div>
+</div></div>
+
 <div class="overlay" id="modal-task"><div class="modal" id="modal-task-box">
   <div class="modal-title" id="task-modal-title">숙제 추가</div>
-  <div class="form-group"><label class="form-label">숙제명</label><input class="form-input" id="task-name" lang="ko" inputmode="text" placeholder="예: 카오스 던전, 가디언 토벌" maxlength="60"></div>
-  <div class="form-group">
+  <div class="form-group"><label class="form-label">숙제명</label><input class="form-input" id="task-name" lang="ko" inputmode="text" placeholder="예: 카오스 던전, 가디언 토벌, 낙원 레이드" maxlength="60"></div>
+  <div class="form-group" id="count-toggle-wrap">
     <div class="count-toggle-box" onclick="toggleHasCount()">
       <input type="checkbox" id="has-count" tabindex="-1">
       <div class="count-toggle-lbl">수량 추적 사용<small>최대값이 있는 완료형 카운터</small></div>
@@ -373,19 +405,19 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
     </div>
     <div class="form-group" id="day-group"><label class="form-label">초기화 요일</label>
       <select class="form-select" id="task-day">
-        <option value="1">월요일</option><option value="2" selected>화요일</option><option value="3">수요일</option>
+        <option value="1">월요일</option><option value="2">화요일</option><option value="3" selected>수요일</option>
         <option value="4">목요일</option><option value="5">금요일</option><option value="6">토요일</option><option value="0">일요일</option>
       </select>
     </div>
   </div>
-  <input type="hidden" id="task-edit-id"><input type="hidden" id="task-is-exp" value="0">
+  <input type="hidden" id="task-edit-id"><input type="hidden" id="task-is-exp" value="0"><input type="hidden" id="task-parent-id" value="">
   <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-task')">취소</button><button class="btn btn-gold" id="task-submit-btn" onclick="submitTask()">추가</button></div>
 </div></div>
 
 <div class="overlay" id="modal-copy"><div class="modal">
   <div class="modal-title">다른 캐릭터에 복제</div>
   <div style="font-size:.82rem;color:var(--muted);margin-bottom:14px;" id="copy-task-label"></div>
-  <div class="form-group"><label class="form-label">복제할 캐릭터 선택</label><div class="copy-list" id="copy-char-list"></div></div>
+  <div class="form-group"><label class="form-label">복제할 캐릭터 선택 (계정 전체)</label><div class="copy-list" id="copy-char-list"></div></div>
   <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-copy')">취소</button><button class="btn btn-gold" onclick="executeCopy()">📋 복제</button></div>
 </div></div>
 
@@ -398,7 +430,7 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 
 <div class="overlay" id="modal-add-currency"><div class="modal modal-teal">
   <div class="modal-title teal">💰 재화 추가</div>
-  <div class="form-group"><label class="form-label">재화 이름</label><input class="form-input" id="curr-name-input" lang="ko" inputmode="text" placeholder="예: 골드, 코어정수, 실링" maxlength="20"></div>
+  <div class="form-group"><label class="form-label">재화 이름</label><input class="form-input" id="curr-name-input" lang="ko" inputmode="text" placeholder="예: 골드, 코어정수" maxlength="20"></div>
   <div class="form-group"><label class="form-label">아이콘</label><div class="icon-picker" id="curr-icon-picker"></div></div>
   <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-add-currency')">취소</button><button class="btn btn-teal" onclick="addCurrency()">추가</button></div>
 </div></div>
@@ -421,7 +453,7 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
     <button class="curr-adj-btn curr-adj-plus" onclick="adjustCurr(10000)">+10,000</button>
   </div></div>
   <div class="curr-direct-row"><input type="number" id="curr-direct-val" class="form-input" placeholder="직접 입력" style="flex:1"><button class="btn btn-teal btn-sm" onclick="setCurrDirect('add')">추가</button><button class="btn btn-sec btn-sm" onclick="setCurrDirect('set')">설정</button></div>
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);"><button class="btn btn-danger btn-sm" onclick="deleteCurrAndClose()">재화 삭제</button><button class="btn btn-sec btn-sm" onclick="closeModal('modal-curr-popup')">닫기</button></div>
+  <div style="display:flex;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);"><button class="btn btn-danger btn-sm" onclick="deleteCurrAndClose()">재화 삭제</button><button class="btn btn-sec btn-sm" onclick="closeModal('modal-curr-popup')">닫기</button></div>
 </div></div>
 
 <div class="overlay" id="modal-add-popup"><div class="modal modal-orange">
@@ -444,42 +476,83 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
   </div>
   <div id="editor-icon-picker-wrap" style="display:none;margin-bottom:14px;padding:12px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);"><div class="icon-picker" id="editor-icon-picker"></div></div>
   <div class="editor-block-list" id="editor-block-list"></div>
-  <div class="editor-add-row">
-    <div class="editor-add-label">블록 추가</div>
-    <button class="btn btn-sec btn-sm" onclick="addBlock('text')">📝 텍스트</button>
-    <button class="btn btn-sec btn-sm" onclick="addBlock('table')">📊 표</button>
-    <button class="btn btn-sec btn-sm" onclick="addBlock('divider')">➖ 구분선</button>
-  </div>
+  <div class="editor-add-row"><div class="editor-add-label">블록 추가</div><button class="btn btn-sec btn-sm" onclick="addBlock('text')">📝 텍스트</button><button class="btn btn-sec btn-sm" onclick="addBlock('table')">📊 표</button><button class="btn btn-sec btn-sm" onclick="addBlock('divider')">➖ 구분선</button></div>
   <div class="modal-footer"><button class="btn btn-danger btn-sm" style="margin-right:auto" onclick="deleteCurrentPopup()">팝업 삭제</button><button class="btn btn-sec" onclick="closeModal('modal-popup-editor')">취소</button><button class="btn btn-gold" onclick="savePopup()">💾 저장</button></div>
 </div></div>
 
 <script>
 const { createClient } = supabase;
 
-const SCHEMA = `-- 전체 설치 SQL (한 번에 실행, 중복 실행 안전)
+const SCHEMA = `-- 전체 설치 SQL (중복 실행 안전)
 create extension if not exists "uuid-ossp";
-create table if not exists accounts (id uuid default uuid_generate_v4() primary key, name text not null, created_at timestamptz default now());
-create table if not exists characters (id uuid default uuid_generate_v4() primary key, account_id uuid references accounts(id) on delete cascade, name text not null, class_name text default '', item_level numeric default 0, sort_order int default 0, created_at timestamptz default now());
-create table if not exists tasks (id uuid default uuid_generate_v4() primary key, character_id uuid references characters(id) on delete cascade, name text not null, reset_type text default 'weekly', reset_day int default 3, is_completed boolean default false, last_completed_at timestamptz, count_current int default 0, count_max int default null, sort_order int default 0, created_at timestamptz default now());
-create table if not exists expedition_tasks (id uuid default uuid_generate_v4() primary key, account_id uuid references accounts(id) on delete cascade, name text not null, reset_type text default 'weekly', reset_day int default 3, is_completed boolean default false, last_completed_at timestamptz, count_current int default 0, count_max int default null, sort_order int default 0, created_at timestamptz default now());
-create table if not exists currencies (id uuid default uuid_generate_v4() primary key, character_id uuid references characters(id) on delete cascade, name text not null, amount bigint default 0, icon text default '💰', sort_order int default 0, created_at timestamptz default now());
-create table if not exists custom_popups (id uuid default uuid_generate_v4() primary key, character_id uuid references characters(id) on delete cascade, title text not null, icon text default '📋', content jsonb default '[]'::jsonb, sort_order int default 0, created_at timestamptz default now());
+
+create table if not exists accounts (
+  id uuid default uuid_generate_v4() primary key,
+  name text not null, sort_order int default 0,
+  created_at timestamptz default now()
+);
+create table if not exists characters (
+  id uuid default uuid_generate_v4() primary key,
+  account_id uuid references accounts(id) on delete cascade,
+  name text not null, class_name text default '',
+  item_level numeric default 0, sort_order int default 0,
+  created_at timestamptz default now()
+);
+create table if not exists tasks (
+  id uuid default uuid_generate_v4() primary key,
+  character_id uuid references characters(id) on delete cascade,
+  parent_id uuid references tasks(id) on delete cascade,
+  name text not null, reset_type text default 'weekly',
+  reset_day int default 3, is_completed boolean default false,
+  last_completed_at timestamptz, count_current int default 0,
+  count_max int default null, sort_order int default 0,
+  created_at timestamptz default now()
+);
+create table if not exists expedition_tasks (
+  id uuid default uuid_generate_v4() primary key,
+  account_id uuid references accounts(id) on delete cascade,
+  parent_id uuid references expedition_tasks(id) on delete cascade,
+  name text not null, reset_type text default 'weekly',
+  reset_day int default 3, is_completed boolean default false,
+  last_completed_at timestamptz, count_current int default 0,
+  count_max int default null, sort_order int default 0,
+  created_at timestamptz default now()
+);
+create table if not exists currencies (
+  id uuid default uuid_generate_v4() primary key,
+  character_id uuid references characters(id) on delete cascade,
+  name text not null, amount bigint default 0,
+  icon text default '💰', sort_order int default 0,
+  created_at timestamptz default now()
+);
+create table if not exists custom_popups (
+  id uuid default uuid_generate_v4() primary key,
+  character_id uuid references characters(id) on delete cascade,
+  title text not null, icon text default '📋',
+  content jsonb default '[]'::jsonb, sort_order int default 0,
+  created_at timestamptz default now()
+);
+
 alter table accounts disable row level security;
 alter table characters disable row level security;
 alter table tasks disable row level security;
 alter table expedition_tasks disable row level security;
 alter table currencies disable row level security;
 alter table custom_popups disable row level security;
--- 기존 설치 업데이트
+
+-- 기존 설치 업데이트 (이미 사용 중이면 아래도 실행)
+alter table accounts add column if not exists sort_order int default 0;
 alter table tasks add column if not exists count_current int default 0;
-alter table tasks add column if not exists count_max int default null;`;
+alter table tasks add column if not exists count_max int default null;
+alter table tasks add column if not exists parent_id uuid references tasks(id) on delete cascade;
+alter table expedition_tasks add column if not exists parent_id uuid references expedition_tasks(id) on delete cascade;`;
 
 document.getElementById('sql-display').textContent = SCHEMA;
-function copySql() { navigator.clipboard.writeText(SCHEMA).then(()=>toast('📋 SQL 복사됨!')); }
+function copySql(){navigator.clipboard.writeText(SCHEMA).then(()=>toast('📋 SQL 복사됨!'));}
 
 // ─── Config ───
 function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
-function saveConfig(){const u=document.getElementById('setup-url').value.trim(),k=document.getElementById('setup-key').value.trim();if(!u||!k){toast('❗ URL과 Key를 모두 입력하세요');return;}localStorage.setItem('la_url',u);localStorage.setItem('la_key',k);initApp();}
+function saveConfig(){const u=document.getElementById('setup-url').value.trim(),k=document.getElementById('setup-key').value.trim();if(!u||!k){toast('❗ URL과 Key를 입력하세요');return;}localStorage.setItem('la_url',u);localStorage.setItem('la_key',k);initApp();}
 function openSettings(){const c=getConfig();document.getElementById('set-url').value=c?.url||'';document.getElementById('set-key').value=c?.key||'';openModal('modal-settings');}
 function saveSettings(){const u=document.getElementById('set-url').value.trim(),k=document.getElementById('set-key').value.trim();if(!u||!k){toast('❗ 빈 칸을 채워주세요');return;}localStorage.setItem('la_url',u);localStorage.setItem('la_key',k);closeModal('modal-settings');location.reload();}
 function clearConfig(){if(!confirm('연결을 해제합니다. 데이터는 Supabase에 보존됩니다.'))return;localStorage.removeItem('la_url');localStorage.removeItem('la_key');location.reload();}
@@ -489,64 +562,39 @@ let sb=null;
 let S={
   accounts:[],characters:{},tasks:{},expTasks:{},currencies:{},customPopups:{},
   selAcc:null,selChar:null,copyTaskId:null,expCollapsed:false,
-  currPopupId:null,viewPopupId:null,editPopupId:null,
-  editBlocks:[],selCurrIcon:'💰',selPopupIcon:'📋',editorIcon:'📋',
+  currPopupId:null,viewPopupId:null,editPopupId:null,editBlocks:[],
+  selCurrIcon:'💰',selPopupIcon:'📋',editorIcon:'📋',
+  hideCompleted: localStorage.getItem('la_hide')==='1',
+  collapsedTasks: new Set(), // parent task IDs that are collapsed
 };
 
-// ─── Drag and Drop ───
+// ─── DnD ───
 const _dnd={srcType:null,srcIdx:null};
-
-function dndStart(e,type,idx){
-  _dnd.srcType=type; _dnd.srcIdx=idx;
-  e.dataTransfer.effectAllowed='move';
-  e.dataTransfer.setData('text/plain','');
-  // Delay adding class so drag image captures normal style
-  setTimeout(()=>e.target.classList.add('dnd-dragging'),0);
-}
-function dndEnd(e){
-  e.target.classList.remove('dnd-dragging');
-  document.querySelectorAll('.dnd-over-v,.dnd-over-h').forEach(el=>{el.classList.remove('dnd-over-v');el.classList.remove('dnd-over-h');});
-}
-function dndOver(e,type,isH){
-  e.preventDefault();e.stopPropagation();
-  if(_dnd.srcType!==type)return;
-  e.dataTransfer.dropEffect='move';
-  // Clear all indicators of this type, then highlight current
-  const cls=isH?'dnd-over-h':'dnd-over-v';
-  // Only add to current target — leave/end will clear
-  document.querySelectorAll('.'+cls).forEach(el=>el.classList.remove(cls));
-  e.currentTarget.classList.add(cls);
-}
-function dndLeave(e,isH){
-  const cls=isH?'dnd-over-h':'dnd-over-v';
-  e.currentTarget.classList.remove(cls);
-}
+function dndStart(e,type,idx){_dnd.srcType=type;_dnd.srcIdx=idx;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain','');setTimeout(()=>e.target.classList.add('dnd-dragging'),0);}
+function dndEnd(e){e.target.classList.remove('dnd-dragging');document.querySelectorAll('.dnd-over-v,.dnd-over-h').forEach(el=>{el.classList.remove('dnd-over-v','dnd-over-h');});}
+function dndOver(e,type,isH){e.preventDefault();e.stopPropagation();if(_dnd.srcType!==type)return;e.dataTransfer.dropEffect='move';const cls=isH?'dnd-over-h':'dnd-over-v';document.querySelectorAll('.'+cls).forEach(el=>el.classList.remove(cls));e.currentTarget.classList.add(cls);}
+function dndLeave(e,isH){e.currentTarget.classList.remove(isH?'dnd-over-h':'dnd-over-v');}
 async function dndDrop(e,type,destIdx){
   e.preventDefault();e.stopPropagation();
-  document.querySelectorAll('.dnd-over-v,.dnd-over-h,.dnd-dragging').forEach(el=>{el.classList.remove('dnd-over-v','dnd-over-h','dnd-dragging');});
+  document.querySelectorAll('.dnd-over-v,.dnd-over-h,.dnd-dragging').forEach(el=>el.classList.remove('dnd-over-v','dnd-over-h','dnd-dragging'));
   if(_dnd.srcType!==type||_dnd.srcIdx===null||_dnd.srcIdx===destIdx){_dnd.srcIdx=null;return;}
-  const srcIdx=_dnd.srcIdx; _dnd.srcIdx=null; _dnd.srcType=null;
-
-  // Get list and table
+  const srcIdx=_dnd.srcIdx;_dnd.srcIdx=null;_dnd.srcType=null;
   let list,table;
   if(type==='account'){list=S.accounts;table='accounts';}
   else if(type==='char'){list=S.characters[S.selAcc];table='characters';}
-  else if(type==='task'){list=S.tasks[S.selChar];table='tasks';}
-  else if(type==='exptask'){list=S.expTasks[S.selAcc];table='expedition_tasks';}
+  else if(type==='task'){list=S.tasks[S.selChar].filter(t=>!t.parent_id);table='tasks';}
+  else if(type==='exptask'){list=S.expTasks[S.selAcc].filter(t=>!t.parent_id);table='expedition_tasks';}
   else if(type==='curr'){list=S.currencies[S.selChar];table='currencies';}
   else if(type==='popup'){list=S.customPopups[S.selChar];table='custom_popups';}
   if(!list)return;
-
-  // Move item from srcIdx to destIdx
-  const [moved]=list.splice(srcIdx,1);
+  const[moved]=list.splice(srcIdx,1);
   list.splice(destIdx,0,moved);
-
-  // Batch update sort_order
+  // For tasks, update the original array too
+  if(type==='task'){S.tasks[S.selChar]=S.tasks[S.selChar].filter(t=>t.parent_id).concat(list);}
+  if(type==='exptask'){S.expTasks[S.selAcc]=S.expTasks[S.selAcc].filter(t=>t.parent_id).concat(list);}
   await Promise.all(list.map((item,i)=>sb.from(table).update({sort_order:i}).eq('id',item.id)));
-
-  // Re-render
   if(type==='account')renderSidebar();
-  else if(type==='char'){renderTabs();}
+  else if(type==='char')renderTabs();
   else renderTaskArea();
 }
 
@@ -558,8 +606,7 @@ async function initApp(){
   document.getElementById('app').classList.add('active');
   sb=createClient(cfg.url,cfg.key);
   keepAlive();updateClock();setInterval(updateClock,30000);
-  buildIconPickers();
-  await loadAccounts();
+  buildIconPickers();await loadAccounts();
 }
 async function keepAlive(){const l=parseInt(localStorage.getItem('la_ping')||'0');if(Date.now()-l>6*86400000){try{await sb.from('accounts').select('id').limit(1);localStorage.setItem('la_ping',Date.now().toString());}catch(e){}}}
 function updateClock(){const k=new Date(Date.now()+9*3600000),p=n=>String(n).padStart(2,'0'),d=['일','월','화','수','목','금','토'];document.getElementById('header-time').textContent=`KST ${p(k.getUTCHours())}:${p(k.getUTCMinutes())} (${d[k.getUTCDay()]})`;}
@@ -580,27 +627,22 @@ function nextResetLabel(t){const r=getLastResetUTC(t.reset_type,t.reset_day),nex
 
 // ─── Accounts ───
 async function loadAccounts(){const{data}=await sb.from('accounts').select('*').order('sort_order').order('created_at');S.accounts=data||[];renderSidebar();if(S.accounts.length)await selectAccount(S.selAcc||S.accounts[0].id);}
-
 function renderSidebar(){
   const el=document.getElementById('account-list');
   if(!S.accounts.length){el.innerHTML='<div style="padding:16px;font-size:.8rem;color:var(--muted);text-align:center;">계정을 추가하세요</div>';return;}
-  el.innerHTML=S.accounts.map((a,idx)=>`
-    <div class="account-item ${a.id===S.selAcc?'active':''}"
-      draggable="true"
-      ondragstart="dndStart(event,'account',${idx})"
-      ondragend="dndEnd(event)"
-      ondragover="dndOver(event,'account',false)"
-      ondragleave="dndLeave(event,false)"
-      ondrop="dndDrop(event,'account',${idx})"
-      onclick="selectAccount('${a.id}')">
-      <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;">
-        <span class="dnd-handle" onclick="event.stopPropagation()">⠿</span>
-        <div><div class="account-name">${esc(a.name)}</div>${(S.characters[a.id]||[]).length?`<div class="account-meta">${S.characters[a.id].length}캐릭터</div>`:''}</div>
-      </div>
-      <button class="acc-del-btn" onclick="event.stopPropagation();deleteAccount('${a.id}')">✕</button>
-    </div>`).join('');
+  el.innerHTML=S.accounts.map((a,idx)=>`<div class="account-item ${a.id===S.selAcc?'active':''}"
+    draggable="true"
+    ondragstart="dndStart(event,'account',${idx})"
+    ondragend="dndEnd(event)"
+    ondragover="dndOver(event,'account',false)"
+    ondragleave="dndLeave(event,false)"
+    ondrop="dndDrop(event,'account',${idx})"
+    onclick="selectAccount('${a.id}')">
+    <span class="dnd-handle">⠿</span>
+    <div style="flex:1;min-width:0;"><div class="account-name">${esc(a.name)}</div>${(S.characters[a.id]||[]).length?`<div class="account-meta">${S.characters[a.id].length}캐릭터</div>`:''}</div>
+    <button class="acc-del-btn" onclick="event.stopPropagation();deleteAccount('${a.id}')">✕</button>
+  </div>`).join('');
 }
-
 async function createAccount(){const name=document.getElementById('acc-name').value.trim();if(!name)return;const{data,error}=await sb.from('accounts').insert({name,sort_order:S.accounts.length}).select().single();if(error){toast('❗ '+error.message);return;}S.accounts.push(data);closeModal('modal-account');renderSidebar();await selectAccount(data.id);toast('✅ 계정 추가됨');}
 async function deleteAccount(id){if(!confirm('계정과 모든 데이터가 삭제됩니다. 계속하시겠습니까?'))return;await sb.from('accounts').delete().eq('id',id);S.accounts=S.accounts.filter(a=>a.id!==id);delete S.characters[id];delete S.expTasks[id];if(S.selAcc===id){S.selAcc=null;S.selChar=null;document.getElementById('main-area').innerHTML='<div class="center-state"><div class="center-state-icon">🗡️</div><span style="color:var(--muted);font-size:.88rem">왼쪽에서 계정을 선택하세요</span></div>';}renderSidebar();toast('🗑️ 계정 삭제됨');}
 
@@ -611,19 +653,17 @@ async function selectAccount(accId){
   if(!S.expTasks[accId])await loadExpTasks(accId);
   renderMain();const chars=S.characters[accId];if(chars.length)await selectChar(chars[0].id);
 }
-
 function renderMain(){
   const main=document.getElementById('main-area'),chars=S.characters[S.selAcc]||[];
   if(!chars.length){const n=esc(S.accounts.find(a=>a.id===S.selAcc)?.name||'');main.innerHTML=`<div style="padding:12px 16px;background:var(--s2);border-bottom:1px solid var(--border);display:flex;align-items:center;"><span style="font-size:.85rem;color:var(--muted);">${n} 계정</span><button class="btn btn-sec" style="margin-left:auto;padding:6px 12px;font-size:.78rem;" onclick="openModal('modal-char')">+ 캐릭터 추가</button></div><div class="center-state"><div class="center-state-icon">🧙</div><span style="color:var(--muted);font-size:.88rem">캐릭터를 추가하세요</span></div>`;return;}
   main.innerHTML=`<div class="char-tabs-wrap" id="char-tabs"></div><div class="task-area" id="task-area"><div class="loading-row"><div class="spinner"></div> 불러오는 중...</div></div>`;
   renderTabs();
 }
-
 function renderTabs(){
   const el=document.getElementById('char-tabs');if(!el)return;
   const chars=S.characters[S.selAcc]||[];
   el.innerHTML=chars.map((c,idx)=>{
-    const ct=S.tasks[c.id]||[],done=ct.filter(t=>isEffDone(t)).length,tot=ct.length,pct=tot?Math.round(done/tot*100):0;
+    const ct=(S.tasks[c.id]||[]).filter(t=>!t.parent_id),done=ct.filter(t=>isEffDone(t)).length,tot=ct.length,pct=tot?Math.round(done/tot*100):0;
     return `<div class="char-tab ${c.id===S.selChar?'active':''}"
       draggable="true"
       ondragstart="dndStart(event,'char',${idx})"
@@ -632,15 +672,44 @@ function renderTabs(){
       ondragleave="dndLeave(event,true)"
       ondrop="dndDrop(event,'char',${idx})"
       onclick="selectChar('${c.id}')">
-      <span class="dnd-handle" onclick="event.stopPropagation()">⠿</span>
-      <div><div style="font-size:.85rem;font-weight:500;">${esc(c.name)}</div>${c.item_level?`<div class="char-tab-ilvl">Lv.${c.item_level}</div>`:''}${tot?`<div class="char-tab-prog"><div class="char-tab-prog-bar" style="width:${pct}%"></div></div>`:''}</div>
-      <button class="char-tab-del" onclick="event.stopPropagation();deleteChar('${c.id}')">✕</button>
+      <span class="dnd-handle">⠿</span>
+      <div style="min-width:0;">
+        <div class="char-tab-name">${esc(c.name)}</div>
+        ${c.item_level?`<div class="char-tab-ilvl">Lv.${c.item_level}</div>`:''}
+        ${tot?`<div class="char-tab-prog"><div class="char-tab-prog-bar" style="width:${pct}%"></div></div>`:''}
+      </div>
+      <div class="char-tab-btns">
+        <button class="char-tab-btn char-tab-btn-edit" onclick="event.stopPropagation();openEditCharModal('${c.id}')" title="수정">✏️</button>
+        <button class="char-tab-btn char-tab-btn-del" onclick="event.stopPropagation();deleteChar('${c.id}')" title="삭제">✕</button>
+      </div>
     </div>`;
   }).join('')+`<div class="tab-add-btn" onclick="openModal('modal-char')">＋ 추가</div>`;
 }
-
 async function selectChar(charId){S.selChar=charId;renderTabs();await Promise.all([loadTasks(charId),loadCurrencies(charId),loadCustomPopups(charId)]);renderTaskArea();}
 async function createChar(){const name=document.getElementById('char-name').value.trim(),cls=document.getElementById('char-class').value.trim(),ilvl=parseFloat(document.getElementById('char-ilvl').value)||0;if(!name){toast('❗ 캐릭터명을 입력하세요');return;}const{data,error}=await sb.from('characters').insert({account_id:S.selAcc,name,class_name:cls,item_level:ilvl,sort_order:(S.characters[S.selAcc]||[]).length}).select().single();if(error){toast('❗ '+error.message);return;}if(!S.characters[S.selAcc])S.characters[S.selAcc]=[];S.characters[S.selAcc].push(data);closeModal('modal-char');renderMain();await selectChar(data.id);toast('✅ 캐릭터 추가됨');}
+
+// ─── Character Edit (NEW) ───
+function openEditCharModal(charId){
+  const char=(S.characters[S.selAcc]||[]).find(c=>c.id===charId);if(!char)return;
+  document.getElementById('edit-char-id').value=charId;
+  document.getElementById('edit-char-name').value=char.name;
+  document.getElementById('edit-char-class').value=char.class_name||'';
+  document.getElementById('edit-char-ilvl').value=char.item_level||'';
+  openModal('modal-edit-char');setTimeout(()=>document.getElementById('edit-char-name').focus(),80);
+}
+async function updateChar(){
+  const id=document.getElementById('edit-char-id').value;
+  const name=document.getElementById('edit-char-name').value.trim();
+  const cls=document.getElementById('edit-char-class').value.trim();
+  const ilvl=parseFloat(document.getElementById('edit-char-ilvl').value)||0;
+  if(!name){toast('❗ 캐릭터명을 입력하세요');return;}
+  const{error}=await sb.from('characters').update({name,class_name:cls,item_level:ilvl}).eq('id',id);
+  if(error){toast('❗ '+error.message);return;}
+  const char=(S.characters[S.selAcc]||[]).find(c=>c.id===id);
+  if(char){char.name=name;char.class_name=cls;char.item_level=ilvl;}
+  closeModal('modal-edit-char');renderTabs();if(S.selChar===id)renderTaskArea();toast('✅ 캐릭터 수정됨');
+}
+
 async function deleteChar(id){if(!confirm('캐릭터와 모든 데이터가 삭제됩니다. 계속하시겠습니까?'))return;await sb.from('characters').delete().eq('id',id);S.characters[S.selAcc]=(S.characters[S.selAcc]||[]).filter(c=>c.id!==id);delete S.tasks[id];delete S.currencies[id];delete S.customPopups[id];if(S.selChar===id)S.selChar=null;renderMain();const chars=S.characters[S.selAcc]||[];if(chars.length)await selectChar(chars[0].id);toast('🗑️ 캐릭터 삭제됨');}
 
 // ─── Expedition Tasks ───
@@ -650,6 +719,41 @@ function toggleExpCollapse(){S.expCollapsed=!S.expCollapsed;renderTaskArea();}
 // ─── Character Tasks ───
 async function loadTasks(charId){const{data}=await sb.from('tasks').select('*').eq('character_id',charId).order('sort_order').order('created_at');S.tasks[charId]=data||[];await autoReset(S.tasks[charId],'tasks');}
 async function autoReset(list,table){const r=list.filter(t=>t.is_completed&&!isEffDone(t));if(!r.length)return;await sb.from(table).update({is_completed:false,last_completed_at:null,count_current:0}).in('id',r.map(t=>t.id));r.forEach(t=>{t.is_completed=false;t.last_completed_at=null;t.count_current=0;});}
+
+// ─── Parent-Child Logic ───
+function buildTaskTree(list){
+  const roots=list.filter(t=>!t.parent_id).sort((a,b)=>a.sort_order-b.sort_order);
+  const childrenOf={};
+  list.filter(t=>t.parent_id).forEach(t=>{if(!childrenOf[t.parent_id])childrenOf[t.parent_id]=[];childrenOf[t.parent_id].push(t);});
+  Object.values(childrenOf).forEach(arr=>arr.sort((a,b)=>a.sort_order-b.sort_order));
+  return{roots,childrenOf};
+}
+
+async function checkParentStatus(parentId,isExp){
+  const list=getList(isExp);
+  const parent=list.find(t=>t.id===parentId);if(!parent)return;
+  const children=list.filter(t=>t.parent_id===parentId);if(!children.length)return;
+  const allDone=children.every(t=>isEffDone(t));
+  const parentDone=isEffDone(parent);
+  if(allDone===parentDone)return;
+  const now=new Date().toISOString();
+  const up=allDone?{is_completed:true,last_completed_at:now}:{is_completed:false,last_completed_at:null};
+  await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',parentId);
+  Object.assign(parent,up);
+}
+
+function toggleParentCollapse(taskId){
+  if(S.collapsedTasks.has(taskId))S.collapsedTasks.delete(taskId);
+  else S.collapsedTasks.add(taskId);
+  renderTaskArea();
+}
+
+// ─── Hide Completed ───
+function toggleHideCompleted(){
+  S.hideCompleted=!S.hideCompleted;
+  localStorage.setItem('la_hide',S.hideCompleted?'1':'0');
+  renderTaskArea();
+}
 
 // ─── Currencies ───
 async function loadCurrencies(charId){const{data}=await sb.from('currencies').select('*').eq('character_id',charId).order('sort_order').order('created_at');S.currencies[charId]=data||[];}
@@ -670,7 +774,7 @@ function genId(){return 'b'+Date.now().toString(36)+Math.random().toString(36).s
 function addBlock(type){if(type==='text')S.editBlocks.push({id:genId(),type:'text',label:'',content:''});else if(type==='table')S.editBlocks.push({id:genId(),type:'table',label:'',headers:'항목,내용',rows:''});else S.editBlocks.push({id:genId(),type:'divider'});renderEditorBlocks();setTimeout(()=>{const c=document.getElementById('editor-block-list');if(c)c.lastElementChild?.scrollIntoView({behavior:'smooth'});},50);}
 function removeBlock(idx){S.editBlocks.splice(idx,1);renderEditorBlocks();}
 function moveBlock(idx,dir){const nb=idx+dir;if(nb<0||nb>=S.editBlocks.length)return;[S.editBlocks[idx],S.editBlocks[nb]]=[S.editBlocks[nb],S.editBlocks[idx]];renderEditorBlocks();}
-function renderEditorBlocks(){const el=document.getElementById('editor-block-list');if(!el)return;if(!S.editBlocks.length){el.innerHTML='<div style="padding:16px;text-align:center;color:var(--muted);font-size:.83rem;">아래에서 블록을 추가하세요</div>';return;}el.innerHTML=S.editBlocks.map((b,i)=>{const ctrl=`<button class="btn btn-icon" onclick="moveBlock(${i},-1)">↑</button><button class="btn btn-icon" onclick="moveBlock(${i},1)">↓</button><button class="btn btn-danger" onclick="removeBlock(${i})">🗑</button>`;if(b.type==='text')return`<div class="editor-block"><div class="editor-block-hd"><span class="editor-block-type">📝 텍스트</span>${ctrl}</div><div class="editor-block-body"><div class="form-group"><label class="form-label">블록 제목 (선택)</label><input class="form-input" value="${esc(b.label||'')}" lang="ko" inputmode="text" placeholder="예: 메모, 계획" onchange="S.editBlocks[${i}].label=this.value"></div><div class="form-group"><label class="form-label">내용</label><textarea class="form-input form-textarea" lang="ko" inputmode="text" placeholder="내용을 자유롭게 입력하세요..." onchange="S.editBlocks[${i}].content=this.value">${esc(b.content||'')}</textarea></div></div></div>`;if(b.type==='table')return`<div class="editor-block"><div class="editor-block-hd"><span class="editor-block-type">📊 표</span>${ctrl}</div><div class="editor-block-body"><div class="form-group"><label class="form-label">블록 제목 (선택)</label><input class="form-input" value="${esc(b.label||'')}" lang="ko" inputmode="text" placeholder="예: 스펙업 계획" onchange="S.editBlocks[${i}].label=this.value"></div><div class="form-group"><label class="form-label">열 이름 <span style="color:var(--dim)">(쉼표 구분)</span></label><input class="form-input" value="${esc(b.headers||'')}" lang="ko" inputmode="text" placeholder="파츠,목표,현재,비용" onchange="S.editBlocks[${i}].headers=this.value"></div><div class="form-group"><label class="form-label">데이터 <span style="color:var(--dim)">(한 줄에 한 행, 쉼표 구분)</span></label><textarea class="form-input form-textarea" lang="ko" inputmode="text" style="min-height:100px;" placeholder="무기,브레스,파괴,500G&#10;갑옷,타이머,행동,300G" onchange="S.editBlocks[${i}].rows=this.value">${esc(b.rows||'')}</textarea></div></div></div>`;return`<div class="editor-block"><div class="editor-block-hd"><span class="editor-block-type">➖ 구분선</span>${ctrl}</div></div>`;}).join('');}
+function renderEditorBlocks(){const el=document.getElementById('editor-block-list');if(!el)return;if(!S.editBlocks.length){el.innerHTML='<div style="padding:16px;text-align:center;color:var(--muted);font-size:.83rem;">아래에서 블록을 추가하세요</div>';return;}el.innerHTML=S.editBlocks.map((b,i)=>{const ctrl=`<button class="btn btn-icon" onclick="moveBlock(${i},-1)">↑</button><button class="btn btn-icon" onclick="moveBlock(${i},1)">↓</button><button class="btn btn-danger" onclick="removeBlock(${i})">🗑</button>`;if(b.type==='text')return`<div class="editor-block"><div class="editor-block-hd"><span class="editor-block-type">📝 텍스트</span>${ctrl}</div><div class="editor-block-body"><div class="form-group"><label class="form-label">블록 제목 (선택)</label><input class="form-input" value="${esc(b.label||'')}" lang="ko" inputmode="text" placeholder="예: 메모, 계획" onchange="S.editBlocks[${i}].label=this.value"></div><div class="form-group"><label class="form-label">내용</label><textarea class="form-input form-textarea" lang="ko" inputmode="text" placeholder="내용을 자유롭게 입력하세요..." onchange="S.editBlocks[${i}].content=this.value">${esc(b.content||'')}</textarea></div></div></div>`;if(b.type==='table')return`<div class="editor-block"><div class="editor-block-hd"><span class="editor-block-type">📊 표</span>${ctrl}</div><div class="editor-block-body"><div class="form-group"><label class="form-label">블록 제목 (선택)</label><input class="form-input" value="${esc(b.label||'')}" lang="ko" inputmode="text" onchange="S.editBlocks[${i}].label=this.value"></div><div class="form-group"><label class="form-label">열 이름 (쉼표 구분)</label><input class="form-input" value="${esc(b.headers||'')}" lang="ko" inputmode="text" placeholder="파츠,목표,현재,비용" onchange="S.editBlocks[${i}].headers=this.value"></div><div class="form-group"><label class="form-label">데이터 (한 줄=한 행, 쉼표 구분)</label><textarea class="form-input form-textarea" lang="ko" inputmode="text" style="min-height:100px;" placeholder="무기,브레스,파괴,500G&#10;갑옷,타이머,행동,300G" onchange="S.editBlocks[${i}].rows=this.value">${esc(b.rows||'')}</textarea></div></div></div>`;return`<div class="editor-block"><div class="editor-block-hd"><span class="editor-block-type">➖ 구분선</span>${ctrl}</div></div>`;}).join('');}
 async function savePopup(){S.editBlocks.forEach((b,i)=>{if(b.type==='text'){const ins=document.querySelectorAll(`#editor-block-list .editor-block:nth-child(${i+1}) input`),ta=document.querySelector(`#editor-block-list .editor-block:nth-child(${i+1}) textarea`);if(ins[0])b.label=ins[0].value;if(ta)b.content=ta.value;}else if(b.type==='table'){const ins=document.querySelectorAll(`#editor-block-list .editor-block:nth-child(${i+1}) input`),ta=document.querySelector(`#editor-block-list .editor-block:nth-child(${i+1}) textarea`);if(ins[0])b.label=ins[0].value;if(ins[1])b.headers=ins[1].value;if(ta)b.rows=ta.value;}});const title=document.getElementById('editor-title-input').value.trim(),icon=S.editorIcon;if(!title){toast('❗ 제목을 입력하세요');return;}const{error}=await sb.from('custom_popups').update({title,icon,content:S.editBlocks}).eq('id',S.editPopupId);if(error){toast('❗ '+error.message);return;}const p=(S.customPopups[S.selChar]||[]).find(x=>x.id===S.editPopupId);if(p){p.title=title;p.icon=icon;p.content=S.editBlocks;}closeModal('modal-popup-editor');renderTaskArea();toast('✅ 저장됨');}
 async function deleteCurrentPopup(){if(!confirm('팝업을 삭제하시겠습니까?'))return;await sb.from('custom_popups').delete().eq('id',S.editPopupId);S.customPopups[S.selChar]=(S.customPopups[S.selChar]||[]).filter(x=>x.id!==S.editPopupId);closeModal('modal-popup-editor');renderTaskArea();toast('🗑️ 팝업 삭제됨');}
 function renderPopupContent(blocks){if(!blocks||!blocks.length)return'<div class="popup-empty-msg">내용이 없습니다.<br>편집 버튼을 눌러 내용을 추가하세요.</div>';return blocks.map(b=>{if(b.type==='text')return`<div>${b.label?`<div class="block-label-hd">${esc(b.label)}</div>`:''}<div class="block-text-content">${esc(b.content||'')}</div></div>`;if(b.type==='table'){const hdrs=(b.headers||'').split(',').map(h=>h.trim()).filter(Boolean),rows=(b.rows||'').split('\n').map(r=>r.split(',').map(c=>c.trim())).filter(r=>r.some(c=>c));return`<div>${b.label?`<div class="block-label-hd">${esc(b.label)}</div>`:''}<div style="overflow-x:auto;"><table class="popup-table"><thead><tr>${hdrs.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${hdrs.map((_,ci)=>`<td>${esc(row[ci]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;}return`<hr class="block-divider">`;}).join('');}
@@ -678,44 +782,110 @@ function renderPopupContent(blocks){if(!blocks||!blocks.length)return'<div class
 // ─── Task Item HTML ───
 function getList(isExp){return isExp?(S.expTasks[S.selAcc]||[]):(S.tasks[S.selChar]||[]);}
 
-function taskItemHTML(t,isExp,idx){
-  const done=isEffDone(t),iE=isExp?'true':'false',hasCount=t.count_max!=null;
-  const dndType=isExp?'exptask':'task';
-  return `<div class="task-item ${done?'done':''}" id="ti-${t.id}"
+function subTaskHTML(t, isExp, sibIdx){
+  const done=isEffDone(t), iE=isExp?'true':'false', parentId=t.parent_id;
+  const hasCount=t.count_max!=null;
+  return `<div class="subtask-item ${done?'done':''}" id="ti-${t.id}"
     draggable="true"
-    ondragstart="dndStart(event,'${dndType}',${idx})"
+    ondragstart="dndStart(event,'stask_${parentId}',${sibIdx})"
     ondragend="dndEnd(event)"
-    ondragover="dndOver(event,'${dndType}',false)"
+    ondragover="dndOver(event,'stask_${parentId}',false)"
     ondragleave="dndLeave(event,false)"
-    ondrop="dndDrop(event,'${dndType}',${idx})">
+    ondrop="dndSubDrop(event,'${parentId}',${sibIdx},${iE})">
     <span class="dnd-handle">⠿</span>
     <div class="checkbox" onclick="toggleTask('${t.id}',${iE})"><span class="checkbox-icon">✓</span></div>
     <div class="task-body">
-      <div class="task-name-row">
-        <span class="task-name">${esc(t.name)}</span>
-        ${hasCount?`<div class="count-group"><input type="number" class="count-input" lang="ko" value="${t.count_current||0}" min="0" max="${t.count_max}" onclick="event.stopPropagation()" onchange="updateCount('${t.id}',this.value,${iE})"><span class="count-sep">/</span><span class="count-max-lbl">${t.count_max}</span></div>`:''}
-      </div>
-      <div class="task-badge-row">
-        <span class="badge ${t.reset_type==='daily'?'badge-daily':'badge-weekly'}">${resetLabel(t)}</span>
-        ${!done?`<span class="reset-info">${nextResetLabel(t)}</span>`:''}
-      </div>
+      <span class="task-name">${esc(t.name)}</span>
+      ${hasCount?`<div class="count-group" style="display:inline-flex;margin-left:8px;"><input type="number" class="count-input" lang="ko" value="${t.count_current||0}" min="0" max="${t.count_max}" onclick="event.stopPropagation()" onchange="updateCount('${t.id}',this.value,${iE})"><span class="count-sep">/</span><span class="count-max-lbl">${t.count_max}</span></div>`:''}
     </div>
     <div class="task-actions">
-      ${!isExp?`<button class="btn btn-ghost" onclick="openCopyTask('${t.id}')" title="복제">📋</button>`:''}
       <button class="btn btn-ghost" onclick="openEditTask('${t.id}',${iE})" title="편집">✏️</button>
       <button class="btn btn-danger" onclick="deleteTask('${t.id}',${iE})" title="삭제">🗑</button>
     </div>
   </div>`;
 }
 
-// ─── Task Area Render ───
+function rootTaskHTML(t, children, isExp, rootIdx){
+  const done=isEffDone(t), iE=isExp?'true':'false';
+  const hasChildren=children&&children.length>0;
+  const collapsed=S.collapsedTasks.has(t.id);
+  const dndType=isExp?'exptask':'task';
+  const hasCount=t.count_max!=null;
+  // If hideCompleted: skip done tasks (no children), or done parents (all children done)
+  if(S.hideCompleted&&done&&!hasChildren)return'';
+  if(S.hideCompleted&&done&&hasChildren)return''; // parent done = all children done
+  const visibleChildren=hasChildren?(S.hideCompleted?children.filter(c=>!isEffDone(c)):children):[];
+
+  let html=`<div class="task-group">
+    <div class="task-item ${done?'done':''} ${hasChildren?'is-parent':''}" id="ti-${t.id}"
+      draggable="true"
+      ondragstart="dndStart(event,'${dndType}',${rootIdx})"
+      ondragend="dndEnd(event)"
+      ondragover="dndOver(event,'${dndType}',false)"
+      ondragleave="dndLeave(event,false)"
+      ondrop="dndDrop(event,'${dndType}',${rootIdx})">
+      <span class="dnd-handle">⠿</span>
+      <div class="checkbox ${hasChildren?'no-click':''}" onclick="${hasChildren?`toast('하위 숙제를 체크하면 자동으로 완료됩니다')`:`toggleTask('${t.id}',${iE})`}">
+        <span class="checkbox-icon">✓</span>
+      </div>
+      <div class="task-body">
+        <div class="task-name-row">
+          <span class="task-name">${esc(t.name)}</span>
+          ${hasCount&&!hasChildren?`<div class="count-group"><input type="number" class="count-input" lang="ko" value="${t.count_current||0}" min="0" max="${t.count_max}" onclick="event.stopPropagation()" onchange="updateCount('${t.id}',this.value,${iE})"><span class="count-sep">/</span><span class="count-max-lbl">${t.count_max}</span></div>`:''}
+          ${hasChildren?`<span style="font-size:.7rem;color:var(--muted);margin-left:4px;">${children.filter(c=>isEffDone(c)).length}/${children.length}</span>`:''}
+        </div>
+        <div class="task-badge-row">
+          <span class="badge ${t.reset_type==='daily'?'badge-daily':'badge-weekly'}">${resetLabel(t)}</span>
+          ${!done?`<span class="reset-info">${nextResetLabel(t)}</span>`:''}
+        </div>
+      </div>
+      <div class="task-actions">
+        ${hasChildren?`<button class="expand-btn" onclick="toggleParentCollapse('${t.id}')">${collapsed?'▶':'▼'}</button>`:''}
+        ${!isExp?`<button class="btn btn-ghost" onclick="openCopyTask('${t.id}')" title="복제">📋</button>`:''}
+        <button class="btn btn-ghost" onclick="openEditTask('${t.id}',${iE})" title="편집">✏️</button>
+        <button class="btn btn-ghost" onclick="openAddSubTask('${t.id}',${iE})" title="하위 추가">⊕</button>
+        <button class="btn btn-danger" onclick="deleteTask('${t.id}',${iE})" title="삭제">🗑</button>
+      </div>
+    </div>`;
+
+  if(hasChildren&&!collapsed&&visibleChildren.length>0){
+    html+=`<div class="subtask-list">${visibleChildren.map((c,si)=>subTaskHTML(c,isExp,si)).join('')}</div>`;
+  }
+  html+=`</div>`;
+  return html;
+}
+
+// Subtask reorder DnD
+async function dndSubDrop(e,parentId,destIdx,isExp){
+  e.preventDefault();e.stopPropagation();
+  document.querySelectorAll('.dnd-over-v,.dnd-over-h,.dnd-dragging').forEach(el=>el.classList.remove('dnd-over-v','dnd-over-h','dnd-dragging'));
+  const srcType=_dnd.srcType;const srcIdx=_dnd.srcIdx;_dnd.srcType=null;_dnd.srcIdx=null;
+  if(!srcType||srcType!==`stask_${parentId}`||srcIdx===null||srcIdx===destIdx)return;
+  const list=getList(isExp).filter(t=>t.parent_id===parentId);
+  const[moved]=list.splice(srcIdx,1);list.splice(destIdx,0,moved);
+  await Promise.all(list.map((t,i)=>sb.from(isExp?'expedition_tasks':'tasks').update({sort_order:i}).eq('id',t.id)));
+  // Update in main array
+  const mainList=getList(isExp);list.forEach(t=>{const idx=mainList.findIndex(x=>x.id===t.id);if(idx>=0)mainList[idx]=t;});
+  renderTaskArea();
+}
+
+// ─── Render Task Area ───
 function renderTaskArea(){
   const el=document.getElementById('task-area');if(!el||!S.selChar)return;
   const char=(S.characters[S.selAcc]||[]).find(c=>c.id===S.selChar);
-  const ct=S.tasks[S.selChar]||[],done=ct.filter(t=>isEffDone(t)).length,tot=ct.length,pct=tot?Math.round(done/tot*100):0;
-  const et=S.expTasks[S.selAcc]||[],edone=et.filter(t=>isEffDone(t)).length,etot=et.length,epct=etot?Math.round(edone/etot*100):0;
+  const allTasks=S.tasks[S.selChar]||[];
+  const{roots:taskRoots,childrenOf:taskChildren}=buildTaskTree(allTasks);
+  const done=taskRoots.filter(t=>isEffDone(t)).length,tot=taskRoots.length,pct=tot?Math.round(done/tot*100):0;
+  const et=S.expTasks[S.selAcc]||[];
+  const{roots:expRoots,childrenOf:expChildren}=buildTaskTree(et);
+  const edone=expRoots.filter(t=>isEffDone(t)).length,etot=expRoots.length,epct=etot?Math.round(edone/etot*100):0;
   const currencies=S.currencies[S.selChar]||[],popups=S.customPopups[S.selChar]||[];
   const col=S.expCollapsed,accName=esc(S.accounts.find(a=>a.id===S.selAcc)?.name||'');
+  const hideDoneTxt=S.hideCompleted?'완료 보이기':'완료 숨기기';
+
+  const taskListHTML=taskRoots.map((t,i)=>rootTaskHTML(t,taskChildren[t.id]||[],false,i)).join('');
+  const expListHTML=expRoots.map((t,i)=>rootTaskHTML(t,expChildren[t.id]||[],true,i)).join('');
+  const visibleTaskCount=taskRoots.filter(t=>!(S.hideCompleted&&isEffDone(t))).length;
 
   el.innerHTML=`
   <div class="exp-section">
@@ -726,47 +896,20 @@ function renderTaskArea(){
       ${etot?`<div class="exp-prog-wrap"><div class="exp-prog-bar" style="width:${epct}%"></div></div>`:''}
       <button class="btn btn-purple" style="margin-left:auto;font-size:.74rem;padding:4px 10px;" onclick="event.stopPropagation();openAddTask(true)">+ 추가</button>
     </div>
-    ${!col?`<div class="exp-body">${etot===0?'<div class="exp-empty">원정대 숙제가 없습니다</div>':`<div class="tasks-list">${et.map((t,i)=>taskItemHTML(t,true,i)).join('')}</div>`}</div>`:''}
+    ${!col?`<div class="exp-body">${etot===0?'<div class="exp-empty">원정대 숙제가 없습니다</div>':`<div class="tasks-list">${expListHTML||'<div class="exp-empty">모든 숙제가 완료됐습니다 ✓</div>'}</div>`}</div>`:''}
   </div>
 
   <div class="mini-section">
-    <div class="mini-section-header">
-      <span class="mini-section-title">💰 재화 현황</span>
-      <button class="btn btn-teal" style="margin-left:auto;font-size:.74rem;padding:4px 10px;" onclick="openAddCurrencyModal()">+ 재화 추가</button>
-    </div>
+    <div class="mini-section-header"><span class="mini-section-title">💰 재화 현황</span><button class="btn btn-teal" style="margin-left:auto;font-size:.74rem;padding:4px 10px;" onclick="openAddCurrencyModal()">+ 재화 추가</button></div>
     <div class="mini-section-body">
-      ${currencies.length===0?'<div class="curr-empty">재화를 추가하면 여기에 표시됩니다</div>':`<div class="currency-chips">${currencies.map((c,idx)=>`<div class="currency-chip" id="curr-chip-${c.id}"
-          draggable="true"
-          ondragstart="dndStart(event,'curr',${idx})"
-          ondragend="dndEnd(event)"
-          ondragover="dndOver(event,'curr',true)"
-          ondragleave="dndLeave(event,true)"
-          ondrop="dndDrop(event,'curr',${idx})"
-          onclick="openCurrPopup('${c.id}')">
-          <span class="curr-chip-icon">${c.icon}</span>
-          <span class="curr-chip-name">${esc(c.name)}</span>
-          <span class="curr-chip-amount">${c.amount.toLocaleString()}</span>
-        </div>`).join('')}</div>`}
+      ${currencies.length===0?'<div class="curr-empty">재화를 추가하면 여기에 표시됩니다</div>':`<div class="currency-chips">${currencies.map((c,idx)=>`<div class="currency-chip" id="curr-chip-${c.id}" draggable="true" ondragstart="dndStart(event,'curr',${idx})" ondragend="dndEnd(event)" ondragover="dndOver(event,'curr',true)" ondragleave="dndLeave(event,true)" ondrop="dndDrop(event,'curr',${idx})" onclick="openCurrPopup('${c.id}')"><span class="curr-chip-icon">${c.icon}</span><span class="curr-chip-name">${esc(c.name)}</span><span class="curr-chip-amount">${c.amount.toLocaleString()}</span></div>`).join('')}</div>`}
     </div>
   </div>
 
   <div class="mini-section popup-btn-section">
-    <div class="mini-section-header">
-      <span class="mini-section-title">📋 커스텀 노트</span>
-      <button class="btn btn-orange" style="margin-left:auto;font-size:.74rem;padding:4px 10px;" onclick="openAddPopupModal()">+ 팝업 생성</button>
-    </div>
+    <div class="mini-section-header"><span class="mini-section-title">📋 커스텀 노트</span><button class="btn btn-orange" style="margin-left:auto;font-size:.74rem;padding:4px 10px;" onclick="openAddPopupModal()">+ 팝업 생성</button></div>
     <div class="mini-section-body">
-      ${popups.length===0?'<div class="no-popup-btns">팝업 생성 버튼으로 스펙업 계획, 재화 계획 등을 만들어보세요</div>':`<div class="popup-buttons-row">${popups.map((p,idx)=>`<div class="popup-btn-item"
-          draggable="true"
-          ondragstart="dndStart(event,'popup',${idx})"
-          ondragend="dndEnd(event)"
-          ondragover="dndOver(event,'popup',true)"
-          ondragleave="dndLeave(event,true)"
-          ondrop="dndDrop(event,'popup',${idx})"
-          onclick="openPopupViewer('${p.id}')">
-          <span class="popup-btn-icon">${p.icon}</span>
-          <span class="popup-btn-label">${esc(p.title)}</span>
-        </div>`).join('')}</div>`}
+      ${popups.length===0?'<div class="no-popup-btns">팝업 생성 버튼으로 스펙업 계획, 재화 계획 등을 만들어보세요</div>':`<div class="popup-buttons-row">${popups.map((p,idx)=>`<div class="popup-btn-item" draggable="true" ondragstart="dndStart(event,'popup',${idx})" ondragend="dndEnd(event)" ondragover="dndOver(event,'popup',true)" ondragleave="dndLeave(event,true)" ondrop="dndDrop(event,'popup',${idx})" onclick="openPopupViewer('${p.id}')"><span class="popup-btn-icon">${p.icon}</span><span class="popup-btn-label">${esc(p.title)}</span></div>`).join('')}</div>`}
     </div>
   </div>
 
@@ -774,29 +917,161 @@ function renderTaskArea(){
     <div class="char-section-header">
       <span class="char-section-title">${esc(char?.name||'')}의 숙제</span>
       ${char?.class_name?`<span class="char-section-class">${esc(char.class_name)}</span>`:''}
-      <span class="task-count-label" style="margin-left:auto;">${done} / ${tot} 완료</span>
+      <span style="font-size:.78rem;color:var(--muted);margin-left:auto;">${done} / ${tot} 완료</span>
+      <button class="hide-done-btn ${S.hideCompleted?'active':''}" onclick="toggleHideCompleted()">${hideDoneTxt}</button>
       <button class="btn btn-gold" style="font-size:.78rem;padding:6px 13px;" onclick="openAddTask(false)">＋ 숙제 추가</button>
     </div>
     ${tot>0?`<div class="global-prog-wrap"><div class="global-prog-bar" style="width:${pct}%"></div></div><div class="prog-label">${pct}% 완료</div>`:''}
-    ${tot===0?`<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">등록된 숙제가 없습니다<br>위의 <b>＋ 숙제 추가</b> 버튼으로 추가하세요</div></div>`:`<div class="section-divider">숙제 목록</div><div class="tasks-list">${ct.map((t,i)=>taskItemHTML(t,false,i)).join('')}</div>`}
+    ${tot===0?`<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">등록된 숙제가 없습니다<br><b>＋ 숙제 추가</b> 버튼으로 추가하세요</div></div>`:`<div class="section-divider">숙제 목록</div><div class="tasks-list">${taskListHTML||`<div style="text-align:center;padding:20px;color:var(--muted);font-size:.85rem;">✓ 모든 숙제가 완료됐습니다</div>`}</div>`}
   </div>`;
 }
 
 // ─── Toggle & Count ───
-async function toggleTask(taskId,isExp){const list=getList(isExp),t=list.find(x=>x.id===taskId);if(!t)return;const nowDone=!isEffDone(t),now=new Date().toISOString();const up={is_completed:nowDone,last_completed_at:nowDone?now:null};if(t.count_max!=null)up.count_current=nowDone?t.count_max:0;await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',taskId);Object.assign(t,up);renderTaskArea();renderTabs();}
-async function updateCount(taskId,rawVal,isExp){const list=getList(isExp),t=list.find(x=>x.id===taskId);if(!t||t.count_max==null)return;const count=Math.max(0,Math.min(parseInt(rawVal)||0,t.count_max)),isDone=count>=t.count_max,now=new Date().toISOString();const up={count_current:count,is_completed:isDone,last_completed_at:isDone?now:null};await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',taskId);Object.assign(t,up);const el=document.getElementById('ti-'+taskId);if(el){el.classList.toggle('done',isDone);const icon=el.querySelector('.checkbox-icon');if(icon)icon.style.opacity=isDone?'1':'0';const cb=el.querySelector('.checkbox');if(cb){cb.style.background=isDone?'var(--green)':'';cb.style.borderColor=isDone?'var(--green)':'';}const nm=el.querySelector('.task-name');if(nm)nm.style.textDecoration=isDone?'line-through':'';const inp=el.querySelector('.count-input');if(inp&&document.activeElement!==inp)inp.value=count;}renderTabs();}
+async function toggleTask(taskId,isExp){
+  const list=getList(isExp),t=list.find(x=>x.id===taskId);if(!t)return;
+  const nowDone=!isEffDone(t),now=new Date().toISOString();
+  const up={is_completed:nowDone,last_completed_at:nowDone?now:null};
+  if(t.count_max!=null)up.count_current=nowDone?t.count_max:0;
+  await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',taskId);
+  Object.assign(t,up);
+  if(t.parent_id)await checkParentStatus(t.parent_id,isExp);
+  renderTaskArea();renderTabs();
+}
+async function updateCount(taskId,rawVal,isExp){
+  const list=getList(isExp),t=list.find(x=>x.id===taskId);if(!t||t.count_max==null)return;
+  const count=Math.max(0,Math.min(parseInt(rawVal)||0,t.count_max)),isDone=count>=t.count_max,now=new Date().toISOString();
+  const up={count_current:count,is_completed:isDone,last_completed_at:isDone?now:null};
+  await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',taskId);
+  Object.assign(t,up);
+  if(t.parent_id)await checkParentStatus(t.parent_id,isExp);
+  const el=document.getElementById('ti-'+taskId);
+  if(el){el.classList.toggle('done',isDone);const icon=el.querySelector('.checkbox-icon');if(icon)icon.style.opacity=isDone?'1':'0';const cb=el.querySelector('.checkbox');if(cb){cb.style.background=isDone?'var(--green)':'';cb.style.borderColor=isDone?'var(--green)':'';}const nm=el.querySelector('.task-name');if(nm)nm.style.textDecoration=isDone?'line-through':'';const inp=el.querySelector('.count-input');if(inp&&document.activeElement!==inp)inp.value=count;}
+  renderTabs();
+}
 
 // ─── Task CRUD ───
-function openAddTask(isExp=false){const isE=Boolean(isExp);document.getElementById('task-modal-title').textContent=isE?'원정대 숙제 추가':'숙제 추가';document.getElementById('task-modal-title').className=isE?'modal-title purple':'modal-title';document.getElementById('modal-task-box').className=isE?'modal modal-purple':'modal';document.getElementById('task-submit-btn').textContent='추가';document.getElementById('task-name').value='';document.getElementById('task-reset').value='weekly';document.getElementById('task-day').value='2';document.getElementById('day-group').style.display='block';document.getElementById('task-edit-id').value='';document.getElementById('task-is-exp').value=isE?'1':'0';document.getElementById('has-count').checked=false;document.getElementById('count-max-row').style.display='none';document.getElementById('task-count-max').value='';openModal('modal-task');setTimeout(()=>document.getElementById('task-name').focus(),80);}
-function openEditTask(taskId,isExp){const list=getList(isExp),t=list.find(x=>x.id===taskId);if(!t)return;const isE=Boolean(isExp);document.getElementById('task-modal-title').textContent=isE?'원정대 숙제 편집':'숙제 편집';document.getElementById('task-modal-title').className=isE?'modal-title purple':'modal-title';document.getElementById('modal-task-box').className=isE?'modal modal-purple':'modal';document.getElementById('task-submit-btn').textContent='저장';document.getElementById('task-name').value=t.name;document.getElementById('task-reset').value=t.reset_type;document.getElementById('task-day').value=String(t.reset_day);document.getElementById('day-group').style.display=t.reset_type==='weekly'?'block':'none';document.getElementById('task-edit-id').value=taskId;document.getElementById('task-is-exp').value=isE?'1':'0';const hc=t.count_max!=null;document.getElementById('has-count').checked=hc;document.getElementById('count-max-row').style.display=hc?'flex':'none';document.getElementById('task-count-max').value=hc?t.count_max:'';openModal('modal-task');}
+function openAddTask(isExp=false,parentId=''){
+  const isE=Boolean(isExp),hasParent=!!parentId;
+  let title=isE?'원정대 숙제 추가':'숙제 추가';
+  if(hasParent)title='하위 숙제 추가';
+  document.getElementById('task-modal-title').textContent=title;
+  document.getElementById('task-modal-title').className=isE?'modal-title purple':'modal-title';
+  document.getElementById('modal-task-box').className=isE?'modal modal-purple':'modal';
+  document.getElementById('task-submit-btn').textContent='추가';
+  document.getElementById('task-name').value='';
+  document.getElementById('task-reset').value='weekly';
+  document.getElementById('task-day').value='3';
+  document.getElementById('day-group').style.display='block';
+  document.getElementById('task-edit-id').value='';
+  document.getElementById('task-is-exp').value=isE?'1':'0';
+  document.getElementById('task-parent-id').value=parentId;
+  document.getElementById('has-count').checked=false;
+  document.getElementById('count-max-row').style.display='none';
+  document.getElementById('task-count-max').value='';
+  // If sub-task, inherit parent's reset schedule and hide settings
+  if(hasParent){
+    const parent=getList(isE).find(t=>t.id===parentId);
+    if(parent){document.getElementById('task-reset').value=parent.reset_type;document.getElementById('task-day').value=String(parent.reset_day);}
+    document.getElementById('count-toggle-wrap').style.display='none';
+    document.querySelector('#modal-task .form-row').style.display='none';
+  } else {
+    document.getElementById('count-toggle-wrap').style.display='block';
+    document.querySelector('#modal-task .form-row').style.display='flex';
+  }
+  openModal('modal-task');setTimeout(()=>document.getElementById('task-name').focus(),80);
+}
+function openAddSubTask(parentId,isExp){openAddTask(isExp,parentId);}
+function openEditTask(taskId,isExp){
+  const list=getList(isExp),t=list.find(x=>x.id===taskId);if(!t)return;
+  const isE=Boolean(isExp);
+  document.getElementById('task-modal-title').textContent=isE?'원정대 숙제 편집':'숙제 편집';
+  document.getElementById('task-modal-title').className=isE?'modal-title purple':'modal-title';
+  document.getElementById('modal-task-box').className=isE?'modal modal-purple':'modal';
+  document.getElementById('task-submit-btn').textContent='저장';
+  document.getElementById('task-name').value=t.name;
+  document.getElementById('task-reset').value=t.reset_type;
+  document.getElementById('task-day').value=String(t.reset_day);
+  document.getElementById('day-group').style.display=t.reset_type==='weekly'?'block':'none';
+  document.getElementById('task-edit-id').value=taskId;
+  document.getElementById('task-is-exp').value=isE?'1':'0';
+  document.getElementById('task-parent-id').value=t.parent_id||'';
+  const hc=t.count_max!=null;
+  document.getElementById('has-count').checked=hc;
+  document.getElementById('count-max-row').style.display=hc?'flex':'none';
+  document.getElementById('task-count-max').value=hc?t.count_max:'';
+  document.getElementById('count-toggle-wrap').style.display='block';
+  document.querySelector('#modal-task .form-row').style.display='flex';
+  openModal('modal-task');
+}
 function toggleHasCount(){const cb=document.getElementById('has-count');cb.checked=!cb.checked;document.getElementById('count-max-row').style.display=cb.checked?'flex':'none';if(cb.checked)setTimeout(()=>document.getElementById('task-count-max').focus(),50);}
 function onResetTypeChange(){document.getElementById('day-group').style.display=document.getElementById('task-reset').value==='weekly'?'block':'none';}
-async function submitTask(){const name=document.getElementById('task-name').value.trim(),resetType=document.getElementById('task-reset').value,resetDay=parseInt(document.getElementById('task-day').value),editId=document.getElementById('task-edit-id').value,isExp=document.getElementById('task-is-exp').value==='1',hc=document.getElementById('has-count').checked,countMax=hc?(parseInt(document.getElementById('task-count-max').value)||null):null;if(!name){toast('❗ 숙제명을 입력하세요');return;}if(hc&&!countMax){toast('❗ 최대 수량을 입력하세요');return;}const rec={name,reset_type:resetType,reset_day:resetDay,count_max:countMax};const table=isExp?'expedition_tasks':'tasks';if(editId){const{error}=await sb.from(table).update(rec).eq('id',editId);if(error){toast('❗ '+error.message);return;}const t=getList(isExp).find(x=>x.id===editId);if(t)Object.assign(t,rec);toast('✅ 수정됨');}else{if(isExp){rec.account_id=S.selAcc;rec.sort_order=(S.expTasks[S.selAcc]||[]).length;}else{rec.character_id=S.selChar;rec.sort_order=(S.tasks[S.selChar]||[]).length;}const{data,error}=await sb.from(table).insert(rec).select().single();if(error){toast('❗ '+error.message);return;}if(isExp){if(!S.expTasks[S.selAcc])S.expTasks[S.selAcc]=[];S.expTasks[S.selAcc].push(data);}else{if(!S.tasks[S.selChar])S.tasks[S.selChar]=[];S.tasks[S.selChar].push(data);}toast('✅ 숙제 추가됨');}closeModal('modal-task');renderTaskArea();renderTabs();}
-async function deleteTask(taskId,isExp){if(!confirm('숙제를 삭제하시겠습니까?'))return;await sb.from(isExp?'expedition_tasks':'tasks').delete().eq('id',taskId);if(isExp)S.expTasks[S.selAcc]=(S.expTasks[S.selAcc]||[]).filter(t=>t.id!==taskId);else S.tasks[S.selChar]=(S.tasks[S.selChar]||[]).filter(t=>t.id!==taskId);renderTaskArea();renderTabs();toast('🗑️ 삭제됨');}
+async function submitTask(){
+  const name=document.getElementById('task-name').value.trim(),resetType=document.getElementById('task-reset').value,resetDay=parseInt(document.getElementById('task-day').value),editId=document.getElementById('task-edit-id').value,isExp=document.getElementById('task-is-exp').value==='1',parentId=document.getElementById('task-parent-id').value||null,hc=document.getElementById('has-count').checked,countMax=hc?(parseInt(document.getElementById('task-count-max').value)||null):null;
+  if(!name){toast('❗ 숙제명을 입력하세요');return;}
+  const rec={name,reset_type:resetType,reset_day:resetDay,count_max:countMax};
+  const table=isExp?'expedition_tasks':'tasks';
+  if(editId){const{error}=await sb.from(table).update(rec).eq('id',editId);if(error){toast('❗ '+error.message);return;}const t=getList(isExp).find(x=>x.id===editId);if(t)Object.assign(t,rec);toast('✅ 수정됨');}
+  else{
+    if(isExp){rec.account_id=S.selAcc;}else{rec.character_id=S.selChar;}
+    if(parentId){rec.parent_id=parentId;rec.sort_order=getList(isExp).filter(t=>t.parent_id===parentId).length;}
+    else{rec.sort_order=getList(isExp).filter(t=>!t.parent_id).length;}
+    const{data,error}=await sb.from(table).insert(rec).select().single();if(error){toast('❗ '+error.message);return;}
+    if(isExp){if(!S.expTasks[S.selAcc])S.expTasks[S.selAcc]=[];S.expTasks[S.selAcc].push(data);}
+    else{if(!S.tasks[S.selChar])S.tasks[S.selChar]=[];S.tasks[S.selChar].push(data);}
+    toast('✅ 숙제 추가됨');
+  }
+  closeModal('modal-task');renderTaskArea();renderTabs();
+}
+async function deleteTask(taskId,isExp){
+  if(!confirm('숙제를 삭제하시겠습니까? (하위 숙제도 함께 삭제됩니다)'))return;
+  await sb.from(isExp?'expedition_tasks':'tasks').delete().eq('id',taskId);
+  if(isExp)S.expTasks[S.selAcc]=(S.expTasks[S.selAcc]||[]).filter(t=>t.id!==taskId&&t.parent_id!==taskId);
+  else S.tasks[S.selChar]=(S.tasks[S.selChar]||[]).filter(t=>t.id!==taskId&&t.parent_id!==taskId);
+  renderTaskArea();renderTabs();toast('🗑️ 삭제됨');
+}
 
-// ─── Copy Task ───
-function openCopyTask(taskId){S.copyTaskId=taskId;const t=(S.tasks[S.selChar]||[]).find(x=>x.id===taskId);document.getElementById('copy-task-label').textContent=`"${t?.name}" 을(를) 복제합니다`;const chars=(S.characters[S.selAcc]||[]).filter(c=>c.id!==S.selChar);const el=document.getElementById('copy-char-list');if(!chars.length){el.innerHTML='<div style="padding:14px;color:var(--muted);font-size:.83rem;text-align:center;">복제할 다른 캐릭터가 없습니다</div>';}else{el.innerHTML=chars.map(c=>`<div class="copy-item"><input type="checkbox" id="cc-${c.id}" value="${c.id}"><label for="cc-${c.id}">${esc(c.name)}</label><span class="ci-meta">${c.class_name?esc(c.class_name):''}${c.item_level?' · Lv.'+c.item_level:''}</span></div>`).join('');}openModal('modal-copy');}
-async function executeCopy(){const checked=[...document.querySelectorAll('#copy-char-list input:checked')];if(!checked.length){toast('❗ 캐릭터를 선택하세요');return;}const src=(S.tasks[S.selChar]||[]).find(t=>t.id===S.copyTaskId);if(!src)return;const inserts=checked.map(cb=>({character_id:cb.value,name:src.name,reset_type:src.reset_type,reset_day:src.reset_day,count_max:src.count_max,sort_order:(S.tasks[cb.value]||[]).length}));const{data,error}=await sb.from('tasks').insert(inserts).select();if(error){toast('❗ '+error.message);return;}(data||[]).forEach(t=>{if(!S.tasks[t.character_id])S.tasks[t.character_id]=[];S.tasks[t.character_id].push(t);});closeModal('modal-copy');renderTabs();toast(`✅ ${checked.length}개 캐릭터에 복제 완료`);}
+// ─── Cross-account Copy ───
+async function ensureAllCharsLoaded(){
+  await Promise.all(S.accounts.map(async acc=>{
+    if(!S.characters[acc.id]){const{data}=await sb.from('characters').select('*').eq('account_id',acc.id).order('sort_order').order('created_at');S.characters[acc.id]=data||[];}
+  }));
+}
+async function openCopyTask(taskId){
+  S.copyTaskId=taskId;
+  const t=(S.tasks[S.selChar]||[]).find(x=>x.id===taskId);
+  document.getElementById('copy-task-label').textContent=`"${t?.name}" 을(를) 복제합니다`;
+  await ensureAllCharsLoaded();
+  let html='';
+  for(const acc of S.accounts){
+    const chars=(S.characters[acc.id]||[]).filter(c=>c.id!==S.selChar);
+    if(!chars.length)continue;
+    html+=`<div class="copy-acc-header">${esc(acc.name)}</div>`;
+    html+=chars.map(c=>`<div class="copy-item"><input type="checkbox" id="cc-${c.id}" value="${c.id}"><label for="cc-${c.id}">${esc(c.name)}</label><span class="ci-meta">${c.class_name?esc(c.class_name):''}${c.item_level?' · Lv.'+c.item_level:''}</span></div>`).join('');
+  }
+  document.getElementById('copy-char-list').innerHTML=html||'<div style="padding:14px;color:var(--muted);font-size:.83rem;text-align:center;">복제할 다른 캐릭터가 없습니다</div>';
+  openModal('modal-copy');
+}
+async function executeCopy(){
+  const checked=[...document.querySelectorAll('#copy-char-list input:checked')];if(!checked.length){toast('❗ 캐릭터를 선택하세요');return;}
+  const src=(S.tasks[S.selChar]||[]).find(t=>t.id===S.copyTaskId);if(!src)return;
+  const srcChildren=(S.tasks[S.selChar]||[]).filter(t=>t.parent_id===S.copyTaskId);
+  let cnt=0;
+  for(const cb of checked){
+    const charId=cb.value;
+    if(!S.tasks[charId])S.tasks[charId]=[];
+    const rootCnt=S.tasks[charId].filter(t=>!t.parent_id).length;
+    const{data:pd,error}=await sb.from('tasks').insert({character_id:charId,name:src.name,reset_type:src.reset_type,reset_day:src.reset_day,count_max:src.count_max,sort_order:rootCnt}).select().single();
+    if(error)continue;
+    S.tasks[charId].push(pd);
+    if(srcChildren.length&&pd){
+      const childIns=srcChildren.map((c,i)=>({character_id:charId,parent_id:pd.id,name:c.name,reset_type:c.reset_type,reset_day:c.reset_day,count_max:c.count_max,sort_order:i}));
+      const{data:cd}=await sb.from('tasks').insert(childIns).select();
+      if(cd)S.tasks[charId].push(...cd);
+    }
+    cnt++;
+  }
+  closeModal('modal-copy');renderTabs();toast(`✅ ${cnt}개 캐릭터에 복제 완료`);
+}
 
 // ─── Modals ───
 function openModal(id){document.getElementById(id).classList.add('open');}
