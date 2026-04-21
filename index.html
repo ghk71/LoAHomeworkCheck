@@ -592,6 +592,7 @@ async function dndDrop(e,type,destIdx){
   if(type==='task'){S.tasks[S.selChar]=S.tasks[S.selChar].filter(t=>t.parent_id).concat(list);}
   if(type==='exptask'){S.expTasks[S.selAcc]=S.expTasks[S.selAcc].filter(t=>t.parent_id).concat(list);}
   await Promise.all(list.map((item,i)=>sb.from(table).update({sort_order:i}).eq('id',item.id)));
+  list.forEach((item,i)=>{ item.sort_order=i; });
   if(type==='account')renderSidebar();
   else if(type==='char')renderTabs();
   else renderTaskArea();
@@ -863,6 +864,7 @@ async function dndSubDrop(e,parentId,destIdx,isExp){
   const list=getList(isExp).filter(t=>t.parent_id===parentId);
   const[moved]=list.splice(srcIdx,1);list.splice(destIdx,0,moved);
   await Promise.all(list.map((t,i)=>sb.from(isExp?'expedition_tasks':'tasks').update({sort_order:i}).eq('id',t.id)));
+  list.forEach((item,i)=>{ item.sort_order=i; });
   // Update in main array
   const mainList=getList(isExp);list.forEach(t=>{const idx=mainList.findIndex(x=>x.id===t.id);if(idx>=0)mainList[idx]=t;});
   renderTaskArea();
