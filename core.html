@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔮 코어정수</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{--bg:#07090f;--s1:#0d1120;--s2:#131928;--s3:#1a2235;--border:#243050;--border-lit:#3a4d7a;--gold:#c8a84b;--gold-bright:#e8c86a;--gold-dim:#8a6e2a;--gold-glow:rgba(200,168,75,.25);--text:#ddd5c0;--muted:#6a7485;--dim:#3a4050;--green:#3cba78;--red:#c84040;--blue:#4a8fd4;--purple:#a060d8;--r:4px;
+  --grade-hero:#9b59b6;--grade-legend:#27ae60;--grade-relic:#e74c3c;--grade-ancient:#e8d48a;
+}
+*{margin:0;padding:0;box-sizing:border-box;}html,body{height:100%;min-height:100%;}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;overflow-y:auto;}
+
+.page-nav{background:#060910;border-bottom:1px solid var(--border);display:flex;align-items:stretch;position:sticky;top:0;z-index:100;}
+.pnav-item{padding:8px 20px;font-size:.82rem;color:var(--muted);text-decoration:none;transition:all .15s;display:flex;align-items:center;gap:6px;border-right:1px solid var(--border);}
+.pnav-item:hover{color:var(--text);background:rgba(255,255,255,.03);}
+.pnav-item.active{color:var(--gold);background:rgba(200,168,75,.06);border-bottom:2px solid var(--gold);}
+
+.header{background:var(--s1);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:10px;position:relative;}
+.header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold-dim),transparent);}
+.header-title{font-family:'Cinzel',serif;font-size:1.1rem;color:var(--gold);letter-spacing:2px;}
+.main-content{padding:20px 24px;}
+
+/* Grade colors */
+.grade-none{background:var(--s3);color:var(--dim);border-color:var(--border);}
+.grade-hero{background:rgba(155,89,182,.2);color:var(--grade-hero);border-color:rgba(155,89,182,.4);}
+.grade-legend{background:rgba(39,174,96,.2);color:var(--grade-legend);border-color:rgba(39,174,96,.4);}
+.grade-relic{background:rgba(231,76,60,.2);color:var(--grade-relic);border-color:rgba(231,76,60,.4);}
+.grade-ancient{background:rgba(232,212,138,.15);color:var(--grade-ancient);border-color:rgba(232,212,138,.35);}
+
+/* Filter bar */
+.filter-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px;padding:12px 16px;background:var(--s2);border:1px solid var(--border);border-radius:6px;}
+.filter-label{font-size:.76rem;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;}
+.char-filter-btn{padding:5px 12px;border-radius:12px;border:1px solid var(--border);background:var(--s3);color:var(--muted);cursor:pointer;font-size:.8rem;font-family:'Noto Sans KR',sans-serif;transition:all .15s;}
+.char-filter-btn:hover{border-color:var(--border-lit);color:var(--text);}
+.char-filter-btn.on{border-color:var(--gold);color:var(--gold);background:rgba(200,168,75,.1);}
+
+/* Legend */
+.grade-legend-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:center;}
+.grade-pill{padding:3px 10px;border-radius:10px;font-size:.76rem;font-weight:600;border:1px solid;}
+.grade-pill.hero{background:rgba(155,89,182,.2);color:var(--grade-hero);border-color:rgba(155,89,182,.4);}
+.grade-pill.legend{background:rgba(39,174,96,.2);color:var(--grade-legend);border-color:rgba(39,174,96,.4);}
+.grade-pill.relic{background:rgba(231,76,60,.2);color:var(--grade-relic);border-color:rgba(231,76,60,.4);}
+.grade-pill.ancient{background:rgba(232,212,138,.15);color:var(--grade-ancient);border-color:rgba(232,212,138,.35);}
+.grade-hint{font-size:.74rem;color:var(--muted);}
+
+/* Core table */
+.core-table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:6px;}
+.core-table{width:100%;border-collapse:collapse;min-width:400px;}
+.core-table th{background:var(--s1);padding:8px 10px;border:1px solid var(--border);font-size:.76rem;color:var(--muted);font-weight:600;text-align:center;white-space:nowrap;letter-spacing:.3px;}
+.core-table th.type-header{text-align:left;padding-left:14px;min-width:110px;}
+.core-table th.char-header{min-width:90px;}
+.core-table td{padding:0;border:1px solid var(--border);vertical-align:middle;}
+.core-row-label{padding:7px 14px;font-size:.8rem;color:var(--muted);white-space:nowrap;background:var(--s1);}
+.core-type-group{background:var(--s1);padding:6px 14px;font-size:.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;border:1px solid var(--border);}
+.core-group-order{color:#a0c8ff;}
+.core-group-chaos{color:#ffb0b0;}
+.core-cell{width:100%;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;border:2px solid transparent;font-size:.76rem;font-weight:600;gap:4px;flex-direction:column;line-height:1.2;}
+.core-cell:hover{brightness:1.2;filter:brightness(1.15);}
+.core-cell.priority-mark::after{content:'⭐';font-size:.6rem;position:absolute;top:2px;right:2px;}
+.core-cell-wrap{position:relative;}
+.core-priority-btn{position:absolute;top:2px;right:2px;font-size:.6rem;background:none;border:none;cursor:pointer;opacity:0;transition:opacity .15s;z-index:2;padding:1px;}
+.core-cell-wrap:hover .core-priority-btn{opacity:1;}
+.core-cell-wrap.is-priority .core-priority-btn{opacity:1;}
+.grade-label-text{font-size:.65rem;letter-spacing:.3px;}
+
+/* Section headers */
+.section-hd{font-family:'Cinzel',serif;font-size:.9rem;color:var(--gold);letter-spacing:1px;margin:20px 0 10px;display:flex;align-items:center;gap:8px;}
+.section-hd::after{content:'';flex:1;height:1px;background:var(--gold-dim);}
+
+/* Buttons */
+.btn{padding:7px 14px;border-radius:var(--r);border:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif;font-size:.82rem;transition:all .15s;display:inline-flex;align-items:center;gap:5px;line-height:1;}
+.btn-gold{background:var(--gold);color:#1a0f00;font-weight:700;}
+.btn-gold:hover{background:var(--gold-bright);}
+.btn-sec{background:var(--s3);color:var(--text);border:1px solid var(--border-lit);}
+.btn-sm{padding:4px 9px;font-size:.76rem;}
+
+/* Spinner */
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-full{display:flex;align-items:center;justify-content:center;gap:10px;padding:60px;color:var(--muted);font-size:.88rem;}
+
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:var(--s1);}
+::-webkit-scrollbar-thumb{background:var(--border-lit);border-radius:3px;}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--s3);border:1px solid var(--gold-dim);color:var(--text);padding:9px 16px;border-radius:var(--r);font-size:.84rem;box-shadow:0 4px 20px rgba(0,0,0,.5);z-index:300;animation:toastIn .25s ease,toastOut .25s ease 2.25s forwards;}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+@keyframes toastOut{to{opacity:0;transform:translateY(8px);}}
+</style>
+</head>
+<body>
+
+<nav class="page-nav">
+  <a href="index.html" class="pnav-item">⚔️ 숙제</a>
+  <a href="core.html" class="pnav-item active">🔮 코어정수</a>
+  <a href="raid.html" class="pnav-item">🏰 레이드</a>
+</nav>
+
+<div class="header">
+  <span style="font-size:1.1rem">🔮</span>
+  <div class="header-title">코어정수</div>
+  <div style="margin-left:auto;font-size:.78rem;color:var(--muted);">클릭: 등급 변경 &nbsp;|&nbsp; ⭐: 필수 표시</div>
+</div>
+
+<div class="main-content">
+  <div id="loading" class="loading-full"><div class="spinner"></div> 불러오는 중...</div>
+  <div id="content" style="display:none">
+    <div class="grade-legend-row">
+      <span class="grade-hint">등급:</span>
+      <span class="grade-pill">없음</span>
+      <span class="grade-pill hero">영웅</span>
+      <span class="grade-pill legend">전설</span>
+      <span class="grade-pill relic">유물</span>
+      <span class="grade-pill ancient">고대</span>
+      <span class="grade-hint" style="margin-left:8px;">⭐ = 필수 코어 표시</span>
+      <button class="btn btn-sec btn-sm" style="margin-left:auto" onclick="resetAll()">전체 초기화</button>
+    </div>
+    <div class="filter-bar">
+      <span class="filter-label">캐릭터 필터</span>
+      <div id="char-filters"></div>
+      <button class="btn btn-sec btn-sm" onclick="selectAllChars()">전체</button>
+      <button class="btn btn-sec btn-sm" onclick="deselectAllChars()">해제</button>
+    </div>
+    <div id="core-table-container"></div>
+  </div>
+</div>
+
+<script>
+const { createClient } = supabase;
+function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
+
+let sb=null;
+let allChars=[];
+let selectedChars=new Set();
+let coreData={}; // charId -> {cores: {key: {grade, priority}}}
+
+const CORE_TYPES=[
+  {group:'질서',type:'order',elements:[
+    {name:'해',key:'sun'},{name:'달',key:'moon'},{name:'별',key:'star'}
+  ]},
+  {group:'혼돈',type:'chaos',elements:[
+    {name:'해',key:'sun'},{name:'달',key:'moon'},{name:'별',key:'star'}
+  ]}
+];
+const GRADES=['none','hero','legend','relic','ancient'];
+const GRADE_LABELS={none:'없음',hero:'영웅',legend:'전설',relic:'유물',ancient:'고대'};
+const GRADE_CLASSES={none:'grade-none',hero:'grade-hero',legend:'grade-legend',relic:'grade-relic',ancient:'grade-ancient'};
+
+async function init(){
+  const cfg=getConfig();
+  if(!cfg){window.location.href='index.html';return;}
+  sb=createClient(cfg.url,cfg.key);
+  // Load all characters across all accounts
+  const[{data:accs},{data:chars}]=await Promise.all([
+    sb.from('accounts').select('id,name').order('sort_order').order('created_at'),
+    sb.from('characters').select('*').order('sort_order').order('created_at')
+  ]);
+  allChars=chars||[];
+  selectedChars=new Set(allChars.map(c=>c.id));
+  // Load core data
+  const{data:cores}=await sb.from('character_cores').select('*');
+  (cores||[]).forEach(row=>{coreData[row.character_id]={id:row.id,cores:row.cores||{}};});
+  // Init empty for chars without data
+  allChars.forEach(c=>{if(!coreData[c.id])coreData[c.id]={id:null,cores:{}};});
+  document.getElementById('loading').style.display='none';
+  document.getElementById('content').style.display='block';
+  renderFilters();
+  renderTable();
+}
+
+function renderFilters(){
+  const el=document.getElementById('char-filters');
+  el.innerHTML=allChars.map(c=>`<button class="char-filter-btn ${selectedChars.has(c.id)?'on':''}" onclick="toggleChar('${c.id}')">${esc(c.name)}${c.item_level?` <span style="font-size:.7rem;opacity:.6">Lv.${c.item_level}</span>`:''}</button>`).join('');
+}
+function toggleChar(id){if(selectedChars.has(id))selectedChars.delete(id);else selectedChars.add(id);renderFilters();renderTable();}
+function selectAllChars(){selectedChars=new Set(allChars.map(c=>c.id));renderFilters();renderTable();}
+function deselectAllChars(){selectedChars.clear();renderFilters();renderTable();}
+
+function getCoreKey(type,element,slot){return`${type}_${element}_${slot}`;}
+function getGrade(charId,key){return(coreData[charId]?.cores[key]?.grade)||'none';}
+function getPriority(charId,key){return!!(coreData[charId]?.cores[key]?.priority);}
+
+function renderTable(){
+  const visChars=allChars.filter(c=>selectedChars.has(c.id));
+  const container=document.getElementById('core-table-container');
+  if(!visChars.length){container.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted);font-size:.85rem;">캐릭터를 선택하세요</div>';return;}
+
+  let html=`<div class="core-table-wrap"><table class="core-table">
+    <thead><tr>
+      <th class="type-header">코어</th>
+      ${visChars.map(c=>`<th class="char-header">${esc(c.name)}${c.item_level?`<br><span style="font-size:.68rem;font-weight:400;color:var(--muted)">Lv.${c.item_level}</span>`:''}</th>`).join('')}
+    </tr></thead>
+    <tbody>`;
+
+  CORE_TYPES.forEach(({group,type,elements})=>{
+    elements.forEach(({name,key:elemKey})=>{
+      html+=`<tr><td colspan="${visChars.length+1}" class="core-type-group core-group-${type}">${group} ${name}</td></tr>`;
+      for(let slot=1;slot<=6;slot++){
+        const coreKey=getCoreKey(type,elemKey,slot);
+        html+=`<tr><td class="core-row-label">${group} ${name} ${slot}</td>`;
+        visChars.forEach(c=>{
+          const grade=getGrade(c.id,coreKey);
+          const prio=getPriority(c.id,coreKey);
+          html+=`<td><div class="core-cell-wrap ${prio?'is-priority':''}">
+            <div class="core-cell ${GRADE_CLASSES[grade]}" onclick="cycleGrade('${c.id}','${coreKey}',this)" title="클릭하여 등급 변경">
+              <span>${grade==='none'?'−':GRADE_LABELS[grade]}</span>
+            </div>
+            <button class="core-priority-btn" onclick="togglePriority('${c.id}','${coreKey}',this)" title="필수 코어 표시">${prio?'⭐':'☆'}</button>
+          </div></td>`;
+        });
+        html+=`</tr>`;
+      }
+    });
+  });
+
+  html+=`</tbody></table></div>`;
+  container.innerHTML=html;
+}
+
+async function cycleGrade(charId,key,el){
+  const current=getGrade(charId,key);
+  const idx=GRADES.indexOf(current);
+  const next=GRADES[(idx+1)%GRADES.length];
+  if(!coreData[charId])coreData[charId]={id:null,cores:{}};
+  if(!coreData[charId].cores[key])coreData[charId].cores[key]={grade:'none',priority:false};
+  coreData[charId].cores[key].grade=next;
+  // Update cell immediately
+  el.className=`core-cell ${GRADE_CLASSES[next]}`;
+  el.querySelector('span').textContent=next==='none'?'−':GRADE_LABELS[next];
+  // Save to DB
+  await saveCharCores(charId);
+}
+async function togglePriority(charId,key,btn){
+  if(!coreData[charId])coreData[charId]={id:null,cores:{}};
+  if(!coreData[charId].cores[key])coreData[charId].cores[key]={grade:'none',priority:false};
+  const prio=!coreData[charId].cores[key].priority;
+  coreData[charId].cores[key].priority=prio;
+  btn.textContent=prio?'⭐':'☆';
+  const wrap=btn.parentElement;
+  if(prio)wrap.classList.add('is-priority');else wrap.classList.remove('is-priority');
+  await saveCharCores(charId);
+}
+async function saveCharCores(charId){
+  const entry=coreData[charId];
+  const payload={character_id:charId,cores:entry.cores};
+  if(entry.id){await sb.from('character_cores').update({cores:entry.cores}).eq('id',entry.id);}
+  else{const{data}=await sb.from('character_cores').insert(payload).select().single();if(data)coreData[charId].id=data.id;}
+}
+async function resetAll(){
+  if(!confirm('현재 화면에 보이는 캐릭터의 코어 데이터를 모두 초기화하시겠습니까?'))return;
+  const visChars=allChars.filter(c=>selectedChars.has(c.id));
+  for(const c of visChars){coreData[c.id]={...(coreData[c.id]||{}),cores:{}};await saveCharCores(c.id);}
+  renderTable();toast('✅ 초기화 완료');}
+function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),2600);}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+init();
+</script>
+</body>
+</html>
