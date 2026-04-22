@@ -32,8 +32,12 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 .grade-ancient{background:rgba(232,212,138,.15);color:var(--grade-ancient);border-color:rgba(232,212,138,.35);}
 
 /* Filter bar */
-.filter-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px;padding:12px 16px;background:var(--s2);border:1px solid var(--border);border-radius:6px;}
-.filter-label{font-size:.76rem;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;}
+.filter-bar{margin-bottom:18px;background:var(--s2);border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+.filter-bar-hd{display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;user-select:none;transition:background .12s;}
+.filter-bar-hd:hover{background:rgba(255,255,255,.02);}
+.filter-label{font-size:.76rem;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;flex:1;}
+.filter-toggle-icon{font-size:.7rem;color:var(--muted);transition:transform .2s;}
+.filter-bar-body{padding:10px 16px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid var(--border);}
 .char-filter-btn{padding:5px 12px;border-radius:12px;border:1px solid var(--border);background:var(--s3);color:var(--muted);cursor:pointer;font-size:.8rem;font-family:'Noto Sans KR',sans-serif;transition:all .15s;}
 .char-filter-btn:hover{border-color:var(--border-lit);color:var(--text);}
 .char-filter-btn.on{border-color:var(--gold);color:var(--gold);background:rgba(200,168,75,.1);}
@@ -119,10 +123,16 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
       <button class="btn btn-sec btn-sm" style="margin-left:auto" onclick="resetAll()">전체 초기화</button>
     </div>
     <div class="filter-bar">
-      <span class="filter-label">캐릭터 필터</span>
-      <div id="char-filters"></div>
-      <button class="btn btn-sec btn-sm" onclick="selectAllChars()">전체</button>
-      <button class="btn btn-sec btn-sm" onclick="deselectAllChars()">해제</button>
+      <div class="filter-bar-hd" onclick="toggleFilterBar()">
+        <span class="filter-label">🔍 캐릭터 필터</span>
+        <span id="filter-selected-count" style="font-size:.74rem;color:var(--muted);"></span>
+        <button class="btn btn-sec btn-sm" onclick="event.stopPropagation();selectAllChars()">전체</button>
+        <button class="btn btn-sec btn-sm" onclick="event.stopPropagation();deselectAllChars()">해제</button>
+        <span class="filter-toggle-icon" id="filter-toggle-icon">▼</span>
+      </div>
+      <div class="filter-bar-body" id="filter-bar-body">
+        <div id="char-filters" style="display:flex;flex-wrap:wrap;gap:7px;"></div>
+      </div>
     </div>
     <div id="core-table-container"></div>
   </div>
@@ -135,6 +145,7 @@ function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getIt
 let sb=null;
 let allChars=[];
 let selectedChars=new Set();
+let filterCollapsed=localStorage.getItem('la_core_filter_col')==='1';
 let coreData={}; // charId -> {cores: {key: {grade, priority}}}
 
 const CORE_TYPES=[
@@ -159,7 +170,14 @@ async function init(){
     sb.from('characters').select('*').order('sort_order').order('created_at')
   ]);
   allChars=chars||[];
-  selectedChars=new Set(allChars.map(c=>c.id));
+  // Load saved filter selections (default: all selected)
+  const savedFilter=localStorage.getItem('la_core_filter_sel');
+  if(savedFilter){
+    try{const ids=JSON.parse(savedFilter);selectedChars=new Set(ids.filter(id=>allChars.some(c=>c.id===id)));}
+    catch(e){selectedChars=new Set(allChars.map(c=>c.id));}
+  } else {
+    selectedChars=new Set(allChars.map(c=>c.id));
+  }
   // Load core data
   const{data:cores}=await sb.from('character_cores').select('*');
   (cores||[]).forEach(row=>{coreData[row.character_id]={id:row.id,cores:row.cores||{}};});
@@ -171,13 +189,27 @@ async function init(){
   renderTable();
 }
 
+function saveFilter(){localStorage.setItem('la_core_filter_sel',JSON.stringify([...selectedChars]));}
+function toggleFilterBar(){
+  filterCollapsed=!filterCollapsed;
+  localStorage.setItem('la_core_filter_col',filterCollapsed?'1':'0');
+  document.getElementById('filter-bar-body').style.display=filterCollapsed?'none':'flex';
+  document.getElementById('filter-toggle-icon').textContent=filterCollapsed?'▶':'▼';
+}
 function renderFilters(){
   const el=document.getElementById('char-filters');
   el.innerHTML=allChars.map(c=>`<button class="char-filter-btn ${selectedChars.has(c.id)?'on':''}" onclick="toggleChar('${c.id}')">${esc(c.name)}${c.item_level?` <span style="font-size:.7rem;opacity:.6">Lv.${c.item_level}</span>`:''}</button>`).join('');
+  const cnt=document.getElementById('filter-selected-count');
+  if(cnt)cnt.textContent=`${selectedChars.size}/${allChars.length}명`;
+  // Apply collapse state
+  const body=document.getElementById('filter-bar-body');
+  if(body)body.style.display=filterCollapsed?'none':'flex';
+  const icon=document.getElementById('filter-toggle-icon');
+  if(icon)icon.textContent=filterCollapsed?'▶':'▼';
 }
-function toggleChar(id){if(selectedChars.has(id))selectedChars.delete(id);else selectedChars.add(id);renderFilters();renderTable();}
-function selectAllChars(){selectedChars=new Set(allChars.map(c=>c.id));renderFilters();renderTable();}
-function deselectAllChars(){selectedChars.clear();renderFilters();renderTable();}
+function toggleChar(id){if(selectedChars.has(id))selectedChars.delete(id);else selectedChars.add(id);saveFilter();renderFilters();renderTable();}
+function selectAllChars(){selectedChars=new Set(allChars.map(c=>c.id));saveFilter();renderFilters();renderTable();}
+function deselectAllChars(){selectedChars.clear();saveFilter();renderFilters();renderTable();}
 
 function getCoreKey(type,element,slot){return`${type}_${element}_${slot}`;}
 function getGrade(charId,key){return(coreData[charId]?.cores[key]?.grade)||'none';}
