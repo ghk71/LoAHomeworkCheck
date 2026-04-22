@@ -51,7 +51,7 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 /* ── Sidebar ── */
 .sidebar{width:210px;background:var(--s1);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
 .sidebar-header{padding:10px 14px;border-bottom:1px solid var(--border);font-size:.7rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted);}
-.sidebar-list{flex:1;overflow-y:auto;}
+.sidebar-list{flex:1;overflow-y:auto;min-height:0;}
 .account-item{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px;transition:background .12s;position:relative;}
 .account-item.clickable{cursor:pointer;}
 .account-item:hover{background:rgba(255,255,255,.02);}
@@ -64,9 +64,9 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 .account-item:hover .acc-btn{opacity:.7;}
 .acc-btn-hide{color:var(--muted);}
 .acc-btn-del{color:var(--red);}
-.sidebar-hidden-toggle{padding:8px 14px;border-top:1px solid var(--border);font-size:.72rem;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .12s;}
+.sidebar-hidden-toggle{padding:8px 14px;border-top:1px solid var(--border);font-size:.72rem;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .12s;flex-shrink:0;}
 .sidebar-hidden-toggle:hover{color:var(--text);}
-.sidebar-add{padding:10px;border-top:1px solid var(--border);}
+.sidebar-add{padding:10px;border-top:1px solid var(--border);flex-shrink:0;}
 
 /* ── Tabs ── */
 .main{flex:1;overflow:hidden;display:flex;flex-direction:column;}
