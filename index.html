@@ -1166,31 +1166,45 @@ async function deleteTask(taskId,isExp){
 
 // ─── Raid Task CRUD ───
 async function openAddRaidTask(){
-  // 레이드 프리셋 로드
+  // 현재 캐릭터 아이템 레벨
+  const curChar=(S.characters[S.selAcc]||[]).find(c=>c.id===S.selChar);
+  const charIlvl=Number(curChar?.item_level)||0;
+  // 레이드 프리셋 로드 (sort_order 순)
   const{data:presets}=await sb.from('raid_presets').select('*').order('sort_order').order('created_at');
   const list=document.getElementById('preset-select-list-wrap');
-  if(presets&&presets.length>0){
-    // 이름별로 그룹핑
-    const groups={};presets.forEach(p=>{if(!groups[p.name])groups[p.name]=[];groups[p.name].push(p);});
-    list.innerHTML=Object.entries(groups).map(([gname,items])=>`
-      <div class="preset-select-group">
-        <div class="preset-select-group-name">${esc(gname)}</div>
-        ${items.map(p=>{
-          const cg=Number(p.clear_gold)||0,bg=Number(p.bound_gold)||0,bo=Number(p.bonus_gold)||0,tr=cg-bg;
-          return`<div class="preset-select-item" onclick="selectPresetForTask('${p.id}')">
-            <div><div class="psi-name">${esc(p.difficulty||gname)}</div>
-            <div class="psi-gold">
-              ${p.entry_level?`입장 ${p.entry_level} · `:''}
-              ${cg?`💰 유통 ${tr.toLocaleString()}G `:''}
-              ${bg?`귀속 ${bg.toLocaleString()}G `:''}
-              ${bo?`더보기 ${bo.toLocaleString()}G`:''}
-            </div></div>
-          </div>`;
-        }).join('')}
-      </div>`).join('');
-  } else {
-    list.innerHTML='<div style="padding:16px;text-align:center;color:var(--muted);font-size:.84rem;">레이드 페이지에서 레이드를 먼저 추가하세요</div>';
+  // 입장 레벨 필터: entry_level이 0이거나 charIlvl 이하인 것만
+  const eligible=(presets||[]).filter(p=>!Number(p.entry_level)||charIlvl===0||Number(p.entry_level)<=charIlvl);
+  if(eligible.length===0){
+    list.innerHTML=`<div style="padding:16px;text-align:center;color:var(--muted);font-size:.84rem;">${presets?.length?`현재 캐릭터 레벨(${charIlvl})로 입장 가능한 레이드가 없습니다`:'레이드 페이지에서 레이드를 먼저 추가하세요'}</div>`;
+    openModal('modal-raid-select');return;
   }
+  // localStorage 그룹 순서 적용
+  const groupOrder=JSON.parse(localStorage.getItem('la_raid_group_order')||'[]');
+  // 그룹별 묶기
+  const groups={};eligible.forEach(p=>{if(!groups[p.name])groups[p.name]=[];groups[p.name].push(p);});
+  const allGroupNames=Object.keys(groups);
+  // 저장된 순서 적용
+  const sortedNames=groupOrder.length
+    ?[...groupOrder.filter(n=>allGroupNames.includes(n)),...allGroupNames.filter(n=>!groupOrder.includes(n))]
+    :allGroupNames;
+  list.innerHTML=sortedNames.map(gname=>{
+    const items=groups[gname];if(!items)return'';
+    return`<div class="preset-select-group">
+      <div class="preset-select-group-name">${esc(gname)}</div>
+      ${items.map(p=>{
+        const cg=Number(p.clear_gold)||0,bg=Number(p.bound_gold)||0,bo=Number(p.bonus_gold)||0,tr=cg-bg;
+        return`<div class="preset-select-item" onclick="selectPresetForTask('${p.id}')">
+          <div><div class="psi-name">${esc(p.difficulty||gname)}</div>
+          <div class="psi-gold">
+            ${p.entry_level?`입장 ${p.entry_level} · `:''}
+            ${cg?`💰 유통 ${tr.toLocaleString()}G `:''}
+            ${bg?`귀속 ${bg.toLocaleString()}G `:''}
+            ${bo?`더보기 ${bo.toLocaleString()}G`:''}
+          </div></div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
   openModal('modal-raid-select');
 }
 function selectPresetForTask(presetId){
