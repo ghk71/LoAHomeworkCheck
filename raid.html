@@ -171,6 +171,13 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 .share-link-box{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;font-size:.74rem;word-break:break-all;color:var(--blue);cursor:pointer;}
 .share-link-box:hover{border-color:var(--blue);}
 .empty-state{text-align:center;padding:40px 20px;color:var(--muted);}
+/* DnD */
+[draggable="true"]{cursor:grab;user-select:none;}
+.r-drag{opacity:.3!important;}
+.r-dnd-v{box-shadow:inset 0 -3px 0 var(--gold)!important;background:rgba(200,168,75,.07)!important;}
+.r-dnd-h{box-shadow:inset -3px 0 0 var(--gold)!important;background:rgba(200,168,75,.07)!important;}
+.rdnd-handle{font-size:.7rem;color:var(--dim);cursor:grab;padding:0 4px;flex-shrink:0;line-height:1;}
+.rdnd-handle:hover{color:var(--muted);}
 .empty-icon{font-size:2.5rem;margin-bottom:10px;}
 ::-webkit-scrollbar{width:4px;height:4px;}
 ::-webkit-scrollbar-track{background:var(--s1);}
@@ -400,19 +407,82 @@ function moveWeek(n){weekOffset+=n;updateWeekLabel();renderSchedule();loadNotice
 function goToCurrentWeek(){weekOffset=0;updateWeekLabel();renderSchedule();loadNotice();}
 async function autoResetNonFixed(){const ws=getWeekStart(0),del=schedules.filter(s=>!s.is_fixed&&new Date(s.created_at)<new Date(ws.getTime()-7*86400000));if(!del.length)return;await sb.from('raid_schedules').delete().in('id',del.map(s=>s.id));schedules=schedules.filter(s=>!del.some(d=>d.id===s.id));}
 
+// ─── Raid DnD ───
+const _rd={type:null,src:null};
+function rdStart(e,type,idx){_rd.type=type;_rd.src=idx;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text','');setTimeout(()=>e.target.classList.add('r-drag'),0);}
+function rdEnd(e){e.target.classList.remove('r-drag');document.querySelectorAll('.r-dnd-v,.r-dnd-h').forEach(x=>x.classList.remove('r-dnd-v','r-dnd-h'));}
+function rdOver(e,type,horiz){e.preventDefault();e.stopPropagation();if(_rd.type!==type)return;const cls=horiz?'r-dnd-h':'r-dnd-v';document.querySelectorAll('.'+cls).forEach(x=>x.classList.remove(cls));e.currentTarget.classList.add(cls);}
+function rdLeave(e,horiz){e.currentTarget.classList.remove(horiz?'r-dnd-h':'r-dnd-v');}
+function rdClean(){document.querySelectorAll('.r-drag,.r-dnd-v,.r-dnd-h').forEach(x=>x.classList.remove('r-drag','r-dnd-v','r-dnd-h'));}
+
+function getAllGroupNames(){
+  const dbNames=[...new Set(raids.map(r=>r.name))];
+  const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]').filter(n=>!dbNames.includes(n));
+  const all=[...dbNames,...extras];
+  const saved=JSON.parse(localStorage.getItem('la_raid_group_order')||'[]');
+  if(!saved.length)return all;
+  return[...saved.filter(n=>all.includes(n)),...all.filter(n=>!saved.includes(n))];
+}
+function getDaySchs(dn,wsMs,weMs){
+  return schedules.filter(s=>{
+    if(s.day_of_week!==dn)return false;
+    if(s.is_fixed)return true;
+    const t=new Date(s.created_at).getTime();return t>=wsMs&&t<weMs;
+  }).sort((a,b)=>(a.sort_order??0)-(b.sort_order??0));
+}
+async function rdDropGroup(e,destIdx){
+  e.preventDefault();e.stopPropagation();rdClean();
+  if(_rd.type!=='group'||_rd.src===destIdx){_rd.type=null;return;}
+  const src=_rd.src;_rd.type=null;
+  const names=getAllGroupNames();const[m]=names.splice(src,1);names.splice(destIdx,0,m);
+  localStorage.setItem('la_raid_group_order',JSON.stringify(names));renderPresetList();
+}
+async function rdDropDiff(e,gname,destIdx){
+  e.preventDefault();e.stopPropagation();rdClean();
+  const t='diff_'+gname;if(_rd.type!==t||_rd.src===destIdx){_rd.type=null;return;}
+  const src=_rd.src;_rd.type=null;
+  const list=raids.filter(r=>r.name===gname).sort((a,b)=>a.sort_order-b.sort_order);
+  const[m]=list.splice(src,1);list.splice(destIdx,0,m);list.forEach((r,i)=>{r.sort_order=i;});
+  await Promise.all(list.map((r,i)=>sb.from('raid_presets').update({sort_order:i}).eq('id',r.id)));
+  renderPresetList();
+}
+async function rdDropParty(e,presetId,destIdx){
+  e.preventDefault();e.stopPropagation();rdClean();
+  const t='party_'+presetId;if(_rd.type!==t||_rd.src===destIdx){_rd.type=null;return;}
+  const src=_rd.src;_rd.type=null;
+  const list=parties.filter(p=>p.preset_id===presetId).sort((a,b)=>a.sort_order-b.sort_order);
+  const[m]=list.splice(src,1);list.splice(destIdx,0,m);list.forEach((p,i)=>{p.sort_order=i;});
+  await Promise.all(list.map((p,i)=>sb.from('raid_parties').update({sort_order:i}).eq('id',p.id)));
+  renderPresetList();
+}
+async function rdDropSch(e,dn,destIdx){
+  e.preventDefault();e.stopPropagation();rdClean();
+  const t='sch_'+dn;if(_rd.type!==t||_rd.src===destIdx){_rd.type=null;return;}
+  const src=_rd.src;_rd.type=null;
+  const wsMs=getWeekStart(weekOffset).getTime()-9*3600000,weMs=wsMs+7*24*3600000;
+  const list=getDaySchs(dn,wsMs,weMs);
+  const[m]=list.splice(src,1);list.splice(destIdx,0,m);list.forEach((s,i)=>{s.sort_order=i;});
+  await Promise.all(list.map((s,i)=>sb.from('raid_schedules').update({sort_order:i}).eq('id',s.id)));
+  renderSchedule();
+}
+
 // ─── Preset / Party list ───
 function renderPresetList(){
   const el=document.getElementById('preset-list');
-  // 레이드명으로 그룹핑 (+ localStorage 임시 그룹)
-  const dbNames=[...new Set(raids.map(r=>r.name))];
-  const extraNames=JSON.parse(localStorage.getItem('la_raid_groups')||'[]').filter(n=>!dbNames.includes(n));
-  const allNames=[...dbNames,...extraNames];
+  const allNames=getAllGroupNames();
   if(!allNames.length){el.innerHTML='<div style="text-align:center;padding:20px;font-size:.82rem;color:var(--muted);">레이드를 추가하세요</div>';return;}
-  el.innerHTML=allNames.map(gname=>{
+  el.innerHTML=allNames.map((gname,gi)=>{
     const gPresets=raids.filter(r=>r.name===gname).sort((a,b)=>a.sort_order-b.sort_order);
     const isGOpen=selGroupName===gname||gPresets.some(r=>selPresetId===r.id||parties.find(p=>p.preset_id===r.id&&p.id===selPartyId));
-    return`<div class="preset-card">
+    return`<div class="preset-card"
+      draggable="${!isViewer}"
+      ondragstart="rdStart(event,'group',${gi})"
+      ondragend="rdEnd(event)"
+      ondragover="rdOver(event,'group',false)"
+      ondragleave="rdLeave(event,false)"
+      ondrop="rdDropGroup(event,${gi})">
       <div class="preset-header" onclick="toggleGroup('${esc(gname)}')">
+        ${!isViewer?`<span class="rdnd-handle" onclick="event.stopPropagation()">⠿</span>`:''}
         <span class="preset-toggle">${isGOpen?'▼':'▶'}</span>
         <div class="preset-name" style="flex:1;">${esc(gname)}</div>
         <div class="preset-actions">
@@ -423,12 +493,20 @@ function renderPresetList(){
       </div>
       ${isGOpen?`<div style="padding:6px 10px 8px;">
         ${gPresets.length===0?'<div style="font-size:.78rem;color:var(--muted);padding:3px 0 6px;">난이도를 추가하세요</div>':''}
-        ${gPresets.map(r=>{
-          const rParties=parties.filter(p=>p.preset_id===r.id);
+        ${gPresets.map((r,di)=>{
+          const rParties=parties.filter(p=>p.preset_id===r.id).sort((a,b)=>a.sort_order-b.sort_order);
           const isPOpen=selPresetId===r.id||rParties.some(p=>p.id===selPartyId);
           const cg=Number(r.clear_gold)||0,bg=Number(r.bound_gold)||0,bo=Number(r.bonus_gold)||0,tr=cg-bg;
-          return`<div style="margin-bottom:6px;background:var(--s1);border:1px solid ${isPOpen?'rgba(200,168,75,.3)':'var(--border)'};border-radius:5px;overflow:hidden;">
-            <div style="padding:7px 10px;display:flex;align-items:center;gap:7px;cursor:pointer;" onclick="togglePreset('${r.id}')">
+          const diffType='diff_'+gname;
+          return`<div style="margin-bottom:6px;background:var(--s1);border:1px solid ${isPOpen?'rgba(200,168,75,.3)':'var(--border)'};border-radius:5px;overflow:hidden;"
+            draggable="${!isViewer}"
+            ondragstart="rdStart(event,'${diffType}',${di})"
+            ondragend="rdEnd(event)"
+            ondragover="rdOver(event,'${diffType}',false)"
+            ondragleave="rdLeave(event,false)"
+            ondrop="rdDropDiff(event,'${esc(gname)}',${di})">
+            <div style="padding:7px 10px;display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="togglePreset('${r.id}')">
+              ${!isViewer?`<span class="rdnd-handle" onclick="event.stopPropagation()">⠿</span>`:''}
               <span style="font-size:.66rem;color:var(--muted);width:10px;">${isPOpen?'▼':'▶'}</span>
               <div style="flex:1;min-width:0;">
                 <div style="font-size:.83rem;font-weight:600;color:var(--text);">${esc(r.difficulty||'기본')}</div>
@@ -443,10 +521,19 @@ function renderPresetList(){
               <button class="btn-danger btn-icon" style="padding:3px 5px;font-size:.72rem;" onclick="event.stopPropagation();deletePreset('${r.id}')">🗑</button>`:''}
             </div>
             ${isPOpen?`<div style="padding:4px 10px 8px;border-top:1px solid var(--border);">
-              ${rParties.map(p=>{
+              ${rParties.map((p,pi)=>{
                 const filled=p.members.filter(m=>m.character_id).length;
-                return`<div class="party-mini ${p.id===selPartyId?'selected':''}" onclick="selectParty('${p.id}')">
-                  <div style="flex:1;"><div class="party-mini-name">${esc(p.name||'파티')}</div><div class="party-mini-fill">${p.party_size}인 · ${filled}/${p.party_size}명</div></div>
+                const partyType='party_'+r.id;
+                return`<div class="party-mini ${p.id===selPartyId?'selected':''}"
+                  draggable="${!isViewer}"
+                  ondragstart="rdStart(event,'${partyType}',${pi})"
+                  ondragend="rdEnd(event)"
+                  ondragover="rdOver(event,'${partyType}',false)"
+                  ondragleave="rdLeave(event,false)"
+                  ondrop="rdDropParty(event,'${r.id}',${pi})"
+                  onclick="selectParty('${p.id}')">
+                  ${!isViewer?`<span class="rdnd-handle" onclick="event.stopPropagation()">⠿</span>`:''}
+                  <div style="flex:1;min-width:0;"><div class="party-mini-name">${esc(p.name||'파티')}</div><div class="party-mini-fill">${p.party_size}인 · ${filled}/${p.party_size}명</div></div>
                   ${!isViewer?`<button class="btn btn-icon edit-only" onclick="event.stopPropagation();openEditParty('${p.id}')">✏️</button>
                   <button class="btn-danger btn-icon" style="padding:3px 5px;font-size:.72rem;" onclick="event.stopPropagation();deleteParty('${p.id}')">🗑</button>`:''}
                 </div>`;
@@ -681,18 +768,12 @@ function renderSchedule(){
   const el=document.getElementById('sch-body');if(!el)return;
   populateDaySelect();populatePartySelect('');
   const days=getWeekDays(weekOffset),todayKST=new Date(Date.now()+9*3600000).getUTCDay(),wk=getWeekKey(weekOffset);
-  // 이번 주 범위 계산 (비고정 필터용) — created_at은 실제 UTC, KST 기준 주차로 변환
-  const wsMs=getWeekStart(weekOffset).getTime()-9*3600000; // KST shifted → real UTC
+  const wsMs=getWeekStart(weekOffset).getTime()-9*3600000;
   const weMs=wsMs+7*24*3600000;
   el.innerHTML=days.map((date,i)=>{
     const dn=WEEK_DAY_NUMS[i],isToday=dn===todayKST&&weekOffset===0;
-    // 비고정: 해당 주에 생성된 것만, 고정: 항상 표시
-    const daySchs=schedules.filter(s=>{
-      if(s.day_of_week!==dn)return false;
-      if(s.is_fixed)return true;
-      const createdMs=new Date(s.created_at).getTime();
-      return createdMs>=wsMs&&createdMs<weMs;
-    });
+    const daySchs=getDaySchs(dn,wsMs,weMs);
+    const schType='sch_'+dn;
     return`<div class="day-row ${isToday?'today-row':''}">
       <div class="day-label-col">
         <div class="day-label-name ${isToday?'today':''}">${DKO[dn]}</div>
@@ -700,8 +781,15 @@ function renderSchedule(){
         ${isToday?'<div class="day-label-today-badge">오늘</div>':''}
       </div>
       <div class="day-parties-scroll">
-        ${daySchs.map(s=>schedCardHTML(s,wk)).join('')}
-        ${!isViewer?`<button class="day-add-btn edit-only" onclick="openAddSchForDay(${dn})" title="${DKO[dn]}요일 일정 추가">＋</button>`:''}
+        ${daySchs.map((s,si)=>`<div
+          draggable="${!isViewer}"
+          ondragstart="rdStart(event,'${schType}',${si})"
+          ondragend="rdEnd(event)"
+          ondragover="rdOver(event,'${schType}',true)"
+          ondragleave="rdLeave(event,true)"
+          ondrop="rdDropSch(event,${dn},${si})"
+          style="flex-shrink:0;">${schedCardHTML(s,wk)}</div>`).join('')}
+        ${!isViewer?`<button class="day-add-btn edit-only" onclick="openAddSchForDay(${dn})">＋</button>`:''}
       </div>
     </div>`;
   }).join('');
