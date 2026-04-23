@@ -547,8 +547,18 @@ function renderSchedule(){
   const el=document.getElementById('sch-body');if(!el)return;
   populateDaySelect();populatePartySelect('');
   const days=getWeekDays(weekOffset),todayKST=new Date(Date.now()+9*3600000).getUTCDay(),wk=getWeekKey(weekOffset);
+  // 이번 주 범위 계산 (비고정 필터용) — created_at은 실제 UTC, KST 기준 주차로 변환
+  const wsMs=getWeekStart(weekOffset).getTime()-9*3600000; // KST shifted → real UTC
+  const weMs=wsMs+7*24*3600000;
   el.innerHTML=days.map((date,i)=>{
-    const dn=WEEK_DAY_NUMS[i],daySchs=schedules.filter(s=>s.day_of_week===dn),isToday=dn===todayKST&&weekOffset===0;
+    const dn=WEEK_DAY_NUMS[i],isToday=dn===todayKST&&weekOffset===0;
+    // 비고정: 해당 주에 생성된 것만, 고정: 항상 표시
+    const daySchs=schedules.filter(s=>{
+      if(s.day_of_week!==dn)return false;
+      if(s.is_fixed)return true;
+      const createdMs=new Date(s.created_at).getTime();
+      return createdMs>=wsMs&&createdMs<weMs;
+    });
     return`<div class="day-row ${isToday?'today-row':''}">
       <div class="day-label-col">
         <div class="day-label-name ${isToday?'today':''}">${DKO[dn]}</div>
