@@ -409,7 +409,10 @@ async function autoResetNonFixed(){const ws=getWeekStart(0),del=schedules.filter
 
 // ─── Raid DnD ───
 const _rd={type:null,src:null};
-function rdStart(e,type,idx){_rd.type=type;_rd.src=idx;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text','');setTimeout(()=>e.target.classList.add('r-drag'),0);}
+function rdStart(e,type,idx){
+  e.stopPropagation(); // ★ 부모 draggable이 type을 덮어쓰는 것을 방지
+  _rd.type=type;_rd.src=idx;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text','');setTimeout(()=>e.target.classList.add('r-drag'),0);
+}
 function rdEnd(e){e.target.classList.remove('r-drag');document.querySelectorAll('.r-dnd-v,.r-dnd-h').forEach(x=>x.classList.remove('r-dnd-v','r-dnd-h'));}
 function rdOver(e,type,horiz){e.preventDefault();e.stopPropagation();if(_rd.type!==type)return;const cls=horiz?'r-dnd-h':'r-dnd-v';document.querySelectorAll('.'+cls).forEach(x=>x.classList.remove(cls));e.currentTarget.classList.add(cls);}
 function rdLeave(e,horiz){e.currentTarget.classList.remove(horiz?'r-dnd-h':'r-dnd-v');}
@@ -587,23 +590,25 @@ async function renderPartyDetail(){
   applyViewer();
 }
 
-// ─── Char picker (account-grouped) ───
+// ─── Char picker (account-grouped, entry level filtered) ───
 function openCharPickerParty(partyId,slotIndex){
   pickCtx={mode:'party',partyId,slotIndex,scheduleId:null};
-  document.getElementById('char-pick-info').textContent=`슬롯 ${slotIndex+1} — 캐릭터 배치`;
-  buildCharPickGrid([]);openModal('modal-char-pick');
+  const p=parties.find(x=>x.id===partyId),preset=p?raids.find(x=>x.id===p.preset_id):null;
+  const minIlvl=Number(preset?.entry_level)||0;
+  document.getElementById('char-pick-info').textContent=`슬롯 ${slotIndex+1} — 캐릭터 배치${minIlvl?` (입장 ${minIlvl} 이상)`:'' }`;
+  buildCharPickGrid(minIlvl);openModal('modal-char-pick');
 }
 function openCharPickerOverride(schId,slotIndex){
   pickCtx={mode:'override',partyId:null,slotIndex,scheduleId:schId};
   document.getElementById('char-pick-info').textContent=`슬롯 ${slotIndex+1} — 이번 주 임시 변경`;
-  buildCharPickGrid([]);openModal('modal-char-pick');
+  buildCharPickGrid(0);openModal('modal-char-pick');
 }
-function buildCharPickGrid(usedIds){
+function buildCharPickGrid(minIlvl=0){
   const el=document.getElementById('char-pick-grid');
   let html=`<div class="char-pick-item no-char" onclick="assignChar(null)">✕ 비우기</div>`;
-  // Group by account
   accounts.forEach(acc=>{
-    const chars=allChars.filter(c=>c.account_id===acc.id);
+    // 입장 레벨 조건 만족 캐릭터만
+    const chars=allChars.filter(c=>c.account_id===acc.id&&(!minIlvl||Number(c.item_level||0)>=minIlvl));
     if(!chars.length)return;
     html+=`<div class="acc-group-header">${esc(acc.name)}</div>`;
     chars.forEach(c=>{
@@ -613,8 +618,8 @@ function buildCharPickGrid(usedIds){
       </div>`;
     });
   });
-  // Chars without account
-  const noAccChars=allChars.filter(c=>!accounts.some(a=>a.id===c.account_id));
+  // 계정 없는 캐릭터
+  const noAccChars=allChars.filter(c=>!accounts.some(a=>a.id===c.account_id)&&(!minIlvl||Number(c.item_level||0)>=minIlvl));
   if(noAccChars.length){html+=`<div class="acc-group-header">기타</div>`;noAccChars.forEach(c=>{html+=`<div class="char-pick-item" onclick="assignChar('${c.id}')"><div class="char-pick-name">${esc(c.name)}</div><div class="char-pick-meta">${esc(c.class_name||'')}${c.item_level?' · Lv.'+c.item_level:''}</div></div>`;});}
   el.innerHTML=html;
 }
