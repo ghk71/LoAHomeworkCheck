@@ -49,7 +49,7 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 .layout{display:flex;flex:1;overflow:hidden;}
 
 /* ── Sidebar ── */
-.sidebar{width:210px;background:var(--s1);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
+.sidebar{width:210px;background:var(--s1);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;}
 .sidebar-header{padding:10px 14px;border-bottom:1px solid var(--border);font-size:.7rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted);}
 .sidebar-list{flex:1;overflow-y:auto;min-height:0;}
 .account-item{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px;transition:background .12s;position:relative;}
@@ -666,7 +666,8 @@ async function initApp(){
   keepAlive();updateClock();setInterval(updateClock,30000);
   buildIconPickers();await loadAccounts();
   // Wheel scroll for tabs
-  document.addEventListener('wheel',e=>{const tw=document.getElementById('char-tabs')?.parentElement;if(tw&&tw.contains(e.target)){e.preventDefault();tw.scrollLeft+=e.deltaY;}},{passive:false});
+  // char-tabs horizontal wheel scroll (char-tabs IS the wrap element)
+  document.addEventListener('wheel',e=>{const tw=document.getElementById('char-tabs');if(tw&&tw.contains(e.target)){e.preventDefault();tw.scrollLeft+=e.deltaY;}},{passive:false});
 }
 async function keepAlive(){const l=parseInt(LS('la_ping')||'0');if(Date.now()-l>6*86400000){try{await sb.from('accounts').select('id').limit(1);LSS('la_ping',Date.now().toString());}catch(e){}}}
 function updateClock(){const k=new Date(Date.now()+9*3600000),p=n=>String(n).padStart(2,'0'),d=['일','월','화','수','목','금','토'];document.getElementById('header-time').textContent=`KST ${p(k.getUTCHours())}:${p(k.getUTCMinutes())} (${d[k.getUTCDay()]})`;}
