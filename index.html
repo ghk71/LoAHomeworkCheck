@@ -8,9 +8,19 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
-:root{--bg:#07090f;--s1:#0d1120;--s2:#131928;--s3:#1a2235;--border:#243050;--border-lit:#3a4d7a;--gold:#c8a84b;--gold-bright:#e8c86a;--gold-dim:#8a6e2a;--gold-glow:rgba(200,168,75,.25);--text:#ddd5c0;--muted:#6a7485;--dim:#3a4050;--green:#3cba78;--green-dim:rgba(60,186,120,.08);--red:#c84040;--blue:#4a8fd4;--purple:#a060d8;--purple-dim:rgba(160,96,216,.12);--teal:#2ab8a0;--teal-dim:rgba(42,184,160,.1);--orange:#e07840;--orange-dim:rgba(224,120,64,.1);--r:4px;}
-*{margin:0;padding:0;box-sizing:border-box;}html,body{height:100%;}
-body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;min-height:100vh;overflow:hidden;}
+:root{
+  --bg:#0a0a0f;--s1:#111118;--s2:#16161f;--s3:#1e1e2a;--s4:#252535;
+  --border:#2a2a3d;--border-lit:#3d3d5c;
+  --gold:#c8a84b;--gold-bright:#e8c86a;--gold-dim:#8a6e2a;--gold-glow:rgba(200,168,75,.2);
+  --text:#e0ddd5;--muted:#5a5f72;--dim:#2e3045;
+  --green:#2ecc71;--green-dim:rgba(46,204,113,.07);
+  --red:#e74c3c;--blue:#4a8fd4;
+  --purple:#9b59b6;--purple-dim:rgba(155,89,182,.1);
+  --teal:#1abc9c;--teal-dim:rgba(26,188,156,.08);
+  --orange:#e67e22;--orange-dim:rgba(230,126,34,.09);--r:5px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;display:flex;flex-direction:column;}
 input[type="text"],input:not([type]),textarea{ime-mode:active;}
 
 /* ── Page Navigation ── */
@@ -40,7 +50,7 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 .copy-sql-btn:hover{color:var(--text);border-color:var(--gold);}
 
 /* ── App Shell ── */
-#app{display:none;height:100vh;flex-direction:column;}
+#app{display:none;flex:1;min-height:0;flex-direction:column;overflow:hidden;}
 #app.active{display:flex;}
 .header{background:var(--s1);border-bottom:1px solid var(--border);padding:9px 20px;display:flex;align-items:center;gap:10px;flex-shrink:0;position:relative;}
 .header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold-dim),transparent);}
@@ -342,7 +352,7 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 <!-- Page Nav -->
 <nav class="page-nav" id="page-nav" style="display:none">
   <a href="index.html" class="pnav-item active">⚔️ 숙제</a>
-  <a href="core.html" class="pnav-item">🔮 코어정수</a>
+  <a href="core.html" class="pnav-item">🔮 코어현황</a>
   <a href="raid.html" class="pnav-item">🏰 레이드</a>
 </nav>
 
@@ -995,8 +1005,8 @@ function raidItemHTML(t,idx){
       <div class="raid-meta">
         ${t.difficulty?`<span class="raid-badge">${esc(t.difficulty)}</span>`:''}
         ${t.entry_level?`<span class="raid-badge">입장 ${t.entry_level}</span>`:''}
-        ${t.clear_gold?`<span class="raid-gold">💰 ${Number(t.clear_gold).toLocaleString()}G</span>`:''}
-        ${t.bound_gold?`<span class="raid-gold" style="color:var(--orange);">(귀속 ${Number(t.bound_gold).toLocaleString()}G)</span>`:''}
+        ${(()=>{const cg=Number(t.clear_gold)||0,bg=Number(t.bound_gold)||0,tr=cg-bg;return cg?`<span class="raid-gold">💰 유통 ${tr.toLocaleString()}G</span>${bg?`<span class="raid-gold" style="color:var(--orange);">귀속 ${bg.toLocaleString()}G</span>`:''}`:''})()}
+        ${t.preset_id?'<span style="font-size:.63rem;color:var(--teal);padding:1px 5px;border:1px solid rgba(42,184,160,.3);border-radius:6px;">🔗 파티연동</span>':''}
         <span style="font-size:.65rem;color:var(--dim);">${DAYS[t.reset_day]}요일 초기화 · ${nextResetLabel({...t,reset_type:'weekly'})}</span>
       </div>
     </div>
