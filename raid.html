@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
-:root{--bg:#07090f;--s1:#0d1120;--s2:#131928;--s3:#1a2235;--border:#243050;--border-lit:#3a4d7a;--gold:#c8a84b;--gold-bright:#e8c86a;--gold-dim:#8a6e2a;--gold-glow:rgba(200,168,75,.25);--text:#ddd5c0;--muted:#6a7485;--dim:#3a4050;--green:#3cba78;--red:#c84040;--blue:#4a8fd4;--purple:#a060d8;--teal:#2ab8a0;--orange:#e07840;--r:4px;}
+:root{--bg:#0a0a0f;--s1:#111118;--s2:#16161f;--s3:#1e1e2a;--s4:#252535;--border:#2a2a3d;--border-lit:#3d3d5c;--gold:#c8a84b;--gold-bright:#e8c86a;--gold-dim:#8a6e2a;--gold-glow:rgba(200,168,75,.2);--text:#e0ddd5;--muted:#5a5f72;--dim:#2e3045;--green:#2ecc71;--red:#e74c3c;--blue:#4a8fd4;--purple:#9b59b6;--teal:#1abc9c;--orange:#e67e22;--r:5px;}
 *{margin:0;padding:0;box-sizing:border-box;}html,body{height:100%;overflow:hidden;}
 body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;display:flex;flex-direction:column;}
 /* Nav */
@@ -108,6 +108,7 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 .sc-complete-btn{flex:1;padding:4px 6px;border:none;border-radius:3px;cursor:pointer;font-size:.73rem;font-family:'Noto Sans KR',sans-serif;font-weight:600;transition:all .15s;background:rgba(60,186,120,.15);color:var(--green);border:1px solid rgba(60,186,120,.3);}
 .sc-complete-btn:hover{background:rgba(60,186,120,.3);}
 .sched-card.completed .sc-complete-btn{background:var(--green);color:#fff;border-color:var(--green);}
+.sc-complete-btn.viewer-disabled{opacity:.4;cursor:not-allowed;pointer-events:none;}
 .sc-edit-btn{padding:4px 6px;border-radius:3px;background:var(--s3);border:1px solid var(--border);color:var(--muted);cursor:pointer;font-size:.72rem;transition:all .15s;}
 .sc-edit-btn:hover{border-color:var(--border-lit);color:var(--text);}
 /* Char picker with account groups */
@@ -179,9 +180,9 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 </head>
 <body>
 <nav class="page-nav">
-  <a href="index.html" class="pnav-item">⚔️ 숙제</a>
-  <a href="core.html" class="pnav-item">🔮 코어정수</a>
-  <a href="raid.html" class="pnav-item active">🏰 레이드</a>
+  <a href="index.html" class="pnav-item" id="nav-homework">⚔️ 숙제</a>
+  <a href="core.html" class="pnav-item" id="nav-core">🔮 코어현황</a>
+  <a href="raid.html" class="pnav-item active" id="nav-raid">🏰 레이드</a>
 </nav>
 <div id="viewer-banner">👁 뷰어 모드 — 읽기 전용</div>
 <div class="header">
@@ -304,7 +305,21 @@ function parseViewer(){try{const p=new URLSearchParams(location.search).get('vie
 const viewerCreds=parseViewer(),isViewer=!!viewerCreds;
 if(isViewer)document.getElementById('viewer-banner').classList.add('show');
 function getConfig(){if(isViewer)return viewerCreds;const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
-function applyViewer(){if(!isViewer)return;document.querySelectorAll('.edit-only').forEach(el=>{el.style.display='none';if(el.tagName==='INPUT')el.readOnly=true;});}
+function applyViewer(){
+  if(!isViewer)return;
+  // Block non-raid nav links (숙제, 코어현황 → disabled)
+  ['nav-homework','nav-core'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.removeAttribute('href');el.style.opacity='.35';el.style.cursor='not-allowed';el.title='뷰어 모드에서는 접근할 수 없습니다';}
+  });
+  // Fix active raid link: preserve viewer param (prevent losing mode on reload)
+  const navRaid=document.getElementById('nav-raid');
+  if(navRaid){
+    const pl=btoa(JSON.stringify(viewerCreds));
+    navRaid.href='raid.html?viewer='+pl;
+  }
+  document.querySelectorAll('.edit-only').forEach(el=>{el.style.display='none';if(el.tagName==='INPUT')el.readOnly=true;});
+}
 
 // ─── State ───
 let sb,accounts=[],allChars=[],raids=[],parties=[],schedules=[],overrides={},notices={},raidTasksAll={};
@@ -467,7 +482,32 @@ async function assignChar(charId){
   if(charId===null){if(ex){await sb.from('raid_party_members').delete().eq('id',ex.id);p.members=p.members.filter(m=>m.slot_index!==slotIndex);}}
   else if(ex){await sb.from('raid_party_members').update({character_id:charId}).eq('id',ex.id);ex.character_id=charId;}
   else{const{data}=await sb.from('raid_party_members').insert({party_id:partyId,slot_index:slotIndex,character_id:charId}).select().single();if(data)p.members.push(data);}
+  // ★ Sync raid_task on homework side
+  if(charId)await syncRaidTask(charId,partyId);
   closeModal('modal-char-pick');renderPresetList();renderPartyDetail();toast('✅ 배치됨');
+}
+
+// ★ 레이드 숙제 연동: 캐릭터가 파티에 들어갈 때 raid_tasks 생성/연동
+async function syncRaidTask(charId,partyId){
+  const p=parties.find(x=>x.id===partyId),preset=p?raids.find(x=>x.id===p.preset_id):null;
+  if(!preset||!charId)return;
+  // 같은 preset_id로 이미 있는지 확인
+  const{data:byPreset}=await sb.from('raid_tasks').select('*').eq('character_id',charId).eq('preset_id',preset.id);
+  if(byPreset&&byPreset.length>0)return; // 이미 연동됨
+  // 이름으로 기존 숙제 찾기 (대소문자 무관)
+  const{data:allTasks}=await sb.from('raid_tasks').select('*').eq('character_id',charId);
+  const presetNameLower=preset.name.toLowerCase();
+  const existing=(allTasks||[]).find(t=>t.name&&t.name.toLowerCase().includes(presetNameLower));
+  if(existing){
+    // 기존 숙제에 preset_id 연동
+    await sb.from('raid_tasks').update({preset_id:preset.id}).eq('id',existing.id);
+    toast(`🔗 기존 레이드 숙제와 연동됨`);
+  } else {
+    // 새 숙제 생성
+    const taskName=preset.name+(preset.difficulty?' '+preset.difficulty:'');
+    const{error}=await sb.from('raid_tasks').insert({character_id:charId,preset_id:preset.id,name:taskName,difficulty:preset.difficulty||'',entry_level:preset.entry_level||0,clear_gold:preset.clear_gold||0,bound_gold:preset.bound_gold||0,reset_day:3,sort_order:99});
+    if(!error)toast(`✅ 레이드 숙제 자동 추가됨`);
+  }
 }
 async function removePartyMember(partyId,slotIndex,memberId){
   const p=parties.find(x=>x.id===partyId);if(!p)return;
@@ -540,12 +580,15 @@ function schedCardHTML(s,wk){
   const isCompleted=!!(ovr?.is_completed);
   const hasOvr=ovr&&Object.keys(ovr.slot_overrides||{}).length>0;
   const eff=getEffectiveMembers(s.id,s.party_id,wk);
-  const filledSlots=eff.filter(m=>m.character_id);
   return`<div class="sched-card ${isCompleted?'completed':''} ${hasOvr?'has-ovr':''}" id="sc-${s.id}">
     <div class="sc-header">
-      <div class="sc-raid-name">${esc(preset?.name||'?')}</div>
-      <div class="sc-party-name">${esc(p?.name||'?')} · ${p?.party_size||'?'}인</div>
-      <div class="sc-meta">${s.time_str?`🕐 ${s.time_str}`:''}${s.is_fixed?'📌 고정':''}${hasOvr?'<span style="color:var(--gold);">편집됨</span>':''}</div>
+      <div class="sc-raid-name">${esc(preset?.name||'?')} <span style="font-size:.65rem;color:var(--muted);font-weight:400;">${esc(preset?.difficulty||'')}</span></div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
+        <span class="sc-party-name">${esc(p?.name||'?')} · ${p?.party_size||'?'}인</span>
+        ${s.time_str?`<span style="font-size:.72rem;font-weight:700;color:var(--gold-bright);background:rgba(200,168,75,.12);padding:1px 6px;border-radius:4px;border:1px solid rgba(200,168,75,.3);">🕐 ${s.time_str}</span>`:''}
+        ${s.is_fixed?'<span style="font-size:.62rem;color:var(--gold);">📌</span>':''}
+        ${hasOvr?'<span style="font-size:.62rem;color:var(--gold);">편집</span>':''}
+      </div>
     </div>
     <div class="sc-members">
       ${eff.map(slot=>{
@@ -555,7 +598,7 @@ function schedCardHTML(s,wk){
       }).join('')}
     </div>
     <div class="sc-footer">
-      <button class="sc-complete-btn" onclick="toggleCompletion('${s.id}','${wk}')">${isCompleted?'✓ 완료':'○ 완료'}</button>
+      <button class="sc-complete-btn ${isViewer?'viewer-disabled':''}" onclick="${isViewer?'':` toggleCompletion('${s.id}','${wk}')`}">${isCompleted?'✓ 완료':'○ 완료'}</button>
       ${!isViewer?`<button class="sc-edit-btn edit-only" onclick="openSchEdit('${s.id}','${wk}')">✏️</button>`:''}
     </div>
   </div>`;
@@ -572,22 +615,22 @@ async function toggleCompletion(schId,wk){
   ovr.completed_at=ts;
   if(ovr.id){await sb.from('raid_schedule_overrides').update({is_completed:nowDone,completed_at:ts}).eq('id',ovr.id);}
   else{const{data}=await sb.from('raid_schedule_overrides').insert({schedule_id:schId,week_start_date:wk,slot_overrides:{},is_completed:nowDone,completed_at:ts}).select().single();if(data)ovr.id=data.id;}
-  // Try to mark raid_tasks for each character
+  // ★ Sync raid_tasks for each member
   const s=schedules.find(x=>x.id===schId);
   if(s){
     const p=parties.find(x=>x.id===s.party_id),preset=p?raids.find(x=>x.id===p.preset_id):null;
-    const eff=getEffectiveMembers(schId,s.party_id,wk);
-    for(const slot of eff){
-      if(!slot.character_id)continue;
-      const charTasks=raidTasksAll[slot.character_id]||[];
-      const match=charTasks.find(t=>t.name&&preset?.name&&t.name.toLowerCase().includes(preset.name.toLowerCase()));
-      if(match){
-        const up={is_completed:nowDone,last_completed_at:nowDone?new Date().toISOString():null};
-        await sb.from('raid_tasks').update(up).eq('id',match.id);Object.assign(match,up);
+    if(preset){
+      const eff=getEffectiveMembers(schId,s.party_id,wk);
+      for(const slot of eff){
+        if(!slot.character_id)continue;
+        const{data:tasks}=await sb.from('raid_tasks').select('id').eq('character_id',slot.character_id).eq('preset_id',preset.id);
+        if(tasks?.length){
+          await sb.from('raid_tasks').update({is_completed:nowDone,last_completed_at:ts}).in('id',tasks.map(t=>t.id));
+        }
       }
     }
   }
-  renderSchedule();toast(nowDone?'✅ 완료 처리됨':'↩ 완료 취소됨');
+  renderSchedule();toast(nowDone?'✅ 완료 처리됨 (레이드 숙제 반영)':'↩ 완료 취소됨');
 }
 
 // ─── Schedule edit (override modal) ───
