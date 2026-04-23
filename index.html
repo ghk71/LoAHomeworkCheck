@@ -481,10 +481,11 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
     <div class="form-group"><label class="form-label">입장레벨</label><input class="form-input" id="raid-entry-level" type="number" placeholder="1620" min="0" max="9999"></div>
   </div>
   <div class="form-row">
-    <div class="form-group"><label class="form-label">클리어 골드</label><input class="form-input" id="raid-clear-gold" type="number" placeholder="0" min="0"></div>
+    <div class="form-group"><label class="form-label">클리어 골드 (전체)</label><input class="form-input" id="raid-clear-gold" type="number" placeholder="0" min="0"></div>
     <div class="form-group"><label class="form-label">귀속 골드</label><input class="form-input" id="raid-bound-gold" type="number" placeholder="0" min="0"></div>
   </div>
   <div class="form-row">
+    <div class="form-group"><label class="form-label">더보기 골드</label><input class="form-input" id="raid-bonus-gold" type="number" placeholder="0" min="0"></div>
     <div class="form-group"><label class="form-label">초기화 요일</label>
       <select class="form-select" id="raid-reset-day">
         <option value="1">월요일</option><option value="2">화요일</option><option value="3" selected>수요일</option>
@@ -856,10 +857,13 @@ function renderTaskArea(){
   const raidList=S.raidTasks[S.selChar]||[];
   const currencies=S.currencies[S.selChar]||[],popups=S.customPopups[S.selChar]||[];
   const accName=esc(S.accounts.find(a=>a.id===S.selAcc)?.name||'');
-  // Weekly gold calculation
-  const totalGold=raidList.reduce((s,t)=>s+(Number(t.clear_gold)||0),0);
-  const earnedGold=raidList.filter(t=>isEffDone(t)).reduce((s,t)=>s+(Number(t.clear_gold)||0),0);
-  const remainGold=totalGold-earnedGold;
+  // 유통골드 = 전체 - 귀속, 더보기 별도
+  const totalFlow=raidList.reduce((s,t)=>s+(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0),0);
+  const totalBonus=raidList.reduce((s,t)=>s+(Number(t.bonus_gold)||0),0);
+  const earnedFlow=raidList.filter(t=>isEffDone(t)).reduce((s,t)=>s+(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0),0);
+  const remainFlow=totalFlow-earnedFlow;
+  const totalGold=totalFlow; // backward compat for display
+  const remainGold=remainFlow;
 
   el.innerHTML=`
   <!-- Expedition -->
@@ -880,8 +884,8 @@ function renderTaskArea(){
       <span class="coll-toggle">${S.raidCollapsed?'▶':'▼'}</span>
       <span class="coll-title">🏰 레이드 숙제</span>
       <span class="coll-stat">${raidList.filter(t=>isEffDone(t)).length}/${raidList.length}</span>
-      ${remainGold>0?`<span class="raid-gold-total">💰 남은 골드 ${remainGold.toLocaleString()}G</span>`:''}
-      ${totalGold>0&&remainGold===0?`<span class="raid-gold-total" style="color:var(--green);">✓ ${totalGold.toLocaleString()}G 완료</span>`:''}
+      ${remainGold>0?`<span class="raid-gold-total">💰 유통 ${remainGold.toLocaleString()}G 남음${totalBonus?` +더보기 ${totalBonus.toLocaleString()}G`:''}  </span>`:''}
+      ${totalGold>0&&remainGold===0?`<span class="raid-gold-total" style="color:var(--green);">✓ 유통 ${totalGold.toLocaleString()}G 완료${totalBonus?' +더보기 '+totalBonus.toLocaleString()+'G':''}</span>`:''}
       <button class="btn btn-orange" style="margin-left:auto;font-size:.72rem;padding:3px 9px;" onclick="event.stopPropagation();openAddRaidTask()">+ 추가</button>
     </div>
     ${!S.raidCollapsed?`<div class="coll-body">${raidList.length===0?'<div style="color:var(--muted);font-size:.82rem;padding:4px 0;">레이드 숙제가 없습니다</div>':`<div class="tasks-list">${raidList.map((t,i)=>raidItemHTML(t,i)).join('')}</div>`}</div>`:''}
@@ -1005,7 +1009,7 @@ function raidItemHTML(t,idx){
       <div class="raid-meta">
         ${t.difficulty?`<span class="raid-badge">${esc(t.difficulty)}</span>`:''}
         ${t.entry_level?`<span class="raid-badge">입장 ${t.entry_level}</span>`:''}
-        ${(()=>{const cg=Number(t.clear_gold)||0,bg=Number(t.bound_gold)||0,tr=cg-bg;return cg?`<span class="raid-gold">💰 유통 ${tr.toLocaleString()}G</span>${bg?`<span class="raid-gold" style="color:var(--orange);">귀속 ${bg.toLocaleString()}G</span>`:''}`:''})()}
+        ${(()=>{const cg=Number(t.clear_gold)||0,bg=Number(t.bound_gold)||0,bo=Number(t.bonus_gold)||0,tr=cg-bg;return cg?`<span class="raid-gold">💰 유통 ${tr.toLocaleString()}G</span>${bg?`<span class="raid-gold" style="color:var(--orange);">귀속 ${bg.toLocaleString()}G</span>`:''}${bo?`<span class="raid-gold" style="color:var(--purple);">더보기 ${bo.toLocaleString()}G</span>`:''}`:''})()}
         ${t.preset_id?'<span style="font-size:.63rem;color:var(--teal);padding:1px 5px;border:1px solid rgba(42,184,160,.3);border-radius:6px;">🔗 파티연동</span>':''}
         <span style="font-size:.65rem;color:var(--dim);">${DAYS[t.reset_day]}요일 초기화 · ${nextResetLabel({...t,reset_type:'weekly'})}</span>
       </div>
@@ -1147,7 +1151,7 @@ function openAddRaidTask(){
   document.getElementById('raid-submit-btn').textContent='추가';
   document.getElementById('raid-name').value='';document.getElementById('raid-difficulty').value='';
   document.getElementById('raid-entry-level').value='';document.getElementById('raid-clear-gold').value='';
-  document.getElementById('raid-bound-gold').value='';document.getElementById('raid-reset-day').value='3';
+  document.getElementById('raid-bound-gold').value='';document.getElementById('raid-bonus-gold').value='';document.getElementById('raid-reset-day').value='3';
   document.getElementById('raid-edit-id').value='';
   openModal('modal-raid-task');setTimeout(()=>document.getElementById('raid-name').focus(),80);
 }
@@ -1157,14 +1161,14 @@ function openEditRaidTask(id){
   document.getElementById('raid-submit-btn').textContent='저장';
   document.getElementById('raid-name').value=t.name;document.getElementById('raid-difficulty').value=t.difficulty||'';
   document.getElementById('raid-entry-level').value=t.entry_level||'';document.getElementById('raid-clear-gold').value=t.clear_gold||'';
-  document.getElementById('raid-bound-gold').value=t.bound_gold||'';document.getElementById('raid-reset-day').value=String(t.reset_day||3);
+  document.getElementById('raid-bound-gold').value=t.bound_gold||'';document.getElementById('raid-bonus-gold').value=t.bonus_gold||'';document.getElementById('raid-reset-day').value=String(t.reset_day||3);
   document.getElementById('raid-edit-id').value=id;
   openModal('modal-raid-task');
 }
 async function submitRaidTask(){
   const name=document.getElementById('raid-name').value.trim();if(!name){toast('❗ 레이드 이름을 입력하세요');return;}
   const editId=document.getElementById('raid-edit-id').value;
-  const rec={name,difficulty:document.getElementById('raid-difficulty').value.trim(),entry_level:parseFloat(document.getElementById('raid-entry-level').value)||0,clear_gold:parseFloat(document.getElementById('raid-clear-gold').value)||0,bound_gold:parseFloat(document.getElementById('raid-bound-gold').value)||0,reset_day:parseInt(document.getElementById('raid-reset-day').value)};
+  const rec={name,difficulty:document.getElementById('raid-difficulty').value.trim(),entry_level:parseFloat(document.getElementById('raid-entry-level').value)||0,clear_gold:parseFloat(document.getElementById('raid-clear-gold').value)||0,bound_gold:parseFloat(document.getElementById('raid-bound-gold').value)||0,bonus_gold:parseFloat(document.getElementById('raid-bonus-gold').value)||0,reset_day:parseInt(document.getElementById('raid-reset-day').value)};
   if(editId){const{error}=await sb.from('raid_tasks').update(rec).eq('id',editId);if(error){toast('❗ '+error.message);return;}const t=(S.raidTasks[S.selChar]||[]).find(x=>x.id===editId);if(t)Object.assign(t,rec);toast('✅ 수정됨');}
   else{rec.character_id=S.selChar;rec.sort_order=(S.raidTasks[S.selChar]||[]).length;const{data,error}=await sb.from('raid_tasks').insert(rec).select().single();if(error){toast('❗ '+error.message);return;}if(!S.raidTasks[S.selChar])S.raidTasks[S.selChar]=[];S.raidTasks[S.selChar].push(data);toast('✅ 레이드 추가됨');}
   closeModal('modal-raid-task');renderTaskArea();
