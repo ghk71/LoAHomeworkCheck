@@ -553,7 +553,18 @@ function renderPresetList(){
   }).join('');
   applyViewer();
 }
-function toggleGroup(name){selGroupName=selGroupName===name?null:name;selPresetId=null;renderPresetList();}
+function toggleGroup(name){
+  // isGOpen과 동일한 로직으로 "실제로 열려있는지" 판단
+  const gPresets=raids.filter(r=>r.name===name);
+  const alreadyOpen=selGroupName===name||gPresets.some(r=>selPresetId===r.id||parties.find(p=>p.preset_id===r.id&&p.id===selPartyId));
+  selGroupName=alreadyOpen?null:name;
+  selPresetId=null;
+  if(alreadyOpen){
+    selPartyId=null;
+    document.getElementById('party-detail').innerHTML='<div class="empty-state"><div class="empty-icon">🗡️</div><div>왼쪽에서 파티를 선택하세요</div></div>';
+  }
+  renderPresetList();
+}
 function togglePreset(id){selPresetId=selPresetId===id?null:id;renderPresetList();}
 function selectParty(id){selPartyId=id;renderPresetList();renderPartyDetail();}
 
@@ -663,8 +674,24 @@ async function syncRaidTask(charId,partyId){
 async function removePartyMember(partyId,slotIndex,memberId){
   const p=parties.find(x=>x.id===partyId);if(!p)return;
   const m=memberId?p.members.find(x=>x.id===memberId):p.members.find(x=>x.slot_index===slotIndex);
+  const charId=m?.character_id;
+  const preset=raids.find(x=>x.id===p.preset_id);
   if(m)await sb.from('raid_party_members').delete().eq('id',m.id);
   p.members=p.members.filter(x=>x.slot_index!==slotIndex);
+  // 연동된 레이드 숙제 삭제 여부 묻기
+  if(charId&&preset){
+    const{data:linked}=await sb.from('raid_tasks').select('id,name').eq('character_id',charId).eq('preset_id',preset.id);
+    if(linked?.length){
+      if(confirm(`"${linked[0].name}" 레이드 숙제도 함께 삭제하시겠습니까?\n(취소하면 숙제는 유지됩니다)`)){
+        await sb.from('raid_tasks').delete().in('id',linked.map(t=>t.id));
+        toast('🗑️ 연동 레이드 숙제 삭제됨');
+      } else {
+        // 연동만 해제
+        await sb.from('raid_tasks').update({preset_id:null}).in('id',linked.map(t=>t.id));
+        toast('🔗 연동 해제됨 (숙제는 유지)');
+      }
+    }
+  }
   renderPresetList();renderPartyDetail();
 }
 
