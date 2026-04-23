@@ -212,10 +212,19 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 /* Raid task item */
 .raid-item{background:var(--s2);border:1px solid var(--border);border-radius:var(--r);padding:9px 12px;display:flex;align-items:center;gap:7px;transition:all .12s;}
 .raid-item:hover{border-color:rgba(224,120,64,.4);background:var(--s3);}
+.raid-item:hover .task-actions{opacity:1;}
 .raid-item.done{border-color:rgba(60,186,120,.4);background:var(--green-dim);}
 .raid-item.done .task-name{color:var(--muted);text-decoration:line-through;}
 .raid-item.done .checkbox:not(.no-click){background:var(--green);border-color:var(--green);}
 .raid-item.done .checkbox-icon{opacity:1;}
+/* Raid preset list in select modal */
+.preset-select-list{max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:5px;}
+.preset-select-group{margin-bottom:6px;}
+.preset-select-group-name{font-size:.72rem;font-weight:700;color:var(--gold);padding:4px 8px;letter-spacing:.5px;text-transform:uppercase;}
+.preset-select-item{padding:9px 13px;border:1px solid var(--border);border-radius:var(--r);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:10px;}
+.preset-select-item:hover{border-color:rgba(224,120,64,.5);background:rgba(224,120,64,.06);}
+.psi-name{font-size:.86rem;font-weight:600;flex:1;}
+.psi-gold{font-size:.71rem;color:var(--muted);}
 .raid-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px;}
 .raid-badge{font-size:.67rem;padding:1px 6px;border-radius:8px;background:rgba(224,120,64,.12);color:var(--orange);border:1px solid rgba(224,120,64,.25);}
 .raid-gold{font-size:.72rem;color:#f0c040;}
@@ -473,6 +482,16 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 </div></div>
 
 <!-- Raid Task Modal -->
+<!-- Raid Preset Selector -->
+<div class="overlay" id="modal-raid-select"><div class="modal modal-orange" style="max-width:500px;">
+  <div class="modal-title orange">🏰 레이드 목록에서 선택</div>
+  <div id="preset-select-list-wrap" class="preset-select-list"></div>
+  <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+    <button class="btn btn-sec btn-full" onclick="closeModal('modal-raid-select');openRaidTaskDirect()">✏️ 직접 입력</button>
+  </div>
+  <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-raid-select')">취소</button></div>
+</div></div>
+
 <div class="overlay" id="modal-raid-task"><div class="modal modal-orange">
   <div class="modal-title orange" id="raid-modal-title">레이드 숙제 추가</div>
   <div class="form-group"><label class="form-label">레이드 이름</label><input class="form-input" id="raid-name" lang="ko" inputmode="text" placeholder="예: 에키드나, 베히모스" maxlength="40"></div>
@@ -493,7 +512,7 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
       </select>
     </div>
   </div>
-  <input type="hidden" id="raid-edit-id">
+  <input type="hidden" id="raid-edit-id"><input type="hidden" id="raid-preset-link">
   <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-raid-task')">취소</button><button class="btn btn-orange" id="raid-submit-btn" onclick="submitRaidTask()">추가</button></div>
 </div></div>
 
@@ -1146,14 +1165,63 @@ async function deleteTask(taskId,isExp){
 }
 
 // ─── Raid Task CRUD ───
-function openAddRaidTask(){
+async function openAddRaidTask(){
+  // 레이드 프리셋 로드
+  const{data:presets}=await sb.from('raid_presets').select('*').order('sort_order').order('created_at');
+  const list=document.getElementById('preset-select-list-wrap');
+  if(presets&&presets.length>0){
+    // 이름별로 그룹핑
+    const groups={};presets.forEach(p=>{if(!groups[p.name])groups[p.name]=[];groups[p.name].push(p);});
+    list.innerHTML=Object.entries(groups).map(([gname,items])=>`
+      <div class="preset-select-group">
+        <div class="preset-select-group-name">${esc(gname)}</div>
+        ${items.map(p=>{
+          const cg=Number(p.clear_gold)||0,bg=Number(p.bound_gold)||0,bo=Number(p.bonus_gold)||0,tr=cg-bg;
+          return`<div class="preset-select-item" onclick="selectPresetForTask('${p.id}')">
+            <div><div class="psi-name">${esc(p.difficulty||gname)}</div>
+            <div class="psi-gold">
+              ${p.entry_level?`입장 ${p.entry_level} · `:''}
+              ${cg?`💰 유통 ${tr.toLocaleString()}G `:''}
+              ${bg?`귀속 ${bg.toLocaleString()}G `:''}
+              ${bo?`더보기 ${bo.toLocaleString()}G`:''}
+            </div></div>
+          </div>`;
+        }).join('')}
+      </div>`).join('');
+  } else {
+    list.innerHTML='<div style="padding:16px;text-align:center;color:var(--muted);font-size:.84rem;">레이드 페이지에서 레이드를 먼저 추가하세요</div>';
+  }
+  openModal('modal-raid-select');
+}
+function selectPresetForTask(presetId){
+  closeModal('modal-raid-select');
+  // 비동기로 프리셋 로드해서 폼 채우기
+  sb.from('raid_presets').select('*').eq('id',presetId).single().then(({data:p})=>{
+    if(!p)return openRaidTaskDirect();
+    resetRaidModal();
+    document.getElementById('raid-name').value=p.name+(p.difficulty?' '+p.difficulty:'');
+    document.getElementById('raid-difficulty').value=p.difficulty||'';
+    document.getElementById('raid-entry-level').value=p.entry_level||'';
+    document.getElementById('raid-clear-gold').value=p.clear_gold||'';
+    document.getElementById('raid-bound-gold').value=p.bound_gold||'';
+    document.getElementById('raid-bonus-gold').value=p.bonus_gold||'';
+    // preset_id 숨김 필드에 저장
+    document.getElementById('raid-edit-id').value='';
+    document.getElementById('raid-preset-link').value=p.id;
+    openModal('modal-raid-task');
+  });
+}
+function openRaidTaskDirect(){
+  resetRaidModal();
+  openModal('modal-raid-task');setTimeout(()=>document.getElementById('raid-name').focus(),80);
+}
+function resetRaidModal(){
   document.getElementById('raid-modal-title').textContent='레이드 숙제 추가';
   document.getElementById('raid-submit-btn').textContent='추가';
   document.getElementById('raid-name').value='';document.getElementById('raid-difficulty').value='';
   document.getElementById('raid-entry-level').value='';document.getElementById('raid-clear-gold').value='';
   document.getElementById('raid-bound-gold').value='';document.getElementById('raid-bonus-gold').value='';document.getElementById('raid-reset-day').value='3';
-  document.getElementById('raid-edit-id').value='';
-  openModal('modal-raid-task');setTimeout(()=>document.getElementById('raid-name').focus(),80);
+  document.getElementById('raid-edit-id').value='';document.getElementById('raid-preset-link').value='';
 }
 function openEditRaidTask(id){
   const t=(S.raidTasks[S.selChar]||[]).find(x=>x.id===id);if(!t)return;
@@ -1162,13 +1230,15 @@ function openEditRaidTask(id){
   document.getElementById('raid-name').value=t.name;document.getElementById('raid-difficulty').value=t.difficulty||'';
   document.getElementById('raid-entry-level').value=t.entry_level||'';document.getElementById('raid-clear-gold').value=t.clear_gold||'';
   document.getElementById('raid-bound-gold').value=t.bound_gold||'';document.getElementById('raid-bonus-gold').value=t.bonus_gold||'';document.getElementById('raid-reset-day').value=String(t.reset_day||3);
-  document.getElementById('raid-edit-id').value=id;
+  document.getElementById('raid-edit-id').value=id;document.getElementById('raid-preset-link').value=t.preset_id||'';
   openModal('modal-raid-task');
 }
 async function submitRaidTask(){
   const name=document.getElementById('raid-name').value.trim();if(!name){toast('❗ 레이드 이름을 입력하세요');return;}
   const editId=document.getElementById('raid-edit-id').value;
   const rec={name,difficulty:document.getElementById('raid-difficulty').value.trim(),entry_level:parseFloat(document.getElementById('raid-entry-level').value)||0,clear_gold:parseFloat(document.getElementById('raid-clear-gold').value)||0,bound_gold:parseFloat(document.getElementById('raid-bound-gold').value)||0,bonus_gold:parseFloat(document.getElementById('raid-bonus-gold').value)||0,reset_day:parseInt(document.getElementById('raid-reset-day').value)};
+  const presetLink=document.getElementById('raid-preset-link').value;
+  if(presetLink)rec.preset_id=presetLink;
   if(editId){const{error}=await sb.from('raid_tasks').update(rec).eq('id',editId);if(error){toast('❗ '+error.message);return;}const t=(S.raidTasks[S.selChar]||[]).find(x=>x.id===editId);if(t)Object.assign(t,rec);toast('✅ 수정됨');}
   else{rec.character_id=S.selChar;rec.sort_order=(S.raidTasks[S.selChar]||[]).length;const{data,error}=await sb.from('raid_tasks').insert(rec).select().single();if(error){toast('❗ '+error.message);return;}if(!S.raidTasks[S.selChar])S.raidTasks[S.selChar]=[];S.raidTasks[S.selChar].push(data);toast('✅ 레이드 추가됨');}
   closeModal('modal-raid-task');renderTaskArea();
