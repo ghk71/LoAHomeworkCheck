@@ -69,11 +69,13 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 .slot:hover .slot-remove{opacity:1;}
 /* ── SCHEDULE TAB ── */
 #view-schedule{display:none;flex-direction:column;flex:1;overflow:hidden;}
-.sch-notice-bar{padding:10px 18px;background:var(--s2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;}
-.notice-icon{font-size:1rem;flex-shrink:0;}
-.notice-input{flex:1;background:transparent;border:none;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:.83rem;outline:none;}
-.notice-input::placeholder{color:var(--dim);}
-.notice-save-hint{font-size:.7rem;color:var(--dim);flex-shrink:0;}
+.sch-notice-bar{padding:12px 18px;background:rgba(200,168,75,.07);border-bottom:2px solid rgba(200,168,75,.2);display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.notice-icon{font-size:1.1rem;flex-shrink:0;}
+.notice-text-wrap{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0;}
+.notice-week-label{font-size:.67rem;color:var(--gold);font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
+.notice-input{background:transparent;border:none;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:.92rem;outline:none;width:100%;}
+.notice-input::placeholder{color:rgba(200,168,75,.3);}
+.notice-save-hint{font-size:.7rem;color:var(--muted);flex-shrink:0;}
 .week-nav{display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid var(--border);background:var(--s1);flex-shrink:0;}
 .week-label{font-size:.85rem;font-weight:600;flex:1;text-align:center;}
 .sch-body{flex:1;overflow-y:auto;}
@@ -213,8 +215,12 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
   <div id="view-schedule">
     <div class="sch-notice-bar">
       <span class="notice-icon">📢</span>
-      <input class="notice-input edit-only" id="notice-input" placeholder="이번 주 공지사항을 입력하세요..." onblur="saveNotice()" onkeydown="if(event.key==='Enter')saveNotice()">
+      <div class="notice-text-wrap">
+        <span class="notice-week-label" id="notice-week-label">이번 주 공지</span>
+        <input class="notice-input edit-only" id="notice-input" placeholder="공지사항을 입력하세요..." onblur="saveNotice()" onkeydown="if(event.key==='Enter')this.blur()">
+      </div>
       <span class="notice-save-hint" id="notice-hint"></span>
+      <button class="btn btn-sec btn-sm edit-only" style="flex-shrink:0;" onclick="openAdvanceNotice()">📅 미리 쓰기</button>
     </div>
     <div class="week-nav">
       <button class="btn btn-sec btn-sm" onclick="moveWeek(-1)">◀ 이전</button>
@@ -227,23 +233,7 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 </div>
 
 <!-- ── MODALS ── -->
-<!-- Preset modal -->
-<div class="overlay" id="modal-preset"><div class="modal">
-  <div class="modal-title" id="preset-modal-title">레이드 추가</div>
-  <div class="form-group"><label class="form-label">레이드 이름</label><input class="form-input" id="preset-name" lang="ko" inputmode="text" placeholder="에키드나, 베히모스, 카멘..." maxlength="30"></div>
-  <div class="form-row">
-    <div class="form-group"><label class="form-label">난이도</label><input class="form-input" id="preset-difficulty" lang="ko" inputmode="text" placeholder="노말, 하드, 싱글"></div>
-    <div class="form-group"><label class="form-label">입장 레벨</label><input class="form-input" id="preset-ilvl" type="number" placeholder="1620" min="0"></div>
-  </div>
-  <div class="form-row">
-    <div class="form-group"><label class="form-label">클리어 골드</label><input class="form-input" id="preset-gold" type="number" placeholder="0" min="0"></div>
-    <div class="form-group"><label class="form-label">귀속 골드</label><input class="form-input" id="preset-bound" type="number" placeholder="0" min="0"></div>
-  </div>
-  <input type="hidden" id="preset-edit-id">
-  <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-preset')">취소</button><button class="btn btn-gold" id="preset-submit-btn" onclick="submitPreset()">추가</button></div>
-</div></div>
-
-<!-- Party modal (under preset) -->
+<!-- Party modal -->
 <div class="overlay" id="modal-party"><div class="modal">
   <div class="modal-title" id="party-modal-title">파티 추가</div>
   <div class="form-group"><label class="form-label">파티 이름</label><input class="form-input" id="party-name" lang="ko" inputmode="text" placeholder="1파, 길드전용, 주말파..." maxlength="20"></div>
@@ -298,6 +288,48 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
   <div class="modal-footer"><button class="btn btn-teal" onclick="copyShareLink()">📋 링크 복사</button><button class="btn btn-sec" onclick="closeModal('modal-share')">닫기</button></div>
 </div></div>
 
+<!-- Advance notice modal -->
+<div class="overlay" id="modal-advance-notice"><div class="modal">
+  <div class="modal-title">📅 미리 공지 작성</div>
+  <div class="form-group"><label class="form-label">주차 선택</label>
+    <select class="form-select" id="advance-week-select"></select>
+  </div>
+  <div class="form-group"><label class="form-label">공지사항</label>
+    <textarea class="form-input form-textarea" id="advance-notice-content" placeholder="해당 주의 공지사항을 입력하세요..." style="min-height:80px;resize:vertical;"></textarea>
+  </div>
+  <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-advance-notice')">취소</button><button class="btn btn-gold" onclick="saveAdvanceNotice()">저장</button></div>
+</div></div>
+
+<!-- Raid name modal (top level group) -->
+<div class="overlay" id="modal-raid-name"><div class="modal">
+  <div class="modal-title" id="raid-name-modal-title">레이드 추가</div>
+  <div class="form-group"><label class="form-label">레이드 이름</label>
+    <input class="form-input" id="rn-name" lang="ko" inputmode="text" placeholder="에키드나, 베히모스, 카멘..." maxlength="30">
+  </div>
+  <input type="hidden" id="rn-old-name">
+  <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-raid-name')">취소</button><button class="btn btn-gold" id="rn-submit-btn" onclick="submitRaidName()">추가</button></div>
+</div></div>
+
+<!-- Difficulty modal -->
+<div class="overlay" id="modal-difficulty"><div class="modal">
+  <div class="modal-title" id="diff-modal-title">난이도 추가</div>
+  <div style="font-size:.8rem;color:var(--muted);margin-bottom:12px;" id="diff-parent-label"></div>
+  <div class="form-row">
+    <div class="form-group"><label class="form-label">난이도</label><input class="form-input" id="diff-difficulty" lang="ko" inputmode="text" placeholder="노말, 하드, 싱글..."></div>
+    <div class="form-group"><label class="form-label">입장 레벨</label><input class="form-input" id="diff-ilvl" type="number" placeholder="1620" min="0"></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label class="form-label">클리어 골드 (전체)</label><input class="form-input" id="diff-gold" type="number" placeholder="0" min="0"></div>
+    <div class="form-group"><label class="form-label">귀속 골드</label><input class="form-input" id="diff-bound" type="number" placeholder="0" min="0"></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label class="form-label">더보기 골드</label><input class="form-input" id="diff-bonus" type="number" placeholder="0" min="0"></div>
+    <div class="form-group"></div>
+  </div>
+  <input type="hidden" id="diff-preset-id"><input type="hidden" id="diff-group-name">
+  <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-difficulty')">취소</button><button class="btn btn-gold" id="diff-submit-btn" onclick="submitDifficulty()">추가</button></div>
+</div></div>
+
 <script>
 const{createClient}=supabase;
 // ─── Viewer ───
@@ -323,7 +355,7 @@ function applyViewer(){
 
 // ─── State ───
 let sb,accounts=[],allChars=[],raids=[],parties=[],schedules=[],overrides={},notices={},raidTasksAll={};
-let selPartyId=null,weekOffset=0,partySize=4,selPresetId=null;
+let selPartyId=null,selGroupName=null,weekOffset=0,partySize=4,selPresetId=null;
 let pickCtx={mode:'party',partyId:null,slotIndex:null,scheduleId:null};
 let ovrEditSchId=null;
 const WEEK_DAY_NUMS=[3,4,5,6,0,1,2];
@@ -371,40 +403,64 @@ async function autoResetNonFixed(){const ws=getWeekStart(0),del=schedules.filter
 // ─── Preset / Party list ───
 function renderPresetList(){
   const el=document.getElementById('preset-list');
-  if(!raids.length){el.innerHTML='<div style="text-align:center;padding:20px;font-size:.82rem;color:var(--muted);">레이드를 추가하세요</div>';return;}
-  el.innerHTML=raids.map(r=>{
-    const rParties=parties.filter(p=>p.preset_id===r.id);
-    const isOpen=selPresetId===r.id||rParties.some(p=>p.id===selPartyId);
+  // 레이드명으로 그룹핑 (+ localStorage 임시 그룹)
+  const dbNames=[...new Set(raids.map(r=>r.name))];
+  const extraNames=JSON.parse(localStorage.getItem('la_raid_groups')||'[]').filter(n=>!dbNames.includes(n));
+  const allNames=[...dbNames,...extraNames];
+  if(!allNames.length){el.innerHTML='<div style="text-align:center;padding:20px;font-size:.82rem;color:var(--muted);">레이드를 추가하세요</div>';return;}
+  el.innerHTML=allNames.map(gname=>{
+    const gPresets=raids.filter(r=>r.name===gname).sort((a,b)=>a.sort_order-b.sort_order);
+    const isGOpen=selGroupName===gname||gPresets.some(r=>selPresetId===r.id||parties.find(p=>p.preset_id===r.id&&p.id===selPartyId));
     return`<div class="preset-card">
-      <div class="preset-header" onclick="togglePreset('${r.id}')">
-        <span class="preset-toggle">${isOpen?'▼':'▶'}</span>
-        <div style="flex:1;min-width:0;">
-          <div class="preset-name">${esc(r.name)}</div>
-          <div class="preset-info">${r.difficulty?esc(r.difficulty):''}${r.entry_level?' · '+r.entry_level:''}${rParties.length?' · '+rParties.length+'파티':''}</div>
-        </div>
+      <div class="preset-header" onclick="toggleGroup('${esc(gname)}')">
+        <span class="preset-toggle">${isGOpen?'▼':'▶'}</span>
+        <div class="preset-name" style="flex:1;">${esc(gname)}</div>
         <div class="preset-actions">
-          ${!isViewer?`<button class="btn btn-icon edit-only" onclick="event.stopPropagation();openEditPreset('${r.id}')">✏️</button>
-          <button class="btn-danger btn-icon" style="padding:3px 5px;font-size:.76rem;" onclick="event.stopPropagation();deletePreset('${r.id}')">🗑</button>`:''}
+          ${!isViewer?`<button class="btn btn-icon edit-only" style="font-size:.7rem;padding:3px 7px;" onclick="event.stopPropagation();openAddDifficulty('${esc(gname)}')">+난이도</button>
+          <button class="btn btn-icon edit-only" onclick="event.stopPropagation();openEditRaidGroup('${esc(gname)}')">✏️</button>
+          <button class="btn-danger btn-icon" style="padding:3px 5px;font-size:.74rem;" onclick="event.stopPropagation();deleteGroup('${esc(gname)}')">🗑</button>`:''}
         </div>
       </div>
-      ${isOpen?`<div style="padding:6px 10px 8px;">
-        ${r.clear_gold?`<div class="preset-gold">💰 ${Number(r.clear_gold).toLocaleString()}G 클리어${r.bound_gold?' (귀속 '+Number(r.bound_gold).toLocaleString()+'G)':''}</div>`:''}
-        <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px;">
-          ${rParties.map(p=>{
-            const filled=p.members.filter(m=>m.character_id).length;
-            return`<div class="party-mini ${p.id===selPartyId?'selected':''}" onclick="selectParty('${p.id}')">
-              <div style="flex:1;"><div class="party-mini-name">${esc(p.name||'파티')}</div><div class="party-mini-fill">${p.party_size}인 · ${filled}/${p.party_size}명</div></div>
-              ${!isViewer?`<button class="btn btn-icon edit-only" onclick="event.stopPropagation();openEditParty('${p.id}')">✏️</button>
-              <button class="btn-danger btn-icon" style="padding:3px 5px;font-size:.74rem;" onclick="event.stopPropagation();deleteParty('${p.id}')">🗑</button>`:''}
-            </div>`;
-          }).join('')}
-          ${!isViewer?`<button class="btn-outline edit-only" style="margin-top:4px;font-size:.75rem;padding:5px;" onclick="openAddParty('${r.id}')">＋ 파티 추가</button>`:''}
-        </div>
+      ${isGOpen?`<div style="padding:6px 10px 8px;">
+        ${gPresets.length===0?'<div style="font-size:.78rem;color:var(--muted);padding:3px 0 6px;">난이도를 추가하세요</div>':''}
+        ${gPresets.map(r=>{
+          const rParties=parties.filter(p=>p.preset_id===r.id);
+          const isPOpen=selPresetId===r.id||rParties.some(p=>p.id===selPartyId);
+          const cg=Number(r.clear_gold)||0,bg=Number(r.bound_gold)||0,bo=Number(r.bonus_gold)||0,tr=cg-bg;
+          return`<div style="margin-bottom:6px;background:var(--s1);border:1px solid ${isPOpen?'rgba(200,168,75,.3)':'var(--border)'};border-radius:5px;overflow:hidden;">
+            <div style="padding:7px 10px;display:flex;align-items:center;gap:7px;cursor:pointer;" onclick="togglePreset('${r.id}')">
+              <span style="font-size:.66rem;color:var(--muted);width:10px;">${isPOpen?'▼':'▶'}</span>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:.83rem;font-weight:600;color:var(--text);">${esc(r.difficulty||'기본')}</div>
+                <div style="font-size:.67rem;color:var(--muted);margin-top:1px;">
+                  ${r.entry_level?`입장 ${r.entry_level} `:''}
+                  ${cg?`💰 유통 ${tr.toLocaleString()}G `:''}
+                  ${bg?`귀속 ${bg.toLocaleString()}G `:''}
+                  ${bo?`더보기 ${bo.toLocaleString()}G`:''}
+                </div>
+              </div>
+              ${!isViewer?`<button class="btn btn-icon edit-only" onclick="event.stopPropagation();openEditDifficulty('${r.id}')">✏️</button>
+              <button class="btn-danger btn-icon" style="padding:3px 5px;font-size:.72rem;" onclick="event.stopPropagation();deletePreset('${r.id}')">🗑</button>`:''}
+            </div>
+            ${isPOpen?`<div style="padding:4px 10px 8px;border-top:1px solid var(--border);">
+              ${rParties.map(p=>{
+                const filled=p.members.filter(m=>m.character_id).length;
+                return`<div class="party-mini ${p.id===selPartyId?'selected':''}" onclick="selectParty('${p.id}')">
+                  <div style="flex:1;"><div class="party-mini-name">${esc(p.name||'파티')}</div><div class="party-mini-fill">${p.party_size}인 · ${filled}/${p.party_size}명</div></div>
+                  ${!isViewer?`<button class="btn btn-icon edit-only" onclick="event.stopPropagation();openEditParty('${p.id}')">✏️</button>
+                  <button class="btn-danger btn-icon" style="padding:3px 5px;font-size:.72rem;" onclick="event.stopPropagation();deleteParty('${p.id}')">🗑</button>`:''}
+                </div>`;
+              }).join('')}
+              ${!isViewer?`<button class="btn-outline edit-only" style="font-size:.74rem;padding:5px;margin-top:3px;" onclick="openAddParty('${r.id}')">＋ 파티 추가</button>`:''}
+            </div>`:''}
+          </div>`;
+        }).join('')}
       </div>`:''}
     </div>`;
   }).join('');
   applyViewer();
 }
+function toggleGroup(name){selGroupName=selGroupName===name?null:name;selPresetId=null;renderPresetList();}
 function togglePreset(id){selPresetId=selPresetId===id?null:id;renderPresetList();}
 function selectParty(id){selPartyId=id;renderPresetList();renderPartyDetail();}
 
@@ -517,18 +573,96 @@ async function removePartyMember(partyId,slotIndex,memberId){
   renderPresetList();renderPartyDetail();
 }
 
-// ─── Preset CRUD ───
-function openAddPreset(){document.getElementById('preset-modal-title').textContent='레이드 추가';document.getElementById('preset-submit-btn').textContent='추가';['preset-name','preset-difficulty','preset-ilvl','preset-gold','preset-bound'].forEach(id=>document.getElementById(id).value='');document.getElementById('preset-edit-id').value='';openModal('modal-preset');setTimeout(()=>document.getElementById('preset-name').focus(),80);}
-function openEditPreset(id){const r=raids.find(x=>x.id===id);if(!r)return;document.getElementById('preset-modal-title').textContent='레이드 수정';document.getElementById('preset-submit-btn').textContent='저장';document.getElementById('preset-name').value=r.name;document.getElementById('preset-difficulty').value=r.difficulty||'';document.getElementById('preset-ilvl').value=r.entry_level||'';document.getElementById('preset-gold').value=r.clear_gold||'';document.getElementById('preset-bound').value=r.bound_gold||'';document.getElementById('preset-edit-id').value=id;openModal('modal-preset');}
-async function submitPreset(){
-  const name=document.getElementById('preset-name').value.trim();if(!name){toast('❗ 이름 입력');return;}
-  const rec={name,difficulty:document.getElementById('preset-difficulty').value.trim(),entry_level:parseFloat(document.getElementById('preset-ilvl').value)||0,clear_gold:parseFloat(document.getElementById('preset-gold').value)||0,bound_gold:parseFloat(document.getElementById('preset-bound').value)||0};
-  const editId=document.getElementById('preset-edit-id').value;
-  if(editId){await sb.from('raid_presets').update(rec).eq('id',editId);const r=raids.find(x=>x.id===editId);if(r)Object.assign(r,rec);toast('✅ 수정됨');}
-  else{rec.sort_order=raids.length;const{data,error}=await sb.from('raid_presets').insert(rec).select().single();if(error){toast('❗ '+error.message);return;}raids.push(data);selPresetId=data.id;toast('✅ 레이드 추가됨');}
-  closeModal('modal-preset');renderPresetList();
+// ─── Raid Group (이름 레벨) CRUD ───
+function openAddPreset(){
+  document.getElementById('raid-name-modal-title').textContent='레이드 추가';
+  document.getElementById('rn-submit-btn').textContent='추가';
+  document.getElementById('rn-name').value='';document.getElementById('rn-old-name').value='';
+  openModal('modal-raid-name');setTimeout(()=>document.getElementById('rn-name').focus(),80);
 }
-async function deletePreset(id){if(!confirm('레이드와 관련된 파티/일정이 모두 삭제됩니다. 계속?'))return;await sb.from('raid_presets').delete().eq('id',id);raids=raids.filter(r=>r.id!==id);parties=parties.filter(p=>p.preset_id!==id);schedules=schedules.filter(s=>!parties.some(p=>p.id===s.party_id));if(selPresetId===id)selPresetId=null;if(selPartyId&&!parties.some(p=>p.id===selPartyId))selPartyId=null;renderPresetList();renderSchedule();toast('🗑️ 삭제됨');}
+function openEditRaidGroup(groupName){
+  document.getElementById('raid-name-modal-title').textContent='레이드 이름 수정';
+  document.getElementById('rn-submit-btn').textContent='저장';
+  document.getElementById('rn-name').value=groupName;document.getElementById('rn-old-name').value=groupName;
+  openModal('modal-raid-name');
+}
+async function submitRaidName(){
+  const name=document.getElementById('rn-name').value.trim();if(!name){toast('❗ 이름 입력');return;}
+  const oldName=document.getElementById('rn-old-name').value;
+  if(oldName){
+    // 수정: 해당 이름의 모든 presets 이름 변경
+    await sb.from('raid_presets').update({name}).eq('name',oldName);
+    raids.filter(r=>r.name===oldName).forEach(r=>{r.name=name;});
+    // localStorage 그룹 이름도 업데이트
+    const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]');
+    const idx=extras.indexOf(oldName);if(idx>=0)extras[idx]=name;localStorage.setItem('la_raid_groups',JSON.stringify(extras));
+    if(selGroupName===oldName)selGroupName=name;
+    toast('✅ 이름 변경됨');
+  } else {
+    // 추가: localStorage에만 저장 (프리셋 없는 빈 그룹)
+    const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]');
+    if(!extras.includes(name)&&!raids.some(r=>r.name===name))extras.push(name);
+    localStorage.setItem('la_raid_groups',JSON.stringify(extras));
+    selGroupName=name;toast('✅ 레이드 추가됨');
+  }
+  closeModal('modal-raid-name');renderPresetList();
+}
+async function deleteGroup(groupName){
+  if(!confirm(`"${groupName}" 레이드와 모든 난이도/파티/일정을 삭제합니다. 계속?`))return;
+  const gPresets=raids.filter(r=>r.name===groupName);
+  for(const r of gPresets)await sb.from('raid_presets').delete().eq('id',r.id);
+  parties=parties.filter(p=>!gPresets.some(r=>r.id===p.preset_id));
+  schedules=schedules.filter(s=>!parties.some(p=>p.id===s.party_id));
+  raids=raids.filter(r=>r.name!==groupName);
+  // localStorage extras도 제거
+  const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]').filter(n=>n!==groupName);
+  localStorage.setItem('la_raid_groups',JSON.stringify(extras));
+  if(selGroupName===groupName)selGroupName=null;
+  selPresetId=null;selPartyId=null;
+  document.getElementById('party-detail').innerHTML='<div class="empty-state"><div class="empty-icon">🗡️</div><div>왼쪽에서 파티를 선택하세요</div></div>';
+  renderPresetList();renderSchedule();toast('🗑️ 삭제됨');
+}
+
+// ─── Difficulty (난이도 = preset) CRUD ───
+function openAddDifficulty(groupName){
+  document.getElementById('diff-modal-title').textContent='난이도 추가';
+  document.getElementById('diff-submit-btn').textContent='추가';
+  document.getElementById('diff-parent-label').textContent=`레이드: ${groupName}`;
+  ['diff-difficulty','diff-ilvl','diff-gold','diff-bound','diff-bonus'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('diff-preset-id').value='';document.getElementById('diff-group-name').value=groupName;
+  openModal('modal-difficulty');setTimeout(()=>document.getElementById('diff-difficulty').focus(),80);
+}
+function openEditDifficulty(id){
+  const r=raids.find(x=>x.id===id);if(!r)return;
+  document.getElementById('diff-modal-title').textContent='난이도 수정';
+  document.getElementById('diff-submit-btn').textContent='저장';
+  document.getElementById('diff-parent-label').textContent=`레이드: ${r.name}`;
+  document.getElementById('diff-difficulty').value=r.difficulty||'';
+  document.getElementById('diff-ilvl').value=r.entry_level||'';
+  document.getElementById('diff-gold').value=r.clear_gold||'';
+  document.getElementById('diff-bound').value=r.bound_gold||'';
+  document.getElementById('diff-bonus').value=r.bonus_gold||'';
+  document.getElementById('diff-preset-id').value=id;document.getElementById('diff-group-name').value=r.name;
+  openModal('modal-difficulty');
+}
+async function submitDifficulty(){
+  const difficulty=document.getElementById('diff-difficulty').value.trim();
+  const rec={difficulty,entry_level:parseFloat(document.getElementById('diff-ilvl').value)||0,clear_gold:parseFloat(document.getElementById('diff-gold').value)||0,bound_gold:parseFloat(document.getElementById('diff-bound').value)||0,bonus_gold:parseFloat(document.getElementById('diff-bonus').value)||0};
+  const editId=document.getElementById('diff-preset-id').value,groupName=document.getElementById('diff-group-name').value;
+  if(editId){
+    await sb.from('raid_presets').update(rec).eq('id',editId);const r=raids.find(x=>x.id===editId);if(r)Object.assign(r,rec);toast('✅ 수정됨');
+  } else {
+    rec.name=groupName;rec.sort_order=raids.filter(r=>r.name===groupName).length;
+    const{data,error}=await sb.from('raid_presets').insert(rec).select().single();if(error){toast('❗ '+error.message);return;}
+    raids.push(data);selPresetId=data.id;
+    // localStorage extras에서 이 이름 제거 (DB에 생겼으므로)
+    const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]').filter(n=>n!==groupName);
+    localStorage.setItem('la_raid_groups',JSON.stringify(extras));
+    toast('✅ 난이도 추가됨');
+  }
+  closeModal('modal-difficulty');renderPresetList();
+}
+async function deletePreset(id){if(!confirm('이 난이도와 관련된 파티/일정을 삭제합니다. 계속?'))return;await sb.from('raid_presets').delete().eq('id',id);raids=raids.filter(r=>r.id!==id);parties=parties.filter(p=>p.preset_id!==id);schedules=schedules.filter(s=>!parties.some(p=>p.id===s.party_id));if(selPresetId===id){selPresetId=null;}if(selPartyId&&!parties.some(p=>p.id===selPartyId))selPartyId=null;renderPresetList();renderSchedule();toast('🗑️ 삭제됨');}
 
 // ─── Party CRUD ───
 function openAddParty(presetId){document.getElementById('party-modal-title').textContent='파티 추가';document.getElementById('party-submit-btn').textContent='추가';document.getElementById('party-name').value='';selectSize(4);document.getElementById('party-edit-id').value='';document.getElementById('party-preset-id').value=presetId;openModal('modal-party');setTimeout(()=>document.getElementById('party-name').focus(),80);}
@@ -722,6 +856,8 @@ async function loadNotice(){
   const wk=getWeekKey(weekOffset),n=notices[wk];
   const inp=document.getElementById('notice-input');
   if(inp)inp.value=n?.content||'';
+  const lbl=document.getElementById('notice-week-label');
+  if(lbl){const days=getWeekDays(weekOffset);const f=d=>`${d.getUTCMonth()+1}/${d.getUTCDate()}`;lbl.textContent=weekOffset===0?'이번 주 공지':`${f(days[0])}(수) ~ ${f(days[6])}(화) 공지`;}
   document.getElementById('notice-hint').textContent='';
 }
 async function saveNotice(){
@@ -729,8 +865,38 @@ async function saveNotice(){
   const n=notices[wk];
   if(n?.id){await sb.from('raid_notices').update({content,updated_at:new Date().toISOString()}).eq('id',n.id);n.content=content;}
   else if(content.trim()){const{data}=await sb.from('raid_notices').insert({week_start_date:wk,content}).select().single();if(data)notices[wk]=data;}
-  document.getElementById('notice-hint').textContent='저장됨';
-  setTimeout(()=>{const h=document.getElementById('notice-hint');if(h)h.textContent='';},1500);
+  const hint=document.getElementById('notice-hint');if(hint){hint.textContent='저장됨';setTimeout(()=>{const h=document.getElementById('notice-hint');if(h)h.textContent='';},1500);}
+}
+function openAdvanceNotice(){
+  const sel=document.getElementById('advance-week-select');
+  sel.innerHTML='';
+  for(let i=0;i<=8;i++){
+    const days=getWeekDays(i),f=d=>`${d.getUTCMonth()+1}/${d.getUTCDate()}`,wk=getWeekKey(i);
+    const label=i===0?`이번 주 (${f(days[0])}~${f(days[6])})`:i===1?`다음 주 (${f(days[0])}~${f(days[6])})`:`${i}주 후 (${f(days[0])}~${f(days[6])})`;
+    const opt=document.createElement('option');opt.value=i;opt.textContent=label;
+    if(notices[wk]?.content)opt.textContent+=' 📌';
+    sel.appendChild(opt);
+  }
+  sel.value='0';
+  // 현재 주 내용 불러오기
+  loadAdvanceNoticeContent();
+  sel.onchange=loadAdvanceNoticeContent;
+  openModal('modal-advance-notice');
+}
+function loadAdvanceNoticeContent(){
+  const off=parseInt(document.getElementById('advance-week-select').value);
+  const wk=getWeekKey(off);
+  document.getElementById('advance-notice-content').value=notices[wk]?.content||'';
+}
+async function saveAdvanceNotice(){
+  const off=parseInt(document.getElementById('advance-week-select').value);
+  const wk=getWeekKey(off),content=document.getElementById('advance-notice-content').value;
+  const n=notices[wk];
+  if(n?.id){await sb.from('raid_notices').update({content,updated_at:new Date().toISOString()}).eq('id',n.id);n.content=content;}
+  else if(content.trim()){const{data}=await sb.from('raid_notices').insert({week_start_date:wk,content}).select().single();if(data)notices[wk]=data;}
+  closeModal('modal-advance-notice');toast('✅ 공지 저장됨');
+  // 현재 주 뷰이면 notice bar 업데이트
+  if(off===weekOffset)loadNotice();
 }
 
 // ─── Share ───
