@@ -170,13 +170,13 @@ async function init(){
     sb.from('characters').select('*').order('sort_order').order('created_at')
   ]);
   allChars=chars||[];
-  // Load saved filter selections (default: all selected)
+  // Load saved filter selections (기본값: 아이템레벨 1700 이상만)
   const savedFilter=localStorage.getItem('la_core_filter_sel');
   if(savedFilter){
     try{const ids=JSON.parse(savedFilter);selectedChars=new Set(ids.filter(id=>allChars.some(c=>c.id===id)));}
-    catch(e){selectedChars=new Set(allChars.map(c=>c.id));}
+    catch(e){selectedChars=new Set(allChars.filter(c=>(c.item_level||0)>=1700).map(c=>c.id));}
   } else {
-    selectedChars=new Set(allChars.map(c=>c.id));
+    selectedChars=new Set(allChars.filter(c=>(c.item_level||0)>=1700).map(c=>c.id));
   }
   // Load core data
   const{data:cores}=await sb.from('character_cores').select('*');
