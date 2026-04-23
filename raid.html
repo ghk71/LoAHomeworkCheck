@@ -346,17 +346,17 @@ if(isViewer)document.getElementById('viewer-banner').classList.add('show');
 function getConfig(){if(isViewer)return viewerCreds;const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
 function applyViewer(){
   if(!isViewer)return;
-  // Block non-raid nav links (숙제, 코어현황 → disabled)
+  // 뷰어 모드: 파티 구성 탭 숨김 (일정만 표시)
+  const partyTab=document.getElementById('tab-party');
+  if(partyTab){partyTab.style.display='none';}
+  // 숙제/코어 nav 비활성화
   ['nav-homework','nav-core'].forEach(id=>{
     const el=document.getElementById(id);
     if(el){el.removeAttribute('href');el.style.opacity='.35';el.style.cursor='not-allowed';el.title='뷰어 모드에서는 접근할 수 없습니다';}
   });
-  // Fix active raid link: preserve viewer param (prevent losing mode on reload)
+  // 레이드 nav: viewer param 유지
   const navRaid=document.getElementById('nav-raid');
-  if(navRaid){
-    const pl=btoa(JSON.stringify(viewerCreds));
-    navRaid.href='raid.html?viewer='+pl;
-  }
+  if(navRaid){navRaid.href='raid.html?viewer='+btoa(JSON.stringify(viewerCreds));}
   document.querySelectorAll('.edit-only').forEach(el=>{el.style.display='none';if(el.tagName==='INPUT')el.readOnly=true;});
 }
 
@@ -396,6 +396,8 @@ async function init(){
   await autoResetNonFixed();
   updateWeekLabel();renderPresetList();renderSchedule();loadNotice();
   applyViewer();
+  // ★ 뷰어 모드: 주간 일정 탭을 기본으로 표시
+  if(isViewer)switchTab('schedule');
 }
 
 // ─── Week helpers ───
@@ -410,7 +412,8 @@ async function autoResetNonFixed(){const ws=getWeekStart(0),del=schedules.filter
 // ─── Raid DnD ───
 const _rd={type:null,src:null};
 function rdStart(e,type,idx){
-  e.stopPropagation(); // ★ 부모 draggable이 type을 덮어쓰는 것을 방지
+  if(isViewer){e.preventDefault();return;} // ★ 뷰어 모드: DnD 완전 차단
+  e.stopPropagation();
   _rd.type=type;_rd.src=idx;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text','');setTimeout(()=>e.target.classList.add('r-drag'),0);
 }
 function rdEnd(e){e.target.classList.remove('r-drag');document.querySelectorAll('.r-dnd-v,.r-dnd-h').forEach(x=>x.classList.remove('r-dnd-v','r-dnd-h'));}
