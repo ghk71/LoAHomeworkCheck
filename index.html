@@ -363,6 +363,7 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
   <a href="index.html" class="pnav-item active">⚔️ 숙제</a>
   <a href="core.html" class="pnav-item">🔮 코어현황</a>
   <a href="raid.html" class="pnav-item">🏰 레이드</a>
+  <a href="overview.html" class="pnav-item">📊 레이드 현황</a>
 </nav>
 
 <!-- Setup -->
@@ -1303,7 +1304,25 @@ async function submitRaidTask(){
   else{rec.character_id=S.selChar;rec.sort_order=(S.raidTasks[S.selChar]||[]).length;const{data,error}=await sb.from('raid_tasks').insert(rec).select().single();if(error){toast('❗ '+error.message);return;}if(!S.raidTasks[S.selChar])S.raidTasks[S.selChar]=[];S.raidTasks[S.selChar].push(data);toast('✅ 레이드 추가됨');}
   closeModal('modal-raid-task');renderTaskArea();
 }
-async function deleteRaidTask(id){if(!confirm('레이드 숙제를 삭제하시겠습니까?'))return;await sb.from('raid_tasks').delete().eq('id',id);S.raidTasks[S.selChar]=(S.raidTasks[S.selChar]||[]).filter(t=>t.id!==id);renderTaskArea();toast('🗑️ 삭제됨');}
+async function deleteRaidTask(id){
+  if(!confirm('레이드 숙제를 삭제하시겠습니까?\n파티 연동이 있는 경우 해당 파티에서도 이 캐릭터가 제거됩니다.'))return;
+  const t=(S.raidTasks[S.selChar]||[]).find(x=>x.id===id);
+  // 파티 연동 해제: 해당 preset의 파티에서 이 캐릭터 슬롯 제거
+  if(t?.preset_id&&S.selChar){
+    try{
+      const{data:members}=await sb.from('raid_party_members').select('id,party_id').eq('character_id',S.selChar);
+      if(members?.length){
+        const{data:parties}=await sb.from('raid_parties').select('id').eq('preset_id',t.preset_id);
+        const partyIds=new Set((parties||[]).map(p=>p.id));
+        const toRemove=members.filter(m=>partyIds.has(m.party_id));
+        if(toRemove.length)await sb.from('raid_party_members').delete().in('id',toRemove.map(m=>m.id));
+      }
+    }catch(e){}
+  }
+  await sb.from('raid_tasks').delete().eq('id',id);
+  S.raidTasks[S.selChar]=(S.raidTasks[S.selChar]||[]).filter(t=>t.id!==id);
+  renderTaskArea();toast('🗑️ 삭제됨');
+}
 
 // ─── Cross-Account Copy ───
 async function openCopyTask(taskId){
