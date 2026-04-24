@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
-:root{--bg:#0a0a0f;--s1:#111118;--s2:#16161f;--s3:#1e1e2a;--border:#2a2a3d;--border-lit:#3d3d5c;--gold:#c8a84b;--gold-bright:#e8c86a;--gold-dim:#8a6e2a;--gold-glow:rgba(200,168,75,.2);--text:#e0ddd5;--muted:#5a5f72;--dim:#2e3045;--green:#2ecc71;--green-dim:rgba(46,204,113,.07);--red:#e74c3c;--orange:#e67e22;--teal:#1abc9c;--r:5px;}
+:root{--bg:#0a0a0f;--s1:#111118;--s2:#16161f;--s3:#1e1e2a;--border:#2a2a3d;--border-lit:#3d3d5c;--gold:#c8a84b;--gold-bright:#e8c86a;--gold-dim:#8a6e2a;--gold-glow:rgba(200,168,75,.2);--text:#e0ddd5;--muted:#5a5f72;--dim:#2e3045;--green:#2ecc71;--red:#e74c3c;--orange:#e67e22;--teal:#1abc9c;--r:5px;}
 *{margin:0;padding:0;box-sizing:border-box;}html,body{height:100%;overflow:hidden;}
 body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;display:flex;flex-direction:column;}
 .page-nav{background:#070710;border-bottom:1px solid var(--border);display:flex;align-items:stretch;flex-shrink:0;}
@@ -18,54 +18,63 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 .header{background:var(--s1);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:10px;flex-shrink:0;position:relative;}
 .header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold-dim),transparent);}
 .header-title{font-family:'Cinzel',serif;font-size:1.1rem;color:var(--gold);letter-spacing:2px;}
-.main{flex:1;overflow-y:auto;padding:18px 22px;}
+.main{flex:1;overflow-y:auto;padding:16px 20px;}
+
 /* Week nav */
-.week-nav-bar{display:flex;align-items:center;gap:10px;margin-bottom:18px;padding:10px 14px;background:var(--s2);border:1px solid var(--border);border-radius:6px;}
-.week-nav-label{font-size:.88rem;font-weight:600;flex:1;text-align:center;}
-/* Account section */
-.acc-section{margin-bottom:22px;background:var(--s2);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
-.acc-header{padding:11px 16px;background:var(--s1);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;}
-.acc-header:hover{background:rgba(255,255,255,.02);}
-.acc-name{font-family:'Cinzel',serif;font-size:.95rem;color:var(--gold);flex:1;}
-.acc-stat{font-size:.78rem;color:var(--muted);}
-.acc-toggle{font-size:.68rem;color:var(--muted);}
-.acc-body{padding:10px 12px 12px;}
-/* Character row */
-.char-row{margin-bottom:10px;border:1px solid var(--border);border-radius:6px;overflow:hidden;}
-.char-row-header{padding:8px 12px;background:var(--s3);display:flex;align-items:center;gap:10px;}
-.char-row-name{font-size:.86rem;font-weight:700;flex:1;}
-.char-row-class{font-size:.72rem;color:var(--muted);}
-.char-row-ilvl{font-size:.72rem;color:var(--muted);padding:1px 7px;background:var(--s2);border:1px solid var(--border);border-radius:8px;}
-.char-row-prog{font-size:.75rem;color:var(--muted);}
-.char-row-prog.done-all{color:var(--green);}
-/* Raid task items */
-.raid-task-list{padding:6px 10px;display:flex;flex-direction:column;gap:5px;}
-.raid-task-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:var(--r);border:1px solid var(--border);background:var(--s1);transition:all .15s;}
-.raid-task-item:hover{border-color:var(--border-lit);}
-.raid-task-item.done{border-color:rgba(46,204,113,.35);background:rgba(46,204,113,.05);}
-.rti-check{width:22px;height:22px;border:2px solid var(--border-lit);border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;user-select:none;}
-.rti-check:hover{border-color:var(--gold);}
-.raid-task-item.done .rti-check{background:var(--green);border-color:var(--green);box-shadow:0 0 8px rgba(46,204,113,.3);}
-.rti-check-icon{color:#fff;font-size:12px;opacity:0;font-weight:700;}
-.raid-task-item.done .rti-check-icon{opacity:1;}
-.rti-name{font-size:.85rem;font-weight:500;flex:1;}
-.raid-task-item.done .rti-name{color:var(--muted);text-decoration:line-through;}
-.rti-badges{display:flex;gap:5px;flex-wrap:wrap;}
-.rti-badge{font-size:.67rem;padding:1px 6px;border-radius:8px;}
-.rti-gold{color:#f0c040;background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.25);}
-.rti-bound{color:var(--orange);background:rgba(230,126,34,.09);border:1px solid rgba(230,126,34,.25);}
-.rti-bonus{color:#b39ddb;background:rgba(179,157,219,.1);border:1px solid rgba(179,157,219,.3);}
-.rti-diff{color:var(--muted);background:var(--s3);border:1px solid var(--border);}
-.rti-linked{color:var(--teal);background:rgba(26,188,156,.08);border:1px solid rgba(26,188,156,.25);}
-.rti-reset{font-size:.66rem;color:var(--dim);}
-/* Summary bar */
-.summary-bar{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px;padding:10px 14px;background:var(--s2);border:1px solid var(--border);border-radius:6px;}
-.sum-item{font-size:.8rem;color:var(--muted);}
+.week-nav-bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:9px 14px;background:var(--s2);border:1px solid var(--border);border-radius:6px;}
+.week-nav-label{font-size:.86rem;font-weight:600;flex:1;text-align:center;}
+
+/* Summary */
+.summary-bar{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;padding:10px 16px;background:var(--s2);border:1px solid var(--border);border-radius:6px;align-items:center;}
+.sum-item{font-size:.81rem;color:var(--muted);}
 .sum-item b{color:var(--text);}
 .sum-item.gold b{color:#f0c040;}
 .sum-item.done b{color:var(--green);}
-/* Empty */
-.no-raids{font-size:.8rem;color:var(--dim);padding:8px 10px;}
+.sum-prog{height:6px;flex:1;min-width:120px;background:var(--s3);border-radius:3px;overflow:hidden;}
+.sum-prog-bar{height:100%;background:var(--green);border-radius:3px;transition:width .3s;}
+
+/* Account section */
+.acc-section{margin-bottom:20px;}
+.acc-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;cursor:pointer;user-select:none;padding:8px 12px;background:var(--s1);border:1px solid var(--border);border-radius:6px;transition:background .12s;}
+.acc-header:hover{background:rgba(255,255,255,.02);}
+.acc-toggle{font-size:.68rem;color:var(--muted);}
+.acc-name{font-family:'Cinzel',serif;font-size:.92rem;color:var(--gold);flex:1;}
+.acc-stat{font-size:.76rem;color:var(--muted);}
+.acc-allclear{font-size:.74rem;color:var(--green);font-weight:600;}
+
+/* Character card grid */
+.char-grid{display:flex;flex-wrap:wrap;gap:10px;}
+.char-card{background:var(--s2);border:1px solid var(--border);border-radius:8px;overflow:hidden;min-width:220px;max-width:280px;flex:1;transition:border-color .15s;}
+.char-card:hover{border-color:var(--border-lit);}
+.char-card.all-done{border-color:rgba(46,204,113,.35);}
+.cc-header{padding:9px 13px;background:var(--s1);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.cc-name{font-size:.87rem;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cc-name.done{color:var(--green);}
+.cc-meta{font-size:.68rem;color:var(--muted);flex-shrink:0;}
+.cc-prog{font-size:.7rem;padding:1px 7px;border-radius:8px;border:1px solid var(--border);background:var(--s3);flex-shrink:0;white-space:nowrap;}
+.cc-prog.done{color:var(--green);border-color:rgba(46,204,113,.35);}
+.cc-body{padding:6px 10px;}
+
+/* Raid task row */
+.rt-row{display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;border-radius:3px;transition:background .12s;}
+.rt-row:last-child{border-bottom:none;}
+.rt-row:hover{background:rgba(255,255,255,.03);}
+.rt-row.done .rt-name{color:var(--muted);text-decoration:line-through;}
+.rt-check{width:18px;height:18px;border:2px solid var(--border-lit);border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;user-select:none;}
+.rt-row:hover .rt-check{border-color:var(--gold);}
+.rt-row.done .rt-check{background:var(--green);border-color:var(--green);}
+.rt-check-icon{color:#fff;font-size:10px;opacity:0;font-weight:700;}
+.rt-row.done .rt-check-icon{opacity:1;}
+.rt-info{flex:1;min-width:0;}
+.rt-name{font-size:.79rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rt-badges{display:flex;gap:4px;flex-wrap:wrap;margin-top:2px;}
+.rt-badge{font-size:.62rem;padding:0 5px;border-radius:6px;white-space:nowrap;}
+.rt-gold{color:#f0c040;background:rgba(240,192,64,.1);border:1px solid rgba(240,192,64,.2);}
+.rt-bound{color:var(--orange);background:rgba(230,126,34,.08);border:1px solid rgba(230,126,34,.2);}
+.rt-bonus{color:#b39ddb;background:rgba(179,157,219,.08);border:1px solid rgba(179,157,219,.2);}
+.rt-diff{color:var(--muted);background:var(--s3);border:1px solid var(--border);}
+.rt-linked{color:var(--teal);background:rgba(26,188,156,.06);border:1px solid rgba(26,188,156,.2);}
+
 /* Buttons */
 .btn{padding:6px 12px;border-radius:var(--r);border:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif;font-size:.8rem;transition:all .15s;display:inline-flex;align-items:center;gap:4px;line-height:1;}
 .btn-sec{background:var(--s3);color:var(--text);border:1px solid var(--border-lit);}.btn-sec:hover{border-color:var(--gold);}
@@ -112,12 +121,13 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 const{createClient}=supabase;
 function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
 
-let sb,accounts=[],characters=[],raidTasks=[],schedules=[],overrides={};
+let sb,accounts=[],characters=[],raidTasks=[];
 let weekOffset=0;
 let collapsedAccs=new Set(JSON.parse(localStorage.getItem('la_ov_collapsed')||'[]'));
 
 const DAYS=['일','월','화','수','목','금','토'];
 
+// ─── Init ───
 async function init(){
   const cfg=getConfig();if(!cfg){window.location.href='index.html';return;}
   sb=createClient(cfg.url,cfg.key);
@@ -126,16 +136,12 @@ async function init(){
 async function loadAll(){
   document.getElementById('loading').style.display='flex';
   document.getElementById('content').style.display='none';
-  const[r1,r2,r3,r4,r5]=await Promise.all([
+  const[r1,r2,r3]=await Promise.all([
     sb.from('accounts').select('*').order('sort_order').order('created_at'),
     sb.from('characters').select('*').order('sort_order').order('created_at'),
-    sb.from('raid_tasks').select('*').order('sort_order').order('created_at'),
-    sb.from('raid_schedules').select('*'),
-    sb.from('raid_schedule_overrides').select('*')
+    sb.from('raid_tasks').select('*').order('sort_order').order('created_at')
   ]);
-  accounts=r1.data||[];characters=r2.data||[];raidTasks=r3.data||[];schedules=r4.data||[];
-  overrides={};(r5.data||[]).forEach(o=>{overrides[o.schedule_id+'_'+o.week_start_date]=o;});
-  // Auto-reset: weekly reset
+  accounts=r1.data||[];characters=r2.data||[];raidTasks=r3.data||[];
   await autoReset();
   updateWeekLabel();
   document.getElementById('loading').style.display='none';
@@ -144,23 +150,33 @@ async function loadAll(){
 }
 
 // ─── Week ───
-function getWeekStart(off=0){const now=new Date(),kst=new Date(now.getTime()+9*3600000);let b=(kst.getUTCDay()-3+7)%7;if(b===0&&kst.getUTCHours()<6)b=7;const ws=new Date(kst);ws.setUTCDate(ws.getUTCDate()-b+off*7);ws.setUTCHours(6,0,0,0);return ws;}
-function getWeekKey(off=0){const ws=getWeekStart(off);return`${ws.getUTCFullYear()}-${String(ws.getUTCMonth()+1).padStart(2,'0')}-${String(ws.getUTCDate()).padStart(2,'0')}`;}
-function getLastReset(){return getWeekStart(0);}
-function isEffDone(t){if(!t.is_completed||!t.last_completed_at)return false;return new Date(t.last_completed_at)>getLastReset();}
-function nextResetLabel(t){const r=getWeekStart(0),next=new Date(r);next.setUTCDate(next.getUTCDate()+7);const diff=next-Date.now();if(diff<=0)return'곧 초기화';const h=Math.floor(diff/3600000),m=Math.floor((diff%3600000)/60000);return h>0?`${h}시간 후`:`${m}분 후`;}
-function updateWeekLabel(){
-  const d=getDaysOfWeek(weekOffset),f=x=>`${x.getUTCMonth()+1}/${x.getUTCDate()}`;
-  const l=`${f(d[0])} (수) ~ ${f(d[6])} (화)`;
-  const isThis=weekOffset===0;
-  document.getElementById('week-label').textContent=isThis?`이번 주 (${l})`:l;
-  document.getElementById('hdr-week').textContent=l;
+function getWeekStart(off=0){
+  const now=new Date(),kst=new Date(now.getTime()+9*3600000);
+  let b=(kst.getUTCDay()-3+7)%7;if(b===0&&kst.getUTCHours()<6)b=7;
+  const ws=new Date(kst);ws.setUTCDate(ws.getUTCDate()-b+off*7);ws.setUTCHours(6,0,0,0);return ws;
 }
-function getDaysOfWeek(off=0){const s=getWeekStart(off);return[0,1,2,3,4,5,6].map(i=>{const d=new Date(s);d.setUTCDate(d.getUTCDate()+i);return d;});}
+function getLastReset(){return getWeekStart(weekOffset);}
+function isEffDone(t){
+  if(!t.is_completed||!t.last_completed_at)return false;
+  return new Date(t.last_completed_at)>getWeekStart(0); // always compare against current week reset
+}
+function nextResetLabel(){
+  const next=new Date(getWeekStart(0));next.setUTCDate(next.getUTCDate()+7);
+  const diff=next-Date.now();if(diff<=0)return'곧';
+  const h=Math.floor(diff/3600000),m=Math.floor((diff%3600000)/60000);
+  return h>0?`${h}시간 후`:`${m}분 후`;
+}
+function updateWeekLabel(){
+  const s=getWeekStart(weekOffset),e=new Date(s);e.setUTCDate(e.getUTCDate()+6);
+  const f=x=>`${x.getUTCMonth()+1}/${x.getUTCDate()}`;
+  const label=weekOffset===0?`이번 주 (${f(s)} ~ ${f(e)})`:`${f(s)} (수) ~ ${f(e)} (화)`;
+  document.getElementById('week-label').textContent=label;
+  document.getElementById('hdr-week').textContent=`${f(s)} ~ ${f(e)}`;
+}
 function moveWeek(n){weekOffset+=n;updateWeekLabel();render();}
 function goCurrentWeek(){weekOffset=0;updateWeekLabel();render();}
 async function autoReset(){
-  const lr=getLastReset();
+  const lr=getWeekStart(0);
   const toReset=raidTasks.filter(t=>t.is_completed&&t.last_completed_at&&new Date(t.last_completed_at)<=lr);
   if(!toReset.length)return;
   await sb.from('raid_tasks').update({is_completed:false,last_completed_at:null}).in('id',toReset.map(t=>t.id));
@@ -169,9 +185,7 @@ async function autoReset(){
 
 // ─── Render ───
 function render(){
-  const el=document.getElementById('account-sections');
-  const sb2=document.getElementById('summary-bar');
-  // Compute totals
+  // Summary
   let totalRaids=0,doneRaids=0,totalGold=0,earnedGold=0;
   accounts.forEach(acc=>{
     const chars=characters.filter(c=>c.account_id===acc.id);
@@ -185,106 +199,103 @@ function render(){
       });
     });
   });
-  sb2.innerHTML=`
+  const pct=totalRaids?Math.round(doneRaids/totalRaids*100):0;
+  document.getElementById('summary-bar').innerHTML=`
     <div class="sum-item done">레이드 완료 <b>${doneRaids}/${totalRaids}</b></div>
-    <div class="sum-item gold">이번 주 유통 골드 <b>${earnedGold.toLocaleString()} / ${totalGold.toLocaleString()} G</b></div>
-    <div class="sum-item">남은 유통 골드 <b>${(totalGold-earnedGold).toLocaleString()} G</b></div>`;
-  el.innerHTML=accounts.map(acc=>{
+    <div class="sum-prog"><div class="sum-prog-bar" style="width:${pct}%"></div></div>
+    <div class="sum-item gold">획득 유통 골드 <b>${earnedGold.toLocaleString()} / ${totalGold.toLocaleString()} G</b></div>
+    <div class="sum-item">남은 골드 <b style="color:${totalGold-earnedGold>0?'var(--orange)':'var(--green)'}">${(totalGold-earnedGold).toLocaleString()} G</b></div>
+    ${weekOffset===0?`<div class="sum-item" style="margin-left:auto;font-size:.72rem;color:var(--dim);">초기화 ${nextResetLabel()}</div>`:''}`;
+
+  // Account sections
+  document.getElementById('account-sections').innerHTML=accounts.map(acc=>{
     const chars=characters.filter(c=>c.account_id===acc.id);
     const withRaids=chars.filter(c=>raidTasks.some(t=>t.character_id===c.id));
     if(!withRaids.length)return'';
     const accTotal=withRaids.reduce((s,c)=>s+raidTasks.filter(t=>t.character_id===c.id).length,0);
     const accDone=withRaids.reduce((s,c)=>s+raidTasks.filter(t=>t.character_id===c.id&&isEffDone(t)).length,0);
     const isOpen=!collapsedAccs.has(acc.id);
+    const allClear=accDone===accTotal&&accTotal>0;
     return`<div class="acc-section">
       <div class="acc-header" onclick="toggleAcc('${acc.id}')">
         <span class="acc-toggle">${isOpen?'▼':'▶'}</span>
         <span class="acc-name">${esc(acc.name)}</span>
-        <span class="acc-stat">${accDone}/${accTotal} 완료</span>
-        ${accDone===accTotal&&accTotal>0?'<span style="color:var(--green);font-size:.75rem;">✓ 올클</span>':''}
+        <span class="acc-stat">${accDone}/${accTotal}</span>
+        ${allClear?`<span class="acc-allclear">✓ 올클</span>`:''}
       </div>
-      ${isOpen?`<div class="acc-body">${withRaids.map(c=>charRowHTML(c)).join('')}</div>`:''}
+      ${isOpen?`<div class="char-grid">${withRaids.map(c=>charCardHTML(c)).join('')}</div>`:''}
     </div>`;
   }).join('');
 }
 
-function charRowHTML(c){
+function charCardHTML(c){
   const tasks=raidTasks.filter(t=>t.character_id===c.id).sort((a,b)=>a.sort_order-b.sort_order);
   if(!tasks.length)return'';
   const done=tasks.filter(t=>isEffDone(t)).length,tot=tasks.length;
   const allDone=done===tot;
-  return`<div class="char-row">
-    <div class="char-row-header">
-      <span class="char-row-name" style="${allDone?'color:var(--green)':''}">${esc(c.name)}</span>
-      ${c.class_name?`<span class="char-row-class">${esc(c.class_name)}</span>`:''}
-      ${c.item_level?`<span class="char-row-ilvl">Lv.${c.item_level}</span>`:''}
-      <span class="char-row-prog ${allDone?'done-all':''}" style="margin-left:auto;">${done}/${tot}${allDone?' ✓':''}</span>
+  return`<div class="char-card ${allDone?'all-done':''}">
+    <div class="cc-header">
+      <div class="cc-name ${allDone?'done':''}">${esc(c.name)}</div>
+      ${c.class_name?`<div class="cc-meta">${esc(c.class_name)}</div>`:''}
+      ${c.item_level?`<div class="cc-meta">Lv.${c.item_level}</div>`:''}
+      <div class="cc-prog ${allDone?'done':''}">${done}/${tot}${allDone?' ✓':''}</div>
     </div>
-    <div class="raid-task-list">
-      ${tasks.map(t=>raidTaskItemHTML(t,c)).join('')}
+    <div class="cc-body">
+      ${tasks.map(t=>raidTaskRowHTML(t)).join('')}
     </div>
   </div>`;
 }
 
-function raidTaskItemHTML(t,c){
+function raidTaskRowHTML(t){
   const done=isEffDone(t);
   const cg=Number(t.clear_gold)||0,bg=Number(t.bound_gold)||0,bo=Number(t.bonus_gold)||0,tr=cg-bg;
-  return`<div class="raid-task-item ${done?'done':''}" id="ov-rti-${t.id}">
-    <div class="rti-check" onclick="toggleRaidTask('${t.id}','${c.id}')"><span class="rti-check-icon">✓</span></div>
-    <div style="flex:1;min-width:0;">
-      <div class="rti-name">${esc(t.name)}</div>
-      <div class="rti-badges" style="margin-top:3px;">
-        ${t.difficulty?`<span class="rti-badge rti-diff">${esc(t.difficulty)}</span>`:''}
-        ${t.entry_level?`<span class="rti-badge rti-diff">입장 ${t.entry_level}</span>`:''}
-        ${cg?`<span class="rti-badge rti-gold">💰 ${tr.toLocaleString()}G</span>`:''}
-        ${bg?`<span class="rti-badge rti-bound">귀속 ${bg.toLocaleString()}G</span>`:''}
-        ${bo?`<span class="rti-badge rti-bonus">더보기 ${bo.toLocaleString()}G</span>`:''}
-        ${t.preset_id?`<span class="rti-badge rti-linked">🔗 파티연동</span>`:''}
-        <span class="rti-reset">${DAYS[t.reset_day]}요일 초기화${!done?' · '+nextResetLabel(t):''}</span>
+  return`<div class="rt-row ${done?'done':''}" id="ov-rti-${t.id}" onclick="toggleRaidTask('${t.id}')">
+    <div class="rt-check"><span class="rt-check-icon">✓</span></div>
+    <div class="rt-info">
+      <div class="rt-name">${esc(t.name)}</div>
+      <div class="rt-badges">
+        ${t.difficulty?`<span class="rt-badge rt-diff">${esc(t.difficulty)}</span>`:''}
+        ${t.entry_level?`<span class="rt-badge rt-diff">입장 ${t.entry_level}</span>`:''}
+        ${cg?`<span class="rt-badge rt-gold">💰 ${tr.toLocaleString()}G</span>`:''}
+        ${bg?`<span class="rt-badge rt-bound">귀속 ${bg.toLocaleString()}G</span>`:''}
+        ${bo?`<span class="rt-badge rt-bonus">더보기 ${bo.toLocaleString()}G</span>`:''}
+        ${t.preset_id?`<span class="rt-badge rt-linked">🔗</span>`:''}
       </div>
     </div>
   </div>`;
 }
 
-// ─── Toggle ───
-async function toggleRaidTask(taskId,charId){
+// ─── Toggle (★ 핵심 수정: await 로 실제 DB 저장 보장) ───
+async function toggleRaidTask(taskId){
   const t=raidTasks.find(x=>x.id===taskId);if(!t)return;
-  const nowDone=!isEffDone(t),now=new Date().toISOString();
-  const up={is_completed:nowDone,last_completed_at:nowDone?now:null};
-  Object.assign(t,up);
+  const nowDone=!isEffDone(t);
+  const ts=nowDone?new Date().toISOString():null;
+  const up={is_completed:nowDone,last_completed_at:ts};
   // DOM update immediately
   const el=document.getElementById('ov-rti-'+taskId);
   if(el){
     el.classList.toggle('done',nowDone);
-    const icon=el.querySelector('.rti-check-icon');if(icon)icon.style.opacity=nowDone?'1':'0';
-    const cb=el.querySelector('.rti-check');if(cb){cb.style.background=nowDone?'var(--green)':'';cb.style.borderColor=nowDone?'var(--green)':'var(--border-lit)';}
-    const nm=el.querySelector('.rti-name');if(nm){nm.style.color=nowDone?'var(--muted)':'';nm.style.textDecoration=nowDone?'line-through':'';}
+    const icon=el.querySelector('.rt-check-icon');if(icon)icon.style.opacity=nowDone?'1':'0';
+    const cb=el.querySelector('.rt-check');if(cb){cb.style.background=nowDone?'var(--green)':'';cb.style.borderColor=nowDone?'var(--green)':'var(--border-lit)';}
+    const nm=el.querySelector('.rt-name');if(nm){nm.style.color=nowDone?'var(--muted)':'';nm.style.textDecoration=nowDone?'line-through':'';}
   }
-  render(); // re-render for summary/progress update
-  // Fire-and-forget DB
-  sb.from('raid_tasks').update(up).eq('id',taskId);
-  // Sync schedule overrides if preset_id exists
-  if(t.preset_id&&nowDone!==undefined){
-    const wk=getWeekKey(0);
-    const relSchs=schedules.filter(s=>{
-      // find parties with this preset
-      return true; // will filter in async
-    });
-    // lightweight: just update any existing override for related schedules
-    syncScheduleCompletion(t,nowDone,now,wk);
-  }
+  // Memory update
+  Object.assign(t,up);
+  // Summary re-render (lightweight)
+  renderSummary();
+  // ★ await: Supabase JS v2에서 await 없으면 쿼리 미실행
+  const{error}=await sb.from('raid_tasks').update(up).eq('id',taskId);
+  if(error){toast('❗ 저장 실패: '+error.message);return;}
 }
-async function syncScheduleCompletion(t,done,ts,wk){
-  if(!t.preset_id)return;
-  // Find schedules linked to this preset (via party → preset)
-  // We don't have parties loaded here, so just check existing overrides
-  for(const sch of schedules){
-    const key=sch.id+'_'+wk,ovr=overrides[key];
-    if(ovr&&ovr.id){
-      // Check if this schedule's party has this character
-      // Skip complex check here - schedule completion is done from raid.html
-    }
-  }
+
+function renderSummary(){
+  let totalRaids=0,doneRaids=0,totalGold=0,earnedGold=0;
+  accounts.forEach(acc=>{characters.filter(c=>c.account_id===acc.id).forEach(c=>{raidTasks.filter(t=>t.character_id===c.id).forEach(t=>{totalRaids++;const flow=(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0);totalGold+=flow;if(isEffDone(t)){doneRaids++;earnedGold+=flow;}});});});
+  const pct=totalRaids?Math.round(doneRaids/totalRaids*100):0;
+  const sb2=document.getElementById('summary-bar');
+  if(sb2)sb2.innerHTML=`<div class="sum-item done">레이드 완료 <b>${doneRaids}/${totalRaids}</b></div><div class="sum-prog"><div class="sum-prog-bar" style="width:${pct}%"></div></div><div class="sum-item gold">획득 유통 골드 <b>${earnedGold.toLocaleString()} / ${totalGold.toLocaleString()} G</b></div><div class="sum-item">남은 골드 <b style="color:${totalGold-earnedGold>0?'var(--orange)':'var(--green)'}">${(totalGold-earnedGold).toLocaleString()} G</b></div>${weekOffset===0?`<div class="sum-item" style="margin-left:auto;font-size:.72rem;color:var(--dim);">초기화 ${nextResetLabel()}</div>`:''}`;
+  // Update char card headers (progress badges)
+  accounts.forEach(acc=>{characters.filter(c=>c.account_id===acc.id).forEach(c=>{const tasks=raidTasks.filter(t=>t.character_id===c.id);const done=tasks.filter(t=>isEffDone(t)).length,tot=tasks.length;const allDone=done===tot&&tot>0;});});
 }
 
 function toggleAcc(id){
