@@ -33,6 +33,20 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 .sum-prog{height:6px;flex:1;min-width:120px;background:var(--s3);border-radius:3px;overflow:hidden;}
 .sum-prog-bar{height:100%;background:var(--green);border-radius:3px;transition:width .3s;}
 
+/* Character filter bar */
+.char-filter-bar{margin-bottom:14px;background:var(--s2);border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+.cfb-hd{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;user-select:none;border-bottom:1px solid var(--border);}
+.cfb-hd:hover{background:rgba(255,255,255,.02);}
+.cfb-label{font-size:.74rem;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;flex:1;}
+.cfb-count{font-size:.73rem;color:var(--muted);}
+.cfb-toggle{font-size:.7rem;color:var(--muted);}
+.cfb-body{padding:10px 14px;display:flex;flex-wrap:wrap;gap:6px;}
+.cf-btn{padding:4px 11px;border-radius:12px;border:1px solid var(--border);background:var(--s3);color:var(--muted);cursor:pointer;font-size:.79rem;font-family:'Noto Sans KR',sans-serif;transition:all .15s;}
+.cf-btn:hover{border-color:var(--border-lit);color:var(--text);}
+.cf-btn.on{border-color:var(--gold);color:var(--gold);background:rgba(200,168,75,.09);}
+.cf-btn.all{background:var(--s3);border-color:var(--border-lit);color:var(--text);}
+.cf-acc-label{font-size:.69rem;font-weight:700;color:var(--gold);padding:3px 8px;letter-spacing:.5px;align-self:center;}
+
 /* Account section */
 .acc-section{margin-bottom:20px;}
 .acc-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;cursor:pointer;user-select:none;padding:8px 12px;background:var(--s1);border:1px solid var(--border);border-radius:6px;transition:background .12s;}
@@ -113,6 +127,16 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
       <button class="btn btn-sec btn-sm" onclick="moveWeek(1)">다음 ▶</button>
       <button class="btn btn-ghost btn-sm" onclick="goCurrentWeek()">이번 주</button>
     </div>
+    <div class="char-filter-bar" id="char-filter-bar">
+      <div class="cfb-hd" onclick="toggleFilterBar()">
+        <span class="cfb-label">🔍 캐릭터 필터</span>
+        <span class="cfb-count" id="cfb-count"></span>
+        <button class="btn btn-sec btn-sm" onclick="event.stopPropagation();selectAllChars()">전체</button>
+        <button class="btn btn-sec btn-sm" onclick="event.stopPropagation();deselectAllChars()">해제</button>
+        <span class="cfb-toggle" id="cfb-toggle">▼</span>
+      </div>
+      <div class="cfb-body" id="cfb-body"></div>
+    </div>
     <div id="summary-bar" class="summary-bar"></div>
     <div id="account-sections"></div>
   </div>
@@ -124,6 +148,8 @@ function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getIt
 let sb,accounts=[],characters=[],raidTasks=[];
 let weekOffset=0;
 let collapsedAccs=new Set(JSON.parse(localStorage.getItem('la_ov_collapsed')||'[]'));
+let selectedChars=new Set(); // selected character ids for filter
+let filterOpen=localStorage.getItem('la_ov_filter_open')!=='0';
 
 const DAYS=['일','월','화','수','목','금','토'];
 
@@ -142,10 +168,16 @@ async function loadAll(){
     sb.from('raid_tasks').select('*').order('sort_order').order('created_at')
   ]);
   accounts=r1.data||[];characters=r2.data||[];raidTasks=r3.data||[];
+  // Init filter: all chars with raids selected by default
+  const charsWithRaids=characters.filter(c=>raidTasks.some(t=>t.character_id===c.id));
+  const saved=localStorage.getItem('la_ov_sel_chars');
+  if(saved){try{const ids=JSON.parse(saved);selectedChars=new Set(ids.filter(id=>charsWithRaids.some(c=>c.id===id)));}catch{selectedChars=new Set(charsWithRaids.map(c=>c.id));}}
+  else{selectedChars=new Set(charsWithRaids.map(c=>c.id));}
   await autoReset();
   updateWeekLabel();
   document.getElementById('loading').style.display='none';
   document.getElementById('content').style.display='block';
+  renderFilterBar();
   render();
 }
 
@@ -183,20 +215,40 @@ async function autoReset(){
   toReset.forEach(t=>{t.is_completed=false;t.last_completed_at=null;});
 }
 
+// ─── Filter ───
+function saveFilter(){localStorage.setItem('la_ov_sel_chars',JSON.stringify([...selectedChars]));}
+function toggleFilterBar(){filterOpen=!filterOpen;localStorage.setItem('la_ov_filter_open',filterOpen?'1':'0');applyFilterOpenState();}
+function applyFilterOpenState(){document.getElementById('cfb-body').style.display=filterOpen?'flex':'none';document.getElementById('cfb-toggle').textContent=filterOpen?'▼':'▶';}
+function renderFilterBar(){
+  const charsWithRaids=characters.filter(c=>raidTasks.some(t=>t.character_id===c.id));
+  // Group by account
+  let html='';
+  accounts.forEach(acc=>{
+    const chars=charsWithRaids.filter(c=>c.account_id===acc.id);
+    if(!chars.length)return;
+    html+=`<span class="cf-acc-label">${esc(acc.name)}</span>`;
+    chars.forEach(c=>{
+      html+=`<button class="cf-btn ${selectedChars.has(c.id)?'on':''}" onclick="toggleChar('${c.id}')">${esc(c.name)}${c.item_level?` <span style="font-size:.68rem;opacity:.6">Lv.${c.item_level}</span>`:''}</button>`;
+    });
+  });
+  document.getElementById('cfb-body').innerHTML=html;
+  const cnt=document.getElementById('cfb-count');if(cnt)cnt.textContent=`${selectedChars.size}/${charsWithRaids.length}명`;
+  applyFilterOpenState();
+}
+function toggleChar(id){if(selectedChars.has(id))selectedChars.delete(id);else selectedChars.add(id);saveFilter();renderFilterBar();render();}
+function selectAllChars(){const charsWithRaids=characters.filter(c=>raidTasks.some(t=>t.character_id===c.id));selectedChars=new Set(charsWithRaids.map(c=>c.id));saveFilter();renderFilterBar();render();}
+function deselectAllChars(){selectedChars.clear();saveFilter();renderFilterBar();render();}
+
 // ─── Render ───
 function render(){
-  // Summary
+  // Summary - only selected chars
   let totalRaids=0,doneRaids=0,totalGold=0,earnedGold=0;
-  accounts.forEach(acc=>{
-    const chars=characters.filter(c=>c.account_id===acc.id);
-    chars.forEach(c=>{
-      const tasks=raidTasks.filter(t=>t.character_id===c.id);
-      tasks.forEach(t=>{
-        totalRaids++;
-        const flow=(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0);
-        totalGold+=flow;
-        if(isEffDone(t)){doneRaids++;earnedGold+=flow;}
-      });
+  [...selectedChars].forEach(cid=>{
+    raidTasks.filter(t=>t.character_id===cid).forEach(t=>{
+      totalRaids++;
+      const flow=(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0);
+      totalGold+=flow;
+      if(isEffDone(t)){doneRaids++;earnedGold+=flow;}
     });
   });
   const pct=totalRaids?Math.round(doneRaids/totalRaids*100):0;
@@ -207,10 +259,10 @@ function render(){
     <div class="sum-item">남은 골드 <b style="color:${totalGold-earnedGold>0?'var(--orange)':'var(--green)'}">${(totalGold-earnedGold).toLocaleString()} G</b></div>
     ${weekOffset===0?`<div class="sum-item" style="margin-left:auto;font-size:.72rem;color:var(--dim);">초기화 ${nextResetLabel()}</div>`:''}`;
 
-  // Account sections
+  // Account sections - filtered
   document.getElementById('account-sections').innerHTML=accounts.map(acc=>{
-    const chars=characters.filter(c=>c.account_id===acc.id);
-    const withRaids=chars.filter(c=>raidTasks.some(t=>t.character_id===c.id));
+    const allCharsOfAcc=characters.filter(c=>c.account_id===acc.id);
+    const withRaids=allCharsOfAcc.filter(c=>raidTasks.some(t=>t.character_id===c.id)&&selectedChars.has(c.id));
     if(!withRaids.length)return'';
     const accTotal=withRaids.reduce((s,c)=>s+raidTasks.filter(t=>t.character_id===c.id).length,0);
     const accDone=withRaids.reduce((s,c)=>s+raidTasks.filter(t=>t.character_id===c.id&&isEffDone(t)).length,0);
@@ -248,19 +300,11 @@ function charCardHTML(c){
 
 function raidTaskRowHTML(t){
   const done=isEffDone(t);
-  const cg=Number(t.clear_gold)||0,bg=Number(t.bound_gold)||0,bo=Number(t.bonus_gold)||0,tr=cg-bg;
   return`<div class="rt-row ${done?'done':''}" id="ov-rti-${t.id}" onclick="toggleRaidTask('${t.id}')">
     <div class="rt-check"><span class="rt-check-icon">✓</span></div>
     <div class="rt-info">
       <div class="rt-name">${esc(t.name)}</div>
-      <div class="rt-badges">
-        ${t.difficulty?`<span class="rt-badge rt-diff">${esc(t.difficulty)}</span>`:''}
-        ${t.entry_level?`<span class="rt-badge rt-diff">입장 ${t.entry_level}</span>`:''}
-        ${cg?`<span class="rt-badge rt-gold">💰 ${tr.toLocaleString()}G</span>`:''}
-        ${bg?`<span class="rt-badge rt-bound">귀속 ${bg.toLocaleString()}G</span>`:''}
-        ${bo?`<span class="rt-badge rt-bonus">더보기 ${bo.toLocaleString()}G</span>`:''}
-        ${t.preset_id?`<span class="rt-badge rt-linked">🔗</span>`:''}
-      </div>
+      ${t.difficulty?`<div style="font-size:.68rem;color:var(--muted);margin-top:1px;">${esc(t.difficulty)}</div>`:''}
     </div>
   </div>`;
 }
@@ -290,12 +334,10 @@ async function toggleRaidTask(taskId){
 
 function renderSummary(){
   let totalRaids=0,doneRaids=0,totalGold=0,earnedGold=0;
-  accounts.forEach(acc=>{characters.filter(c=>c.account_id===acc.id).forEach(c=>{raidTasks.filter(t=>t.character_id===c.id).forEach(t=>{totalRaids++;const flow=(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0);totalGold+=flow;if(isEffDone(t)){doneRaids++;earnedGold+=flow;}});});});
+  [...selectedChars].forEach(cid=>{raidTasks.filter(t=>t.character_id===cid).forEach(t=>{totalRaids++;const flow=(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0);totalGold+=flow;if(isEffDone(t)){doneRaids++;earnedGold+=flow;}});});
   const pct=totalRaids?Math.round(doneRaids/totalRaids*100):0;
   const sb2=document.getElementById('summary-bar');
   if(sb2)sb2.innerHTML=`<div class="sum-item done">레이드 완료 <b>${doneRaids}/${totalRaids}</b></div><div class="sum-prog"><div class="sum-prog-bar" style="width:${pct}%"></div></div><div class="sum-item gold">획득 유통 골드 <b>${earnedGold.toLocaleString()} / ${totalGold.toLocaleString()} G</b></div><div class="sum-item">남은 골드 <b style="color:${totalGold-earnedGold>0?'var(--orange)':'var(--green)'}">${(totalGold-earnedGold).toLocaleString()} G</b></div>${weekOffset===0?`<div class="sum-item" style="margin-left:auto;font-size:.72rem;color:var(--dim);">초기화 ${nextResetLabel()}</div>`:''}`;
-  // Update char card headers (progress badges)
-  accounts.forEach(acc=>{characters.filter(c=>c.account_id===acc.id).forEach(c=>{const tasks=raidTasks.filter(t=>t.character_id===c.id);const done=tasks.filter(t=>isEffDone(t)).length,tot=tasks.length;const allDone=done===tot&&tot>0;});});
 }
 
 function toggleAcc(id){
