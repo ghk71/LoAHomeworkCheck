@@ -72,8 +72,8 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 .sch-notice-bar{padding:12px 18px;background:rgba(200,168,75,.07);border-bottom:2px solid rgba(200,168,75,.2);display:flex;align-items:center;gap:12px;flex-shrink:0;}
 .notice-icon{font-size:1.1rem;flex-shrink:0;}
 .notice-text-wrap{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0;}
-.notice-week-label{font-size:.67rem;color:var(--gold);font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
-.notice-input{background:transparent;border:none;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:.92rem;outline:none;width:100%;}
+.notice-week-label{font-size:.72rem;color:var(--gold);font-weight:700;letter-spacing:.5px;text-transform:uppercase;}
+.notice-input{background:transparent;border:none;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:1.08rem;font-weight:500;outline:none;width:100%;}
 .notice-input::placeholder{color:rgba(200,168,75,.3);}
 .notice-save-hint{font-size:.7rem;color:var(--muted);flex-shrink:0;}
 .week-nav{display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid var(--border);background:var(--s1);flex-shrink:0;}
@@ -407,7 +407,14 @@ function getWeekDays(off=0){const s=getWeekStart(off);return WEEK_DAY_NUMS.map((
 function updateWeekLabel(){const d=getWeekDays(weekOffset),f=x=>`${x.getUTCMonth()+1}/${x.getUTCDate()}`,l=`${f(d[0])} (수) ~ ${f(d[6])} (화)`;document.getElementById('week-label').textContent=l;document.getElementById('header-week').textContent=l;}
 function moveWeek(n){weekOffset+=n;updateWeekLabel();renderSchedule();loadNotice();}
 function goToCurrentWeek(){weekOffset=0;updateWeekLabel();renderSchedule();loadNotice();}
-async function autoResetNonFixed(){const ws=getWeekStart(0),del=schedules.filter(s=>!s.is_fixed&&new Date(s.created_at)<new Date(ws.getTime()-7*86400000));if(!del.length)return;await sb.from('raid_schedules').delete().in('id',del.map(s=>s.id));schedules=schedules.filter(s=>!del.some(d=>d.id===s.id));}
+async function autoResetNonFixed(){
+  const ws=getWeekStart(0);
+  // 비고정 일정 중 이전 주 이전에 생성된 것 삭제
+  const del=schedules.filter(s=>!s.is_fixed&&new Date(s.created_at).getTime()<ws.getTime()-9*3600000);
+  if(!del.length)return;
+  await sb.from('raid_schedules').delete().in('id',del.map(s=>s.id));
+  schedules=schedules.filter(s=>!del.some(d=>d.id===s.id));
+}
 
 // ─── Raid DnD ───
 const _rd={type:null,src:null};
@@ -796,7 +803,23 @@ async function submitParty(){
   else{const{data,error}=await sb.from('raid_parties').insert({preset_id:presetId,name,party_size:partySize,sort_order:parties.filter(p=>p.preset_id===presetId).length}).select().single();if(error){toast('❗ '+error.message);return;}data.members=[];parties.push(data);selPartyId=data.id;toast('✅ 파티 추가됨');}
   closeModal('modal-party');renderPresetList();renderPartyDetail();
 }
-async function deleteParty(id){if(!confirm('파티와 관련 일정을 삭제합니다. 계속?'))return;await sb.from('raid_parties').delete().eq('id',id);schedules=schedules.filter(s=>s.party_id!==id);parties=parties.filter(p=>p.id!==id);if(selPartyId===id){selPartyId=null;document.getElementById('party-detail').innerHTML='<div class="empty-state"><div class="empty-icon">🗡️</div><div>왼쪽에서 파티를 선택하세요</div></div>';}renderPresetList();renderSchedule();toast('🗑️ 삭제됨');}
+async function deleteParty(id){
+  if(!confirm('파티와 관련 일정을 삭제합니다.\n이 파티에 배치된 캐릭터들의 연동 레이드 숙제도 삭제됩니다.\n계속?'))return;
+  const p=parties.find(x=>x.id===id);
+  const preset=p?raids.find(x=>x.id===p.preset_id):null;
+  // 파티 멤버의 연동 레이드 숙제 삭제
+  if(preset&&p?.members?.length){
+    const charIds=p.members.filter(m=>m.character_id).map(m=>m.character_id);
+    if(charIds.length){
+      await sb.from('raid_tasks').delete().in('character_id',charIds).eq('preset_id',preset.id);
+    }
+  }
+  await sb.from('raid_parties').delete().eq('id',id);
+  schedules=schedules.filter(s=>s.party_id!==id);
+  parties=parties.filter(p=>p.id!==id);
+  if(selPartyId===id){selPartyId=null;document.getElementById('party-detail').innerHTML='<div class="empty-state"><div class="empty-icon">🗡️</div><div>왼쪽에서 파티를 선택하세요</div></div>';}
+  renderPresetList();renderSchedule();toast('🗑️ 삭제됨');
+}
 
 // ─── Schedule render (vertical day rows) ───
 function renderSchedule(){
