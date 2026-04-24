@@ -40,12 +40,18 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 .cfb-label{font-size:.74rem;color:var(--muted);letter-spacing:.5px;text-transform:uppercase;flex:1;}
 .cfb-count{font-size:.73rem;color:var(--muted);}
 .cfb-toggle{font-size:.7rem;color:var(--muted);}
-.cfb-body{padding:10px 14px;display:flex;flex-wrap:wrap;gap:6px;}
+.cfb-body{padding:10px 14px;display:flex;flex-direction:column;gap:8px;}
+/* Account row */
+.cfb-acc-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.cf-acc-btn{padding:4px 12px;border-radius:12px;border:1px solid var(--border-lit);background:var(--s1);color:var(--muted);cursor:pointer;font-size:.78rem;font-family:'Noto Sans KR',sans-serif;font-weight:700;transition:all .15s;flex-shrink:0;}
+.cf-acc-btn:hover{border-color:var(--gold);color:var(--gold);}
+.cf-acc-btn.all-on{border-color:var(--gold);color:var(--gold);background:rgba(200,168,75,.12);}
+.cf-acc-btn.partial{border-color:rgba(200,168,75,.4);color:rgba(200,168,75,.7);background:rgba(200,168,75,.06);}
+.cf-acc-sep{width:1px;height:20px;background:var(--border);flex-shrink:0;margin:0 2px;}
+/* Character buttons */
 .cf-btn{padding:4px 11px;border-radius:12px;border:1px solid var(--border);background:var(--s3);color:var(--muted);cursor:pointer;font-size:.79rem;font-family:'Noto Sans KR',sans-serif;transition:all .15s;}
 .cf-btn:hover{border-color:var(--border-lit);color:var(--text);}
 .cf-btn.on{border-color:var(--gold);color:var(--gold);background:rgba(200,168,75,.09);}
-.cf-btn.all{background:var(--s3);border-color:var(--border-lit);color:var(--text);}
-.cf-acc-label{font-size:.69rem;font-weight:700;color:var(--gold);padding:3px 8px;letter-spacing:.5px;align-self:center;}
 
 /* Account section */
 .acc-section{margin-bottom:20px;}
@@ -221,19 +227,31 @@ function toggleFilterBar(){filterOpen=!filterOpen;localStorage.setItem('la_ov_fi
 function applyFilterOpenState(){document.getElementById('cfb-body').style.display=filterOpen?'flex':'none';document.getElementById('cfb-toggle').textContent=filterOpen?'▼':'▶';}
 function renderFilterBar(){
   const charsWithRaids=characters.filter(c=>raidTasks.some(t=>t.character_id===c.id));
-  // Group by account
   let html='';
   accounts.forEach(acc=>{
     const chars=charsWithRaids.filter(c=>c.account_id===acc.id);
     if(!chars.length)return;
-    html+=`<span class="cf-acc-label">${esc(acc.name)}</span>`;
+    const allOn=chars.every(c=>selectedChars.has(c.id));
+    const anyOn=chars.some(c=>selectedChars.has(c.id));
+    const cls=allOn?'all-on':anyOn?'partial':'';
+    html+=`<div class="cfb-acc-row">`;
+    html+=`<button class="cf-acc-btn ${cls}" onclick="toggleAccount('${acc.id}')" title="${allOn?'계정 해제':'계정 전체 선택'}">${esc(acc.name)}</button>`;
+    html+=`<div class="cf-acc-sep"></div>`;
     chars.forEach(c=>{
       html+=`<button class="cf-btn ${selectedChars.has(c.id)?'on':''}" onclick="toggleChar('${c.id}')">${esc(c.name)}${c.item_level?` <span style="font-size:.68rem;opacity:.6">Lv.${c.item_level}</span>`:''}</button>`;
     });
+    html+=`</div>`;
   });
   document.getElementById('cfb-body').innerHTML=html;
-  const cnt=document.getElementById('cfb-count');if(cnt)cnt.textContent=`${selectedChars.size}/${charsWithRaids.length}명`;
+  const cnt=document.getElementById('cfb-count');
+  if(cnt)cnt.textContent=`${selectedChars.size}/${charsWithRaids.length}명`;
   applyFilterOpenState();
+}
+function toggleAccount(accId){
+  const chars=characters.filter(c=>c.account_id===accId&&raidTasks.some(t=>t.character_id===c.id));
+  const allOn=chars.every(c=>selectedChars.has(c.id));
+  chars.forEach(c=>{if(allOn)selectedChars.delete(c.id);else selectedChars.add(c.id);});
+  saveFilter();renderFilterBar();render();
 }
 function toggleChar(id){if(selectedChars.has(id))selectedChars.delete(id);else selectedChars.add(id);saveFilter();renderFilterBar();render();}
 function selectAllChars(){const charsWithRaids=characters.filter(c=>raidTasks.some(t=>t.character_id===c.id));selectedChars=new Set(charsWithRaids.map(c=>c.id));saveFilter();renderFilterBar();render();}
@@ -304,7 +322,7 @@ function raidTaskRowHTML(t){
     <div class="rt-check"><span class="rt-check-icon">✓</span></div>
     <div class="rt-info">
       <div class="rt-name">${esc(t.name)}</div>
-      ${t.difficulty?`<div style="font-size:.68rem;color:var(--muted);margin-top:1px;">${esc(t.difficulty)}</div>`:''}
+      ${t.difficulty?`<div style="font-size:.75rem;color:var(--gold);margin-top:2px;font-weight:500;">${esc(t.difficulty)}</div>`:''}
     </div>
   </div>`;
 }
