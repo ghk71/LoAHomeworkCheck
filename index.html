@@ -658,31 +658,28 @@ async function dndDrop(e,type,destIdx){
   else if(type==='raid'){list=S.raidTasks[S.selChar];table='raid_tasks';}
   if(!list||srcIdx<0||srcIdx>=list.length||destIdx<0||destIdx>=list.length)return;
   const[moved]=list.splice(srcIdx,1);list.splice(destIdx,0,moved);
-  // ★ Fix: update sort_order in memory too
   list.forEach((item,i)=>{item.sort_order=i;});
   if(type==='task'){S.tasks[S.selChar]=S.tasks[S.selChar].filter(t=>t.parent_id).concat(list);}
   if(type==='exptask'){S.expTasks[S.selAcc]=S.expTasks[S.selAcc].filter(t=>t.parent_id).concat(list);}
-  await Promise.all(list.map((item,i)=>sb.from(table).update({sort_order:i}).eq('id',item.id)));
+  // Render immediately, save in background
   if(type==='account')renderSidebar();
   else if(type==='char')renderTabs();
   else renderTaskArea();
+  Promise.all(list.map((item,i)=>sb.from(table).update({sort_order:i}).eq('id',item.id)));
 }
-// ★ Subtask DnD drop — fixed with sort_order memory update
 async function dndSubDrop(e,parentId,destIdx,isExp){
   e.preventDefault();e.stopPropagation();
   document.querySelectorAll('.dnd-over-v,.dnd-over-h,.dnd-dragging').forEach(el=>el.classList.remove('dnd-over-v','dnd-over-h','dnd-dragging'));
   const srcType=_dnd.srcType,srcIdx=_dnd.srcIdx;_dnd.srcType=null;_dnd.srcIdx=null;
   if(!srcType||srcType!==`stask_${parentId}`||srcIdx===null||srcIdx===destIdx)return;
   const table=isExp?'expedition_tasks':'tasks';
-  // Get current subtask list from memory
   const mainList=getList(isExp);
   const list=mainList.filter(t=>t.parent_id===parentId).sort((a,b)=>a.sort_order-b.sort_order);
   if(srcIdx<0||srcIdx>=list.length||destIdx<0||destIdx>=list.length)return;
   const[moved]=list.splice(srcIdx,1);list.splice(destIdx,0,moved);
-  // ★ Fix: update sort_order in memory immediately
   list.forEach((item,i)=>{item.sort_order=i;});
-  await Promise.all(list.map((t,i)=>sb.from(table).update({sort_order:i}).eq('id',t.id)));
   renderTaskArea();
+  Promise.all(list.map((t,i)=>sb.from(table).update({sort_order:i}).eq('id',t.id)));
 }
 
 // ─── Init ───
@@ -856,9 +853,9 @@ async function checkParentStatus(parentId,isExp){
 function getList(isExp){return isExp?(S.expTasks[S.selAcc]||[]):(S.tasks[S.selChar]||[]);}
 
 // ─── Collapsible toggles ───
-function toggleSection(key,storageKey){S[key]=!S[key];LSS(storageKey,S[key]?'1':'0');renderTaskArea();}
-function toggleHideCompleted(){S.hideCompleted=!S.hideCompleted;LSS('la_hide',S.hideCompleted?'1':'0');renderTaskArea();}
-function toggleParentCollapse(taskId){if(S.collapsedTasks.has(taskId))S.collapsedTasks.delete(taskId);else S.collapsedTasks.add(taskId);renderTaskArea();}
+function toggleSection(key,storageKey){S[key]=!S[key];LSS(storageKey,S[key]?'1':'0');scheduleRenderArea();}
+function toggleHideCompleted(){S.hideCompleted=!S.hideCompleted;LSS('la_hide',S.hideCompleted?'1':'0');scheduleRenderArea();}
+function toggleParentCollapse(taskId){if(S.collapsedTasks.has(taskId))S.collapsedTasks.delete(taskId);else S.collapsedTasks.add(taskId);scheduleRenderArea();}
 
 // ─── Render Task Area ───
 function renderTaskArea(){
@@ -1040,34 +1037,83 @@ function raidItemHTML(t,idx){
   </div>`;
 }
 
+// ─── Render scheduler (batches multiple render calls into one rAF) ───
+let _rafPending=false,_rafTabs=false,_rafArea=false;
+function scheduleRenderArea(){_rafArea=true;if(!_rafPending){_rafPending=true;requestAnimationFrame(()=>{_rafPending=false;if(_rafArea){_rafArea=false;renderTaskArea();}if(_rafTabs){_rafTabs=false;renderTabs();}});}}
+function scheduleRenderTabs(){_rafTabs=true;if(!_rafPending){_rafPending=true;requestAnimationFrame(()=>{_rafPending=false;if(_rafArea){_rafArea=false;renderTaskArea();}if(_rafTabs){_rafTabs=false;renderTabs();}});}}
+
+// DOM partial update helpers
+function applyDoneToEl(el,done){
+  if(!el)return;
+  el.classList.toggle('done',done);
+  const cb=el.querySelector('.checkbox:not(.no-click)');
+  if(cb){cb.style.background=done?'var(--green)':'';cb.style.borderColor=done?'var(--green)':'';cb.style.boxShadow=done?'0 0 8px rgba(60,186,120,.35)':'';}
+  const ic=el.querySelector('.checkbox-icon');if(ic)ic.style.opacity=done?'1':'0';
+  const nm=el.querySelector('.task-name');if(nm){nm.style.color=done?'var(--muted)':'';nm.style.textDecoration=done?'line-through':'';}
+}
+function updateParentDOM(parentId,isExp){
+  const list=getList(isExp),parent=list.find(x=>x.id===parentId);if(!parent)return;
+  const children=list.filter(x=>x.parent_id===parentId);
+  const doneCount=children.filter(x=>isEffDone(x)).length;
+  const parentEl=document.getElementById('ti-'+parentId);
+  if(!parentEl)return;
+  applyDoneToEl(parentEl,isEffDone(parent));
+  const countSpan=parentEl.querySelector('.task-name-row span[style*="color:var(--muted)"]');
+  if(countSpan)countSpan.textContent=`${doneCount}/${children.length}`;
+}
+function updateTabDOM(charId){
+  const chars=S.characters[S.selAcc]||[];
+  const c=chars.find(x=>x.id===charId);if(!c)return;
+  const allTasks=S.tasks[charId]||[];
+  const active=allTasks.filter(t=>!t.parent_id&&isTaskActive(t));
+  const done=active.filter(t=>isEffDone(t)).length,tot=active.length,pct=tot?Math.round(done/tot*100):0;
+  const isDone=tot>0&&pct===100;
+  // Find the tab by data attribute or by index
+  const tabs=document.querySelectorAll('.char-tab');
+  tabs.forEach(tab=>{
+    if(tab.getAttribute('onclick')?.includes(charId)){
+      tab.classList.toggle('tab-done',isDone);
+      const bar=tab.querySelector('.char-tab-prog-bar');if(bar)bar.style.width=pct+'%';
+    }
+  });
+}
+
 // ─── Task Toggle & Count ───
-async function toggleTask(taskId,isExp){
+function toggleTask(taskId,isExp){
   const list=getList(isExp),t=list.find(x=>x.id===taskId);if(!t)return;
   const nowDone=!isEffDone(t),now=new Date().toISOString();
   const up={is_completed:nowDone,last_completed_at:nowDone?now:null};
   if(t.count_max!=null)up.count_current=nowDone?t.count_max:0;
-  await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',taskId);
   Object.assign(t,up);
-  if(t.parent_id)await checkParentStatus(t.parent_id,isExp);
-  renderTaskArea();renderTabs();
+  // DOM update immediately (no await)
+  applyDoneToEl(document.getElementById('ti-'+taskId),nowDone);
+  if(t.parent_id){
+    checkParentStatus(t.parent_id,isExp).then(()=>updateParentDOM(t.parent_id,isExp));
+  }
+  if(!isExp)updateTabDOM(S.selChar);
+  // Fire-and-forget DB save
+  sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',taskId).then(({error})=>{if(error)toast('❗ 저장 오류');});
 }
-async function updateCount(taskId,rawVal,isExp){
+function updateCount(taskId,rawVal,isExp){
   const list=getList(isExp),t=list.find(x=>x.id===taskId);if(!t||t.count_max==null)return;
   const count=Math.max(0,Math.min(parseInt(rawVal)||0,t.count_max)),isDone=count>=t.count_max,now=new Date().toISOString();
   const up={count_current:count,is_completed:isDone,last_completed_at:isDone?now:null};
-  await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',taskId);
   Object.assign(t,up);
-  if(t.parent_id)await checkParentStatus(t.parent_id,isExp);
   const el=document.getElementById('ti-'+taskId);
   if(el){el.classList.toggle('done',isDone);const ic=el.querySelector('.checkbox-icon');if(ic)ic.style.opacity=isDone?'1':'0';const cb=el.querySelector('.checkbox');if(cb){cb.style.background=isDone?'var(--green)':'';cb.style.borderColor=isDone?'var(--green)':'';}const nm=el.querySelector('.task-name');if(nm)nm.style.textDecoration=isDone?'line-through':'';const inp=el.querySelector('.count-input');if(inp&&document.activeElement!==inp)inp.value=count;}
-  renderTabs();
+  if(t.parent_id)checkParentStatus(t.parent_id,isExp).then(()=>updateParentDOM(t.parent_id,isExp));
+  if(!isExp)updateTabDOM(S.selChar);
+  sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',taskId).then(({error})=>{if(error)toast('❗ 저장 오류');});
 }
-async function toggleRaidTask(id){
+function toggleRaidTask(id){
   const t=(S.raidTasks[S.selChar]||[]).find(x=>x.id===id);if(!t)return;
   const nowDone=!isEffDone(t),now=new Date().toISOString();
   const up={is_completed:nowDone,last_completed_at:nowDone?now:null};
-  await sb.from('raid_tasks').update(up).eq('id',id);Object.assign(t,up);
-  renderTaskArea();
+  Object.assign(t,up);
+  applyDoneToEl(document.getElementById('ri-'+id),nowDone);
+  // Update gold display in raid header
+  scheduleRenderArea();
+  sb.from('raid_tasks').update(up).eq('id',id).then(({error})=>{if(error)toast('❗ 저장 오류');});
 }
 
 // ─── Task CRUD ───
