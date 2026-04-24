@@ -193,6 +193,7 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
   <a href="core.html" class="pnav-item" id="nav-core">🔮 코어현황</a>
   <a href="raid.html" class="pnav-item active" id="nav-raid">🏰 레이드</a>
   <a href="overview.html" class="pnav-item">📊 레이드 현황</a>
+  <a href="parties.html" class="pnav-item">👥 파티 현황</a>
 </nav>
 <div id="viewer-banner">👁 뷰어 모드 — 읽기 전용</div>
 <div class="header">
@@ -235,6 +236,17 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
       <span class="week-label" id="week-label"></span>
       <button class="btn btn-sec btn-sm" onclick="moveWeek(1)">다음 ▶</button>
       <button class="btn btn-ghost btn-sm" onclick="goToCurrentWeek()">오늘</button>
+    </div>
+    <!-- Schedule character filter -->
+    <div id="sch-filter-bar" style="background:var(--s2);border-bottom:1px solid var(--border);flex-shrink:0;">
+      <div id="sch-fb-hd" style="display:flex;align-items:center;gap:10px;padding:7px 14px;cursor:pointer;user-select:none;" onclick="toggleSchFilter()">
+        <span style="font-size:.73rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;flex:1;">🔍 캐릭터 필터</span>
+        <span id="sch-fb-count" style="font-size:.72rem;color:var(--muted);"></span>
+        <button class="btn btn-sec btn-sm" onclick="event.stopPropagation();schSelectAll()">전체</button>
+        <button class="btn btn-sec btn-sm" onclick="event.stopPropagation();schDeselectAll()">해제</button>
+        <span id="sch-fb-toggle" style="font-size:.68rem;color:var(--muted);">▼</span>
+      </div>
+      <div id="sch-fb-body" style="padding:8px 14px 10px;display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--border);"></div>
     </div>
     <div class="sch-body" id="sch-body"></div>
   </div>
@@ -395,7 +407,7 @@ async function init(){
     raidTasksData.forEach(t=>{if(!raidTasksAll[t.character_id])raidTasksAll[t.character_id]=[];raidTasksAll[t.character_id].push(t);});
   }catch(err){toast('❗ 로딩 오류: '+err.message);return;}
   await autoResetNonFixed();
-  updateWeekLabel();renderPresetList();renderSchedule();loadNotice();
+  updateWeekLabel();renderPresetList();initSchFilter();renderSchedule();loadNotice();
   applyViewer();
   // ★ 뷰어 모드: 주간 일정 탭을 기본으로 표시
   if(isViewer)switchTab('schedule');
@@ -822,6 +834,76 @@ async function deleteParty(id){
   renderPresetList();renderSchedule();toast('🗑️ 삭제됨');
 }
 
+// ─── Schedule character filter ───
+let schFilterChars=null; // null = show all, Set = filtered chars
+let schFilterOpen=true;
+
+function initSchFilter(){
+  // Init with all chars
+  schFilterChars=null;
+  renderSchFilter();
+}
+function toggleSchFilter(){
+  schFilterOpen=!schFilterOpen;
+  const body=document.getElementById('sch-fb-body');
+  const tog=document.getElementById('sch-fb-toggle');
+  if(body)body.style.display=schFilterOpen?'flex':'none';
+  if(tog)tog.textContent=schFilterOpen?'▼':'▶';
+}
+function renderSchFilter(){
+  const body=document.getElementById('sch-fb-body');if(!body)return;
+  // Group by account
+  let html='';
+  // Get accounts (from allChars data)
+  const accMap={};allChars.forEach(c=>{if(!accMap[c.account_id])accMap[c.account_id]=[];accMap[c.account_id].push(c);});
+  // Need account names - load from memory or use account_id grouping
+  const accNames={};
+  // We'll group with a simple separator
+  accounts.forEach(acc=>{
+    const chars=allChars.filter(c=>c.account_id===acc.id);
+    if(!chars.length)return;
+    const selSet=schFilterChars||new Set(allChars.map(c=>c.id));
+    const allOn=chars.every(c=>selSet.has(c.id)),anyOn=chars.some(c=>selSet.has(c.id));
+    html+=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">`;
+    html+=`<button style="padding:3px 11px;border-radius:12px;border:1px solid ${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.4)':'var(--border-lit)'};background:${allOn?'rgba(200,168,75,.12)':anyOn?'rgba(200,168,75,.06)':'var(--s1)'};color:${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.7)':'var(--muted)'};cursor:pointer;font-size:.78rem;font-family:\'Noto Sans KR\',sans-serif;font-weight:700;" onclick="toggleSchAcc('${acc.id}')">${esc(acc.name)}</button>`;
+    html+=`<div style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0;"></div>`;
+    chars.forEach(c=>{
+      const on=selSet.has(c.id);
+      html+=`<button style="padding:3px 10px;border-radius:12px;border:1px solid ${on?'var(--gold)':'var(--border)'};background:${on?'rgba(200,168,75,.09)':'var(--s3)'};color:${on?'var(--gold)':'var(--muted)'};cursor:pointer;font-size:.78rem;font-family:\'Noto Sans KR\',sans-serif;" onclick="toggleSchChar('${c.id}')">${esc(c.name)}${c.item_level?`<span style="font-size:.67rem;opacity:.6"> Lv.${c.item_level}</span>`:''}</button>`;
+    });
+    html+=`</div>`;
+  });
+  body.innerHTML=html;
+  body.style.display=schFilterOpen?'flex':'none';
+  // Count
+  const sel=schFilterChars||new Set(allChars.map(c=>c.id));
+  const cnt=document.getElementById('sch-fb-count');if(cnt)cnt.textContent=schFilterChars?`${sel.size}/${allChars.length}명`:'전체';
+  document.getElementById('sch-fb-toggle').textContent=schFilterOpen?'▼':'▶';
+}
+function toggleSchAcc(accId){
+  const chars=allChars.filter(c=>c.account_id===accId);
+  if(!schFilterChars)schFilterChars=new Set(allChars.map(c=>c.id));
+  const allOn=chars.every(c=>schFilterChars.has(c.id));
+  chars.forEach(c=>{if(allOn)schFilterChars.delete(c.id);else schFilterChars.add(c.id);});
+  if(schFilterChars.size===allChars.length)schFilterChars=null;
+  renderSchFilter();renderSchedule();
+}
+function toggleSchChar(id){
+  if(!schFilterChars)schFilterChars=new Set(allChars.map(c=>c.id));
+  if(schFilterChars.has(id))schFilterChars.delete(id);else schFilterChars.add(id);
+  if(schFilterChars.size===allChars.length)schFilterChars=null;
+  renderSchFilter();renderSchedule();
+}
+function schSelectAll(){schFilterChars=null;renderSchFilter();renderSchedule();}
+function schDeselectAll(){schFilterChars=new Set();renderSchFilter();renderSchedule();}
+// Filter a schedule entry: show if any member of the party (or override) matches selected chars
+function schPassesFilter(s,wk){
+  if(!schFilterChars)return true; // show all
+  if(!schFilterChars.size)return false; // show none
+  const eff=getEffectiveMembers(s.id,s.party_id,wk);
+  return eff.some(slot=>slot.character_id&&schFilterChars.has(slot.character_id));
+}
+
 // ─── Schedule render (vertical day rows) ───
 function renderSchedule(){
   const el=document.getElementById('sch-body');if(!el)return;
@@ -831,7 +913,9 @@ function renderSchedule(){
   const weMs=wsMs+7*24*3600000;
   el.innerHTML=days.map((date,i)=>{
     const dn=WEEK_DAY_NUMS[i],isToday=dn===todayKST&&weekOffset===0;
-    const daySchs=getDaySchs(dn,wsMs,weMs);
+    const allDaySchs=getDaySchs(dn,wsMs,weMs);
+    // Apply character filter
+    const daySchs=allDaySchs.filter(s=>schPassesFilter(s,wk));
     const schType='sch_'+dn;
     return`<div class="day-row ${isToday?'today-row':''}">
       <div class="day-label-col">
@@ -1089,7 +1173,7 @@ function switchTab(tab){
   document.getElementById('view-party').style.display=tab==='party'?'flex':'none';
   const vs=document.getElementById('view-schedule');
   vs.style.display=tab==='schedule'?'flex':'none';
-  if(tab==='schedule'){vs.style.flexDirection='column';renderSchedule();loadNotice();}
+  if(tab==='schedule'){vs.style.flexDirection='column';renderSchFilter();renderSchedule();loadNotice();}
 }
 
 // ─── Modals ───
