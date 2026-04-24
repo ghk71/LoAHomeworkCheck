@@ -81,9 +81,12 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 .combo-label-text{font-size:.76rem;font-weight:600;flex:1;color:var(--gold-bright);}
 .combo-nums-text{font-size:.67rem;color:var(--muted);}
 .combo-grade-list{padding:5px 9px;display:flex;flex-direction:column;gap:3px;}
-.combo-grade-row{display:flex;align-items:center;gap:8px;font-size:.74rem;}
+.combo-grade-row{display:flex;align-items:center;gap:8px;font-size:.74rem;padding:2px 0;}
 .cgr-name{width:58px;flex-shrink:0;color:var(--muted);font-size:.71rem;}
-.cgr-badge{padding:1px 8px;border-radius:8px;font-size:.68rem;font-weight:600;border:1px solid;}
+.cgr-badge{padding:2px 10px;border-radius:8px;font-size:.69rem;font-weight:600;border:1px solid;cursor:pointer;transition:filter .12s;user-select:none;display:inline-block;}
+.cgr-badge:hover{filter:brightness(1.28);}
+.cgr-prio{background:none;border:none;cursor:pointer;font-size:.62rem;padding:0 2px;opacity:.45;transition:opacity .15s;}
+.cgr-prio:hover{opacity:1;}.cgr-prio.on{opacity:1;}
 .combo-add-btn{display:block;width:calc(100% - 20px);margin:4px 10px 9px;padding:5px;border:1px dashed var(--border);border-radius:var(--r);background:none;color:var(--dim);cursor:pointer;font-size:.75rem;font-family:'Noto Sans KR',sans-serif;transition:all .15s;text-align:center;}
 .combo-add-btn:hover{border-color:var(--gold);color:var(--gold);}
 .hidden-mgmt-wrap{display:flex;flex-wrap:wrap;gap:6px;max-height:200px;overflow-y:auto;}
@@ -182,7 +185,7 @@ const{createClient}=supabase;
 function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
 let sb=null,allChars=[],selectedChars=new Set(),coreData={};
 let filterCollapsed=localStorage.getItem('la_core_filter_col')==='1';
-let viewMode=localStorage.getItem('la_core_view')||'basic';
+let viewMode=localStorage.getItem('la_core_view')||'combo';  // 기본: 사용자 조합
 let collapsedSections=new Set(JSON.parse(localStorage.getItem('la_core_sections')||'[]'));
 let hiddenRows=new Set(JSON.parse(localStorage.getItem('la_core_hidden')||'[]'));
 const TYPES=[
@@ -274,9 +277,37 @@ function renderCombo(vis,el){
   let oH=`<div class="combo-section-label">⚗️ 질서 조합 (사용자 설정)</div><div class="combo-cards-wrap">`;
   vis.forEach(c=>{
     const combos=getCombos(c.id);
-    oH+=`<div class="combo-char-card"><div class="ccard-header"><span class="ccard-name">${esc(c.name)}</span><span class="ccard-ilvl">${c.item_level?`Lv.${c.item_level}`:''}</span></div><div class="ccard-body">${combos.length?'':'<div class="ccard-empty">조합을 추가하세요</div>'}${combos.map(combo=>{const grades=[{nm:`질서해${combo.sun}`,g:getGrade(c.id,ck('order','sun',combo.sun))},{nm:`질서달${combo.moon}`,g:getGrade(c.id,ck('order','moon',combo.moon))},{nm:`질서별${combo.star}`,g:getGrade(c.id,ck('order','star',combo.star))}];return`<div class="combo-entry"><div class="combo-entry-hd"><span class="combo-label-text">${esc(combo.label||'조합')}</span><span class="combo-nums-text">해${combo.sun}/달${combo.moon}/별${combo.star}</span><button class="btn btn-ghost" style="padding:2px 5px;font-size:.67rem;" onclick="openEditCombo('${c.id}','${combo.id}')">✏️</button><button class="btn btn-danger" style="padding:2px 4px;font-size:.67rem;" onclick="deleteCombo('${c.id}','${combo.id}')">🗑</button></div><div class="combo-grade-list">${grades.map(r=>`<div class="combo-grade-row"><span class="cgr-name">${r.nm}</span><span class="cgr-badge" style="${GB[r.g]||GB.none}">${GL[r.g]||'—'}</span></div>`).join('')}</div></div>`;}).join('')}</div><button class="combo-add-btn" onclick="openAddCombo('${c.id}')">＋ 조합 추가</button></div>`;
+    const combosHTML=combos.map(combo=>{
+      const rows=[
+        {nm:`질서해${combo.sun}`, key:ck('order','sun',combo.sun)},
+        {nm:`질서달${combo.moon}`, key:ck('order','moon',combo.moon)},
+        {nm:`질서별${combo.star}`, key:ck('order','star',combo.star)}
+      ].map(r=>{
+        const g=getGrade(c.id,r.key),p=getPrio(c.id,r.key);
+        return`<div class="combo-grade-row">
+          <span class="cgr-name">${r.nm}</span>
+          <span class="cgr-badge" style="${GB[g]||GB.none}" onclick="comboCycleGrade('${c.id}','${r.key}',this)">${GL[g]||'—'}</span>
+          <button class="cgr-prio ${p?'on':''}" onclick="comboPrio('${c.id}','${r.key}',this)">${p?'⭐':'☆'}</button>
+        </div>`;
+      }).join('');
+      return`<div class="combo-entry">
+        <div class="combo-entry-hd">
+          <span class="combo-label-text">${esc(combo.label||'조합')}</span>
+          <span class="combo-nums-text">해${combo.sun}/달${combo.moon}/별${combo.star}</span>
+          <button class="btn btn-ghost" style="padding:2px 5px;font-size:.67rem;" onclick="openEditCombo('${c.id}','${combo.id}')">✏️</button>
+          <button class="btn btn-danger" style="padding:2px 4px;font-size:.67rem;" onclick="deleteCombo('${c.id}','${combo.id}')">🗑</button>
+        </div>
+        <div class="combo-grade-list">${rows}</div>
+      </div>`;
+    }).join('');
+    oH+=`<div class="combo-char-card">
+      <div class="ccard-header"><span class="ccard-name">${esc(c.name)}</span><span class="ccard-ilvl">${c.item_level?`Lv.${c.item_level}`:''}</span></div>
+      <div class="ccard-body">${combos.length?'':'<div class="ccard-empty">조합을 추가하세요</div>'}${combosHTML}</div>
+      <button class="combo-add-btn" onclick="openAddCombo('${c.id}')">＋ 조합 추가</button>
+    </div>`;
   });
   oH+=`</div>`;
+  // 혼돈: 번호별 테이블
   let cH=`<div class="combo-section-label">💫 혼돈 (번호별 묶음)</div>`;
   let th=thead(vis);
   const chaosT=TYPES.find(t=>t.type==='chaos');
@@ -284,13 +315,49 @@ function renderCombo(vis,el){
   cH+=`<div class="core-table-wrap"><table class="core-table">${th}</tbody></table></div>`;
   el.innerHTML=oH+cH;
 }
+// ─── Debounced DB save (최적화: 500ms 내 연속 클릭은 마지막만 저장) ───
+const _saveTimer={};
+function scheduleSave(cid){clearTimeout(_saveTimer[cid]);_saveTimer[cid]=setTimeout(()=>saveCores(cid),500);}
+async function saveCores(cid){const e=coreData[cid];if(!e)return;if(e.id){await sb.from('character_cores').update({cores:e.cores}).eq('id',e.id);}else{const{data}=await sb.from('character_cores').insert({character_id:cid,cores:e.cores}).select().single();if(data)coreData[cid].id=data.id;}}
+
 function ensure(cid,key){if(!coreData[cid])coreData[cid]={id:null,cores:{}};if(key&&!coreData[cid].cores[key])coreData[cid].cores[key]={grade:'none',priority:false,name:''};}
-async function cycleGrade(cid,key,el){ensure(cid,key);const cur=getGrade(cid,key),next=cur==='skip'?'none':GRADES[(GRADES.indexOf(cur)+1)%GRADES.length];coreData[cid].cores[key].grade=next;el.className=`core-cell ${GC[next]}`;el.querySelector('span').textContent=GL[next];await saveCores(cid);}
-async function toggleSkip(cid,key,el){ensure(cid,key);const n=getGrade(cid,key)==='skip'?'none':'skip';coreData[cid].cores[key].grade=n;el.className=`core-cell ${GC[n]}`;el.querySelector('span').textContent=GL[n];await saveCores(cid);}
-async function togglePriority(cid,key,btn){ensure(cid,key);const p=!coreData[cid].cores[key].priority;coreData[cid].cores[key].priority=p;btn.textContent=p?'⭐':'☆';btn.parentElement.classList.toggle('is-priority',p);await saveCores(cid);}
+
+// 테이블 셀 클릭 - DOM 직접 업데이트 (re-render 없음)
+function cycleGrade(cid,key,el){
+  ensure(cid,key);const cur=getGrade(cid,key),next=cur==='skip'?'none':GRADES[(GRADES.indexOf(cur)+1)%GRADES.length];
+  coreData[cid].cores[key].grade=next;
+  el.className=`core-cell ${GC[next]}`;el.querySelector('span').textContent=GL[next];
+  scheduleSave(cid);
+}
+function toggleSkip(cid,key,el){
+  ensure(cid,key);const n=getGrade(cid,key)==='skip'?'none':'skip';
+  coreData[cid].cores[key].grade=n;
+  el.className=`core-cell ${GC[n]}`;el.querySelector('span').textContent=GL[n];
+  scheduleSave(cid);
+}
+function togglePriority(cid,key,btn){
+  ensure(cid,key);const p=!coreData[cid].cores[key].priority;
+  coreData[cid].cores[key].priority=p;
+  btn.textContent=p?'⭐':'☆';btn.parentElement.classList.toggle('is-priority',p);
+  scheduleSave(cid);
+}
+
+// 콤보 뷰 뱃지 클릭 - DOM 직접 업데이트 (re-render 없음)
+function comboCycleGrade(cid,key,badgeEl){
+  ensure(cid,key);const cur=getGrade(cid,key),next=cur==='skip'?'none':GRADES[(GRADES.indexOf(cur)+1)%GRADES.length];
+  coreData[cid].cores[key].grade=next;
+  badgeEl.textContent=GL[next];badgeEl.style.cssText=GB[next]||GB.none;
+  scheduleSave(cid);
+}
+function comboPrio(cid,key,btn){
+  ensure(cid,key);const p=!coreData[cid].cores[key].priority;
+  coreData[cid].cores[key].priority=p;
+  btn.textContent=p?'⭐':'☆';btn.classList.toggle('on',p);
+  scheduleSave(cid);
+}
+
 const _nt={};
-function saveCoreName(cid,key,val){ensure(cid,key);coreData[cid].cores[key].name=val;clearTimeout(_nt[cid+key]);_nt[cid+key]=setTimeout(()=>saveCores(cid),600);}
-async function saveCores(cid){const e=coreData[cid];if(e.id){await sb.from('character_cores').update({cores:e.cores}).eq('id',e.id);}else{const{data}=await sb.from('character_cores').insert({character_id:cid,cores:e.cores}).select().single();if(data)coreData[cid].id=data.id;}}
+function saveCoreName(cid,key,val){ensure(cid,key);coreData[cid].cores[key].name=val;clearTimeout(_nt[cid+key]);_nt[cid+key]=setTimeout(()=>saveCores(cid),800);}
 async function resetAll(){if(!confirm('화면에 보이는 캐릭터의 코어 데이터를 모두 초기화하시겠습니까?'))return;const vis=allChars.filter(c=>selectedChars.has(c.id));for(const c of vis){const combos=getCombos(c.id);coreData[c.id]={...(coreData[c.id]||{}),cores:{__combos:combos}};await saveCores(c.id);}renderMain();toast('✅ 초기화 완료');}
 const genId=()=>'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 const slotOpts=()=>[1,2,3,4,5,6].map(n=>`<option value="${n}">${n}</option>`).join('');
