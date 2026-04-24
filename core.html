@@ -30,6 +30,18 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 .vm-opt{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:12px;border:1px solid var(--border);cursor:pointer;font-size:.8rem;font-family:'Noto Sans KR',sans-serif;color:var(--muted);background:var(--s3);transition:all .15s;user-select:none;}
 .vm-opt:hover{border-color:var(--border-lit);color:var(--text);}
 .vm-opt.on{border-color:var(--gold);color:var(--gold);background:rgba(200,168,75,.09);}
+/* Lock */
+.lock-btn{padding:5px 12px;border-radius:12px;border:1px solid var(--border);cursor:pointer;font-size:.8rem;font-family:'Noto Sans KR',sans-serif;color:var(--muted);background:var(--s3);transition:all .15s;user-select:none;margin-left:auto;}
+.lock-btn:hover{border-color:var(--border-lit);color:var(--text);}
+.lock-btn.locked{border-color:#e74c3c;color:#e74c3c;background:rgba(231,76,60,.09);}
+.core-locked .core-cell{pointer-events:none;cursor:default;}
+.core-locked .core-name-input{pointer-events:none;}
+.core-locked .core-priority-btn{display:none;}
+.core-locked .row-hide-btn{display:none;}
+.core-locked .cgr-badge{pointer-events:none;cursor:default;}
+.core-locked .cgr-prio{display:none;}
+.core-locked .combo-add-btn{display:none;}
+.core-locked .btn-ghost,.core-locked .btn-danger{display:none;}
 .grade-legend-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;}
 .grade-pill{padding:2px 10px;border-radius:10px;font-size:.74rem;font-weight:600;border:1px solid;}
 .grade-pill.hero{background:rgba(155,89,182,.2);color:var(--grade-hero);border-color:rgba(155,89,182,.4);}
@@ -123,6 +135,7 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
   <a href="index.html" class="pnav-item">⚔️ 숙제</a>
   <a href="core.html" class="pnav-item active">🔮 코어현황</a>
   <a href="raid.html" class="pnav-item">🏰 레이드</a>
+  <a href="overview.html" class="pnav-item">📊 레이드 현황</a>
 </nav>
 <div class="header">
   <span>🔮</span>
@@ -145,6 +158,7 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
       <div class="vm-opt on" id="vm-basic" onclick="setViewMode('basic')">📋 기본</div>
       <div class="vm-opt" id="vm-numbered" onclick="setViewMode('numbered')">🔢 번호별 묶음</div>
       <div class="vm-opt" id="vm-combo" onclick="setViewMode('combo')">⚗️ 사용자 조합</div>
+      <button class="lock-btn" id="lock-btn" onclick="toggleLock()">🔓 편집 가능</button>
     </div>
     <div class="filter-bar">
       <div class="filter-bar-hd" onclick="toggleFilterBar()">
@@ -185,7 +199,25 @@ const{createClient}=supabase;
 function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
 let sb=null,allChars=[],selectedChars=new Set(),coreData={};
 let filterCollapsed=localStorage.getItem('la_core_filter_col')==='1';
-let viewMode=localStorage.getItem('la_core_view')||'combo';  // 기본: 사용자 조합
+let viewMode=localStorage.getItem('la_core_view')||'combo';
+let isLocked=localStorage.getItem('la_core_locked')==='1';
+
+function toggleLock(){
+  isLocked=!isLocked;
+  localStorage.setItem('la_core_locked',isLocked?'1':'0');
+  applyLock();
+}
+function applyLock(){
+  const btn=document.getElementById('lock-btn');
+  const container=document.getElementById('core-container');
+  if(btn){btn.textContent=isLocked?'🔒 잠금':'🔓 편집 가능';btn.classList.toggle('locked',isLocked);}
+  if(container){container.classList.toggle('core-locked',isLocked);}
+  // Also lock the action buttons in header
+  const resetBtn=document.querySelector('[onclick="resetAll()"]');
+  const hiddenBtn=document.querySelector('[onclick="openHiddenMgmt()"]');
+  if(resetBtn)resetBtn.disabled=isLocked;
+  if(hiddenBtn)hiddenBtn.disabled=isLocked;
+}
 let collapsedSections=new Set(JSON.parse(localStorage.getItem('la_core_sections')||'[]'));
 let hiddenRows=new Set(JSON.parse(localStorage.getItem('la_core_hidden')||'[]'));
 const TYPES=[
@@ -227,7 +259,7 @@ async function init(){
   setViewModeUI(viewMode);
   document.getElementById('loading').style.display='none';
   document.getElementById('content').style.display='block';
-  renderFilters();renderMain();
+  renderFilters();renderMain();applyLock();
 }
 function setViewMode(m){viewMode=m;localStorage.setItem('la_core_view',m);setViewModeUI(m);renderMain();}
 function setViewModeUI(m){['basic','numbered','combo'].forEach(v=>document.getElementById('vm-'+v)?.classList.toggle('on',v===m));}
@@ -256,10 +288,11 @@ function renderHiddenMgmt(){
 function renderMain(){
   const vis=allChars.filter(c=>selectedChars.has(c.id));
   const el=document.getElementById('core-container');
-  if(!vis.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted);font-size:.85rem;">캐릭터를 선택하세요</div>';return;}
+  if(!vis.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--muted);font-size:.85rem;">캐릭터를 선택하세요</div>';applyLock();return;}
   if(viewMode==='basic')renderBasic(vis,el);
   else if(viewMode==='numbered')renderNumbered(vis,el);
   else renderCombo(vis,el);
+  applyLock();
 }
 function thead(vis){return`<thead><tr><th class="type-header">코어</th>${vis.map(c=>`<th class="char-header">${esc(c.name)}${c.item_level?`<br><span style="font-size:.66rem;font-weight:400;color:var(--muted)">Lv.${c.item_level}</span>`:''}</th>`).join('')}</tr></thead><tbody>`;}
 function cell(cid,key){const g=getGrade(cid,key),p=getPrio(cid,key),cn=getCname(cid,key);return`<td><div class="core-cell-wrap ${p?'is-priority':''}"><div class="core-cell ${GC[g]}" onclick="cycleGrade('${cid}','${key}',this)" oncontextmenu="toggleSkip('${cid}','${key}',this);return false;"><span>${GL[g]}</span></div><input class="core-name-input" value="${esc(cn)}" placeholder="코어명" onchange="saveCoreName('${cid}','${key}',this.value)" onclick="event.stopPropagation()" oncontextmenu="event.stopPropagation()"><button class="core-priority-btn" onclick="togglePriority('${cid}','${key}',this)">${p?'⭐':'☆'}</button></div></td>`;}
