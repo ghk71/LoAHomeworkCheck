@@ -21,10 +21,10 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 .header-title{font-family:'Cinzel',serif;font-size:1.1rem;color:var(--gold);letter-spacing:2px;}
 .main-content{flex:1;overflow-y:auto;padding:16px 22px;}
 .grade-none{background:var(--s3);color:var(--dim);border:2px solid var(--border);}
-.grade-hero{background:rgba(30,50,100,.55);color:var(--grade-hero);border:2px solid rgba(91,141,217,.5);}
-.grade-legend{background:rgba(80,55,0,.5);color:var(--grade-legend);border:2px solid rgba(212,160,23,.55);}
-.grade-relic{background:rgba(20,60,110,.5);color:var(--grade-relic);border:2px solid rgba(74,168,232,.55);}
-.grade-ancient{background:rgba(200,190,160,.15);color:var(--grade-ancient);border:2px solid rgba(220,210,185,.5);}
+.grade-hero{background:rgba(10,20,60,.7);color:#5b8dd9;border:2px solid rgba(60,100,200,.5);}
+.grade-legend{background:rgba(80,55,0,.5);color:#d4a017;border:2px solid rgba(212,160,23,.55);}
+.grade-relic{background:rgba(20,80,180,.45);color:#7ec8ff;border:2px solid rgba(80,160,240,.6);}
+.grade-ancient{background:rgba(200,190,160,.15);color:#e8e4d8;border:2px solid rgba(220,210,185,.5);}
 .grade-skip{background:#0d0d0d;color:#111;border:2px solid #0a0a0a;}
 .view-mode-bar{display:flex;align-items:center;gap:6px;margin-bottom:14px;padding:9px 14px;background:var(--s2);border:1px solid var(--border);border-radius:6px;flex-wrap:wrap;}
 .vm-label{font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-right:4px;}
@@ -45,10 +45,10 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 .core-locked .btn-ghost,.core-locked .btn-danger{display:none;}
 .grade-legend-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;}
 .grade-pill{padding:2px 10px;border-radius:10px;font-size:.74rem;font-weight:600;border:1px solid;}
-.grade-pill.hero{background:rgba(30,50,100,.5);color:var(--grade-hero);border-color:rgba(91,141,217,.5);}
-.grade-pill.legend{background:rgba(80,55,0,.45);color:var(--grade-legend);border-color:rgba(212,160,23,.5);}
-.grade-pill.relic{background:rgba(20,60,110,.45);color:var(--grade-relic);border-color:rgba(74,168,232,.5);}
-.grade-pill.ancient{background:rgba(200,190,160,.12);color:var(--grade-ancient);border-color:rgba(220,210,185,.45);}
+.grade-pill.hero{background:rgba(10,20,60,.65);color:#5b8dd9;border-color:rgba(60,100,200,.5);}
+.grade-pill.legend{background:rgba(80,55,0,.45);color:#d4a017;border-color:rgba(212,160,23,.5);}
+.grade-pill.relic{background:rgba(20,80,180,.4);color:#7ec8ff;border-color:rgba(80,160,240,.55);}
+.grade-pill.ancient{background:rgba(200,190,160,.12);color:#e8e4d8;border-color:rgba(220,210,185,.45);}
 .grade-pill.skip{background:#0d0d0d;color:#444;border-color:#222;}
 .grade-hint{font-size:.73rem;color:var(--muted);}
 .filter-bar{margin-bottom:14px;background:var(--s2);border:1px solid var(--border);border-radius:6px;overflow:hidden;}
@@ -230,9 +230,9 @@ const GL={none:'—',hero:'영웅',legend:'전설',relic:'유물',ancient:'고�
 const GC={none:'grade-none',hero:'grade-hero',legend:'grade-legend',relic:'grade-relic',ancient:'grade-ancient',skip:'grade-skip'};
 const GB={
   none:'background:var(--s3);color:var(--dim);border-color:var(--border);',
-  hero:'background:rgba(30,50,100,.55);color:#5b8dd9;border-color:rgba(91,141,217,.5);',
+  hero:'background:rgba(10,20,60,.7);color:#5b8dd9;border-color:rgba(60,100,200,.5);',
   legend:'background:rgba(80,55,0,.5);color:#d4a017;border-color:rgba(212,160,23,.55);',
-  relic:'background:rgba(20,60,110,.5);color:#4aa8e8;border-color:rgba(74,168,232,.55);',
+  relic:'background:rgba(20,80,180,.45);color:#7ec8ff;border-color:rgba(80,160,240,.6);',
   ancient:'background:rgba(200,190,160,.15);color:#e8e4d8;border-color:rgba(220,210,185,.5);',
   skip:'background:#0d0d0d;color:#333;border-color:#111;',
 };
