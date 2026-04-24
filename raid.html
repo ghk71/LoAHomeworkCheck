@@ -449,8 +449,8 @@ async function rdDropDiff(e,gname,destIdx){
   const src=_rd.src;_rd.type=null;
   const list=raids.filter(r=>r.name===gname).sort((a,b)=>a.sort_order-b.sort_order);
   const[m]=list.splice(src,1);list.splice(destIdx,0,m);list.forEach((r,i)=>{r.sort_order=i;});
-  await Promise.all(list.map((r,i)=>sb.from('raid_presets').update({sort_order:i}).eq('id',r.id)));
   renderPresetList();
+  Promise.all(list.map((r,i)=>sb.from('raid_presets').update({sort_order:i}).eq('id',r.id)));
 }
 async function rdDropParty(e,presetId,destIdx){
   e.preventDefault();e.stopPropagation();rdClean();
@@ -458,8 +458,8 @@ async function rdDropParty(e,presetId,destIdx){
   const src=_rd.src;_rd.type=null;
   const list=parties.filter(p=>p.preset_id===presetId).sort((a,b)=>a.sort_order-b.sort_order);
   const[m]=list.splice(src,1);list.splice(destIdx,0,m);list.forEach((p,i)=>{p.sort_order=i;});
-  await Promise.all(list.map((p,i)=>sb.from('raid_parties').update({sort_order:i}).eq('id',p.id)));
   renderPresetList();
+  Promise.all(list.map((p,i)=>sb.from('raid_parties').update({sort_order:i}).eq('id',p.id)));
 }
 async function rdDropSch(e,dn,destIdx){
   e.preventDefault();e.stopPropagation();rdClean();
@@ -468,8 +468,8 @@ async function rdDropSch(e,dn,destIdx){
   const wsMs=getWeekStart(weekOffset).getTime()-9*3600000,weMs=wsMs+7*24*3600000;
   const list=getDaySchs(dn,wsMs,weMs);
   const[m]=list.splice(src,1);list.splice(destIdx,0,m);list.forEach((s,i)=>{s.sort_order=i;});
-  await Promise.all(list.map((s,i)=>sb.from('raid_schedules').update({sort_order:i}).eq('id',s.id)));
   renderSchedule();
+  Promise.all(list.map((s,i)=>sb.from('raid_schedules').update({sort_order:i}).eq('id',s.id)));
 }
 
 // ─── Preset / Party list ───
@@ -871,8 +871,12 @@ function schedCardHTML(s,wk){
   </div>`;
 }
 
+// ─── Render scheduler for raid (batch rAF) ───
+let _raidRafPending=false;
+function scheduleRenderSchedule(){if(!_raidRafPending){_raidRafPending=true;requestAnimationFrame(()=>{_raidRafPending=false;renderSchedule();});}}
+
 // ─── Schedule completion ───
-async function toggleCompletion(schId,wk){
+function toggleCompletion(schId,wk){
   const ovrKey=schId+'_'+wk;
   if(!overrides[ovrKey])overrides[ovrKey]={id:null,slot_overrides:{}};
   const ovr=overrides[ovrKey];
@@ -880,24 +884,32 @@ async function toggleCompletion(schId,wk){
   ovr.is_completed=nowDone;
   const ts=nowDone?new Date().toISOString():null;
   ovr.completed_at=ts;
-  if(ovr.id){await sb.from('raid_schedule_overrides').update({is_completed:nowDone,completed_at:ts}).eq('id',ovr.id);}
-  else{const{data}=await sb.from('raid_schedule_overrides').insert({schedule_id:schId,week_start_date:wk,slot_overrides:{},is_completed:nowDone,completed_at:ts}).select().single();if(data)ovr.id=data.id;}
-  // ★ Sync raid_tasks for each member
-  const s=schedules.find(x=>x.id===schId);
-  if(s){
-    const p=parties.find(x=>x.id===s.party_id),preset=p?raids.find(x=>x.id===p.preset_id):null;
-    if(preset){
-      const eff=getEffectiveMembers(schId,s.party_id,wk);
-      for(const slot of eff){
-        if(!slot.character_id)continue;
-        const{data:tasks}=await sb.from('raid_tasks').select('id').eq('character_id',slot.character_id).eq('preset_id',preset.id);
-        if(tasks?.length){
-          await sb.from('raid_tasks').update({is_completed:nowDone,last_completed_at:ts}).in('id',tasks.map(t=>t.id));
+  // DOM update immediately - update just this card
+  const cardEl=document.getElementById('sc-'+schId);
+  if(cardEl){
+    cardEl.classList.toggle('completed',nowDone);
+    const btn=cardEl.querySelector('.sc-complete-btn');
+    if(btn)btn.textContent=nowDone?'✓ 완료':'○ 완료';
+  }
+  toast(nowDone?'✅ 완료 처리됨':'↩ 완료 취소됨');
+  // Fire-and-forget DB save
+  (async()=>{
+    if(ovr.id){sb.from('raid_schedule_overrides').update({is_completed:nowDone,completed_at:ts}).eq('id',ovr.id);}
+    else{const{data}=await sb.from('raid_schedule_overrides').insert({schedule_id:schId,week_start_date:wk,slot_overrides:{},is_completed:nowDone,completed_at:ts}).select().single();if(data)ovr.id=data.id;}
+    // Sync raid_tasks in background
+    const s=schedules.find(x=>x.id===schId);
+    if(s){
+      const p=parties.find(x=>x.id===s.party_id),preset=p?raids.find(x=>x.id===p.preset_id):null;
+      if(preset){
+        const eff=getEffectiveMembers(schId,s.party_id,wk);
+        const charIds=eff.filter(sl=>sl.character_id).map(sl=>sl.character_id);
+        if(charIds.length){
+          const{data:tasks}=await sb.from('raid_tasks').select('id').in('character_id',charIds).eq('preset_id',preset.id);
+          if(tasks?.length)sb.from('raid_tasks').update({is_completed:nowDone,last_completed_at:ts}).in('id',tasks.map(t=>t.id));
         }
       }
     }
-  }
-  renderSchedule();toast(nowDone?'✅ 완료 처리됨 (레이드 숙제 반영)':'↩ 완료 취소됨');
+  })();
 }
 
 // ─── Schedule edit (override modal) ───
@@ -945,9 +957,10 @@ async function overrideSlot(schId,slotIndex,charId,wk){
   if(!overrides[ovrKey])overrides[ovrKey]={id:null,slot_overrides:{}};
   const ovr=overrides[ovrKey];
   if(charId===null)delete ovr.slot_overrides[String(slotIndex)];else ovr.slot_overrides[String(slotIndex)]=charId;
-  if(ovr.id){await sb.from('raid_schedule_overrides').update({slot_overrides:ovr.slot_overrides}).eq('id',ovr.id);}
+  scheduleRenderSchedule();toast('✅ 임시 변경됨');
+  // Fire-and-forget
+  if(ovr.id){sb.from('raid_schedule_overrides').update({slot_overrides:ovr.slot_overrides}).eq('id',ovr.id);}
   else{const{data}=await sb.from('raid_schedule_overrides').insert({schedule_id:schId,week_start_date:wk,slot_overrides:ovr.slot_overrides,is_completed:false}).select().single();if(data)ovr.id=data.id;}
-  renderSchedule();toast('✅ 임시 변경됨');
 }
 async function resetOverrides(){
   const wk=getWeekKey(weekOffset),ovrKey=ovrEditSchId+'_'+wk,ovr=overrides[ovrKey];
