@@ -8,7 +8,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
-:root{--bg:#0a0a0f;--s1:#111118;--s2:#16161f;--s3:#1e1e2a;--border:#2a2a3d;--border-lit:#3d3d5c;--gold:#c8a84b;--gold-bright:#e8c86a;--gold-dim:#8a6e2a;--gold-glow:rgba(200,168,75,.2);--text:#e0ddd5;--muted:#5a5f72;--dim:#2e3045;--green:#2ecc71;--red:#e74c3c;--orange:#e67e22;--teal:#1abc9c;--r:5px;}
+:root{
+/* Diff colors */
+--bg:#0a0a0f;--s1:#111118;--s2:#16161f;--s3:#1e1e2a;--border:#2a2a3d;--border-lit:#3d3d5c;--gold:#c8a84b;--gold-bright:#e8c86a;--gold-dim:#8a6e2a;--gold-glow:rgba(200,168,75,.2);--text:#e0ddd5;--muted:#5a5f72;--dim:#2e3045;--green:#2ecc71;--red:#e74c3c;--orange:#e67e22;--teal:#1abc9c;--r:5px;}
 *{margin:0;padding:0;box-sizing:border-box;}html,body{height:100%;overflow:hidden;}
 body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;display:flex;flex-direction:column;}
 .page-nav{background:#070710;border-bottom:1px solid var(--border);display:flex;align-items:stretch;flex-shrink:0;}
@@ -107,6 +109,7 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 .toast{position:fixed;bottom:24px;right:24px;background:var(--s3);border:1px solid var(--gold-dim);color:var(--text);padding:9px 16px;border-radius:var(--r);font-size:.84rem;box-shadow:0 4px 20px rgba(0,0,0,.5);z-index:300;animation:toastIn .25s ease,toastOut .25s ease 2.25s forwards;}
 @keyframes toastIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
 @keyframes toastOut{to{opacity:0;transform:translateY(8px);}}
+.diff-nightmare{color:#bb88ff;font-weight:600;}.diff-hard{color:#c8a04a;font-weight:600;}.diff-normal{color:#7a8090;font-weight:600;}
 </style>
 </head>
 <body>
@@ -169,12 +172,15 @@ async function init(){
 async function loadAll(){
   document.getElementById('loading').style.display='flex';
   document.getElementById('content').style.display='none';
-  const[r1,r2,r3]=await Promise.all([
+  const[r1,r2,r3,r4]=await Promise.all([
     sb.from('accounts').select('*').order('sort_order').order('created_at'),
     sb.from('characters').select('*').order('sort_order').order('created_at'),
-    sb.from('raid_tasks').select('*').order('sort_order').order('created_at')
+    sb.from('raid_tasks').select('*').order('sort_order').order('created_at'),
+    sb.from('raid_presets').select('id,name')
   ]);
   accounts=r1.data||[];characters=r2.data||[];raidTasks=r3.data||[];
+  const presetsMap={};(r4.data||[]).forEach(p=>{presetsMap[p.id]=p.name;});
+  raidTasks.forEach(t=>{if(t.preset_id&&presetsMap[t.preset_id])t.preset_name=presetsMap[t.preset_id];});
   // Init filter: all chars with raids selected by default
   const charsWithRaids=characters.filter(c=>raidTasks.some(t=>t.character_id===c.id));
   const saved=localStorage.getItem('la_ov_sel_chars');
@@ -328,11 +334,12 @@ function charCardHTML(c){
 
 function raidTaskRowHTML(t){
   const done=isEffDone(t);
+  const raidName=t.preset_name||t.name;
   return`<div class="rt-row ${done?'done':''}" id="ov-rti-${t.id}" onclick="toggleRaidTask('${t.id}')">
     <div class="rt-check"><span class="rt-check-icon">✓</span></div>
     <div class="rt-info">
-      <div class="rt-name">${esc(t.name)}</div>
-      ${t.difficulty?`<div style="font-size:.75rem;color:var(--gold);margin-top:2px;font-weight:500;">${esc(t.difficulty)}</div>`:''}
+      <div class="rt-name" style="color:${getGroupColor(raidName)};">${esc(raidName)}</div>
+      ${t.difficulty?`<div class="${diffClass(t.difficulty)}" style="font-size:.75rem;margin-top:2px;">${esc(t.difficulty)}</div>`:''}
     </div>
   </div>`;
 }
@@ -375,6 +382,8 @@ function toggleAcc(id){
 }
 
 function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),2600);}
+function getGroupColor(name){return localStorage.getItem('la_gc_'+name)||'#4caf50';}
+function diffClass(d){if(!d)return'';const dl=d.toLowerCase();if(dl.includes('나이트메어')||dl.includes('3단계'))return'diff-nightmare';if(dl.includes('하드')||dl.includes('2단계'))return'diff-hard';if(dl.includes('노말')||dl.includes('1단계'))return'diff-normal';return'';}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 init();
 </script>
