@@ -204,13 +204,7 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
   <a href="overview.html" class="pnav-item">📊 레이드 현황</a>
   <a href="parties.html" class="pnav-item">👥 파티 현황</a>
 </nav>
-<div id="viewer-banner">👁 뷰어 모드 — 읽기 전용
-  <span id="viewer-name-wrap" style="margin-left:16px;display:inline-flex;align-items:center;gap:8px;">
-    <span style="font-size:.74rem;color:rgba(200,168,75,.7);">내 계정명:</span>
-    <input id="viewer-name-input" placeholder="계정명 입력..." style="background:rgba(200,168,75,.1);border:1px solid rgba(200,168,75,.3);border-radius:4px;color:var(--gold);padding:2px 8px;font-size:.76rem;font-family:'Noto Sans KR',sans-serif;width:120px;" oninput="updateViewerName(this.value)">
-    <span id="viewer-name-display" style="font-size:.77rem;color:var(--gold);display:none;"></span>
-  </span>
-</div>
+<div id="viewer-banner">👁 뷰어 모드 — 읽기 전용</div>
 <div class="header">
   <span>🏰</span>
   <div class="header-title">레이드</div>
@@ -256,10 +250,9 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
     <!-- Schedule character filter -->
     <div id="sch-filter-bar" style="background:var(--s2);border-bottom:1px solid var(--border);flex-shrink:0;">
       <div id="sch-fb-hd" style="display:flex;align-items:center;gap:10px;padding:7px 14px;cursor:pointer;user-select:none;" onclick="toggleSchFilter()">
-        <span style="font-size:.73rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;flex:1;">🔍 캐릭터 필터</span>
+        <span style="font-size:.73rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;flex:1;">✨ 슬롯 강조</span>
         <span id="sch-fb-count" style="font-size:.72rem;color:var(--muted);"></span>
-        <button class="btn btn-sec btn-sm" onclick="event.stopPropagation();schSelectAll()">전체</button>
-        <button class="btn btn-sec btn-sm" onclick="event.stopPropagation();schDeselectAll()">해제</button>
+        <button class="btn btn-sec btn-sm" onclick="event.stopPropagation();schClearHL()">강조 해제</button>
         <span id="sch-fb-toggle" style="font-size:.68rem;color:var(--muted);">▼</span>
       </div>
       <div id="sch-fb-body" style="padding:8px 14px 10px;display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--border);"></div>
@@ -275,6 +268,13 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
   <div class="form-group"><label class="form-label">파티 이름</label><input class="form-input" id="party-name" lang="ko" inputmode="text" placeholder="1파, 길드전용, 주말파..." maxlength="20"></div>
   <div class="form-group"><label class="form-label">파티 인원</label>
     <div class="radio-group"><div class="radio-opt active" id="size-4" onclick="selectSize(4)">4인</div><div class="radio-opt" id="size-8" onclick="selectSize(8)">8인</div></div>
+  </div>
+  <div class="form-group"><label class="form-label">파티 색상 <span style="font-size:.7rem;color:var(--muted);">(기본: 흰색)</span></label>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input type="color" id="party-color-input" value="#e0ddd5" style="width:36px;height:28px;border:none;border-radius:4px;cursor:pointer;padding:0;" oninput="document.getElementById('party-color-preview').textContent='● '+this.value;document.getElementById('party-color-preview').style.color=this.value;">
+      <span id="party-color-preview" style="font-size:.82rem;color:#e0ddd5;">● #e0ddd5</span>
+      <button type="button" class="btn btn-sec btn-sm" onclick="resetPartyColor()">초기화</button>
+    </div>
   </div>
   <input type="hidden" id="party-edit-id"><input type="hidden" id="party-preset-id">
   <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-party')">취소</button><button class="btn btn-gold" id="party-submit-btn" onclick="submitParty()">추가</button></div>
@@ -342,6 +342,13 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
   <div class="form-group"><label class="form-label">레이드 이름</label>
     <input class="form-input" id="rn-name" lang="ko" inputmode="text" placeholder="에키드나, 베히모스, 카멘..." maxlength="30">
   </div>
+  <div class="form-group"><label class="form-label">레이드명 색상 <span style="font-size:.7rem;color:var(--muted);">(기본: 초록)</span></label>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <input type="color" id="rn-color" value="#4caf50" style="width:36px;height:28px;border:none;border-radius:4px;cursor:pointer;padding:0;" oninput="document.getElementById('rn-color-preview').textContent='● '+this.value;document.getElementById('rn-color-preview').style.color=this.value;">
+      <span id="rn-color-preview" style="font-size:.82rem;color:#4caf50;">● #4caf50</span>
+      <button type="button" class="btn btn-sec btn-sm" onclick="resetRnColor()">초기화</button>
+    </div>
+  </div>
   <input type="hidden" id="rn-old-name">
   <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-raid-name')">취소</button><button class="btn btn-gold" id="rn-submit-btn" onclick="submitRaidName()">추가</button></div>
 </div></div>
@@ -351,7 +358,6 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
   <div class="modal-title" id="diff-modal-title">난이도 추가</div>
   <div style="font-size:.8rem;color:var(--muted);margin-bottom:12px;" id="diff-parent-label"></div>
   <div class="form-row">
-    <div class="form-group"><label class="form-label">레이드 색상 (레이드명에 적용)</label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;" id="color-picker-wrap"><input type="color" id="diff-color" value="#c8a84b" style="width:36px;height:28px;border:none;border-radius:4px;cursor:pointer;background:none;padding:0;" oninput="document.getElementById('diff-color-preview').style.color=this.value;document.getElementById('diff-color-preview').textContent='● '+this.value;"><span id="diff-color-preview" style="font-size:.82rem;color:var(--muted);">색상 미리보기</span><button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('diff-color').value='';document.getElementById('diff-color-preview').textContent='기본';">초기화</button></div></div>
   <div class="form-group"><label class="form-label">난이도</label><input class="form-input" id="diff-difficulty" lang="ko" inputmode="text" placeholder="노말, 하드, 싱글..."></div>
     <div class="form-group"><label class="form-label">입장 레벨</label><input class="form-input" id="diff-ilvl" type="number" placeholder="1620" min="0"></div>
   </div>
@@ -386,32 +392,6 @@ function applyViewer(){
   const noticeDisp=document.getElementById('notice-display');
   if(noticeDisp)noticeDisp.style.display='block';
   document.querySelectorAll('.edit-only').forEach(el=>{el.style.display='none';if(el.tagName==='INPUT')el.readOnly=true;});
-  // Load saved viewer name
-  const savedName=localStorage.getItem('la_viewer_name')||'';
-  const inp=document.getElementById('viewer-name-input');
-  if(inp)inp.value=savedName;
-  if(savedName)setViewerNameDisplay(savedName);
-}
-function updateViewerName(val){
-  localStorage.setItem('la_viewer_name',val);
-  setViewerNameDisplay(val);
-  renderSchedule(); // re-render to apply highlight
-}
-function setViewerNameDisplay(name){
-  const disp=document.getElementById('viewer-name-display');
-  if(disp){disp.textContent=name?'('+name+')':'';disp.style.display=name?'inline':'none';}
-}
-function getViewerAccounts(){
-  // Find accounts matching the viewer name
-  if(!isViewer)return[];
-  const name=(localStorage.getItem('la_viewer_name')||'').trim().toLowerCase();
-  if(!name)return[];
-  return accounts.filter(a=>a.name.toLowerCase()===name||a.name.toLowerCase().includes(name)).map(a=>a.id);
-}
-function getViewerCharIds(){
-  const accIds=getViewerAccounts();
-  if(!accIds.length)return new Set();
-  return new Set(allChars.filter(c=>accIds.includes(c.account_id)).map(c=>c.id));
 }
 
 // ─── State ───
@@ -600,7 +580,7 @@ function renderPresetList(){
       <div class="preset-header" onclick="toggleGroup('${esc(gname)}')">
         ${!isViewer?`<span class="rdnd-handle" onclick="event.stopPropagation()">⠿</span>`:''}
         <span class="preset-toggle">${isGOpen?'▼':'▶'}</span>
-        <div class="preset-name" style="flex:1;${gPresets[0]?.color?`color:${gPresets[0].color}`:''}"">${esc(gname)}</div>
+        <div class="preset-name" style="flex:1;color:${getGroupColor(gname)};">${esc(gname)}</div>
         <div class="preset-actions">
           ${!isViewer?`<button class="btn btn-icon edit-only" style="font-size:.7rem;padding:3px 7px;" onclick="event.stopPropagation();openAddDifficulty('${esc(gname)}')">+난이도</button>
           <button class="btn btn-icon edit-only" onclick="event.stopPropagation();openEditRaidGroup('${esc(gname)}')">✏️</button>
@@ -828,19 +808,25 @@ function openAddPreset(){
   document.getElementById('rn-name').value='';document.getElementById('rn-old-name').value='';
   openModal('modal-raid-name');setTimeout(()=>document.getElementById('rn-name').focus(),80);
 }
+function resetRnColor(){document.getElementById('rn-color').value='#4caf50';document.getElementById('rn-color-preview').textContent='● 기본(초록)';document.getElementById('rn-color-preview').style.color='#4caf50';}
 function openEditRaidGroup(groupName){
   document.getElementById('raid-name-modal-title').textContent='레이드 이름 수정';
   document.getElementById('rn-submit-btn').textContent='저장';
   document.getElementById('rn-name').value=groupName;document.getElementById('rn-old-name').value=groupName;
+  const c=getGroupColor(groupName);document.getElementById('rn-color').value=c;document.getElementById('rn-color-preview').textContent='● '+c;document.getElementById('rn-color-preview').style.color=c;
   openModal('modal-raid-name');
 }
+function openAddPreset(){document.getElementById('raid-name-modal-title').textContent='레이드 추가';document.getElementById('rn-submit-btn').textContent='추가';document.getElementById('rn-name').value='';document.getElementById('rn-old-name').value='';resetRnColor();openModal('modal-raid-name');setTimeout(()=>document.getElementById('rn-name').focus(),80);}
 async function submitRaidName(){
   const name=document.getElementById('rn-name').value.trim();if(!name){toast('❗ 이름 입력');return;}
   const oldName=document.getElementById('rn-old-name').value;
+  const color=document.getElementById('rn-color').value||'#4caf50';
+  setGroupColor(name,color); // 색상 localStorage 저장
   if(oldName){
     // 수정: 해당 이름의 모든 presets 이름 변경
     await sb.from('raid_presets').update({name}).eq('name',oldName);
     raids.filter(r=>r.name===oldName).forEach(r=>{r.name=name;});
+    if(oldName!==name){localStorage.removeItem('la_gc_'+oldName);}
     // localStorage 그룹 이름도 업데이트
     const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]');
     const idx=extras.indexOf(oldName);if(idx>=0)extras[idx]=name;localStorage.setItem('la_raid_groups',JSON.stringify(extras));
@@ -877,8 +863,7 @@ function openAddDifficulty(groupName){
   document.getElementById('diff-submit-btn').textContent='추가';
   document.getElementById('diff-parent-label').textContent=`레이드: ${groupName}`;
   ['diff-difficulty','diff-ilvl','diff-gold','diff-bound','diff-bonus'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('diff-color').value='#c8a84b';
-  document.getElementById('diff-color-preview').textContent='색상 미리보기';
+
   document.getElementById('diff-preset-id').value='';document.getElementById('diff-group-name').value=groupName;
   openModal('modal-difficulty');setTimeout(()=>document.getElementById('diff-difficulty').focus(),80);
 }
@@ -888,7 +873,6 @@ function openEditDifficulty(id){
   document.getElementById('diff-submit-btn').textContent='저장';
   document.getElementById('diff-parent-label').textContent=`레이드: ${r.name}`;
   document.getElementById('diff-difficulty').value=r.difficulty||'';
-  document.getElementById('diff-color').value=r.color||'#c8a84b';
   document.getElementById('diff-ilvl').value=r.entry_level||'';
   document.getElementById('diff-gold').value=r.clear_gold||'';
   document.getElementById('diff-bound').value=r.bound_gold||'';
@@ -898,7 +882,6 @@ function openEditDifficulty(id){
 }
 async function submitDifficulty(){
   const difficulty=document.getElementById('diff-difficulty').value.trim();
-  const color=document.getElementById('diff-color').value||null;
   const rec={difficulty,entry_level:parseFloat(document.getElementById('diff-ilvl').value)||0,clear_gold:parseFloat(document.getElementById('diff-gold').value)||0,bound_gold:parseFloat(document.getElementById('diff-bound').value)||0,bonus_gold:parseFloat(document.getElementById('diff-bonus').value)||0,color};
   const editId=document.getElementById('diff-preset-id').value,groupName=document.getElementById('diff-group-name').value;
   if(editId){
@@ -917,13 +900,15 @@ async function submitDifficulty(){
 async function deletePreset(id){if(!confirm('이 난이도와 관련된 파티/일정을 삭제합니다. 계속?'))return;await sb.from('raid_presets').delete().eq('id',id);raids=raids.filter(r=>r.id!==id);parties=parties.filter(p=>p.preset_id!==id);schedules=schedules.filter(s=>!parties.some(p=>p.id===s.party_id));if(selPresetId===id){selPresetId=null;}if(selPartyId&&!parties.some(p=>p.id===selPartyId))selPartyId=null;renderPresetList();renderSchedule();toast('🗑️ 삭제됨');}
 
 // ─── Party CRUD ───
-function openAddParty(presetId){document.getElementById('party-modal-title').textContent='파티 추가';document.getElementById('party-submit-btn').textContent='추가';document.getElementById('party-name').value='';selectSize(4);document.getElementById('party-edit-id').value='';document.getElementById('party-preset-id').value=presetId;openModal('modal-party');setTimeout(()=>document.getElementById('party-name').focus(),80);}
-function openEditParty(id){const p=parties.find(x=>x.id===id);if(!p)return;document.getElementById('party-modal-title').textContent='파티 수정';document.getElementById('party-submit-btn').textContent='저장';document.getElementById('party-name').value=p.name||'';selectSize(p.party_size);document.getElementById('party-edit-id').value=id;document.getElementById('party-preset-id').value=p.preset_id||'';openModal('modal-party');}
+function resetPartyColor(){document.getElementById('party-color-input').value='#e0ddd5';document.getElementById('party-color-preview').textContent='● 기본(흰색)';document.getElementById('party-color-preview').style.color='#e0ddd5';}
+function openAddParty(presetId){document.getElementById('party-modal-title').textContent='파티 추가';document.getElementById('party-submit-btn').textContent='추가';document.getElementById('party-name').value='';selectSize(4);document.getElementById('party-edit-id').value='';document.getElementById('party-preset-id').value=presetId;resetPartyColor();openModal('modal-party');setTimeout(()=>document.getElementById('party-name').focus(),80);}
+function openEditParty(id){const p=parties.find(x=>x.id===id);if(!p)return;document.getElementById('party-modal-title').textContent='파티 수정';document.getElementById('party-submit-btn').textContent='저장';document.getElementById('party-name').value=p.name||'';selectSize(p.party_size);document.getElementById('party-edit-id').value=id;document.getElementById('party-preset-id').value=p.preset_id||'';const c=p.color||'#e0ddd5';document.getElementById('party-color-input').value=c;document.getElementById('party-color-preview').textContent='● '+c;document.getElementById('party-color-preview').style.color=c;openModal('modal-party');}
 function selectSize(n){partySize=n;['4','8'].forEach(s=>document.getElementById('size-'+s).classList.toggle('active',String(n)===s));}
 async function submitParty(){
   const name=document.getElementById('party-name').value.trim()||'파티',presetId=document.getElementById('party-preset-id').value,editId=document.getElementById('party-edit-id').value;
-  if(editId){await sb.from('raid_parties').update({name,party_size:partySize}).eq('id',editId);const p=parties.find(x=>x.id===editId);if(p){p.name=name;p.party_size=partySize;}toast('✅ 수정됨');}
-  else{const{data,error}=await sb.from('raid_parties').insert({preset_id:presetId,name,party_size:partySize,sort_order:parties.filter(p=>p.preset_id===presetId).length}).select().single();if(error){toast('❗ '+error.message);return;}data.members=[];parties.push(data);selPartyId=data.id;toast('✅ 파티 추가됨');}
+  const color=document.getElementById('party-color-input').value||null;
+  if(editId){await sb.from('raid_parties').update({name,party_size:partySize,color}).eq('id',editId);const p=parties.find(x=>x.id===editId);if(p){p.name=name;p.party_size=partySize;p.color=color;}toast('✅ 수정됨');}
+  else{const{data,error}=await sb.from('raid_parties').insert({preset_id:presetId,name,party_size:partySize,color,sort_order:parties.filter(p=>p.preset_id===presetId).length}).select().single();if(error){toast('❗ '+error.message);return;}data.members=[];parties.push(data);selPartyId=data.id;toast('✅ 파티 추가됨');}
   closeModal('modal-party');renderPresetList();renderPartyDetail();
 }
 async function deleteParty(id){
@@ -945,9 +930,11 @@ async function deleteParty(id){
 }
 
 // ─── Schedule character filter ───
-let schFilterChars=null; // null = show all, Set = filtered chars
+let schFilterChars=null; // null = show all, Set = filtered chars (기존 호환성)
+let schHighlightChars=new Set(); // 하이라이트 캐릭터 Set (빈 Set = 없음)
 let schFilterOpen=true;
 const SCH_FILTER_KEY=isViewer?'la_sch_filter_v':'la_sch_filter';
+const SCH_HL_KEY='la_sch_highlight';
 
 function getCharsInWeekSchedules(){
   const wk=getWeekKey(weekOffset);
@@ -970,15 +957,14 @@ function saveSchFilter(){
 }
 
 function initSchFilter(){
+  // 기존 필터 상태 로드 (호환성 유지)
   const saved=localStorage.getItem(SCH_FILTER_KEY);
-  if(saved){
-    try{
-      const ids=JSON.parse(saved);
-      // Only keep IDs that exist in allChars
-      schFilterChars=new Set(ids.filter(id=>allChars.some(c=>c.id===id)));
-      if(!schFilterChars.size)schFilterChars=null;
-    }catch{schFilterChars=null;}
-  } else schFilterChars=null;
+  if(saved){try{const ids=JSON.parse(saved);schFilterChars=new Set(ids.filter(id=>allChars.some(c=>c.id===id)));if(!schFilterChars.size)schFilterChars=null;}catch{schFilterChars=null;}}
+  else schFilterChars=null;
+  // 하이라이트 상태 로드
+  const hl=localStorage.getItem(SCH_HL_KEY);
+  if(hl){try{schHighlightChars=new Set(JSON.parse(hl).filter(id=>allChars.some(c=>c.id===id)));}catch{schHighlightChars=new Set();}}
+  else schHighlightChars=new Set();
   renderSchFilter();
 }
 function toggleSchFilter(){
@@ -990,69 +976,48 @@ function toggleSchFilter(){
 }
 function renderSchFilter(){
   const body=document.getElementById('sch-fb-body');if(!body)return;
+  // 이번 주 일정에 있는 캐릭터만 표시
   const weekChars=getCharsInWeekSchedules();
   if(!weekChars.length){body.innerHTML='<span style="font-size:.78rem;color:var(--muted);">이번 주 일정에 캐릭터가 없습니다</span>';body.style.display=schFilterOpen?'flex':'none';return;}
   let html='';
   const mainAccounts=accounts.filter(a=>!a.parent_account_id);
+  const renderAccBtn=(label,chars,sub=false)=>{
+    if(!chars.length)return'';
+    const allOn=chars.every(c=>schHighlightChars.has(c.id));
+    const anyOn=chars.some(c=>schHighlightChars.has(c.id));
+    const ids=chars.map(c=>c.id);
+    const style=`padding:3px 11px;border-radius:12px;border:1px solid ${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.4)':'var(--border-lit)'};background:${allOn?'rgba(200,168,75,.12)':anyOn?'rgba(200,168,75,.06)':'var(--s1)'};color:${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.7)':'var(--muted)'};cursor:pointer;font-size:${sub?'.72rem':'.78rem'};font-family:'Noto Sans KR',sans-serif;font-weight:700;`;
+    return`<button style="${style}" onclick="toggleHLGroup([${ids.map(id=>"'"+id+"'").join(',')}])">${esc(label)}</button>`;
+  };
+  const renderCharBtns=(chars)=>chars.map(c=>{
+    const on=schHighlightChars.has(c.id);
+    return`<button style="padding:3px 10px;border-radius:12px;border:1px solid ${on?'var(--gold)':'var(--border)'};background:${on?'rgba(200,168,75,.09)':'var(--s3)'};color:${on?'var(--gold)':'var(--muted)'};cursor:pointer;font-size:.78rem;font-family:'Noto Sans KR',sans-serif;" onclick="toggleHLChar('${c.id}')">${esc(c.name)}${c.item_level?`<span style="font-size:.67rem;opacity:.6"> Lv.${c.item_level}</span>`:''}</button>`;
+  }).join('');
   mainAccounts.forEach(acc=>{
     const mainChars=weekChars.filter(c=>c.account_id===acc.id);
-    const subAccounts=accounts.filter(a=>a.parent_account_id===acc.id);
-    const subChars=subAccounts.flatMap(sa=>weekChars.filter(c=>c.account_id===sa.id));
+    const subAccs=accounts.filter(a=>a.parent_account_id===acc.id);
+    const subChars=subAccs.flatMap(sa=>weekChars.filter(c=>c.account_id===sa.id));
     if(!mainChars.length&&!subChars.length)return;
-    const selSet=schFilterChars||new Set(weekChars.map(c=>c.id));
-    const renderAccBtn=(label,chars,extraStyle='')=>{
-      if(!chars.length)return'';
-      const allOn=chars.every(c=>selSet.has(c.id)),anyOn=chars.some(c=>selSet.has(c.id));
-      const accStyle=`padding:3px 11px;border-radius:12px;border:1px solid ${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.4)':'var(--border-lit)'};background:${allOn?'rgba(200,168,75,.12)':anyOn?'rgba(200,168,75,.06)':'var(--s1)'};color:${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.7)':'var(--muted)'};cursor:pointer;font-size:.78rem;font-family:'Noto Sans KR',sans-serif;font-weight:700;${extraStyle}`;
-      const ids=chars.map(c=>c.id);
-      return`<button style="${accStyle}" onclick="toggleSchCharGroup([${ids.map(id=>`'${id}'`).join(',')}])">${esc(label)}</button>`;
-    };
-    const renderCharBtns=(chars)=>chars.map(c=>{
-      const on=selSet.has(c.id);
-      return`<button style="padding:3px 10px;border-radius:12px;border:1px solid ${on?'var(--gold)':'var(--border)'};background:${on?'rgba(200,168,75,.09)':'var(--s3)'};color:${on?'var(--gold)':'var(--muted)'};cursor:pointer;font-size:.78rem;font-family:'Noto Sans KR',sans-serif;" onclick="toggleSchChar('${c.id}')">${esc(c.name)}${c.item_level?`<span style="font-size:.67rem;opacity:.6"> Lv.${c.item_level}</span>`:''}</button>`;
-    }).join('');
-    if(mainChars.length){
-      html+=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">`;
-      html+=renderAccBtn(acc.name,mainChars);
-      html+=`<div style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0;"></div>`;
-      html+=renderCharBtns(mainChars);
-      html+=`</div>`;
-    }
-    if(subChars.length){
-      html+=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:16px;">`;
-      html+=renderAccBtn(acc.name+'-부계정',subChars,'font-size:.73rem;');
-      html+=`<div style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0;"></div>`;
-      html+=renderCharBtns(subChars);
-      html+=`</div>`;
-    }
+    if(mainChars.length){html+=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${renderAccBtn(acc.name,mainChars)}<div style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0;"></div>${renderCharBtns(mainChars)}</div>`;}
+    if(subChars.length){html+=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:16px;">${renderAccBtn(acc.name+'-부계정',subChars,true)}<div style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0;"></div>${renderCharBtns(subChars)}</div>`;}
   });
-  // Orphan subs
+  // orphan subs
   accounts.filter(a=>a.parent_account_id&&!accounts.some(m=>m.id===a.parent_account_id)).forEach(acc=>{
-    const chars=weekChars.filter(c=>c.account_id===acc.id);
-    if(!chars.length)return;
-    const selSet=schFilterChars||new Set(weekChars.map(c=>c.id));
-    const allOn=chars.every(c=>selSet.has(c.id)),anyOn=chars.some(c=>selSet.has(c.id));
-    html+=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">`;
-    html+=`<button style="padding:3px 11px;border-radius:12px;border:1px solid ${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.4)':'var(--border-lit)'};background:${allOn?'rgba(200,168,75,.12)':anyOn?'rgba(200,168,75,.06)':'var(--s1)'};color:${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.7)':'var(--muted)'};cursor:pointer;font-size:.78rem;font-family:'Noto Sans KR',sans-serif;font-weight:700;" onclick="toggleSchAcc('${acc.id}')">${esc(acc.name)}</button>`;
-    html+=`<div style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0;"></div>`;
-    chars.forEach(c=>{const on=selSet.has(c.id);html+=`<button style="padding:3px 10px;border-radius:12px;border:1px solid ${on?'var(--gold)':'var(--border)'};background:${on?'rgba(200,168,75,.09)':'var(--s3)'};color:${on?'var(--gold)':'var(--muted)'};cursor:pointer;font-size:.78rem;font-family:'Noto Sans KR',sans-serif;" onclick="toggleSchChar('${c.id}')">${esc(c.name)}${c.item_level?`<span style="font-size:.67rem;opacity:.6"> Lv.${c.item_level}</span>`:''}</button>`;});
-    html+=`</div>`;
+    const chars=weekChars.filter(c=>c.account_id===acc.id);if(!chars.length)return;
+    const allOn=chars.every(c=>schHighlightChars.has(c.id)),anyOn=chars.some(c=>schHighlightChars.has(c.id));
+    html+=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><button style="padding:3px 11px;border-radius:12px;border:1px solid ${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.4)':'var(--border-lit)'};background:${allOn?'rgba(200,168,75,.12)':anyOn?'rgba(200,168,75,.06)':'var(--s1)'};color:${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.7)':'var(--muted)'};cursor:pointer;font-size:.78rem;font-weight:700;font-family:'Noto Sans KR',sans-serif;" onclick="toggleHLGroup([${chars.map(c=>"'"+c.id+"'").join(',')}])">${esc(acc.name)}</button><div style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0;"></div>${renderCharBtns(chars)}</div>`;
   });
   body.innerHTML=html;
   body.style.display=schFilterOpen?'flex':'none';
-  const total=weekChars.length;
-  const sel=schFilterChars?[...schFilterChars].filter(id=>weekChars.some(c=>c.id===id)).length:total;
-  const cnt=document.getElementById('sch-fb-count');if(cnt)cnt.textContent=schFilterChars?`${sel}/${total}명`:'전체';
+  const hlCount=schHighlightChars.size;
+  const cnt=document.getElementById('sch-fb-count');if(cnt)cnt.textContent=hlCount?`${hlCount}명 강조`:'없음';
   document.getElementById('sch-fb-toggle').textContent=schFilterOpen?'▼':'▶';
 }
-function toggleSchCharGroup(ids){
-  const weekChars=getCharsInWeekSchedules();
-  if(!schFilterChars)schFilterChars=new Set(weekChars.map(c=>c.id));
-  const allOn=ids.every(id=>schFilterChars.has(id));
-  ids.forEach(id=>{if(allOn)schFilterChars.delete(id);else schFilterChars.add(id);});
-  if(schFilterChars.size===weekChars.length)schFilterChars=null;
-  saveSchFilter();renderSchFilter();renderSchedule();
-}
+function saveHL(){localStorage.setItem(SCH_HL_KEY,JSON.stringify([...schHighlightChars]));}
+function toggleHLChar(id){if(schHighlightChars.has(id))schHighlightChars.delete(id);else schHighlightChars.add(id);saveHL();renderSchFilter();renderSchedule();}
+function toggleHLGroup(ids){const allOn=ids.every(id=>schHighlightChars.has(id));ids.forEach(id=>{if(allOn)schHighlightChars.delete(id);else schHighlightChars.add(id);});saveHL();renderSchFilter();renderSchedule();}
+
+
 function toggleSchAcc(accId){
   const weekChars=getCharsInWeekSchedules();
   const chars=weekChars.filter(c=>c.account_id===accId);
@@ -1070,13 +1035,11 @@ function toggleSchChar(id){
   saveSchFilter();renderSchFilter();renderSchedule();
 }
 function schSelectAll(){schFilterChars=null;saveSchFilter();renderSchFilter();renderSchedule();}
+function schClearHL(){schHighlightChars=new Set();saveHL();renderSchFilter();renderSchedule();}
 function schDeselectAll(){schFilterChars=new Set();saveSchFilter();renderSchFilter();renderSchedule();}
 // Filter a schedule entry: show if any member of the party (or override) matches selected chars
 function schPassesFilter(s,wk){
-  if(!schFilterChars)return true;
-  if(!schFilterChars.size)return false;
-  const eff=getEffectiveMembers(s.id,s.party_id,wk);
-  return eff.some(slot=>slot.character_id&&schFilterChars.has(slot.character_id));
+  return true; // 필터 해제 → 모든 일정 표시, 강조는 schHighlightChars 로 처리
 }
 
 // ─── Day grouping (Feature 6) ───
@@ -1237,11 +1200,13 @@ function schedCardHTML(s,wk){
   const isCompleted=!!(ovr?.is_completed);
   const hasOvr=ovr&&Object.keys(ovr.slot_overrides||{}).length>0; // null값도 override로 인정
   const eff=getEffectiveMembers(s.id,s.party_id,wk);
+  const gc=getGroupColor(preset?.name||'');
+  const pc=getPartyColor(p);
   return`<div class="sched-card ${isCompleted?'completed':''} ${hasOvr?'has-ovr':''}" id="sc-${s.id}">
     <div class="sc-header">
-      <div class="sc-raid-name" ${preset?.color?`style="color:${preset.color}"`:''}}>${esc(preset?.name||'?')} <span style="font-size:.65rem;color:var(--muted);font-weight:400;">${esc(preset?.difficulty||'')}</span></div>
+      <div class="sc-raid-name" style="color:${gc};">${esc(preset?.name||'?')}<span class="${diffClass(preset?.difficulty||'')}" style="font-size:.65rem;margin-left:5px;font-weight:600;">${esc(preset?.difficulty||'')}</span></div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
-        <span class="sc-party-name">${esc(p?.name||'?')} · ${p?.party_size||'?'}인</span>
+        <span class="sc-party-name" style="color:${pc};">${esc(p?.name||'?')} · ${p?.party_size||'?'}인</span>
         ${s.time_str?`<span style="font-size:.72rem;font-weight:700;color:var(--gold-bright);background:rgba(200,168,75,.12);padding:1px 6px;border-radius:4px;border:1px solid rgba(200,168,75,.3);">🕐 ${s.time_str}</span>`:''}
         ${s.is_fixed?'<span style="font-size:.62rem;color:var(--gold);">📌</span>':''}
         ${hasOvr?'<span style="font-size:.62rem;color:var(--gold);">편집</span>':''}
@@ -1250,7 +1215,7 @@ function schedCardHTML(s,wk){
     <div class="sc-members">
       ${eff.map(slot=>{
         const ch=allChars.find(c=>c.id===slot.character_id);
-        if(ch){const viewerChars=isViewer?getViewerCharIds():new Set();const isViewerChar=viewerChars.has(ch.id);return`<div class="sc-member ${slot.isOvr?'temp':''} ${isViewerChar?'viewer-me':''}" style="${isViewerChar?'border:1px solid rgba(200,168,75,.5);background:rgba(200,168,75,.1);border-radius:3px;padding:1px 3px;':''}"><span class="sc-member-name" style="${isViewerChar?'color:var(--gold);font-weight:700;':''}">${esc(ch.name)}</span><span class="sc-member-class">${esc(ch.class_name||'')}</span></div>`;}
+        if(ch){const isHL=schHighlightChars.has(ch.id);return`<div class="sc-member ${slot.isOvr?'temp':''} ${isHL?'hl-me':''}" style="${isHL?'border:1px solid rgba(200,168,75,.5);background:rgba(200,168,75,.1);border-radius:3px;padding:1px 3px;':''}"><span class="sc-member-name" style="${isHL?'color:var(--gold);font-weight:700;':''}">${esc(ch.name)}</span><span class="sc-member-class">${esc(ch.class_name||'')}</span></div>`;}
         return`<div class="sc-empty-slot">—</div>`;
       }).join('')}
     </div>
@@ -1340,7 +1305,7 @@ async function openSchEdit(schId,wk){
         if(ch)return`<div class="slot filled clickable" onclick="openCharPickerOverride('${schId}',${i})">
           <span class="slot-num">${i+1}</span>
           <div style="flex:1;min-width:0;"><div class="slot-char">${esc(ch.name)}${slot.isOvr?'<span style="font-size:.58rem;color:var(--gold);margin-left:4px;padding:0 3px;border:1px solid rgba(200,168,75,.4);border-radius:2px;">임시</span>':''}</div><div class="slot-class">${esc(ch.class_name||'')}${ch.item_level?' Lv.'+ch.item_level:''}</div></div>
-          <button class="slot-remove" onclick="event.stopPropagation();overrideSlot('${schId}',${i},null,'${wk}')">✕</button>
+          <button class="slot-remove" onclick="event.stopPropagation();removeOvrSlot('${schId}',${i},'${wk}')">✕</button>
         </div>`;
         return`<div class="slot clickable" onclick="openCharPickerOverride('${schId}',${i})">
           <span class="slot-num">${i+1}</span><span class="slot-empty">${slot.isOvr?'비움 (임시)':'＋ 임시 배치'}</span>
@@ -1360,6 +1325,12 @@ async function assignOverrideChar(charId){
   closeModal('modal-char-pick');
   // Refresh the edit modal
   await openSchEdit(pickCtx.scheduleId,wk);
+}
+async function removeOvrSlot(schId,slotIdx,wk){
+  await overrideSlot(schId,slotIdx,null,wk);
+  // 모달 즉시 갱신
+  const modal=document.getElementById('modal-sch-edit');
+  if(modal&&modal.classList.contains('open'))await openSchEdit(schId,wk);
 }
 async function overrideSlot(schId,slotIndex,charId,wk){
   const ovrKey=schId+'_'+wk;
@@ -1466,6 +1437,11 @@ function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'));});
+// ─── Color helpers ───
+function getGroupColor(name){return localStorage.getItem('la_gc_'+name)||'#4caf50';}
+function setGroupColor(name,color){if(color)localStorage.setItem('la_gc_'+name,color);else localStorage.removeItem('la_gc_'+name);}
+function getPartyColor(p){return(p&&p.color)||'#e0ddd5';}
+
 function diffClass(d){
   if(!d)return '';
   const dl=d.toLowerCase();
