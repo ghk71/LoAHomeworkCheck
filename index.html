@@ -946,9 +946,9 @@ function renderTaskArea(){
   const currencies=S.currencies[S.selChar]||[],popups=S.customPopups[S.selChar]||[];
   const accName=esc(S.accounts.find(a=>a.id===S.selAcc)?.name||'');
   // 유통골드 = 전체 - 귀속, 더보기 별도
-  const totalFlow=raidList.reduce((s,t)=>s+(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0),0);
-  const totalBonus=raidList.reduce((s,t)=>s+(Number(t.bonus_gold)||0),0);
-  const earnedFlow=raidList.filter(t=>isEffDone(t)).reduce((s,t)=>s+(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0),0);
+  const totalFlow=raidList.filter(t=>t.receive_gold!==false).reduce((s,t)=>s+(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0),0);
+  const totalBonus=raidList.filter(t=>t.receive_bonus!==false).reduce((s,t)=>s+(Number(t.bonus_gold)||0),0);
+  const earnedFlow=raidList.filter(t=>isEffDone(t)&&t.receive_gold!==false).reduce((s,t)=>s+(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0),0);
   const remainFlow=totalFlow-earnedFlow;
   const totalGold=totalFlow; // backward compat for display
   const remainGold=remainFlow;
@@ -986,7 +986,7 @@ function renderTaskArea(){
       <span class="coll-title">💰 재화 현황</span>
       <button class="btn btn-teal" style="margin-left:auto;font-size:.72rem;padding:3px 9px;" onclick="event.stopPropagation();openAddCurrencyModal()">+ 추가</button>
     </div>
-    ${!S.currCollapsed?`<div class="coll-body">${currencies.length===0?'<div class="curr-empty">재화를 추가하면 여기에 표시됩니다</div>':`<div class="currency-chips">${currencies.map((c,idx)=>`<div class="currency-chip" id="curr-chip-${c.id}" draggable="true" ondragstart="dndStart(event,'curr',${idx})" ondragend="dndEnd(event)" ondragover="dndOver(event,'curr',true)" ondragleave="dndLeave(event,true)" ondrop="dndDrop(event,'curr',${idx})" onclick="openCurrPopup('${c.id}')"><span>${c.icon}</span><span style="font-size:.77rem;color:var(--muted);">${esc(c.name)}</span><span class="curr-chip-amount">${c.amount.toLocaleString()}</span></div>`).join('')}</div>`}</div>`:''}
+    ${!S.currCollapsed?`<div class="coll-body">${currencies.length===0?'<div class="curr-empty">재화를 추가하면 여기에 표시됩니다</div>':`<div class="currency-chips">${currencies.map((c,idx)=>`<div class="currency-chip" id="curr-chip-${c.id}" draggable="true" ondragstart="dndStart(event,'curr',${idx})" ondragend="dndEnd(event)" ondragover="dndOver(event,'curr',true)" ondragleave="dndLeave(event,true)" ondrop="dndDrop(event,'curr',${idx})" onclick="openCurrPopup('${c.id}')"><span>${c.icon}</span><span style="font-size:.77rem;color:var(--muted);">${esc(c.name)}</span><span class="curr-chip-amount">${c.amount.toLocaleString()}</span>${c.updated_at?`<span class="curr-updated" style="font-size:.64rem;color:var(--dim);">${fmtRelDate(c.updated_at)}</span>`:''}</div>`).join('')}</div>`}</div>`:''}
   </div>
 
   <!-- Custom Popup -->
@@ -1072,7 +1072,7 @@ function rootTaskHTML(t,children,isExp,rootIdx){
       </div>
       <div class="task-actions">
         ${hasChildren?`<button class="expand-btn" onclick="toggleParentCollapse('${t.id}')">${collapsed?'▶':'▼'}</button>`:''}
-        ${!isExp?`<button class="btn btn-ghost" onclick="openCopyTask('${t.id}')">📋</button>`:''}
+        ${isExp?`<button class="btn btn-ghost" title="다른 계정에 복제" onclick="openExpTaskClone('${t.id}')">📋</button>`:`<button class="btn btn-ghost" onclick="openCopyTask('${t.id}')">📋</button>`}
         <button class="btn btn-ghost" onclick="openEditTask('${t.id}',${iE})">✏️</button>
         <button class="btn btn-ghost" onclick="openAddSubTask('${t.id}',${iE})">⊕</button>
         <button class="btn btn-danger" onclick="deleteTask('${t.id}',${iE})">🗑</button>
@@ -1097,12 +1097,14 @@ function raidItemHTML(t,idx){
       <div class="raid-meta">
         ${t.difficulty?`<span class="raid-badge">${esc(t.difficulty)}</span>`:''}
         ${t.entry_level?`<span class="raid-badge">입장 ${t.entry_level}</span>`:''}
-        ${(()=>{const cg=Number(t.clear_gold)||0,bg=Number(t.bound_gold)||0,bo=Number(t.bonus_gold)||0,tr=cg-bg;return cg?`<span class="raid-gold">💰 유통 ${tr.toLocaleString()}G</span>${bg?`<span class="raid-gold" style="color:var(--orange);">귀속 ${bg.toLocaleString()}G</span>`:''}${bo?`<span class="raid-gold" style="color:var(--purple);">더보기 ${bo.toLocaleString()}G</span>`:''}`:''})()}
-        ${t.preset_id?'<span style="font-size:.63rem;color:var(--teal);padding:1px 5px;border:1px solid rgba(42,184,160,.3);border-radius:6px;">🔗 파티연동</span>':''}
+        ${(()=>{const cg=Number(t.clear_gold)||0,bg=Number(t.bound_gold)||0,bo=Number(t.bonus_gold)||0,tr=cg-bg;const rg=t.receive_gold!==false;const rb=t.receive_bonus!==false;return`${cg?`<span class="raid-gold ${rg?'':'muted-gold'}" title="${rg?'골드 수령 중':'골드 수령 안함'}">💰 ${tr.toLocaleString()}G</span>`:''} ${bg?`<span class="raid-gold" style="color:var(--orange);">귀속 ${bg.toLocaleString()}G</span>`:''} ${bo?`<span class="raid-gold ${rb?'':'muted-gold'}" style="color:${rb?'var(--purple)':'var(--dim)'};" title="${rb?'더보기 수령 중':'더보기 안함'}">+더보기 ${bo.toLocaleString()}G</span>`:''}`})()}
+        ${t.preset_id?`<span style="font-size:.63rem;color:var(--teal);padding:1px 5px;border:1px solid rgba(42,184,160,.3);border-radius:6px;cursor:pointer;" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id}')">🔗 파티연동</span>`:''}
         <span style="font-size:.65rem;color:var(--dim);">${DAYS[t.reset_day]}요일 초기화 · ${nextResetLabel({...t,reset_type:'weekly'})}</span>
       </div>
     </div>
     <div class="task-actions">
+      <button class="btn btn-ghost" title="${t.receive_gold!==false?'골드 수령 중 (클릭해서 제외)':'골드 제외 중 (클릭해서 수령)'}" onclick="toggleReceiveGold('${t.id}')" style="font-size:.75rem;padding:2px 6px;">${t.receive_gold!==false?'💰':'🚫'}</button>
+      ${(Number(t.bonus_gold)||0)?`<button class="btn btn-ghost" title="${t.receive_bonus!==false?'더보기 수령 중':'더보기 제외 중'}" onclick="toggleReceiveBonus('${t.id}')" style="font-size:.75rem;padding:2px 6px;">${t.receive_bonus!==false?'⊕':'✖'}</button>`:''}
       <button class="btn btn-ghost" onclick="openEditRaidTask('${t.id}')">✏️</button>
       <button class="btn btn-danger" onclick="deleteRaidTask('${t.id}')">🗑</button>
     </div>
@@ -1275,11 +1277,114 @@ async function submitTask(){
   closeModal('modal-task');renderTaskArea();renderTabs();
 }
 async function deleteTask(taskId,isExp){
+  const list=getList(isExp);
+  const t=list.find(x=>x.id===taskId);if(!t)return;
+  const tName=t.name||'';
+  // Check for same-name tasks across accounts (exp) or characters (char)
+  if(isExp){
+    // Find same-name exp tasks in other accounts
+    const others=[];
+    for(const acc of S.accounts){
+      if(acc.id===S.selAcc)continue;
+      if(!S.expTasks[acc.id])await loadExpTasks(acc.id);
+      const match=(S.expTasks[acc.id]||[]).filter(x=>!x.parent_id&&x.name===tName);
+      if(match.length)others.push({acc,tasks:match});
+    }
+    if(others.length){
+      await openBulkDeleteModal(taskId,tName,others,'exp');
+      return;
+    }
+  } else {
+    // Find same-name tasks in other characters of same account
+    const allCharsOfAcc=S.characters[S.selAcc]||[];
+    const others=[];
+    for(const ch of allCharsOfAcc){
+      if(ch.id===S.selChar)continue;
+      if(!S.tasks[ch.id]){const{data}=await sb.from('tasks').select('*').eq('character_id',ch.id).order('sort_order');S.tasks[ch.id]=data||[];}
+      const match=(S.tasks[ch.id]||[]).filter(x=>!x.parent_id&&x.name===tName);
+      if(match.length)others.push({ch,tasks:match});
+    }
+    if(others.length){
+      await openBulkDeleteModal(taskId,tName,others,'char');
+      return;
+    }
+  }
+  // No matches: direct delete
   if(!confirm('숙제를 삭제하시겠습니까? (하위 숙제도 함께 삭제됩니다)'))return;
+  await doDeleteTask(taskId,isExp);
+}
+async function doDeleteTask(taskId,isExp){
   await sb.from(isExp?'expedition_tasks':'tasks').delete().eq('id',taskId);
   if(isExp)S.expTasks[S.selAcc]=(S.expTasks[S.selAcc]||[]).filter(t=>t.id!==taskId&&t.parent_id!==taskId);
   else S.tasks[S.selChar]=(S.tasks[S.selChar]||[]).filter(t=>t.id!==taskId&&t.parent_id!==taskId);
   renderTaskArea();renderTabs();toast('🗑️ 삭제됨');
+}
+// Bulk delete modal
+let _bulkDeleteCtx={};
+async function openBulkDeleteModal(taskId,taskName,others,mode){
+  _bulkDeleteCtx={taskId,taskName,others,mode};
+  const el=document.getElementById('bulk-delete-list');
+  const isExp=mode==='exp';
+  let html=`<div style="font-size:.82rem;color:var(--muted);margin-bottom:10px;">"${esc(taskName)}" 와 같은 이름의 숙제가 다른 ${isExp?'계정':'캐릭터'}에도 있습니다.<br>같이 삭제할 ${isExp?'계정':'캐릭터'}을 선택하세요:</div>`;
+  html+=others.map((o,i)=>{
+    const label=isExp?esc(o.acc.name):esc(o.ch.name);
+    return`<label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;"><input type="checkbox" data-bulk-idx="${i}" style="width:16px;height:16px;accent-color:var(--gold);"> ${label}</label>`;
+  }).join('');
+  el.innerHTML=html;
+  document.getElementById('bulk-delete-task-name').textContent=taskName;
+  openModal('modal-bulk-delete');
+}
+async function confirmBulkDelete(){
+  const{taskId,others,mode}=_bulkDeleteCtx;
+  const isExp=mode==='exp';
+  const checks=document.querySelectorAll('[data-bulk-idx]');
+  const selectedIdxs=[...checks].filter(c=>c.checked).map(c=>parseInt(c.dataset.bulkIdx));
+  closeModal('modal-bulk-delete');
+  // Delete primary task
+  await doDeleteTask(taskId,isExp);
+  // Delete selected others
+  for(const idx of selectedIdxs){
+    const o=others[idx];
+    const targets=isExp?o.tasks:o.tasks;
+    for(const t of targets){
+      await sb.from(isExp?'expedition_tasks':'tasks').delete().eq('id',t.id);
+      const listKey=isExp?o.acc.id:o.ch.id;
+      if(isExp)S.expTasks[listKey]=(S.expTasks[listKey]||[]).filter(x=>x.id!==t.id&&x.parent_id!==t.id);
+      else S.tasks[listKey]=(S.tasks[listKey]||[]).filter(x=>x.id!==t.id&&x.parent_id!==t.id);
+    }
+  }
+  toast('🗑️ 삭제 완료');
+}
+// Expedition task clone to other accounts
+async function openExpTaskClone(taskId){
+  const t=(S.expTasks[S.selAcc]||[]).find(x=>x.id===taskId);if(!t)return;
+  const children=(S.expTasks[S.selAcc]||[]).filter(x=>x.parent_id===taskId);
+  _cloneCtx={task:t,children};
+  const el=document.getElementById('clone-acc-list');
+  let html='';
+  for(const acc of S.accounts){
+    if(acc.id===S.selAcc)continue;
+    html+=`<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;"><input type="checkbox" data-clone-acc="${acc.id}" style="width:16px;height:16px;accent-color:var(--gold);"> ${esc(acc.name)}</label>`;
+  }
+  el.innerHTML=html||'<div style="color:var(--muted);font-size:.82rem;">다른 계정이 없습니다</div>';
+  document.getElementById('clone-task-name').textContent=t.name;
+  openModal('modal-clone-exp');
+}
+let _cloneCtx={};
+async function confirmCloneExp(){
+  const{task,children}=_cloneCtx;
+  const checks=document.querySelectorAll('[data-clone-acc]:checked');
+  closeModal('modal-clone-exp');
+  let count=0;
+  for(const cb of checks){
+    const accId=cb.dataset.cloneAcc;
+    const{data:newTask}=await sb.from('expedition_tasks').insert({account_id:accId,name:task.name,reset_type:task.reset_type,reset_day:task.reset_day,activate_day:task.activate_day,count_max:task.count_max,sort_order:99}).select().single();
+    if(newTask&&children.length){for(const c of children)await sb.from('expedition_tasks').insert({account_id:accId,parent_id:newTask.id,name:c.name,reset_type:c.reset_type,reset_day:c.reset_day,count_max:c.count_max,sort_order:c.sort_order});}
+    if(!S.expTasks[accId])S.expTasks[accId]=[];
+    if(newTask)S.expTasks[accId].push(newTask);
+    count++;
+  }
+  toast(`✅ ${count}개 계정에 복제됨`);
 }
 
 // ─── Raid Task CRUD ───
@@ -1429,8 +1534,10 @@ async function executeCopy(){
 function openAddCurrencyModal(){buildPicker('curr-icon-picker',CURR_ICONS,'selCurrIcon','💰');document.getElementById('curr-name-input').value='';openModal('modal-add-currency');setTimeout(()=>document.getElementById('curr-name-input').focus(),80);}
 async function addCurrency(){const name=document.getElementById('curr-name-input').value.trim();if(!name){toast('❗ 이름을 입력하세요');return;}const{data,error}=await sb.from('currencies').insert({character_id:S.selChar,name,icon:S.selCurrIcon,amount:0,sort_order:(S.currencies[S.selChar]||[]).length}).select().single();if(error){toast('❗ '+error.message);return;}if(!S.currencies[S.selChar])S.currencies[S.selChar]=[];S.currencies[S.selChar].push(data);closeModal('modal-add-currency');renderTaskArea();toast('✅ 재화 추가됨');}
 function openCurrPopup(id){const c=(S.currencies[S.selChar]||[]).find(x=>x.id===id);if(!c)return;S.currPopupId=id;document.getElementById('curr-popup-icon').textContent=c.icon;document.getElementById('curr-popup-name').textContent=c.name;document.getElementById('curr-amount-display').textContent=c.amount.toLocaleString();document.getElementById('curr-direct-val').value='';openModal('modal-curr-popup');}
-async function adjustCurr(d){const c=(S.currencies[S.selChar]||[]).find(x=>x.id===S.currPopupId);if(!c)return;const na=c.amount+d;await sb.from('currencies').update({amount:na}).eq('id',c.id);c.amount=na;document.getElementById('curr-amount-display').textContent=na.toLocaleString();const chip=document.getElementById('curr-chip-'+c.id);if(chip){const a=chip.querySelector('.curr-chip-amount');if(a)a.textContent=na.toLocaleString();}}
-async function setCurrDirect(mode){const val=parseInt(document.getElementById('curr-direct-val').value)||0;const c=(S.currencies[S.selChar]||[]).find(x=>x.id===S.currPopupId);if(!c)return;const na=mode==='add'?c.amount+val:val;await sb.from('currencies').update({amount:na}).eq('id',c.id);c.amount=na;document.getElementById('curr-amount-display').textContent=na.toLocaleString();document.getElementById('curr-direct-val').value='';const chip=document.getElementById('curr-chip-'+c.id);if(chip){const a=chip.querySelector('.curr-chip-amount');if(a)a.textContent=na.toLocaleString();}}
+async function adjustCurr(d){const c=(S.currencies[S.selChar]||[]).find(x=>x.id===S.currPopupId);if(!c)return;const na=c.amount+d;const now=new Date().toISOString();await sb.from('currencies').update({amount:na,updated_at:now}).eq('id',c.id);c.amount=na;c.updated_at=now;document.getElementById('curr-amount-display').textContent=na.toLocaleString();updateCurrChip(c);}
+async function setCurrDirect(mode){const val=parseInt(document.getElementById('curr-direct-val').value)||0;const c=(S.currencies[S.selChar]||[]).find(x=>x.id===S.currPopupId);if(!c)return;const na=mode==='add'?c.amount+val:val;const now=new Date().toISOString();await sb.from('currencies').update({amount:na,updated_at:now}).eq('id',c.id);c.amount=na;c.updated_at=now;document.getElementById('curr-amount-display').textContent=na.toLocaleString();document.getElementById('curr-direct-val').value='';updateCurrChip(c);}
+function updateCurrChip(c){const chip=document.getElementById('curr-chip-'+c.id);if(!chip)return;const a=chip.querySelector('.curr-chip-amount');if(a)a.textContent=c.amount.toLocaleString();const dt=chip.querySelector('.curr-updated');if(dt)dt.textContent=c.updated_at?fmtRelDate(c.updated_at):'';}
+function fmtRelDate(iso){if(!iso)return'';const d=new Date(iso),now=new Date();const diff=now-d;if(diff<60000)return'방금';if(diff<3600000)return Math.floor(diff/60000)+'분 전';if(diff<86400000)return Math.floor(diff/3600000)+'시간 전';return Math.floor(diff/86400000)+'일 전';}
 async function deleteCurrAndClose(){if(!confirm('재화를 삭제하시겠습니까?'))return;await sb.from('currencies').delete().eq('id',S.currPopupId);S.currencies[S.selChar]=(S.currencies[S.selChar]||[]).filter(c=>c.id!==S.currPopupId);closeModal('modal-curr-popup');renderTaskArea();toast('🗑️ 삭제됨');}
 
 // ─── Custom Popup ───
@@ -1457,5 +1564,34 @@ function toast(msg){const el=document.createElement('div');el.className='toast';
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 initApp();
 </script>
+
+
+<!-- Bulk Delete Modal -->
+<div class="overlay" id="modal-bulk-delete"><div class="modal" style="max-width:400px;">
+  <div class="modal-title">🗑️ 일괄 삭제</div>
+  <div style="font-size:.84rem;font-weight:600;color:var(--text);margin-bottom:8px;">삭제: "<span id="bulk-delete-task-name"></span>"</div>
+  <div id="bulk-delete-list"></div>
+  <div class="modal-footer">
+    <button class="btn btn-sec" onclick="closeModal('modal-bulk-delete')">취소</button>
+    <button class="btn btn-gold" onclick="confirmBulkDelete()">선택 삭제</button>
+  </div>
+</div></div>
+<!-- Clone Exp Task Modal -->
+<div class="overlay" id="modal-clone-exp"><div class="modal" style="max-width:380px;">
+  <div class="modal-title">📋 원정대 숙제 복제</div>
+  <div style="font-size:.84rem;color:var(--muted);margin-bottom:10px;">"<span id="clone-task-name"></span>" 를 복제할 계정을 선택하세요</div>
+  <div id="clone-acc-list"></div>
+  <div class="modal-footer">
+    <button class="btn btn-sec" onclick="closeModal('modal-clone-exp')">취소</button>
+    <button class="btn btn-gold" onclick="confirmCloneExp()">복제</button>
+  </div>
+</div></div>
+
+<!-- Party Link Popup -->
+<div class="overlay" id="modal-party-link"><div class="modal" style="max-width:420px;">
+  <div class="modal-title">🔗 파티 연동 정보</div>
+  <div id="party-link-content" style="font-size:.84rem;color:var(--text);min-height:60px;"></div>
+  <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-party-link')">닫기</button></div>
+</div></div>
 </body>
 </html>
