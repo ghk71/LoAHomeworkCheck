@@ -80,6 +80,7 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 .toast{position:fixed;bottom:24px;right:24px;background:var(--s3);border:1px solid var(--gold-dim);color:var(--text);padding:9px 16px;border-radius:var(--r);font-size:.84rem;box-shadow:0 4px 20px rgba(0,0,0,.5);z-index:300;animation:toastIn .25s ease,toastOut .25s ease 2.25s forwards;}
 @keyframes toastIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
 @keyframes toastOut{to{opacity:0;transform:translateY(8px);}}
+.diff-nightmare{color:#bb88ff;font-weight:600;}.diff-hard{color:#c8a04a;font-weight:600;}.diff-normal{color:#7a8090;font-weight:600;}
 </style>
 </head>
 <body>
@@ -220,8 +221,8 @@ function partyCardHTML(p,myChar,myMember){
   return`<div class="party-card">
     <div class="pc-header">
       <div style="flex:1;min-width:0;">
-        <div class="pc-raid-name">${esc(preset?.name||'?')}</div>
-        <div class="pc-party-name">${esc(p.name||'파티')} · ${p.party_size}인${preset?.difficulty?` · ${esc(preset.difficulty)}`:''}${preset?.entry_level?` · 입장 ${preset.entry_level}`:''}</div>
+        <div class="pc-raid-name" style="color:${getGroupColor(preset?.name||'')};">${esc(preset?.name||'?')}</div>
+        <div class="pc-party-name"><span style="color:${getPartyColor(p)};font-weight:600;">${esc(p.name||'파티')}</span> · ${p.party_size}인${preset?.difficulty?` · <span class="${diffClass(preset.difficulty)}">${esc(preset.difficulty)}</span>`:''}${preset?.entry_level?` · 입장 ${preset.entry_level}`:''}</div>
       </div>
     </div>
     <div class="pc-body">
@@ -261,6 +262,9 @@ async function leaveParty(partyId,charId,memberId,presetId,presetName){
 }
 
 function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),2600);}
+function getGroupColor(name){return localStorage.getItem('la_gc_'+name)||'#4caf50';}
+function getPartyColor(p){return(p&&p.color)||'#e0ddd5';}
+function diffClass(d){if(!d)return'';const dl=d.toLowerCase();if(dl.includes('나이트메어')||dl.includes('3단계'))return'diff-nightmare';if(dl.includes('하드')||dl.includes('2단계'))return'diff-hard';if(dl.includes('노말')||dl.includes('1단계'))return'diff-normal';return'';}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 init();
 </script>
