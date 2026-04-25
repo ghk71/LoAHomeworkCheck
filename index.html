@@ -640,7 +640,7 @@ let sb=null;
 const LS=k=>localStorage.getItem(k);
 const LSS=(k,v)=>localStorage.setItem(k,v);
 let S={
-  accounts:[],characters:{},tasks:{},expTasks:{},raidTasks:{},currencies:{},customPopups:{},
+  accounts:[],characters:{},tasks:{},expTasks:{},raidTasks:{},currencies:{},customPopups:{},presetsCache:{},
   selAcc:null,selChar:null,copyTaskId:null,
   expCollapsed:LS('la_exp_col')==='1',
   raidCollapsed:LS('la_raid_col')==='1',
@@ -898,7 +898,19 @@ async function deleteChar(id){if(!confirm('캐릭터와 모든 데이터가 삭�
 // ─── Data Loading ───
 async function loadExpTasks(accId){const{data}=await sb.from('expedition_tasks').select('*').eq('account_id',accId).order('sort_order').order('created_at');S.expTasks[accId]=data||[];await autoReset(S.expTasks[accId],'expedition_tasks');}
 async function loadTasks(charId){const{data}=await sb.from('tasks').select('*').eq('character_id',charId).order('sort_order').order('created_at');S.tasks[charId]=data||[];await autoReset(S.tasks[charId],'tasks');}
-async function loadRaidTasks(charId){const{data}=await sb.from('raid_tasks').select('*').eq('character_id',charId).order('sort_order').order('created_at');S.raidTasks[charId]=data||[];await autoResetRaid(S.raidTasks[charId]);}
+async function loadRaidTasks(charId){
+  const{data}=await sb.from('raid_tasks').select('*').eq('character_id',charId).order('sort_order').order('created_at');
+  const tasks=data||[];
+  // preset 이름 매핑 (색상용)
+  const pids=[...new Set(tasks.filter(t=>t.preset_id).map(t=>t.preset_id))];
+  if(pids.length){
+    // 캐시에 없는 preset만 fetch
+    const missing=pids.filter(id=>!S.presetsCache[id]);
+    if(missing.length){const{data:ps}=await sb.from('raid_presets').select('id,name').in('id',missing);(ps||[]).forEach(p=>{S.presetsCache[p.id]=p;});}
+    tasks.forEach(t=>{if(t.preset_id&&S.presetsCache[t.preset_id])t.preset_name=S.presetsCache[t.preset_id].name;});
+  }
+  S.raidTasks[charId]=tasks;await autoResetRaid(S.raidTasks[charId]);
+}
 async function loadCurrencies(charId){const{data}=await sb.from('currencies').select('*').eq('character_id',charId).order('sort_order').order('created_at');S.currencies[charId]=data||[];}
 async function loadCustomPopups(charId){const{data}=await sb.from('custom_popups').select('*').eq('character_id',charId).order('sort_order').order('created_at');S.customPopups[charId]=data||[];}
 async function autoReset(list,table){const r=list.filter(t=>t.is_completed&&!isEffDone(t));if(!r.length)return;await sb.from(table).update({is_completed:false,last_completed_at:null,count_current:0}).in('id',r.map(t=>t.id));r.forEach(t=>{t.is_completed=false;t.last_completed_at=null;t.count_current=0;});}
@@ -1093,9 +1105,9 @@ function raidItemHTML(t,idx){
     <span class="dnd-handle">⠿</span>
     <div class="checkbox" onclick="toggleRaidTask('${t.id}')"><span class="checkbox-icon">✓</span></div>
     <div class="task-body">
-      <div class="task-name">${esc(t.name)}</div>
+      <div class="task-name" style="color:${getGroupColor(t.preset_name||t.name)};">${esc(t.preset_name||t.name)}</div>
       <div class="raid-meta">
-        ${t.difficulty?`<span class="raid-badge">${esc(t.difficulty)}</span>`:''}
+        ${t.difficulty?`<span class="raid-badge ${diffClass(t.difficulty)}">${esc(t.difficulty)}</span>`:''}
         ${t.entry_level?`<span class="raid-badge">입장 ${t.entry_level}</span>`:''}
         ${(()=>{const cg=Number(t.clear_gold)||0,bg=Number(t.bound_gold)||0,bo=Number(t.bonus_gold)||0,tr=cg-bg;const rg=t.receive_gold!==false;const rb=t.receive_bonus!==false;return`${cg?`<span class="raid-gold ${rg?'':'muted-gold'}" title="${rg?'골드 수령 중':'골드 수령 안함'}">💰 ${tr.toLocaleString()}G</span>`:''} ${bg?`<span class="raid-gold" style="color:var(--orange);">귀속 ${bg.toLocaleString()}G</span>`:''} ${bo?`<span class="raid-gold ${rb?'':'muted-gold'}" style="color:${rb?'var(--purple)':'var(--dim)'};" title="${rb?'더보기 수령 중':'더보기 안함'}">+더보기 ${bo.toLocaleString()}G</span>`:''}`})()}
         ${t.preset_id?`<span style="font-size:.63rem;color:var(--teal);padding:1px 5px;border:1px solid rgba(42,184,160,.3);border-radius:6px;cursor:pointer;" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id}')">🔗 파티연동</span>`:''}
@@ -1561,6 +1573,9 @@ document.querySelectorAll('.overlay').forEach(ov=>{ov.addEventListener('click',e
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'));});
 
 function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),2600);}
+function getGroupColor(name){return localStorage.getItem('la_gc_'+name)||'#4caf50';}
+function getPartyColor(p){return(p&&p.color)||'#e0ddd5';}
+function diffClass(d){if(!d)return'';const dl=d.toLowerCase();if(dl.includes('나이트메어')||dl.includes('3단계'))return'diff-nightmare';if(dl.includes('하드')||dl.includes('2단계'))return'diff-hard';if(dl.includes('노말')||dl.includes('1단계'))return'diff-normal';return'';}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 initApp();
 </script>
