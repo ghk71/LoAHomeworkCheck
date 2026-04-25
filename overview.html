@@ -229,33 +229,36 @@ function applyFilterOpenState(){document.getElementById('cfb-body').style.displa
 function renderFilterBar(){
   const charsWithRaids=characters.filter(c=>raidTasks.some(t=>t.character_id===c.id));
   let html='';
-  accounts.forEach(acc=>{
+  const mainAccs=accounts.filter(a=>!a.parent_account_id);
+  const renderRow=(label,chars,sub=false)=>{
+    if(!chars.length)return'';
+    const allOn=chars.every(c=>selectedChars.has(c.id)),anyOn=chars.some(c=>selectedChars.has(c.id));
+    const ids=chars.map(c=>c.id);
+    let row=`<div class="cfb-acc-row" ${sub?'style="margin-left:14px;"':''}>`;
+    row+=`<button class="cf-acc-btn ${allOn?'all-on':anyOn?'partial':''}" onclick="toggleCharGroup([${ids.map(id=>`'${id}'`).join(',')}])" ${sub?'style="font-size:.72rem;"':''}}>${esc(label)}</button>`;
+    row+=`<div class="cf-acc-sep"></div>`;
+    chars.forEach(c=>{row+=`<button class="cf-btn ${selectedChars.has(c.id)?'on':''}" onclick="toggleChar('${c.id}')">${esc(c.name)}${c.item_level?` <span style="font-size:.67rem;opacity:.6">Lv.${c.item_level}</span>`:''}</button>`;});
+    row+=`</div>`;return row;
+  };
+  mainAccs.forEach(acc=>{
+    const mainChars=charsWithRaids.filter(c=>c.account_id===acc.id);
+    const subAccs=accounts.filter(a=>a.parent_account_id===acc.id);
+    const subChars=subAccs.flatMap(sa=>charsWithRaids.filter(c=>c.account_id===sa.id));
+    html+=renderRow(acc.name,mainChars);
+    html+=renderRow(acc.name+'-부계정',subChars,true);
+  });
+  accounts.filter(a=>a.parent_account_id&&!accounts.some(m=>m.id===a.parent_account_id)).forEach(acc=>{
     const chars=charsWithRaids.filter(c=>c.account_id===acc.id);
-    if(!chars.length)return;
-    const allOn=chars.every(c=>selectedChars.has(c.id));
-    const anyOn=chars.some(c=>selectedChars.has(c.id));
-    const cls=allOn?'all-on':anyOn?'partial':'';
-    html+=`<div class="cfb-acc-row">`;
-    html+=`<button class="cf-acc-btn ${cls}" onclick="toggleAccount('${acc.id}')" title="${allOn?'계정 해제':'계정 전체 선택'}">${esc(acc.name)}</button>`;
-    html+=`<div class="cf-acc-sep"></div>`;
-    chars.forEach(c=>{
-      html+=`<button class="cf-btn ${selectedChars.has(c.id)?'on':''}" onclick="toggleChar('${c.id}')">${esc(c.name)}${c.item_level?` <span style="font-size:.68rem;opacity:.6">Lv.${c.item_level}</span>`:''}</button>`;
-    });
-    html+=`</div>`;
+    html+=renderRow(acc.name,chars);
   });
   document.getElementById('cfb-body').innerHTML=html;
   const cnt=document.getElementById('cfb-count');
   if(cnt)cnt.textContent=`${selectedChars.size}/${charsWithRaids.length}명`;
   applyFilterOpenState();
 }
-function toggleAccount(accId){
-  const chars=characters.filter(c=>c.account_id===accId&&raidTasks.some(t=>t.character_id===c.id));
-  const allOn=chars.every(c=>selectedChars.has(c.id));
-  chars.forEach(c=>{if(allOn)selectedChars.delete(c.id);else selectedChars.add(c.id);});
-  saveFilter();renderFilterBar();render();
-}
+function toggleCharGroup(ids){const allOn=ids.every(id=>selectedChars.has(id));ids.forEach(id=>{if(allOn)selectedChars.delete(id);else selectedChars.add(id);});saveFilter();renderFilterBar();render();}
 function toggleChar(id){if(selectedChars.has(id))selectedChars.delete(id);else selectedChars.add(id);saveFilter();renderFilterBar();render();}
-function selectAllChars(){const charsWithRaids=characters.filter(c=>raidTasks.some(t=>t.character_id===c.id));selectedChars=new Set(charsWithRaids.map(c=>c.id));saveFilter();renderFilterBar();render();}
+function selectAllChars(){const ci=characters.filter(c=>raidTasks.some(t=>t.character_id===c.id));selectedChars=new Set(ci.map(c=>c.id));saveFilter();renderFilterBar();render();}
 function deselectAllChars(){selectedChars.clear();saveFilter();renderFilterBar();render();}
 
 // ─── Render ───
