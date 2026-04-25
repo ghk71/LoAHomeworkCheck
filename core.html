@@ -66,10 +66,10 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 .core-table th.char-header{min-width:110px;}
 .core-table td{padding:0;border:1px solid var(--border);vertical-align:middle;}
 .section-hrow{cursor:pointer;user-select:none;}
-.section-hrow-td{background:var(--s1);padding:6px 12px;font-size:.71rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
-.sec-order{color:#a0c8ff;}.sec-chaos{color:#ffb0b0;}.sec-num{color:var(--gold);}
+.section-hrow-td{background:var(--s1);padding:7px 12px;font-size:.75rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;border-left:3px solid transparent;}.section-sep{background:var(--s1);padding:0;height:4px;border-top:2px solid var(--border-lit);}
+.sec-order{color:#a0c8ff;border-left-color:#a0c8ff !important;background:rgba(160,200,255,.06) !important;}.sec-chaos{color:#ffb0b0;border-left-color:#ffb0b0 !important;background:rgba(255,176,176,.06) !important;}.sec-num{color:var(--gold);}
 .core-row-label-wrap{display:flex;align-items:center;gap:5px;padding:5px 10px;background:var(--s1);}
-.core-row-label-text{font-size:.78rem;color:var(--muted);flex:1;white-space:nowrap;}
+.core-row-label-text{font-size:.85rem;color:var(--text);flex:1;white-space:nowrap;font-weight:500;}
 .row-hide-btn{font-size:.65rem;background:none;border:none;cursor:pointer;color:var(--dim);opacity:0;transition:opacity .15s;padding:2px;}
 .core-row-label-wrap:hover .row-hide-btn{opacity:1;}
 .core-cell-wrap{position:relative;display:flex;flex-direction:column;}
@@ -77,7 +77,7 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 .core-cell:hover{filter:brightness(1.18);}
 .core-priority-btn{position:absolute;top:2px;right:2px;font-size:.58rem;background:none;border:none;cursor:pointer;opacity:0;transition:opacity .15s;z-index:2;padding:2px;}
 .core-cell-wrap:hover .core-priority-btn,.core-cell-wrap.is-priority .core-priority-btn{opacity:1;}
-.core-name-input{width:100%;background:transparent;border:none;border-top:1px solid var(--border);color:var(--muted);font-family:'Noto Sans KR',sans-serif;font-size:.67rem;padding:3px 6px;outline:none;text-align:center;transition:all .15s;}
+.core-name-input{width:100%;background:transparent;border:none;border-top:1px solid var(--border);color:rgba(224,221,213,.65);font-family:'Noto Sans KR',sans-serif;font-size:.72rem;padding:3px 6px;outline:none;text-align:center;transition:all .15s;}
 .core-name-input:focus{background:rgba(200,168,75,.06);color:var(--gold);border-top-color:rgba(200,168,75,.3);}
 .core-name-input::placeholder{color:var(--dim);}
 .combo-section-label{font-family:'Cinzel',serif;font-size:.9rem;color:var(--gold);letter-spacing:1px;margin:0 0 12px;display:flex;align-items:center;gap:8px;}
@@ -300,7 +300,17 @@ function thead(vis){return`<thead><tr><th class="type-header">코어</th>${vis.m
 function cell(cid,key){const g=getGrade(cid,key),p=getPrio(cid,key),cn=getCname(cid,key);return`<td><div class="core-cell-wrap ${p?'is-priority':''}"><div class="core-cell ${GC[g]}" onclick="cycleGrade('${cid}','${key}',this)" oncontextmenu="toggleSkip('${cid}','${key}',this);return false;"><span>${GL[g]}</span></div><input class="core-name-input" value="${esc(cn)}" placeholder="코어명" onchange="saveCoreName('${cid}','${key}',this.value)" onclick="event.stopPropagation()" oncontextmenu="event.stopPropagation()"><button class="core-priority-btn" onclick="togglePriority('${cid}','${key}',this)">${p?'⭐':'☆'}</button></div></td>`;}
 function renderBasic(vis,el){
   let h=thead(vis);
-  TYPES.forEach(({group,type,cls,elements})=>{elements.forEach(({name,key:ek})=>{const sk2=sk(type,ek),col=collapsedSections.has(sk2);h+=`<tr class="section-hrow" onclick="toggleSection('${sk2}')"><td colspan="${vis.length+1}" class="section-hrow-td ${cls}"><span style="margin-right:6px;font-size:.65rem;">${col?'▶':'▼'}</span>${group} ${name}</td></tr>`;if(!col){for(let s=1;s<=6;s++){const rk=ck(type,ek,s);if(hiddenRows.has(rk))continue;h+=`<tr><td><div class="core-row-label-wrap"><span class="core-row-label-text">${group}${name}${s}</span><button class="row-hide-btn" onclick="event.stopPropagation();hideRow('${rk}')">🙈</button></div></td>`;vis.forEach(c=>{h+=cell(c.id,rk);});h+=`</tr>`;}}});});
+  TYPES.forEach(({group,type,cls,elements},ti)=>{
+    elements.forEach(({name,key:ek},ei)=>{
+      const sk2=sk(type,ek),col=collapsedSections.has(sk2);
+      // 질서: 해/달/별 사이에 구분선
+      if(type==='order'&&ei>0)h+=`<tr><td colspan="${vis.length+1}" style="height:4px;background:rgba(160,200,255,.12);border-top:2px solid rgba(160,200,255,.25);padding:0;"></td></tr>`;
+      h+=`<tr class="section-hrow" onclick="toggleSection('${sk2}')"><td colspan="${vis.length+1}" class="section-hrow-td ${cls}"><span style="margin-right:6px;font-size:.65rem;">${col?'▶':'▼'}</span>${group} ${name}</td></tr>`;
+      if(!col){for(let s=1;s<=6;s++){const rk=ck(type,ek,s);if(hiddenRows.has(rk))continue;
+        const labelTxt=type==='chaos'?`${s}번`:`${group}${name}${s}`;
+        h+=`<tr><td><div class="core-row-label-wrap"><span class="core-row-label-text">${labelTxt}</span><button class="row-hide-btn" onclick="event.stopPropagation();hideRow('${rk}')">🙈</button></div></td>`;vis.forEach(c=>{h+=cell(c.id,rk);});h+=`</tr>`;}}
+    });
+  });
   el.innerHTML=`<div class="core-table-wrap"><table class="core-table">${h}</tbody></table></div>`;
 }
 function renderNumbered(vis,el){
