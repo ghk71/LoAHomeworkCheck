@@ -94,7 +94,11 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 /* Party card in schedule */
 .sched-card{flex-shrink:0;width:180px;background:var(--s2);border:1px solid var(--border);border-radius:6px;overflow:hidden;transition:border-color .15s;}
 .sched-card:hover{border-color:var(--border-lit);}
-.sched-card.completed{border-color:rgba(60,186,120,.4);background:rgba(60,186,120,.04);}
+.sched-card.completed {
+    border-color: #27ae60 !important; /* 테두리를 더 진한 초록색으로 */
+    background: rgba(39, 174, 96, 0.12) !important; /* 카드 배경색 농도 증가 */
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.1); /* 은은한 초록색 광채 */
+}
 .sched-card.has-ovr{border-color:rgba(200,168,75,.3);}
 .sc-header{padding:7px 9px;background:var(--s1);border-bottom:1px solid var(--border);}
 .sc-raid-name{font-size:.78rem;font-weight:700;color:var(--gold-bright);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -409,7 +413,7 @@ async function init(){
   updateWeekLabel();renderPresetList();initSchFilter();renderSchedule();loadNotice();
   applyViewer();
   // ★ 뷰어 모드: 주간 일정 탭을 기본으로 표시
-  if(isViewer)switchTab('schedule');
+  switchTab('schedule');
 }
 
 // ─── Week helpers ───
