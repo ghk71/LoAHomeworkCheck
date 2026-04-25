@@ -227,6 +227,7 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
       <div class="notice-text-wrap">
         <span class="notice-week-label" id="notice-week-label">이번 주 공지</span>
         <input class="notice-input edit-only" id="notice-input" placeholder="공지사항을 입력하세요..." onblur="saveNotice()" onkeydown="if(event.key==='Enter')this.blur()">
+        <span id="notice-display" style="display:none;font-size:.85rem;color:var(--text);padding:4px 0;"></span>
       </div>
       <span class="notice-save-hint" id="notice-hint"></span>
       <button class="btn btn-sec btn-sm edit-only" style="flex-shrink:0;" onclick="openAdvanceNotice()">📅 미리 쓰기</button>
@@ -359,17 +360,15 @@ if(isViewer)document.getElementById('viewer-banner').classList.add('show');
 function getConfig(){if(isViewer)return viewerCreds;const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
 function applyViewer(){
   if(!isViewer)return;
-  // 뷰어 모드: 파티 구성 탭 숨김 (일정만 표시)
+  // 뷰어 모드: 상단 nav 전체 숨김
+  const nav=document.querySelector('.page-nav');
+  if(nav)nav.style.display='none';
+  // 파티 구성 탭 숨김 (일정만 표시)
   const partyTab=document.getElementById('tab-party');
-  if(partyTab){partyTab.style.display='none';}
-  // 숙제/코어 nav 비활성화
-  ['nav-homework','nav-core'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el){el.removeAttribute('href');el.style.opacity='.35';el.style.cursor='not-allowed';el.title='뷰어 모드에서는 접근할 수 없습니다';}
-  });
-  // 레이드 nav: viewer param 유지
-  const navRaid=document.getElementById('nav-raid');
-  if(navRaid){navRaid.href='raid.html?viewer='+btoa(JSON.stringify(viewerCreds));}
+  if(partyTab)partyTab.style.display='none';
+  // notice: input 숨기고 display 표시
+  const noticeDisp=document.getElementById('notice-display');
+  if(noticeDisp)noticeDisp.style.display='block';
   document.querySelectorAll('.edit-only').forEach(el=>{el.style.display='none';if(el.tagName==='INPUT')el.readOnly=true;});
 }
 
@@ -585,7 +584,13 @@ function toggleGroup(name){
   }
   renderPresetList();
 }
-function togglePreset(id){selPresetId=selPresetId===id?null:id;renderPresetList();}
+function togglePreset(id){
+  const rParties=parties.filter(p=>p.preset_id===id);
+  const isOpen=selPresetId===id||rParties.some(p=>p.id===selPartyId);
+  if(isOpen){selPresetId=null;selPartyId=null;document.getElementById('party-detail').innerHTML='<div class="empty-state"><div class="empty-icon">🗡️</div><div>왼쪽에서 파티를 선택하세요</div></div>';}
+  else{selPresetId=id;}
+  renderPresetList();
+}
 function selectParty(id){selPartyId=id;renderPresetList();renderPartyDetail();}
 
 function getMembersForParty(p){const r=[];for(let i=0;i<p.party_size;i++){const m=p.members.find(x=>x.slot_index===i);r.push(m||{slot_index:i,character_id:null,id:null});}return r;}
@@ -640,21 +645,31 @@ function openCharPickerOverride(schId,slotIndex){
 function buildCharPickGrid(minIlvl=0){
   const el=document.getElementById('char-pick-grid');
   let html=`<div class="char-pick-item no-char" onclick="assignChar(null)">✕ 비우기</div>`;
-  accounts.forEach(acc=>{
-    // 입장 레벨 조건 만족 캐릭터만
+  // Build display groups: parent accounts + their sub-accounts
+  const mainAccounts=accounts.filter(a=>!a.parent_account_id);
+  mainAccounts.forEach(acc=>{
+    const mainChars=allChars.filter(c=>c.account_id===acc.id&&(!minIlvl||Number(c.item_level||0)>=minIlvl));
+    // Sub-accounts of this parent
+    const subAccounts=accounts.filter(a=>a.parent_account_id===acc.id);
+    const subChars=subAccounts.flatMap(sa=>allChars.filter(c=>c.account_id===sa.id&&(!minIlvl||Number(c.item_level||0)>=minIlvl)));
+    if(!mainChars.length&&!subChars.length)return;
+    if(mainChars.length){
+      html+=`<div class="acc-group-header">${esc(acc.name)}</div>`;
+      mainChars.forEach(c=>{html+=`<div class="char-pick-item" onclick="assignChar('${c.id}')"><div class="char-pick-name">${esc(c.name)}</div><div class="char-pick-meta">${esc(c.class_name||'')}${c.item_level?' · Lv.'+c.item_level:''}</div></div>`;});
+    }
+    if(subChars.length){
+      html+=`<div class="acc-group-header" style="color:var(--muted);font-size:.65rem;">${esc(acc.name)}-부계정</div>`;
+      subChars.forEach(c=>{html+=`<div class="char-pick-item" onclick="assignChar('${c.id}')"><div class="char-pick-name">${esc(c.name)}</div><div class="char-pick-meta">${esc(c.class_name||'')}${c.item_level?' · Lv.'+c.item_level:''}</div></div>`;});
+    }
+  });
+  // 독립 부계정 (parent가 없는 부계정 - 이론상 없어야 하지만 방어)
+  const orphanSubs=accounts.filter(a=>a.parent_account_id&&!accounts.some(m=>m.id===a.parent_account_id));
+  orphanSubs.forEach(acc=>{
     const chars=allChars.filter(c=>c.account_id===acc.id&&(!minIlvl||Number(c.item_level||0)>=minIlvl));
     if(!chars.length)return;
     html+=`<div class="acc-group-header">${esc(acc.name)}</div>`;
-    chars.forEach(c=>{
-      html+=`<div class="char-pick-item" onclick="assignChar('${c.id}')">
-        <div class="char-pick-name">${esc(c.name)}</div>
-        <div class="char-pick-meta">${esc(c.class_name||'')}${c.item_level?' · Lv.'+c.item_level:''}</div>
-      </div>`;
-    });
+    chars.forEach(c=>{html+=`<div class="char-pick-item" onclick="assignChar('${c.id}')"><div class="char-pick-name">${esc(c.name)}</div><div class="char-pick-meta">${esc(c.class_name||'')}${c.item_level?' · Lv.'+c.item_level:''}</div></div>`;});
   });
-  // 계정 없는 캐릭터
-  const noAccChars=allChars.filter(c=>!accounts.some(a=>a.id===c.account_id)&&(!minIlvl||Number(c.item_level||0)>=minIlvl));
-  if(noAccChars.length){html+=`<div class="acc-group-header">기타</div>`;noAccChars.forEach(c=>{html+=`<div class="char-pick-item" onclick="assignChar('${c.id}')"><div class="char-pick-name">${esc(c.name)}</div><div class="char-pick-meta">${esc(c.class_name||'')}${c.item_level?' · Lv.'+c.item_level:''}</div></div>`;});}
   el.innerHTML=html;
 }
 async function assignChar(charId){
@@ -837,10 +852,32 @@ async function deleteParty(id){
 // ─── Schedule character filter ───
 let schFilterChars=null; // null = show all, Set = filtered chars
 let schFilterOpen=true;
+const SCH_FILTER_KEY=isViewer?'la_sch_filter_v':'la_sch_filter';
+
+function getCharsInWeekSchedules(){
+  const wk=getWeekKey(weekOffset);
+  const wsMs=getWeekStart(weekOffset).getTime()-9*3600000;
+  const weMs=wsMs+7*24*3600000;
+  const charIds=new Set();
+  WEEK_DAY_NUMS.forEach(dn=>{
+    getDaySchs(dn,wsMs,weMs).forEach(s=>{
+      getEffectiveMembers(s.id,s.party_id,wk).forEach(slot=>{
+        if(slot.character_id)charIds.add(slot.character_id);
+      });
+    });
+  });
+  return allChars.filter(c=>charIds.has(c.id));
+}
+
+function saveSchFilter(){
+  if(schFilterChars===null){localStorage.removeItem(SCH_FILTER_KEY);return;}
+  localStorage.setItem(SCH_FILTER_KEY,JSON.stringify([...schFilterChars]));
+}
 
 function initSchFilter(){
-  // Init with all chars
-  schFilterChars=null;
+  const saved=localStorage.getItem(SCH_FILTER_KEY);
+  if(saved){try{schFilterChars=new Set(JSON.parse(saved));}catch{schFilterChars=null;}}
+  else schFilterChars=null;
   renderSchFilter();
 }
 function toggleSchFilter(){
@@ -852,56 +889,183 @@ function toggleSchFilter(){
 }
 function renderSchFilter(){
   const body=document.getElementById('sch-fb-body');if(!body)return;
-  // Group by account
+  const weekChars=getCharsInWeekSchedules();
+  if(!weekChars.length){body.innerHTML='<span style="font-size:.78rem;color:var(--muted);">이번 주 일정에 캐릭터가 없습니다</span>';body.style.display=schFilterOpen?'flex':'none';return;}
   let html='';
-  // Get accounts (from allChars data)
-  const accMap={};allChars.forEach(c=>{if(!accMap[c.account_id])accMap[c.account_id]=[];accMap[c.account_id].push(c);});
-  // Need account names - load from memory or use account_id grouping
-  const accNames={};
-  // We'll group with a simple separator
-  accounts.forEach(acc=>{
-    const chars=allChars.filter(c=>c.account_id===acc.id);
+  const mainAccounts=accounts.filter(a=>!a.parent_account_id);
+  mainAccounts.forEach(acc=>{
+    const mainChars=weekChars.filter(c=>c.account_id===acc.id);
+    const subAccounts=accounts.filter(a=>a.parent_account_id===acc.id);
+    const subChars=subAccounts.flatMap(sa=>weekChars.filter(c=>c.account_id===sa.id));
+    if(!mainChars.length&&!subChars.length)return;
+    const selSet=schFilterChars||new Set(weekChars.map(c=>c.id));
+    const renderAccBtn=(label,chars,extraStyle='')=>{
+      if(!chars.length)return'';
+      const allOn=chars.every(c=>selSet.has(c.id)),anyOn=chars.some(c=>selSet.has(c.id));
+      const accStyle=`padding:3px 11px;border-radius:12px;border:1px solid ${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.4)':'var(--border-lit)'};background:${allOn?'rgba(200,168,75,.12)':anyOn?'rgba(200,168,75,.06)':'var(--s1)'};color:${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.7)':'var(--muted)'};cursor:pointer;font-size:.78rem;font-family:'Noto Sans KR',sans-serif;font-weight:700;${extraStyle}`;
+      const ids=chars.map(c=>c.id);
+      return`<button style="${accStyle}" onclick="toggleSchCharGroup([${ids.map(id=>`'${id}'`).join(',')}])">${esc(label)}</button>`;
+    };
+    const renderCharBtns=(chars)=>chars.map(c=>{
+      const on=selSet.has(c.id);
+      return`<button style="padding:3px 10px;border-radius:12px;border:1px solid ${on?'var(--gold)':'var(--border)'};background:${on?'rgba(200,168,75,.09)':'var(--s3)'};color:${on?'var(--gold)':'var(--muted)'};cursor:pointer;font-size:.78rem;font-family:'Noto Sans KR',sans-serif;" onclick="toggleSchChar('${c.id}')">${esc(c.name)}${c.item_level?`<span style="font-size:.67rem;opacity:.6"> Lv.${c.item_level}</span>`:''}</button>`;
+    }).join('');
+    if(mainChars.length){
+      html+=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">`;
+      html+=renderAccBtn(acc.name,mainChars);
+      html+=`<div style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0;"></div>`;
+      html+=renderCharBtns(mainChars);
+      html+=`</div>`;
+    }
+    if(subChars.length){
+      html+=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:16px;">`;
+      html+=renderAccBtn(acc.name+'-부계정',subChars,'font-size:.73rem;');
+      html+=`<div style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0;"></div>`;
+      html+=renderCharBtns(subChars);
+      html+=`</div>`;
+    }
+  });
+  // Orphan subs
+  accounts.filter(a=>a.parent_account_id&&!accounts.some(m=>m.id===a.parent_account_id)).forEach(acc=>{
+    const chars=weekChars.filter(c=>c.account_id===acc.id);
     if(!chars.length)return;
-    const selSet=schFilterChars||new Set(allChars.map(c=>c.id));
+    const selSet=schFilterChars||new Set(weekChars.map(c=>c.id));
     const allOn=chars.every(c=>selSet.has(c.id)),anyOn=chars.some(c=>selSet.has(c.id));
     html+=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">`;
-    html+=`<button style="padding:3px 11px;border-radius:12px;border:1px solid ${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.4)':'var(--border-lit)'};background:${allOn?'rgba(200,168,75,.12)':anyOn?'rgba(200,168,75,.06)':'var(--s1)'};color:${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.7)':'var(--muted)'};cursor:pointer;font-size:.78rem;font-family:\'Noto Sans KR\',sans-serif;font-weight:700;" onclick="toggleSchAcc('${acc.id}')">${esc(acc.name)}</button>`;
+    html+=`<button style="padding:3px 11px;border-radius:12px;border:1px solid ${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.4)':'var(--border-lit)'};background:${allOn?'rgba(200,168,75,.12)':anyOn?'rgba(200,168,75,.06)':'var(--s1)'};color:${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.7)':'var(--muted)'};cursor:pointer;font-size:.78rem;font-family:'Noto Sans KR',sans-serif;font-weight:700;" onclick="toggleSchAcc('${acc.id}')">${esc(acc.name)}</button>`;
     html+=`<div style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0;"></div>`;
-    chars.forEach(c=>{
-      const on=selSet.has(c.id);
-      html+=`<button style="padding:3px 10px;border-radius:12px;border:1px solid ${on?'var(--gold)':'var(--border)'};background:${on?'rgba(200,168,75,.09)':'var(--s3)'};color:${on?'var(--gold)':'var(--muted)'};cursor:pointer;font-size:.78rem;font-family:\'Noto Sans KR\',sans-serif;" onclick="toggleSchChar('${c.id}')">${esc(c.name)}${c.item_level?`<span style="font-size:.67rem;opacity:.6"> Lv.${c.item_level}</span>`:''}</button>`;
-    });
+    chars.forEach(c=>{const on=selSet.has(c.id);html+=`<button style="padding:3px 10px;border-radius:12px;border:1px solid ${on?'var(--gold)':'var(--border)'};background:${on?'rgba(200,168,75,.09)':'var(--s3)'};color:${on?'var(--gold)':'var(--muted)'};cursor:pointer;font-size:.78rem;font-family:'Noto Sans KR',sans-serif;" onclick="toggleSchChar('${c.id}')">${esc(c.name)}${c.item_level?`<span style="font-size:.67rem;opacity:.6"> Lv.${c.item_level}</span>`:''}</button>`;});
     html+=`</div>`;
   });
   body.innerHTML=html;
   body.style.display=schFilterOpen?'flex':'none';
-  // Count
-  const sel=schFilterChars||new Set(allChars.map(c=>c.id));
-  const cnt=document.getElementById('sch-fb-count');if(cnt)cnt.textContent=schFilterChars?`${sel.size}/${allChars.length}명`:'전체';
+  const total=weekChars.length;
+  const sel=schFilterChars?[...schFilterChars].filter(id=>weekChars.some(c=>c.id===id)).length:total;
+  const cnt=document.getElementById('sch-fb-count');if(cnt)cnt.textContent=schFilterChars?`${sel}/${total}명`:'전체';
   document.getElementById('sch-fb-toggle').textContent=schFilterOpen?'▼':'▶';
 }
+function toggleSchCharGroup(ids){
+  const weekChars=getCharsInWeekSchedules();
+  if(!schFilterChars)schFilterChars=new Set(weekChars.map(c=>c.id));
+  const allOn=ids.every(id=>schFilterChars.has(id));
+  ids.forEach(id=>{if(allOn)schFilterChars.delete(id);else schFilterChars.add(id);});
+  if(schFilterChars.size===weekChars.length)schFilterChars=null;
+  saveSchFilter();renderSchFilter();renderSchedule();
+}
 function toggleSchAcc(accId){
-  const chars=allChars.filter(c=>c.account_id===accId);
-  if(!schFilterChars)schFilterChars=new Set(allChars.map(c=>c.id));
+  const weekChars=getCharsInWeekSchedules();
+  const chars=weekChars.filter(c=>c.account_id===accId);
+  if(!schFilterChars)schFilterChars=new Set(weekChars.map(c=>c.id));
   const allOn=chars.every(c=>schFilterChars.has(c.id));
   chars.forEach(c=>{if(allOn)schFilterChars.delete(c.id);else schFilterChars.add(c.id);});
-  if(schFilterChars.size===allChars.length)schFilterChars=null;
-  renderSchFilter();renderSchedule();
+  if(schFilterChars.size===weekChars.length)schFilterChars=null;
+  saveSchFilter();renderSchFilter();renderSchedule();
 }
 function toggleSchChar(id){
-  if(!schFilterChars)schFilterChars=new Set(allChars.map(c=>c.id));
+  const weekChars=getCharsInWeekSchedules();
+  if(!schFilterChars)schFilterChars=new Set(weekChars.map(c=>c.id));
   if(schFilterChars.has(id))schFilterChars.delete(id);else schFilterChars.add(id);
-  if(schFilterChars.size===allChars.length)schFilterChars=null;
-  renderSchFilter();renderSchedule();
+  if(schFilterChars.size===weekChars.length)schFilterChars=null;
+  saveSchFilter();renderSchFilter();renderSchedule();
 }
-function schSelectAll(){schFilterChars=null;renderSchFilter();renderSchedule();}
-function schDeselectAll(){schFilterChars=new Set();renderSchFilter();renderSchedule();}
+function schSelectAll(){schFilterChars=null;saveSchFilter();renderSchFilter();renderSchedule();}
+function schDeselectAll(){schFilterChars=new Set();saveSchFilter();renderSchFilter();renderSchedule();}
 // Filter a schedule entry: show if any member of the party (or override) matches selected chars
 function schPassesFilter(s,wk){
-  if(!schFilterChars)return true; // show all
-  if(!schFilterChars.size)return false; // show none
+  if(!schFilterChars)return true;
+  if(!schFilterChars.size)return false;
   const eff=getEffectiveMembers(s.id,s.party_id,wk);
   return eff.some(slot=>slot.character_id&&schFilterChars.has(slot.character_id));
+}
+
+// ─── Day grouping (Feature 6) ───
+// dayGroups: array of index-pairs in WEEK_DAY_NUMS e.g. [[4,5]] means 금+토 merged
+// stored as: la_day_groups_perm (permanent), la_day_groups_WEEKKEY (week override)
+function getDayGroups(){
+  const wk=getWeekKey(weekOffset);
+  const perm=JSON.parse(localStorage.getItem('la_day_groups_perm')||'[]');
+  const override=JSON.parse(localStorage.getItem('la_day_groups_'+wk)||'null');
+  return override!==null?override:perm; // week override replaces permanent
+}
+function setDayGroups(groups,permanent){
+  const wk=getWeekKey(weekOffset);
+  if(permanent){
+    localStorage.setItem('la_day_groups_perm',JSON.stringify(groups));
+    localStorage.removeItem('la_day_groups_'+wk); // clear any week override
+  } else {
+    const perm=JSON.parse(localStorage.getItem('la_day_groups_perm')||'[]');
+    const same=JSON.stringify(groups)===JSON.stringify(perm);
+    if(same)localStorage.removeItem('la_day_groups_'+wk);
+    else localStorage.setItem('la_day_groups_'+wk,JSON.stringify(groups));
+  }
+}
+function buildDaySlots(){
+  // Returns array of {indices:[i] or [i,j], grouped:bool}
+  const groups=getDayGroups();
+  const slots=[];
+  const used=new Set();
+  WEEK_DAY_NUMS.forEach((_,i)=>{
+    if(used.has(i))return;
+    const g=groups.find(([a,b])=>a===i);
+    if(g&&!used.has(g[1])&&g[1]<WEEK_DAY_NUMS.length){
+      slots.push({indices:[g[0],g[1]],grouped:true});
+      used.add(g[0]);used.add(g[1]);
+    } else {
+      slots.push({indices:[i],grouped:false});
+      used.add(i);
+    }
+  });
+  return slots;
+}
+function canGroupDays(i,j){
+  if(j>=WEEK_DAY_NUMS.length)return false;
+  const groups=getDayGroups();
+  const alreadyGrouped=groups.some(([a,b])=>a===i||b===i||a===j||b===j);
+  return !alreadyGrouped;
+}
+function toggleDayGroup(i,j,permanent){
+  const groups=getDayGroups();
+  const exists=groups.findIndex(([a,b])=>a===i&&b===j);
+  let newGroups;
+  if(exists>=0){newGroups=groups.filter((_,idx)=>idx!==exists);}
+  else{newGroups=[...groups,[i,j]];}
+  setDayGroups(newGroups,permanent);
+  renderSchedule();renderSchFilter();
+}
+function openDayGroupModal(i){
+  // Build options: can group with i-1 or i+1
+  const groups=getDayGroups();
+  const inGroup=groups.find(([a,b])=>a===i||b===i);
+  let msg='';
+  if(inGroup){
+    const [a,b]=inGroup;
+    const nameA=DKO[WEEK_DAY_NUMS[a]],nameB=DKO[WEEK_DAY_NUMS[b]];
+    const perm=JSON.parse(localStorage.getItem('la_day_groups_perm')||'[]');
+    const isPerm=perm.some(([pa,pb])=>pa===a&&pb===b);
+    const wk=getWeekKey(weekOffset);
+    const wkOvr=localStorage.getItem('la_day_groups_'+wk);
+    msg=`"${nameA}+${nameB}" 묶음을 해제하시겠습니까?\n\n이번 주만 해제 / 매주 해제`;
+    const choice=confirm(`"${nameA}+${nameB}" 묶음을 해제합니다.\n\n[확인] = 매주 해제 (영구)\n[취소] = 취소`);
+    if(!choice)return;
+    const thisWeekChoice=confirm(`이번 주만 해제하려면 [확인], 매주 해제(영구)는 [취소]`);
+    toggleDayGroup(a,b,!thisWeekChoice);
+  } else {
+    const prev=i-1,next=i+1;
+    const canPrev=prev>=0&&!groups.some(([a,b])=>a===prev||b===prev||a===i||b===i);
+    const canNext=next<WEEK_DAY_NUMS.length&&!groups.some(([a,b])=>a===next||b===next||a===i||b===i);
+    const nameI=DKO[WEEK_DAY_NUMS[i]];
+    let target=null;
+    if(canPrev&&canNext){
+      const ans=prompt(`"${nameI}" 묶기 방향을 선택하세요:\n1 = ${DKO[WEEK_DAY_NUMS[prev]]}+${nameI}\n2 = ${nameI}+${DKO[WEEK_DAY_NUMS[next]]}\n\n번호 입력 후 확인`);
+      if(ans==='1')target=[prev,i];
+      else if(ans==='2')target=[i,next];
+      else return;
+    } else if(canPrev){target=[prev,i];}
+    else if(canNext){target=[i,next];}
+    else{alert('이 날은 더 이상 묶을 수 없습니다.');return;}
+    const perm=confirm(`"${DKO[WEEK_DAY_NUMS[target[0]]]}+${DKO[WEEK_DAY_NUMS[target[1]]]}" 묶기:\n[확인] = 매주 적용 (영구)\n[취소] = 이번 주만 적용`);
+    toggleDayGroup(target[0],target[1],perm);
+  }
 }
 
 // ─── Schedule render (vertical day rows) ───
@@ -911,28 +1075,46 @@ function renderSchedule(){
   const days=getWeekDays(weekOffset),todayKST=new Date(Date.now()+9*3600000).getUTCDay(),wk=getWeekKey(weekOffset);
   const wsMs=getWeekStart(weekOffset).getTime()-9*3600000;
   const weMs=wsMs+7*24*3600000;
-  el.innerHTML=days.map((date,i)=>{
-    const dn=WEEK_DAY_NUMS[i],isToday=dn===todayKST&&weekOffset===0;
-    const allDaySchs=getDaySchs(dn,wsMs,weMs);
-    // Apply character filter
-    const daySchs=allDaySchs.filter(s=>schPassesFilter(s,wk));
-    const schType='sch_'+dn;
+  const daySlots=buildDaySlots();
+  el.innerHTML=daySlots.map(slot=>{
+    const {indices,grouped}=slot;
+    // Collect all days and schedules in this slot
+    const slotDays=indices.map(i=>({i,dn:WEEK_DAY_NUMS[i],date:days[i]}));
+    const isToday=slotDays.some(({dn})=>dn===todayKST&&weekOffset===0);
+    // Merged label
+    const label=grouped
+      ?slotDays.map(({dn})=>DKO[dn]).join('+')
+      :DKO[slotDays[0].dn];
+    const dateLabel=grouped
+      ?slotDays.map(({date})=>`${date.getUTCMonth()+1}/${date.getUTCDate()}`).join('~')
+      :`${slotDays[0].date.getUTCMonth()+1}/${slotDays[0].date.getUTCDate()}`;
+    // All schedules for this slot (each day separately rendered)
+    const allSchs=slotDays.flatMap(({dn})=>{
+      return getDaySchs(dn,wsMs,weMs).filter(s=>schPassesFilter(s,wk)).map(s=>({s,dn}));
+    });
+    const i0=indices[0];
+    const groupBtnLabel=grouped?'분리':'묶기';
     return`<div class="day-row ${isToday?'today-row':''}">
       <div class="day-label-col">
-        <div class="day-label-name ${isToday?'today':''}">${DKO[dn]}</div>
-        <div class="day-label-date">${date.getUTCMonth()+1}/${date.getUTCDate()}</div>
+        <div class="day-label-name ${isToday?'today':''}">${label}</div>
+        <div class="day-label-date">${dateLabel}</div>
         ${isToday?'<div class="day-label-today-badge">오늘</div>':''}
+        ${!isViewer?`<button onclick="openDayGroupModal(${i0})" style="font-size:.62rem;padding:1px 5px;border-radius:4px;border:1px solid var(--border);background:var(--s3);color:var(--muted);cursor:pointer;margin-top:3px;" title="날짜 묶기/분리">${groupBtnLabel}</button>`:''}
       </div>
       <div class="day-parties-scroll">
-        ${daySchs.map((s,si)=>`<div
-          draggable="${!isViewer}"
-          ondragstart="rdStart(event,'${schType}',${si})"
-          ondragend="rdEnd(event)"
-          ondragover="rdOver(event,'${schType}',true)"
-          ondragleave="rdLeave(event,true)"
-          ondrop="rdDropSch(event,${dn},${si})"
-          style="flex-shrink:0;">${schedCardHTML(s,wk)}</div>`).join('')}
-        ${!isViewer?`<button class="day-add-btn edit-only" onclick="openAddSchForDay(${dn})">＋</button>`:''}
+        ${allSchs.map(({s,dn},si)=>{
+          const schType='sch_'+dn;
+          const origIdx=getDaySchs(dn,wsMs,weMs).indexOf(s);
+          return`<div
+            draggable="${!isViewer}"
+            ondragstart="rdStart(event,'${schType}',${origIdx})"
+            ondragend="rdEnd(event)"
+            ondragover="rdOver(event,'${schType}',true)"
+            ondragleave="rdLeave(event,true)"
+            ondrop="rdDropSch(event,${dn},${origIdx})"
+            style="flex-shrink:0;">${schedCardHTML(s,wk)}</div>`;
+        }).join('')}
+        ${!isViewer?slotDays.map(({dn})=>`<button class="day-add-btn edit-only" onclick="openAddSchForDay(${dn})" style="font-size:.72rem;" title="${DKO[dn]} 일정 추가">＋${grouped?DKO[dn]:''}</button>`).join(''):''}
       </div>
     </div>`;
   }).join('');
@@ -1119,6 +1301,8 @@ async function loadNotice(){
   const wk=getWeekKey(weekOffset),n=notices[wk];
   const inp=document.getElementById('notice-input');
   if(inp)inp.value=n?.content||'';
+  const disp=document.getElementById('notice-display');
+  if(disp)disp.textContent=n?.content||'(공지 없음)';
   const lbl=document.getElementById('notice-week-label');
   if(lbl){const days=getWeekDays(weekOffset);const f=d=>`${d.getUTCMonth()+1}/${d.getUTCDate()}`;lbl.textContent=weekOffset===0?'이번 주 공지':`${f(days[0])}(수) ~ ${f(days[6])}(화) 공지`;}
   document.getElementById('notice-hint').textContent='';
