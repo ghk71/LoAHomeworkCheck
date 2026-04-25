@@ -1250,8 +1250,7 @@ function schedCardHTML(s,wk){
     <div class="sc-members">
       ${eff.map(slot=>{
         const ch=allChars.find(c=>c.id===slot.character_id);
-        const viewerChars=isViewer?getViewerCharIds():new Set();const isViewerChar=viewerChars.has(ch.id);
-        if(ch)return`<div class="sc-member ${slot.isOvr?'temp':''} ${isViewerChar?'viewer-me':''}" style="${isViewerChar?'border:1px solid rgba(200,168,75,.5);background:rgba(200,168,75,.1);border-radius:3px;padding:1px 3px;':''}"><span class="sc-member-name" style="${isViewerChar?'color:var(--gold);font-weight:700;':''}}">${esc(ch.name)}</span><span class="sc-member-class">${esc(ch.class_name||'')}</span></div>`;
+        if(ch){const viewerChars=isViewer?getViewerCharIds():new Set();const isViewerChar=viewerChars.has(ch.id);return`<div class="sc-member ${slot.isOvr?'temp':''} ${isViewerChar?'viewer-me':''}" style="${isViewerChar?'border:1px solid rgba(200,168,75,.5);background:rgba(200,168,75,.1);border-radius:3px;padding:1px 3px;':''}"><span class="sc-member-name" style="${isViewerChar?'color:var(--gold);font-weight:700;':''}">${esc(ch.name)}</span><span class="sc-member-class">${esc(ch.class_name||'')}</span></div>`;}
         return`<div class="sc-empty-slot">—</div>`;
       }).join('')}
     </div>
