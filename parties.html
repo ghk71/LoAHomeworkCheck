@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -156,21 +155,32 @@ function applyFilterOpen(){document.getElementById('fb-body').style.display=filt
 function renderFilter(){
   const charsInParties=characters.filter(c=>members.some(m=>m.character_id===c.id));
   let html='';
-  accounts.forEach(acc=>{
-    const chars=charsInParties.filter(c=>c.account_id===acc.id);
-    if(!chars.length)return;
+  const mainAccs=accounts.filter(a=>!a.parent_account_id);
+  const renderRow=(label,chars,sub=false)=>{
+    if(!chars.length)return'';
     const allOn=chars.every(c=>selectedChars.has(c.id)),anyOn=chars.some(c=>selectedChars.has(c.id));
-    html+=`<div class="fb-acc-row">`;
-    html+=`<button class="fb-acc-btn ${allOn?'all-on':anyOn?'partial':''}" onclick="toggleAccFilter('${acc.id}')">${esc(acc.name)}</button>`;
-    html+=`<div class="fb-acc-sep"></div>`;
-    chars.forEach(c=>{html+=`<button class="fb-char-btn ${selectedChars.has(c.id)?'on':''}" onclick="toggleCharFilter('${c.id}')">${esc(c.name)}${c.item_level?` <span style="font-size:.67rem;opacity:.6">Lv.${c.item_level}</span>`:''}</button>`;});
-    html+=`</div>`;
+    const ids=chars.map(c=>c.id);
+    let row=`<div class="fb-acc-row" ${sub?'style="margin-left:14px;"':''}>`;
+    row+=`<button class="fb-acc-btn ${allOn?'all-on':anyOn?'partial':''}" onclick="toggleGroup([${ids.map(id=>`'${id}'`).join(',')}])" ${sub?'style="font-size:.72rem;"':''}}>${esc(label)}</button>`;
+    row+=`<div class="fb-acc-sep"></div>`;
+    chars.forEach(c=>{row+=`<button class="fb-char-btn ${selectedChars.has(c.id)?'on':''}" onclick="toggleCharFilter('${c.id}')">${esc(c.name)}${c.item_level?` <span style="font-size:.67rem;opacity:.6">Lv.${c.item_level}</span>`:''}</button>`;});
+    row+=`</div>`;return row;
+  };
+  mainAccs.forEach(acc=>{
+    const mainChars=charsInParties.filter(c=>c.account_id===acc.id);
+    const subAccs=accounts.filter(a=>a.parent_account_id===acc.id);
+    const subChars=subAccs.flatMap(sa=>charsInParties.filter(c=>c.account_id===sa.id));
+    html+=renderRow(acc.name,mainChars);
+    html+=renderRow(acc.name+'-부계정',subChars,true);
+  });
+  accounts.filter(a=>a.parent_account_id&&!accounts.some(m=>m.id===a.parent_account_id)).forEach(acc=>{
+    html+=renderRow(acc.name,charsInParties.filter(c=>c.account_id===acc.id));
   });
   document.getElementById('fb-body').innerHTML=html;
   const cnt=document.getElementById('fb-count');if(cnt)cnt.textContent=`${selectedChars.size}/${charsInParties.length}명`;
   applyFilterOpen();
 }
-function toggleAccFilter(accId){const chars=characters.filter(c=>c.account_id===accId&&members.some(m=>m.character_id===c.id));const allOn=chars.every(c=>selectedChars.has(c.id));chars.forEach(c=>{if(allOn)selectedChars.delete(c.id);else selectedChars.add(c.id);});saveFilter();renderFilter();render();}
+function toggleGroup(ids){const allOn=ids.every(id=>selectedChars.has(id));ids.forEach(id=>{if(allOn)selectedChars.delete(id);else selectedChars.add(id);});saveFilter();renderFilter();render();}
 function toggleCharFilter(id){if(selectedChars.has(id))selectedChars.delete(id);else selectedChars.add(id);saveFilter();renderFilter();render();}
 function selectAll(){const ci=characters.filter(c=>members.some(m=>m.character_id===c.id));selectedChars=new Set(ci.map(c=>c.id));saveFilter();renderFilter();render();}
 function deselectAll(){selectedChars.clear();saveFilter();renderFilter();render();}
