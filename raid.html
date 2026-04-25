@@ -95,10 +95,29 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 .sched-card{flex-shrink:0;width:180px;background:var(--s2);border:1px solid var(--border);border-radius:6px;overflow:hidden;transition:border-color .15s;}
 .sched-card:hover{border-color:var(--border-lit);}
 .sched-card.completed {
-    border-color: #27ae60 !important; /* 테두리를 더 진한 초록색으로 */
-    background: rgba(39, 174, 96, 0.12) !important; /* 카드 배경색 농도 증가 */
-    box-shadow: 0 0 10px rgba(46, 204, 113, 0.1); /* 은은한 초록색 광채 */
+    border: 2px solid #27ae60 !important; /* 테두리를 두껍게 하고 진한 초록색 고정 */
+    background: rgba(20, 30, 25, 0.9) !important; /* 배경을 훨씬 어둡게 눌러서 다른 카드와 차별화 */
+    box-shadow: 0 0 15px rgba(46, 204, 113, 0.25); /* 은은한 녹색 광채 추가 */
+    position: relative;
+    overflow: hidden;
 }
+.sched-card.completed .sc-raid-name,
+.sched-card.completed .sc-party-name,
+.sched-card.completed .sc-meta {
+    color: #95a5a6 !important; /* 메인 제목들을 차분한 회색으로 변경 */
+    text-decoration: line-through rgba(46, 204, 113, 0.4); /* 연한 취소선 추가 (선택사항) */
+}
+
+/* 완료된 카드의 내부 멤버 목록 (완료되었으므로 정보의 중요도를 낮춤) */
+.sched-card.completed .sc-member {
+    opacity: 0.5; /* 멤버 이름을 반투명하게 하여 배경으로 밀어냄 */
+}
+.sched-card.completed .sc-edit-btn {
+    opacity: 0.4;
+    filter: grayscale(1);
+}
+    
+    
 .sched-card.has-ovr{border-color:rgba(200,168,75,.3);}
 .sc-header{padding:7px 9px;background:var(--s1);border-bottom:1px solid var(--border);}
 .sc-raid-name{font-size:.78rem;font-weight:700;color:var(--gold-bright);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
