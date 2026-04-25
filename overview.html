@@ -264,21 +264,22 @@ function deselectAllChars(){selectedChars.clear();saveFilter();renderFilterBar()
 // ─── Render ───
 function render(){
   // Summary - only selected chars
-  let totalRaids=0,doneRaids=0,totalGold=0,earnedGold=0;
+  let totalRaids=0,doneRaids=0,totalGold=0,earnedGold=0,totalBound=0;
   [...selectedChars].forEach(cid=>{
     raidTasks.filter(t=>t.character_id===cid).forEach(t=>{
       totalRaids++;
       const flow=(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0);
-      totalGold+=flow;
-      if(isEffDone(t)){doneRaids++;earnedGold+=flow;}
+      const bg=Number(t.bound_gold)||0;
+      if(t.receive_gold!==false){totalGold+=flow;totalBound+=bg;}
+      if(isEffDone(t)&&t.receive_gold!==false){doneRaids++;earnedGold+=flow;}
+      else if(isEffDone(t)&&t.receive_gold===false)doneRaids++;
     });
   });
   const pct=totalRaids?Math.round(doneRaids/totalRaids*100):0;
   document.getElementById('summary-bar').innerHTML=`
     <div class="sum-item done">레이드 완료 <b>${doneRaids}/${totalRaids}</b></div>
     <div class="sum-prog"><div class="sum-prog-bar" style="width:${pct}%"></div></div>
-    <div class="sum-item gold">획득 유통 골드 <b>${earnedGold.toLocaleString()} / ${totalGold.toLocaleString()} G</b></div>
-    <div class="sum-item">남은 골드 <b style="color:${totalGold-earnedGold>0?'var(--orange)':'var(--green)'}">${(totalGold-earnedGold).toLocaleString()} G</b></div>
+    <div class="sum-item gold">유통골드 <b>${earnedGold.toLocaleString()} / ${totalGold.toLocaleString()} G</b></div>
     ${weekOffset===0?`<div class="sum-item" style="margin-left:auto;font-size:.72rem;color:var(--dim);">초기화 ${nextResetLabel()}</div>`:''}`;
 
   // Account sections - filtered
@@ -288,6 +289,9 @@ function render(){
     if(!withRaids.length)return'';
     const accTotal=withRaids.reduce((s,c)=>s+raidTasks.filter(t=>t.character_id===c.id).length,0);
     const accDone=withRaids.reduce((s,c)=>s+raidTasks.filter(t=>t.character_id===c.id&&isEffDone(t)).length,0);
+    const accFlow=withRaids.reduce((s,c)=>s+raidTasks.filter(t=>t.character_id===c.id&&t.receive_gold!==false).reduce((ss,t)=>ss+(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0),0),0);
+    const accBound=withRaids.reduce((s,c)=>s+raidTasks.filter(t=>t.character_id===c.id&&t.receive_gold!==false).reduce((ss,t)=>ss+(Number(t.bound_gold)||0),0),0);
+    const accEarnedFlow=withRaids.reduce((s,c)=>s+raidTasks.filter(t=>t.character_id===c.id&&isEffDone(t)&&t.receive_gold!==false).reduce((ss,t)=>ss+(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0),0),0);
     const isOpen=!collapsedAccs.has(acc.id);
     const allClear=accDone===accTotal&&accTotal>0;
     return`<div class="acc-section">
@@ -295,6 +299,8 @@ function render(){
         <span class="acc-toggle">${isOpen?'▼':'▶'}</span>
         <span class="acc-name">${esc(acc.name)}</span>
         <span class="acc-stat">${accDone}/${accTotal}</span>
+        ${accFlow?`<span style="font-size:.72rem;color:#f0c040;margin-left:4px;">💰 유통 ${accEarnedFlow.toLocaleString()}/${accFlow.toLocaleString()}G</span>`:''}
+        ${accBound?`<span style="font-size:.72rem;color:var(--orange);margin-left:4px;">귀속 ${accBound.toLocaleString()}G</span>`:''}
         ${allClear?`<span class="acc-allclear">✓ 올클</span>`:''}
       </div>
       ${isOpen?`<div class="char-grid">${withRaids.map(c=>charCardHTML(c)).join('')}</div>`:''}
@@ -355,11 +361,11 @@ async function toggleRaidTask(taskId){
 }
 
 function renderSummary(){
-  let totalRaids=0,doneRaids=0,totalGold=0,earnedGold=0;
-  [...selectedChars].forEach(cid=>{raidTasks.filter(t=>t.character_id===cid).forEach(t=>{totalRaids++;const flow=(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0);totalGold+=flow;if(isEffDone(t)){doneRaids++;earnedGold+=flow;}});});
+  let totalRaids=0,doneRaids=0,totalGold=0,earnedGold=0,totalBound=0;
+  [...selectedChars].forEach(cid=>{raidTasks.filter(t=>t.character_id===cid).forEach(t=>{totalRaids++;const flow=(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0);const bg=Number(t.bound_gold)||0;if(t.receive_gold!==false){totalGold+=flow;totalBound+=bg;}if(isEffDone(t)&&t.receive_gold!==false){doneRaids++;earnedGold+=flow;}else if(isEffDone(t))doneRaids++;});});
   const pct=totalRaids?Math.round(doneRaids/totalRaids*100):0;
   const sb2=document.getElementById('summary-bar');
-  if(sb2)sb2.innerHTML=`<div class="sum-item done">레이드 완료 <b>${doneRaids}/${totalRaids}</b></div><div class="sum-prog"><div class="sum-prog-bar" style="width:${pct}%"></div></div><div class="sum-item gold">획득 유통 골드 <b>${earnedGold.toLocaleString()} / ${totalGold.toLocaleString()} G</b></div><div class="sum-item">남은 골드 <b style="color:${totalGold-earnedGold>0?'var(--orange)':'var(--green)'}">${(totalGold-earnedGold).toLocaleString()} G</b></div>${weekOffset===0?`<div class="sum-item" style="margin-left:auto;font-size:.72rem;color:var(--dim);">초기화 ${nextResetLabel()}</div>`:''}`;
+  if(sb2)sb2.innerHTML=`<div class="sum-item done">레이드 완료 <b>${doneRaids}/${totalRaids}</b></div><div class="sum-prog"><div class="sum-prog-bar" style="width:${pct}%"></div></div><div class="sum-item gold">유통골드 <b>${earnedGold.toLocaleString()} / ${totalGold.toLocaleString()} G</b></div>${totalBound?`<div class="sum-item" style="color:var(--orange);">귀속골드 <b>${totalBound.toLocaleString()} G</b></div>`:''}<div class="sum-item">남은 유통 <b style="color:${totalGold-earnedGold>0?'var(--orange)':'var(--green)'}">${(totalGold-earnedGold).toLocaleString()} G</b></div>${weekOffset===0?`<div class="sum-item" style="margin-left:auto;font-size:.72rem;color:var(--dim);">초기화 ${nextResetLabel()}</div>`:''}`;
 }
 
 function toggleAcc(id){
