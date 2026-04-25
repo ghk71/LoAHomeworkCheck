@@ -404,7 +404,7 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
       <div id="hidden-acc-toggle" class="sidebar-hidden-toggle" style="display:none" onclick="toggleShowHidden()">
         <span id="hidden-acc-icon">👁</span><span id="hidden-acc-text"></span>
       </div>
-      <div class="sidebar-add"><button class="btn btn-sec btn-full" onclick="openModal('modal-account')">+ 계정 추가</button></div>
+      <div class="sidebar-add"><button class="btn btn-sec btn-full" onclick="openAddAccountModal()">+ 계정 추가</button></div>
     </div>
     <div class="main" id="main-area">
       <div class="center-state"><div class="center-state-icon">🗡️</div><span style="color:var(--muted);font-size:.87rem">왼쪽에서 계정을 선택하세요</span></div>
@@ -414,9 +414,24 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 
 <!-- ── Modals ── -->
 <div class="overlay" id="modal-account"><div class="modal">
-  <div class="modal-title">계정 추가</div>
-  <div class="form-group"><label class="form-label">계정명</label><input class="form-input" id="acc-name" lang="ko" inputmode="text" placeholder="예: 본계, 서브계1" maxlength="30" onkeydown="if(event.key==='Enter')createAccount()"></div>
-  <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-account')">취소</button><button class="btn btn-gold" onclick="createAccount()">추가</button></div>
+  <div class="modal-title" id="modal-account-title">계정 추가</div>
+  <div class="form-group"><label class="form-label">계정명</label><input class="form-input" id="acc-name" lang="ko" inputmode="text" placeholder="예: 본계, 서브계1" maxlength="30" onkeydown="if(event.key==='Enter')saveAccountModal()"></div>
+  <div class="form-group">
+    <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+      <input type="checkbox" id="acc-is-sub" onchange="toggleSubAccSelect()" style="width:16px;height:16px;accent-color:var(--gold);">
+      부계정
+    </label>
+  </div>
+  <div class="form-group" id="sub-acc-parent-wrap" style="display:none;">
+    <label class="form-label">본계정 선택</label>
+    <select class="form-input" id="acc-parent-select" style="background:var(--s3);color:var(--text);border:1px solid var(--border);border-radius:var(--r);padding:6px 10px;">
+      <option value="">-- 본계정 선택 --</option>
+    </select>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-sec" onclick="closeModal('modal-account')">취소</button>
+    <button class="btn btn-gold" id="acc-modal-save-btn" onclick="saveAccountModal()">추가</button>
+  </div>
 </div></div>
 
 <div class="overlay" id="modal-char"><div class="modal">
@@ -766,13 +781,68 @@ function renderSidebar(){
       ondrop="dndDrop(event,'account',${realIdx})"
       onclick="selectAccount('${a.id}')">
       <span class="dnd-handle">⠿</span>
-      <div style="flex:1;min-width:0;"><div class="account-name">${esc(a.name)}</div>${chars.length?`<div class="account-meta">${chars.length}캐릭터</div>`:''}</div>
+      <div style="flex:1;min-width:0;">
+        <div class="account-name">${esc(a.name)}${a.parent_account_id?`<span style="font-size:.64rem;color:var(--muted);margin-left:4px;padding:1px 5px;border:1px solid var(--border);border-radius:4px;">부계정</span>`:''}</div>
+        ${chars.length?`<div class="account-meta">${chars.length}캐릭터</div>`:''}
+      </div>
+      <button class="acc-btn" onclick="event.stopPropagation();openEditAccountModal('${a.id}')" title="계정 수정">✏️</button>
       <button class="acc-btn acc-btn-hide" onclick="toggleHideAccount(event,'${a.id}')" title="${isHidden?'표시':'숨김'}">${isHidden?'👁':'🙈'}</button>
       <button class="acc-btn acc-del-btn" onclick="event.stopPropagation();deleteAccount('${a.id}')" style="color:var(--red);">✕</button>
     </div>`;
   }).join('');
 }
-async function createAccount(){const name=document.getElementById('acc-name').value.trim();if(!name)return;const{data,error}=await sb.from('accounts').insert({name,sort_order:S.accounts.length}).select().single();if(error){toast('❗ '+error.message);return;}S.accounts.push(data);if(!S.characters[data.id])S.characters[data.id]=[];closeModal('modal-account');renderSidebar();await selectAccount(data.id);toast('✅ 계정 추가됨');}
+let editingAccountId=null;
+function openAddAccountModal(){
+  editingAccountId=null;
+  document.getElementById('modal-account-title').textContent='계정 추가';
+  document.getElementById('acc-name').value='';
+  document.getElementById('acc-is-sub').checked=false;
+  document.getElementById('acc-modal-save-btn').textContent='추가';
+  populateParentSelect(null);
+  toggleSubAccSelect();
+  openModal('modal-account');
+}
+function openEditAccountModal(id){
+  editingAccountId=id;
+  const acc=S.accounts.find(a=>a.id===id);if(!acc)return;
+  document.getElementById('modal-account-title').textContent='계정 수정';
+  document.getElementById('acc-name').value=acc.name;
+  document.getElementById('acc-modal-save-btn').textContent='저장';
+  const isSub=!!acc.parent_account_id;
+  document.getElementById('acc-is-sub').checked=isSub;
+  populateParentSelect(id);
+  document.getElementById('acc-parent-select').value=acc.parent_account_id||'';
+  toggleSubAccSelect();
+  openModal('modal-account');
+}
+function populateParentSelect(excludeId){
+  const sel=document.getElementById('acc-parent-select');
+  // Only show non-sub accounts (accounts without parent) as options, excluding self
+  const candidates=S.accounts.filter(a=>!a.parent_account_id&&a.id!==excludeId);
+  sel.innerHTML='<option value="">-- 본계정 선택 --</option>'+candidates.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
+}
+function toggleSubAccSelect(){
+  const isSub=document.getElementById('acc-is-sub').checked;
+  document.getElementById('sub-acc-parent-wrap').style.display=isSub?'block':'none';
+}
+async function saveAccountModal(){
+  const name=document.getElementById('acc-name').value.trim();if(!name)return;
+  const isSub=document.getElementById('acc-is-sub').checked;
+  const parentId=isSub?document.getElementById('acc-parent-select').value||null:null;
+  if(editingAccountId){
+    const{error}=await sb.from('accounts').update({name,parent_account_id:parentId}).eq('id',editingAccountId);
+    if(error){toast('❗ '+error.message);return;}
+    const acc=S.accounts.find(a=>a.id===editingAccountId);
+    if(acc){acc.name=name;acc.parent_account_id=parentId;}
+    closeModal('modal-account');renderSidebar();toast('✅ 계정 수정됨');
+  } else {
+    const{data,error}=await sb.from('accounts').insert({name,sort_order:S.accounts.length,parent_account_id:parentId}).select().single();
+    if(error){toast('❗ '+error.message);return;}
+    S.accounts.push(data);if(!S.characters[data.id])S.characters[data.id]=[];
+    closeModal('modal-account');renderSidebar();await selectAccount(data.id);toast('✅ 계정 추가됨');
+  }
+}
+async function createAccount(){await saveAccountModal();}
 async function deleteAccount(id){if(!confirm('계정과 모든 데이터가 삭제됩니다. 계속하시겠습니까?'))return;await sb.from('accounts').delete().eq('id',id);S.accounts=S.accounts.filter(a=>a.id!==id);delete S.characters[id];delete S.expTasks[id];if(S.selAcc===id){S.selAcc=null;S.selChar=null;document.getElementById('main-area').innerHTML='<div class="center-state"><div class="center-state-icon">🗡️</div><span style="color:var(--muted);font-size:.87rem">왼쪽에서 계정을 선택하세요</span></div>';}renderSidebar();toast('🗑️ 계정 삭제됨');}
 
 // ─── Characters ───
