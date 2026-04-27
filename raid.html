@@ -828,6 +828,10 @@ button,input,select,textarea{ font:inherit; }
   .preset-panel{ width:100%; max-width:none; min-width:0; }
 }
 
+
+#viewer-banner.show{display:flex!important;}
+.viewer-only-overview{height:calc(100vh - 42px);overflow:auto;}
+
 </style>
 </head>
 <body>
@@ -1047,12 +1051,21 @@ async function switchViewerTab(tab){
   document.getElementById('vtab-'+tab)?.classList.add('active');
   const schArea=document.getElementById('view-schedule');
   const ovArea=document.getElementById('viewer-overview-area');
+  const appBody=document.querySelector('.app-body');
+  const hdr=document.querySelector('.header');
+  const tabs=document.querySelector('.tab-bar');
   if(tab==='sch'){
+    if(hdr)hdr.style.display='flex';
+    if(tabs)tabs.style.display='flex';
+    if(appBody)appBody.style.display='block';
     if(schArea)schArea.style.display='flex';
-    if(ovArea)ovArea.style.display='none';
+    if(ovArea){ovArea.style.display='none';ovArea.classList.remove('viewer-only-overview');}
   } else {
+    if(hdr)hdr.style.display='none';
+    if(tabs)tabs.style.display='none';
+    if(appBody)appBody.style.display='none';
     if(schArea)schArea.style.display='none';
-    if(ovArea){ovArea.style.display='block';await loadViewerOverview(ovArea);}
+    if(ovArea){ovArea.style.display='block';ovArea.classList.add('viewer-only-overview');await loadViewerOverview(ovArea);}
   }
 }
 async function loadViewerOverview(el){
@@ -1147,7 +1160,8 @@ async function init(){
   // ★ 뷰어 모드: 주간 일정 탭을 기본으로 표시
   switchTab('schedule'); // 기본 탭: 주간 일정
   // parties.html에서 파티로 이동 시 해당 파티 자동 오픈
-  const openPartyId=localStorage.getItem('la_open_party_id');
+  const urlPartyId=new URLSearchParams(location.search).get('party');
+  const openPartyId=urlPartyId||localStorage.getItem('la_open_party_id');
   if(openPartyId){localStorage.removeItem('la_open_party_id');autoOpenParty(openPartyId);}
 }
 
@@ -1413,7 +1427,7 @@ async function renderPartyDetail(){
   el.innerHTML=`
     <div class="pdp-header">
       <div>
-        <div class="pdp-title">${iconImg(getGroupIcon(preset?.name||'')||gPresets.find(r=>r.id===p.preset_id)?.icon_url||'')}${esc(preset?.name||'?')} — <span style="color:${getPartyColor(p)};">${esc(p.name||'파티')}</span></div>
+        <div class="pdp-title">${iconImg(getGroupIcon(preset?.name||'')||preset?.icon_url||'')}${esc(preset?.name||'?')} — <span style="color:${getPartyColor(p)};">${esc(p.name||'파티')}</span></div>
         <div class="pdp-sub">${p.party_size}인 레이드 · ${esc(preset?.difficulty||'')}</div>
       </div>
       <div style="margin-left:auto;display:flex;gap:6px;">
