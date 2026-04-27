@@ -960,6 +960,14 @@ let pickCtx={mode:'party',partyId:null,slotIndex:null,scheduleId:null};
 let ovrEditSchId=null;
 const WEEK_DAY_NUMS=[3,4,5,6,0,1,2];
 const DKO=['일','월','화','수','목','금','토'];
+function normalizeTempChanges(tc={}){
+  const out={added:{},removed:{}};
+  Object.entries(tc.added||{}).forEach(([cid,info])=>{out.added[cid]={wasNew:!!(info.wasNew??info.was_new),taskId:info.taskId||info.task_id||null};});
+  Object.entries(tc.removed||{}).forEach(([cid,info])=>{out.removed[cid]={taskId:info.taskId||info.task_id||null,hadPreset:!!(info.hadPreset??info.had_preset)};});
+  return out;
+}
+function normalizeOverride(o){o=o||{};o.slot_overrides=o.slot_overrides||{};o.temp_changes=normalizeTempChanges(o.temp_changes||{});return o;}
+function supaErr(res,msg='작업 실패'){if(res?.error){toast('❗ '+(res.error.message||msg));console.error(res.error);return true;}return false;}
 
 // ─── Init ───
 async function init(){
@@ -967,25 +975,28 @@ async function init(){
   sb=createClient(cfg.url,cfg.key);
   let raidTasksData=[];
   try{
-    const[r1,r2,r3,r4,r5,r6,r7,r8,r9]=await Promise.all([
+    const results=await Promise.all([
       sb.from('accounts').select('*').order('sort_order').order('created_at'),
       sb.from('characters').select('*').order('sort_order').order('created_at'),
       sb.from('raid_presets').select('*').order('sort_order').order('created_at'),
       sb.from('raid_parties').select('*').order('sort_order').order('created_at'),
       sb.from('raid_party_members').select('*'),
-      sb.from('raid_schedules').select('*'),
+      sb.from('raid_schedules').select('*').order('sort_order').order('created_at'),
       sb.from('raid_schedule_overrides').select('*'),
       sb.from('raid_notices').select('*'),
       sb.from('raid_tasks').select('*')
     ]);
+    const firstError=results.find(r=>r.error)?.error;
+    if(firstError)throw firstError;
+    const[r1,r2,r3,r4,r5,r6,r7,r8,r9]=results;
     accounts=r1.data||[];allChars=r2.data||[];raids=r3.data||[];parties=r4.data||[];
-    const members=r5.data||[];parties.forEach(p=>{p.members=members.filter(m=>m.party_id===p.id);});
+    const members=r5.data||[];parties.forEach(p=>{p.members=members.filter(m=>m.party_id===p.id).sort((a,b)=>a.slot_index-b.slot_index);});
     schedules=r6.data||[];
-    (r7.data||[]).forEach(o=>{overrides[o.schedule_id+'_'+o.week_start_date]=o;});
+    (r7.data||[]).forEach(o=>{overrides[o.schedule_id+'_'+o.week_start_date]=normalizeOverride(o);});
     (r8.data||[]).forEach(n=>{notices[n.week_start_date]=n;});
     raidTasksData=r9.data||[];
     raidTasksData.forEach(t=>{if(!raidTasksAll[t.character_id])raidTasksAll[t.character_id]=[];raidTasksAll[t.character_id].push(t);});
-  }catch(err){toast('❗ 로딩 오류: '+err.message);return;}
+  }catch(err){toast('❗ 로딩 오류: '+err.message);console.error(err);return;}
   await autoResetNonFixed();
   updateWeekLabel();renderPresetList();initSchFilter();renderSchedule();loadNotice();
   applyViewer();
@@ -1004,31 +1015,32 @@ function updateWeekLabel(){const d=getWeekDays(weekOffset),f=x=>`${x.getUTCMonth
 function moveWeek(n){weekOffset+=n;updateWeekLabel();renderSchedule();loadNotice();}
 function goToCurrentWeek(){weekOffset=0;updateWeekLabel();renderSchedule();loadNotice();}
 async function autoResetNonFixed(){
-  const ws=getWeekStart(0);
-  // 이전 주 override의 temp_changes 복원 (주 초기화)
-  const prevWk=getWeekKey(-1);
-  const{data:prevOverrides}=await sb.from('raid_schedule_overrides')
+  const ws=getWeekStart(0),curWk=getWeekKey(0);
+  const {data:oldOverrides,error}=await sb.from('raid_schedule_overrides')
     .select('*')
-    .eq('week_start_date',prevWk)
-    .not('temp_changes','eq','{}');
-  for(const ovr of (prevOverrides||[])){
-    const tc=ovr.temp_changes||{};
+    .lt('week_start_date',curWk);
+  if(error){console.warn('autoResetNonFixed override load failed',error);}
+  for(const raw of (oldOverrides||[])){
+    const ovr=normalizeOverride(raw);
+    const tc=ovr.temp_changes||{added:{},removed:{}};
+    if(!Object.keys(tc.added||{}).length&&!Object.keys(tc.removed||{}).length)continue;
     const s=schedules.find(x=>x.id===ovr.schedule_id);
     const p=s?parties.find(x=>x.id===s.party_id):null;
     const preset=p?raids.find(x=>x.id===p.preset_id):null;
-    // 임시 추가 복원 (캐릭터 및 raid_task 삭제/해제)
     for(const[charId,info] of Object.entries(tc.added||{})){
-      if(info.wasNew){await sb.from('raid_tasks').delete().eq('id',info.taskId);}
-      else{await sb.from('raid_tasks').update({preset_id:null}).eq('id',info.taskId);}
+      await revertTempAdd(charId,info,preset);
     }
-    // 임시 제거 복원 (파티 연동 다시 설정)
     for(const[charId,info] of Object.entries(tc.removed||{})){
       if(info.taskId&&info.hadPreset&&preset?.id)await sb.from('raid_tasks').update({preset_id:preset.id}).eq('id',info.taskId);
     }
+    await sb.from('raid_schedule_overrides').update({slot_overrides:{},temp_changes:{added:{},removed:{}}}).eq('id',ovr.id);
+    if(overrides[ovr.schedule_id+'_'+ovr.week_start_date]){
+      overrides[ovr.schedule_id+'_'+ovr.week_start_date].slot_overrides={};
+      overrides[ovr.schedule_id+'_'+ovr.week_start_date].temp_changes={added:{},removed:{}};
+    }
   }
-  // 비고정 일정 삭제
   const del=schedules.filter(s=>!s.is_fixed&&new Date(s.created_at).getTime()<ws.getTime()-9*3600000);
-  if(del.length){await sb.from('raid_schedules').delete().in('id',del.map(s=>s.id));schedules=schedules.filter(s=>!del.some(d=>d.id===s.id));}
+  if(del.length){const res=await sb.from('raid_schedules').delete().in('id',del.map(s=>s.id));if(!supaErr(res,'일정 초기화 실패'))schedules=schedules.filter(s=>!del.some(d=>d.id===s.id));}
 }
 
 // ─── Raid DnD ───
@@ -1436,11 +1448,12 @@ async function submitRaidName(){
 async function deleteGroup(groupName){
   if(!confirm(`"${groupName}" 레이드와 모든 난이도/파티/일정을 삭제합니다. 계속?`))return;
   const gPresets=raids.filter(r=>r.name===groupName);
-  for(const r of gPresets)await sb.from('raid_presets').delete().eq('id',r.id);
-  parties=parties.filter(p=>!gPresets.some(r=>r.id===p.preset_id));
-  schedules=schedules.filter(s=>!parties.some(p=>p.id===s.party_id));
+  const presetIds=new Set(gPresets.map(r=>r.id));
+  const partyIds=new Set(parties.filter(p=>presetIds.has(p.preset_id)).map(p=>p.id));
+  if(presetIds.size){const res=await sb.from('raid_presets').delete().in('id',[...presetIds]);if(supaErr(res,'레이드 삭제 실패'))return;}
+  parties=parties.filter(p=>!presetIds.has(p.preset_id));
+  schedules=schedules.filter(s=>!partyIds.has(s.party_id));
   raids=raids.filter(r=>r.name!==groupName);
-  // localStorage extras도 제거
   const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]').filter(n=>n!==groupName);
   localStorage.setItem('la_raid_groups',JSON.stringify(extras));
   if(selGroupName===groupName)selGroupName=null;
@@ -1474,22 +1487,40 @@ function openEditDifficulty(id){
 }
 async function submitDifficulty(){
   const difficulty=document.getElementById('diff-difficulty').value.trim();
-  const rec={difficulty,entry_level:parseFloat(document.getElementById('diff-ilvl').value)||0,clear_gold:parseFloat(document.getElementById('diff-gold').value)||0,bound_gold:parseFloat(document.getElementById('diff-bound').value)||0,bonus_gold:parseFloat(document.getElementById('diff-bonus').value)||0,color};
+  if(!difficulty){toast('❗ 난이도를 입력하세요');return;}
+  const rec={
+    difficulty,
+    entry_level:parseFloat(document.getElementById('diff-ilvl').value)||0,
+    clear_gold:parseFloat(document.getElementById('diff-gold').value)||0,
+    bound_gold:parseFloat(document.getElementById('diff-bound').value)||0,
+    bonus_gold:parseFloat(document.getElementById('diff-bonus').value)||0
+  };
   const editId=document.getElementById('diff-preset-id').value,groupName=document.getElementById('diff-group-name').value;
   if(editId){
-    await sb.from('raid_presets').update(rec).eq('id',editId);const r=raids.find(x=>x.id===editId);if(r)Object.assign(r,rec);toast('✅ 수정됨');
+    const res=await sb.from('raid_presets').update(rec).eq('id',editId);
+    if(supaErr(res,'난이도 수정 실패'))return;
+    const r=raids.find(x=>x.id===editId);if(r)Object.assign(r,rec);toast('✅ 수정됨');
   } else {
     rec.name=groupName;rec.sort_order=raids.filter(r=>r.name===groupName).length;
     const{data,error}=await sb.from('raid_presets').insert(rec).select().single();if(error){toast('❗ '+error.message);return;}
     raids.push(data);selPresetId=data.id;
-    // localStorage extras에서 이 이름 제거 (DB에 생겼으므로)
     const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]').filter(n=>n!==groupName);
     localStorage.setItem('la_raid_groups',JSON.stringify(extras));
     toast('✅ 난이도 추가됨');
   }
-  closeModal('modal-difficulty');renderPresetList();
+  closeModal('modal-difficulty');renderPresetList();renderSchedule();
 }
-async function deletePreset(id){if(!confirm('이 난이도와 관련된 파티/일정을 삭제합니다. 계속?'))return;await sb.from('raid_presets').delete().eq('id',id);raids=raids.filter(r=>r.id!==id);parties=parties.filter(p=>p.preset_id!==id);schedules=schedules.filter(s=>!parties.some(p=>p.id===s.party_id));if(selPresetId===id){selPresetId=null;}if(selPartyId&&!parties.some(p=>p.id===selPartyId))selPartyId=null;renderPresetList();renderSchedule();toast('🗑️ 삭제됨');}
+async function deletePreset(id){
+  if(!confirm('이 난이도와 관련된 파티/일정을 삭제합니다. 계속?'))return;
+  const deletedPartyIds=new Set(parties.filter(p=>p.preset_id===id).map(p=>p.id));
+  const res=await sb.from('raid_presets').delete().eq('id',id);if(supaErr(res,'난이도 삭제 실패'))return;
+  raids=raids.filter(r=>r.id!==id);
+  parties=parties.filter(p=>p.preset_id!==id);
+  schedules=schedules.filter(s=>!deletedPartyIds.has(s.party_id));
+  if(selPresetId===id)selPresetId=null;
+  if(selPartyId&&!parties.some(p=>p.id===selPartyId))selPartyId=null;
+  renderPresetList();renderSchedule();toast('🗑️ 삭제됨');
+}
 
 // ─── Party CRUD ───
 function resetPartyColor(){document.getElementById('party-color-input').value='#e0ddd5';document.getElementById('party-color-preview').textContent='● 기본(흰색)';document.getElementById('party-color-preview').style.color='#e0ddd5';}
@@ -1959,8 +1990,9 @@ async function assignOverrideChar(charId){
   let wasNew=false;
   if(charId&&preset){
     // 해당 캐릭터에 이 preset 레이드가 있는지 확인
-    const{data:existTasks}=await sb.from('raid_tasks').select('id,preset_id').eq('character_id',charId).or(`preset_id.eq.${preset.id},name.ilike.%${preset.name}%`);
-    const existTask=existTasks?.find(t=>t.preset_id===preset.id)||(existTasks?.find(t=>!t.preset_id&&t.name.includes(preset.name)));
+    const{data:existTasks,error:existErr}=await sb.from('raid_tasks').select('id,preset_id,name').eq('character_id',charId).or(`preset_id.eq.${preset.id},name.ilike.%${preset.name}%`);
+    if(existErr){toast('❗ '+existErr.message);return;}
+    const existTask=existTasks?.find(t=>t.preset_id===preset.id)||(existTasks?.find(t=>!t.preset_id&&(t.name||'').includes(preset.name)));
     if(existTask){
       // 있으면 파티 연동만 설정
       await sb.from('raid_tasks').update({preset_id:preset.id}).eq('id',existTask.id);
@@ -2023,9 +2055,11 @@ async function removeOvrSlot(schId,slotIdx,wk){
 
 // ─── 임시변경 DB 저장 ───
 async function persistOverride(schId,wk,ovr){
-  const saveData={slot_overrides:ovr.slot_overrides,temp_changes:ovr.temp_changes||{}};
-  if(ovr.id){await sb.from('raid_schedule_overrides').update(saveData).eq('id',ovr.id);}
-  else{const{data}=await sb.from('raid_schedule_overrides').insert({schedule_id:schId,week_start_date:wk,...saveData,is_completed:false}).select().single();if(data){ovr.id=data.id;}}
+  ovr.temp_changes=normalizeTempChanges(ovr.temp_changes||{});
+  const saveData={slot_overrides:ovr.slot_overrides||{},temp_changes:ovr.temp_changes};
+  if(ovr.id){const res=await sb.from('raid_schedule_overrides').update(saveData).eq('id',ovr.id);if(supaErr(res,'임시 변경 저장 실패'))return false;}
+  else{const{data,error}=await sb.from('raid_schedule_overrides').insert({schedule_id:schId,week_start_date:wk,...saveData,is_completed:false}).select().single();if(error){toast('❗ '+error.message);console.error(error);return false;}if(data){ovr.id=data.id;overrides[schId+'_'+wk]=ovr;}}
+  return true;
 }
 
 // ─── 임시추가 되돌리기 (추가한 캐릭터 원래대로) ───
@@ -2159,7 +2193,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelect
 // ─── Color helpers ───
 
 // ─── Image Picker (shared) ───
-const ICON_REPO='ghk71/LoAHomeworkCheck';
+const ICON_REPO=localStorage.getItem('la_icon_repo')||'ghk71/LoAHomeworkCheck';
 const ICON_RAW=`https://raw.githubusercontent.com/${ICON_REPO}/main/`;
 const ICON_API=`https://api.github.com/repos/${ICON_REPO}/contents/`;
 let _pickerCb=null;
