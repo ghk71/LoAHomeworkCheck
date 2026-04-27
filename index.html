@@ -1337,15 +1337,56 @@ async function openBulkDeleteModal(taskId,taskName,others,mode){
   _bulkDeleteCtx={taskId,taskName,others,mode};
   const el=document.getElementById('bulk-delete-list');
   const isExp=mode==='exp';
-  let html=`<div style="font-size:.82rem;color:var(--muted);margin-bottom:10px;">"${esc(taskName)}" 와 같은 이름의 숙제가 다른 ${isExp?'계정':'캐릭터'}에도 있습니다.<br>같이 삭제할 ${isExp?'계정':'캐릭터'}을 선택하세요:</div>`;
-  html+=others.map((o,i)=>{
-    const label=isExp?esc(o.acc.name):esc(o.ch.name);
-    return`<label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;"><input type="checkbox" data-bulk-idx="${i}" style="width:16px;height:16px;accent-color:var(--gold);"> ${label}</label>`;
-  }).join('');
+  let html=`<div style="font-size:.82rem;color:var(--muted);margin-bottom:12px;">"${esc(taskName)}" 와 같은 이름의 숙제가 다른 ${isExp?'계정':'캐릭터'}에도 있습니다.<br>같이 삭제할 ${isExp?'계정':'캐릭터'}을 선택하세요:</div>`;
+  if(isExp){
+    // 원정대: 계정별 단순 목록
+    html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem;color:var(--gold);">
+        <input type="checkbox" id="bulk-select-all" style="width:16px;height:16px;accent-color:var(--gold);" onchange="bulkSelectAll(this.checked)"> 전체 선택
+      </label>
+    </div>`;
+    html+=others.map((o,i)=>
+      `<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:.85rem;"><input type="checkbox" data-bulk-idx="${i}" class="bulk-item-cb" style="width:16px;height:16px;accent-color:var(--gold);" onchange="updateBulkSelectAll()"> ${esc(o.acc.name)}</label>`
+    ).join('');
+  } else {
+    // 캐릭터 숙제: 계정별 그룹
+    // others = [{ch, tasks}] - ch.account_id로 그룹화
+    const accMap={};
+    others.forEach((o,i)=>{
+      const accId=o.ch.account_id;
+      if(!accMap[accId])accMap[accId]={accName:'',items:[]};
+      const acc=S.accounts.find(a=>a.id===accId);
+      accMap[accId].accName=acc?acc.name:'기타';
+      accMap[accId].items.push({o,i});
+    });
+    html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem;color:var(--gold);">
+        <input type="checkbox" id="bulk-select-all" style="width:16px;height:16px;accent-color:var(--gold);" onchange="bulkSelectAll(this.checked)"> 전체 선택
+      </label>
+    </div>`;
+    Object.entries(accMap).forEach(([accId,{accName,items}])=>{
+      const allIds=items.map(x=>x.i);
+      html+=`<div style="margin-bottom:6px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="checkbox" data-bulk-acc="${accId}" style="width:15px;height:15px;accent-color:var(--gold);"
+              onchange="bulkSelectAcc('${accId}',this.checked)"
+            > <span style="font-size:.8rem;font-weight:700;color:var(--gold-bright);">${esc(accName)}</span>
+          </label>
+        </div>
+        <div style="padding-left:22px;">
+          ${items.map(({o,i})=>`<label style="display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer;font-size:.84rem;"><input type="checkbox" data-bulk-idx="${i}" class="bulk-item-cb" data-bulk-acc-id="${accId}" style="width:15px;height:15px;accent-color:var(--gold);" onchange="updateBulkSelectAll()"> ${esc(o.ch.name)}<span style="font-size:.71rem;color:var(--muted);margin-left:4px;">${esc(o.ch.class_name||'')}${o.ch.item_level?' Lv.'+o.ch.item_level:''}</span></label>`).join('')}
+        </div>
+      </div>`;
+    });
+  }
   el.innerHTML=html;
   document.getElementById('bulk-delete-task-name').textContent=taskName;
   openModal('modal-bulk-delete');
 }
+function bulkSelectAll(checked){document.querySelectorAll('.bulk-item-cb,[data-bulk-acc]').forEach(cb=>{cb.checked=checked;});const allCb=document.getElementById('bulk-select-all');if(allCb)allCb.checked=checked;}
+function bulkSelectAcc(accId,checked){document.querySelectorAll(`[data-bulk-acc-id="${accId}"]`).forEach(cb=>{cb.checked=checked;});updateBulkSelectAll();}
+function updateBulkSelectAll(){const all=[...document.querySelectorAll('.bulk-item-cb')];const allCb=document.getElementById('bulk-select-all');if(allCb)allCb.checked=all.length>0&&all.every(c=>c.checked);}
 async function confirmBulkDelete(){
   const{taskId,others,mode}=_bulkDeleteCtx;
   const isExp=mode==='exp';
@@ -1373,12 +1414,33 @@ async function openExpTaskClone(taskId){
   const children=(S.expTasks[S.selAcc]||[]).filter(x=>x.parent_id===taskId);
   _cloneCtx={task:t,children};
   const el=document.getElementById('clone-acc-list');
-  let html='';
-  for(const acc of S.accounts){
-    if(acc.id===S.selAcc)continue;
-    html+=`<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;"><input type="checkbox" data-clone-acc="${acc.id}" style="width:16px;height:16px;accent-color:var(--gold);"> ${esc(acc.name)}</label>`;
-  }
-  el.innerHTML=html||'<div style="color:var(--muted);font-size:.82rem;">다른 계정이 없습니다</div>';
+  const otherAccs=S.accounts.filter(a=>a.id!==S.selAcc);
+  if(!otherAccs.length){el.innerHTML='<div style="color:var(--muted);font-size:.82rem;">다른 계정이 없습니다</div>';document.getElementById('clone-task-name').textContent=t.name;openModal('modal-clone-exp');return;}
+  // 계정별 그룹 (부계정 포함)
+  const mainAccs=otherAccs.filter(a=>!a.parent_account_id);
+  const subs=otherAccs.filter(a=>a.parent_account_id);
+  let html=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.82rem;color:var(--gold);">
+      <input type="checkbox" id="clone-all-cb" style="width:16px;height:16px;accent-color:var(--gold);" onchange="document.querySelectorAll('[data-clone-acc]').forEach(c=>c.checked=this.checked)"> 전체 선택
+    </label>
+  </div>`;
+  // 그룹: 본계정 + 부계정
+  const accGroups=[...mainAccs];
+  // standalone subs (parent not in list)
+  subs.filter(a=>!mainAccs.some(m=>m.id===a.parent_account_id)).forEach(a=>accGroups.push(a));
+  accGroups.forEach(acc=>{
+    const subList=subs.filter(a=>a.parent_account_id===acc.id);
+    html+=`<div style="margin-bottom:4px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1;">
+          <input type="checkbox" data-clone-acc="${acc.id}" style="width:16px;height:16px;accent-color:var(--gold);">
+          <span style="font-size:.86rem;font-weight:700;">${esc(acc.name)}</span>
+        </label>
+      </div>
+      ${subList.map(s=>`<div style="padding-left:22px;margin-top:3px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.82rem;color:var(--muted);"><input type="checkbox" data-clone-acc="${s.id}" style="width:15px;height:15px;accent-color:var(--gold);"> ${esc(s.name)}<span style="font-size:.67rem;margin-left:4px;">(부계정)</span></label></div>`).join('')}
+    </div>`;
+  });
+  el.innerHTML=html;
   document.getElementById('clone-task-name').textContent=t.name;
   openModal('modal-clone-exp');
 }
