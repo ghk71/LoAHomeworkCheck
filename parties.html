@@ -650,8 +650,8 @@ function partyCardHTML(p,myChar,myMember){
   return`<div class="party-card">
     <div class="pc-header">
       <div style="flex:1;min-width:0;">
-        <div class="pc-raid-name" style="color:${getGroupColor(preset?.name||'')};display:flex;align-items:center;gap:4px;">${iconImg(localStorage.getItem('la_gicon_'+(preset?.name||'')),'entity-icon-sm')}${esc(preset?.name||'?')}</div>
-        <div class="pc-party-name"><span style="color:${getPartyColor(p)};font-weight:600;">${esc(p.name||'파티')}</span> · ${p.party_size}인${preset?.difficulty?` · <span class="${diffClass(preset.difficulty)}">${esc(preset.difficulty)}</span>`:''}${preset?.entry_level?` · 입장 ${preset.entry_level}`:''}${p._sched_days?` · <span style="color:var(--gold);font-size:.68rem;">📅 ${p._sched_days}</span>`:''}</div>
+        <div class="pc-raid-name" style="color:${getGroupColor(preset?.name||'')};display:flex;align-items:center;gap:5px;">${iconImg(localStorage.getItem('la_gicon_'+(preset?.name||'')),'entity-icon-sm')}${esc(preset?.name||'?')}${preset?.difficulty?` <span class="${diffClass(preset.difficulty)}" style="font-size:.72rem;">${esc(preset.difficulty)}</span>`:''}</div>
+        <div class="pc-party-name"><span style="color:${getPartyColor(p)};font-weight:600;">${esc(p.name||'파티')}</span> · ${p.party_size}인${preset?.entry_level?` · 입장 ${preset.entry_level}`:''}${p._sched_days?` · <span style="color:var(--gold);font-size:.68rem;">📅 ${p._sched_days}</span>`:''}</div>
       </div>
     </div>
     <div class="pc-body">
