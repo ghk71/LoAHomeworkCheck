@@ -622,7 +622,7 @@ let sb=null,allChars=[],selectedChars=new Set(),coreData={};
 let filterCollapsed=localStorage.getItem('la_core_filter_col')==='1';
 
 // ─── Image Picker (shared) ───
-const ICON_REPO='ghk71/LoAHomeworkCheck';
+const ICON_REPO=localStorage.getItem('la_icon_repo')||'ghk71/LoAHomeworkCheck';
 const ICON_RAW=`https://raw.githubusercontent.com/${ICON_REPO}/main/`;
 const ICON_API=`https://api.github.com/repos/${ICON_REPO}/contents/`;
 let _pickerCb=null;
@@ -706,11 +706,14 @@ const sk=(t,e)=>`${t}_${e}`;
 async function init(){
   const cfg=getConfig();if(!cfg){window.location.href='index.html';return;}
   sb=createClient(cfg.url,cfg.key);
-  const[{data:accs},{data:chars},{data:cores}]=await Promise.all([
+  const results=await Promise.all([
     sb.from('accounts').select('id,name,sort_order').order('sort_order').order('created_at'),
     sb.from('characters').select('*').order('sort_order').order('created_at'),
     sb.from('character_cores').select('*')
   ]);
+  const firstError=results.find(r=>r.error)?.error;
+  if(firstError){toast('❗ 로딩 오류: '+firstError.message);console.error(firstError);return;}
+  const[{data:accs},{data:chars},{data:cores}]=results;
   const aOrd={};(accs||[]).forEach((a,i)=>{aOrd[a.id]=a.sort_order??i;});
   allChars=(chars||[]).filter(c=>(c.item_level||0)>=1700).sort((a,b)=>{const d=(aOrd[a.account_id]??999)-(aOrd[b.account_id]??999);return d||((a.sort_order??0)-(b.sort_order??0));});
   const sv=localStorage.getItem('la_core_filter_sel');
