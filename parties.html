@@ -429,6 +429,77 @@ body { overflow:hidden; }
 .empty-state { text-align:center; padding:48px 20px; color:var(--text-3); }
 .empty-icon { font-size:3rem; margin-bottom:12px; }
 
+
+/* ===== 2026 UI refresh / compatibility aliases ===== */
+:root{
+  --bg:#060b16;
+  --bg-grad:
+    radial-gradient(circle at 12% 0%, rgba(76, 109, 255, .22) 0%, rgba(76,109,255,0) 28%),
+    radial-gradient(circle at 88% 12%, rgba(255, 184, 77, .12) 0%, rgba(255,184,77,0) 28%),
+    linear-gradient(180deg, #0a1020 0%, #070b16 100%);
+  --surface-1:#0d1526;
+  --surface-2:#111b31;
+  --surface-3:#17233e;
+  --surface-4:#1d2d4f;
+  --surface-glass:rgba(17,27,49,.82);
+  --accent:#7c5cff;
+  --accent-2:#6148ff;
+  --accent-glow:rgba(124,92,255,.28);
+  --gold:#ffb84d;
+  --gold-bright:#ffd27d;
+  --gold-dim:#9a6321;
+  --gold-glow:rgba(255,184,77,.22);
+  --gold-text:#ffd88f;
+  --text:#edf4ff;
+  --text-2:#aab8d1;
+  --text-3:#6d7a96;
+  --dim:#334155;
+  --border:rgba(255,255,255,.08);
+  --border-lit:rgba(255,255,255,.13);
+  --shadow-sm:0 4px 14px rgba(0,0,0,.18);
+  --shadow-md:0 10px 30px rgba(0,0,0,.26);
+  --shadow-lg:0 24px 60px rgba(0,0,0,.36);
+  --s1:var(--surface-1);
+  --s2:var(--surface-2);
+  --s3:var(--surface-3);
+  --s4:var(--surface-4);
+  --muted:var(--text-2);
+}
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at 18% 16%, rgba(124,92,255,.16), transparent 24%),
+    radial-gradient(circle at 78% 10%, rgba(255,184,77,.08), transparent 18%);
+  z-index:0;
+}
+body > *{ position:relative; z-index:1; }
+button,input,select,textarea{ font:inherit; }
+.form-input,.form-select,textarea,input[type="time"]{
+  background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  border-radius:12px;
+}
+.modal{
+  background:linear-gradient(180deg, rgba(23,35,62,.96), rgba(13,21,38,.98));
+  border:1px solid rgba(255,255,255,.1);
+}
+.loading-full{
+  min-height:220px;display:flex;align-items:center;justify-content:center;
+  color:var(--text-2);font-size:.9rem;
+}
+.loading-full .spinner{ margin-right:10px; }
+.card-elevated, .panel-elevated{
+  background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.02));
+  border:1px solid rgba(255,255,255,.08);
+  box-shadow:var(--shadow-md);
+}
+
+
+/* ===== list/status page polish ===== */
+.loading-full{ min-height:180px; }
+
 </style>
 </head>
 <body>
