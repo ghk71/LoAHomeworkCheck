@@ -1104,30 +1104,249 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
 
 <script>
 const { createClient } = supabase;
-const SCHEMA=`-- 전체 SQL (중복 실행 안전)
+const SCHEMA=`-- ============================================================
+-- 로스트아크 숙제 트래커 전체 SQL (중복 실행 안전)
+-- Supabase SQL Editor에서 전체 복사 후 실행하세요
+-- ============================================================
+
 create extension if not exists "uuid-ossp";
-create table if not exists accounts(id uuid default uuid_generate_v4() primary key,name text not null,sort_order int default 0,created_at timestamptz default now());
-create table if not exists characters(id uuid default uuid_generate_v4() primary key,account_id uuid references accounts(id) on delete cascade,name text not null,class_name text default '',item_level numeric default 0,sort_order int default 0,created_at timestamptz default now());
-create table if not exists tasks(id uuid default uuid_generate_v4() primary key,character_id uuid references characters(id) on delete cascade,parent_id uuid references tasks(id) on delete cascade,name text not null,reset_type text default 'weekly',reset_day int default 3,activate_day int default null,is_completed boolean default false,last_completed_at timestamptz,count_current int default 0,count_max int default null,sort_order int default 0,created_at timestamptz default now());
-create table if not exists expedition_tasks(id uuid default uuid_generate_v4() primary key,account_id uuid references accounts(id) on delete cascade,parent_id uuid references expedition_tasks(id) on delete cascade,name text not null,reset_type text default 'weekly',reset_day int default 3,activate_day int default null,is_completed boolean default false,last_completed_at timestamptz,count_current int default 0,count_max int default null,sort_order int default 0,created_at timestamptz default now());
-create table if not exists raid_tasks(id uuid default uuid_generate_v4() primary key,character_id uuid references characters(id) on delete cascade,name text not null,difficulty text default '',entry_level numeric default 0,clear_gold numeric default 0,bound_gold numeric default 0,is_completed boolean default false,last_completed_at timestamptz,reset_day int default 3,sort_order int default 0,created_at timestamptz default now());
-create table if not exists currencies(id uuid default uuid_generate_v4() primary key,character_id uuid references characters(id) on delete cascade,name text not null,amount bigint default 0,icon text default '💰',sort_order int default 0,created_at timestamptz default now());
-create table if not exists custom_popups(id uuid default uuid_generate_v4() primary key,character_id uuid references characters(id) on delete cascade,title text not null,icon text default '📋',content jsonb default '[]'::jsonb,sort_order int default 0,created_at timestamptz default now());
-alter table accounts disable row level security;
-alter table characters disable row level security;
-alter table tasks disable row level security;
-alter table expedition_tasks disable row level security;
-alter table raid_tasks disable row level security;
-alter table currencies disable row level security;
-alter table custom_popups disable row level security;
--- 기존 설치 업데이트
-alter table accounts add column if not exists sort_order int default 0;
-alter table tasks add column if not exists count_current int default 0;
-alter table tasks add column if not exists count_max int default null;
-alter table tasks add column if not exists parent_id uuid references tasks(id) on delete cascade;
-alter table tasks add column if not exists activate_day int default null;
+
+-- 계정
+create table if not exists accounts(
+  id uuid default uuid_generate_v4() primary key,
+  name text not null,
+  sort_order int default 0,
+  created_at timestamptz default now(),
+  parent_account_id uuid references accounts(id) on delete set null
+);
+alter table accounts add column if not exists parent_account_id uuid references accounts(id) on delete set null;
+
+-- 캐릭터
+create table if not exists characters(
+  id uuid default uuid_generate_v4() primary key,
+  account_id uuid references accounts(id) on delete cascade,
+  name text not null,
+  class_name text default '',
+  item_level numeric default 0,
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+
+-- 일반 숙제
+create table if not exists tasks(
+  id uuid default uuid_generate_v4() primary key,
+  character_id uuid references characters(id) on delete cascade,
+  parent_id uuid references tasks(id) on delete cascade,
+  name text not null,
+  reset_type text default 'weekly',
+  reset_day int default 3,
+  activate_day int default null,   -- ★ 활성화 요일 (0=일~6=토), null=항상 활성
+  is_completed boolean default false,
+  last_completed_at timestamptz,
+  count_current int default 0,
+  count_max int default null,
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+
+-- 원정대 숙제
+create table if not exists expedition_tasks(
+  id uuid default uuid_generate_v4() primary key,
+  account_id uuid references accounts(id) on delete cascade,
+  parent_id uuid references expedition_tasks(id) on delete cascade,
+  name text not null,
+  reset_type text default 'weekly',
+  reset_day int default 3,
+  activate_day int default null,
+  is_completed boolean default false,
+  last_completed_at timestamptz,
+  count_current int default 0,
+  count_max int default null,
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+
+-- 레이드 숙제 (index.html 용 — 캐릭터별 체크리스트)
+create table if not exists raid_tasks(
+  id uuid default uuid_generate_v4() primary key,
+  character_id uuid references characters(id) on delete cascade,
+  name text not null,
+  difficulty text default '',
+  entry_level numeric default 0,
+  clear_gold numeric default 0,
+  bound_gold numeric default 0,
+  is_completed boolean default false,
+  last_completed_at timestamptz,
+  reset_day int default 3,
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+
+-- 재화
+create table if not exists currencies(
+  id uuid default uuid_generate_v4() primary key,
+  character_id uuid references characters(id) on delete cascade,
+  name text not null,
+  amount bigint default 0,
+  icon text default '💰',
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+
+-- 커스텀 팝업
+create table if not exists custom_popups(
+  id uuid default uuid_generate_v4() primary key,
+  character_id uuid references characters(id) on delete cascade,
+  title text not null,
+  icon text default '📋',
+  content jsonb default '[]'::jsonb,
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+
+-- 코어정수 (core.html 용)
+create table if not exists character_cores(
+  id uuid default uuid_generate_v4() primary key,
+  character_id uuid references characters(id) on delete cascade unique,
+  cores jsonb default '{}'::jsonb,   -- { "order_sun_1": { "grade": "ancient", "priority": true }, ... }
+  updated_at timestamptz default now()
+);
+
+-- 레이드 프리셋 (레이드 정보 마스터)
+create table if not exists raid_presets(
+  id uuid default uuid_generate_v4() primary key,
+  name text not null,
+  difficulty text default '',
+  entry_level numeric default 0,
+  clear_gold numeric default 0,
+  bound_gold numeric default 0,
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+
+-- 레이드 파티 (raid_presets에 종속)
+create table if not exists raid_parties(
+  id uuid default uuid_generate_v4() primary key,
+  preset_id uuid references raid_presets(id) on delete cascade,
+  name text default '파티',
+  party_size int default 4,
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+
+-- 파티 멤버
+create table if not exists raid_party_members(
+  id uuid default uuid_generate_v4() primary key,
+  party_id uuid references raid_parties(id) on delete cascade,
+  character_id uuid references characters(id) on delete set null,
+  slot_index int not null,
+  created_at timestamptz default now()
+);
+
+-- 레이드 일정
+create table if not exists raid_schedules(
+  id uuid default uuid_generate_v4() primary key,
+  party_id uuid references raid_parties(id) on delete cascade,
+  day_of_week int not null,
+  time_str text default '',
+  is_fixed boolean default false,
+  created_at timestamptz default now()
+);
+
+-- 주차별 일정 오버라이드 (임시 파티 변경 + 완료 여부)
+create table if not exists raid_schedule_overrides(
+  id uuid default uuid_generate_v4() primary key,
+  schedule_id uuid references raid_schedules(id) on delete cascade,
+  week_start_date text not null,
+  slot_overrides jsonb default '{}'::jsonb,
+  is_completed boolean default false,
+  completed_at timestamptz,
+  created_at timestamptz default now(),
+  unique(schedule_id, week_start_date)
+);
+
+-- 주차별 공지
+create table if not exists raid_notices(
+  id uuid default uuid_generate_v4() primary key,
+  week_start_date text not null unique,
+  content text default '',
+  updated_at timestamptz default now()
+);
+
+alter table accounts          disable row level security;
+alter table characters        disable row level security;
+alter table tasks             disable row level security;
+alter table expedition_tasks  disable row level security;
+alter table raid_tasks        disable row level security;
+alter table currencies        disable row level security;
+alter table custom_popups     disable row level security;
+alter table character_cores   disable row level security;
+alter table raid_presets      disable row level security;
+alter table raid_parties      disable row level security;
+alter table raid_party_members disable row level security;
+alter table raid_schedules    disable row level security;
+alter table raid_schedule_overrides disable row level security;
+alter table raid_notices      disable row level security;
+
+-- ★ 기존 설치 업데이트용 (이미 있는 DB에서 실행 시)
+alter table accounts         add column if not exists sort_order int default 0;
+alter table tasks            add column if not exists count_current int default 0;
+alter table tasks            add column if not exists count_max int default null;
+alter table tasks            add column if not exists parent_id uuid references tasks(id) on delete cascade;
+alter table tasks            add column if not exists activate_day int default null;
 alter table expedition_tasks add column if not exists parent_id uuid references expedition_tasks(id) on delete cascade;
-alter table expedition_tasks add column if not exists activate_day int default null;`;
+alter table expedition_tasks add column if not exists activate_day int default null;
+-- raid_parties 기존 설치 업데이트
+alter table raid_parties     add column if not exists preset_id uuid references raid_presets(id) on delete cascade;
+-- raid_schedule_overrides 기존 설치 업데이트
+alter table raid_schedule_overrides add column if not exists is_completed boolean default false;
+alter table raid_schedule_overrides add column if not exists completed_at timestamptz;
+-- raid_tasks에 preset 연동 컬럼 추가
+alter table raid_tasks add column if not exists preset_id uuid references raid_presets(id) on delete set null;
+-- 더보기 골드 컬럼 추가
+alter table raid_tasks    add column if not exists bonus_gold numeric default 0;
+alter table raid_presets  add column if not exists bonus_gold numeric default 0;
+-- 일정 순서 정렬용
+alter table raid_schedules add column if not exists sort_order int default 0;
+-- ★ 신규 기능 업데이트 (2025)
+-- 레이드 프리셋 색상
+alter table raid_presets add column if not exists color text;
+-- 레이드 숙제 골드 수령 여부 (초기화 안됨, 영구 설정)
+alter table raid_tasks add column if not exists receive_gold boolean default true;
+alter table raid_tasks add column if not exists receive_bonus boolean default true;
+-- 재화 마지막 수정일
+alter table currencies add column if not exists updated_at timestamptz;
+-- 부계정
+alter table accounts add column if not exists parent_account_id uuid references accounts(id) on delete set null;
+-- 파티 색상
+alter table raid_parties add column if not exists color text;
+
+-- 아이콘 URL 컬럼
+ALTER TABLE characters ADD COLUMN IF NOT EXISTS icon_url TEXT;
+ALTER TABLE raid_presets ADD COLUMN IF NOT EXISTS icon_url TEXT;
+ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS icon_url TEXT;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS icon_url TEXT;
+ALTER TABLE currencies ADD COLUMN IF NOT EXISTS icon_url TEXT;
+
+-- 임시 파티 변경사항 추적 (주 초기화 시 복원용)
+ALTER TABLE raid_schedule_overrides ADD COLUMN IF NOT EXISTS temp_changes JSONB DEFAULT '{}';
+-- 형식: {"added": {"charId": {"wasNew": true, "taskId": "uuid"}}, "removed": {"charId": {"taskId": "uuid", "hadPreset": true}}}
+
+-- 성능 최적화용 인덱스 (중복 실행 안전)
+create index if not exists idx_characters_account_sort on characters(account_id, sort_order, created_at);
+create index if not exists idx_tasks_character_parent_sort on tasks(character_id, parent_id, sort_order, created_at);
+create index if not exists idx_expedition_tasks_account_parent_sort on expedition_tasks(account_id, parent_id, sort_order, created_at);
+create index if not exists idx_raid_tasks_character_sort on raid_tasks(character_id, sort_order, created_at);
+create index if not exists idx_raid_tasks_character_preset on raid_tasks(character_id, preset_id);
+create index if not exists idx_currencies_character_sort on currencies(character_id, sort_order, created_at);
+create index if not exists idx_custom_popups_character_sort on custom_popups(character_id, sort_order, created_at);
+create index if not exists idx_character_cores_character on character_cores(character_id);
+create index if not exists idx_raid_presets_name_sort on raid_presets(name, sort_order, created_at);
+create index if not exists idx_raid_parties_preset_sort on raid_parties(preset_id, sort_order, created_at);
+create index if not exists idx_raid_party_members_party_slot on raid_party_members(party_id, slot_index);
+create index if not exists idx_raid_schedules_party_day_sort on raid_schedules(party_id, day_of_week, sort_order, created_at);
+create index if not exists idx_raid_schedule_overrides_week on raid_schedule_overrides(week_start_date);
+`;
 document.getElementById('sql-display').textContent=SCHEMA;
 function copySql(){navigator.clipboard.writeText(SCHEMA).then(()=>toast('📋 SQL 복사됨!'));}
 
@@ -1218,6 +1437,7 @@ async function initApp(){
 }
 async function keepAlive(){const l=parseInt(LS('la_ping')||'0');if(Date.now()-l>6*86400000){try{await sb.from('accounts').select('id').limit(1);LSS('la_ping',Date.now().toString());}catch(e){}}}
 function updateClock(){const k=new Date(Date.now()+9*3600000),p=n=>String(n).padStart(2,'0'),d=['일','월','화','수','목','금','토'];document.getElementById('header-time').textContent=`KST ${p(k.getUTCHours())}:${p(k.getUTCMinutes())} (${d[k.getUTCDay()]})`;}
+function supaErr(res,msg='작업 실패'){if(res?.error){toast('❗ '+(res.error.message||msg));console.error(res.error);return true;}return false;}
 
 const CURR_ICONS=['💰','💎','🔮','🪙','⭐','🌟','💵','📦','🔑','💍','⚗️','🏺','🎁','🧿','🔶'];
 const POPUP_ICONS=['📋','📊','📈','📝','🗒️','🎯','🔧','⚙️','🏆','📌','🗺️','💡','🎮','📜','🛡️','⚔️','🌙','🔥','🌊','🌿'];
@@ -1243,13 +1463,15 @@ function nextResetLabel(t){const r=getLastResetUTC(t.reset_type,t.reset_day),nex
 
 // ─── Accounts (★ loads all chars upfront) ───
 async function loadAccounts(){
-  const[{data:accs},{data:chars}]=await Promise.all([
+  const results=await Promise.all([
     sb.from('accounts').select('*').order('sort_order').order('created_at'),
     sb.from('characters').select('*').order('sort_order').order('created_at')
   ]);
+  const firstError=results.find(r=>r.error)?.error;if(firstError){toast('❗ 로딩 오류: '+firstError.message);console.error(firstError);return;}
+  const[{data:accs},{data:chars}]=results;
   S.accounts=accs||[];
   S.characters={};
-  (chars||[]).forEach(c=>{if(!S.characters[c.account_id])S.characters[c.account_id]=[];S.characters[c.account_id].push(c);});
+  (chars||[]).forEach(c=>{if(!S.characters[c.account_id])S.characters[c.account_id]=[];S.characters[c.account_id]=S.characters[c.account_id]||[];S.characters[c.account_id].push(c);});
   renderSidebar();
   if(S.accounts.length)await selectAccount(S.selAcc||S.accounts[0].id);
 }
@@ -1421,11 +1643,12 @@ async function updateChar(){
 async function deleteChar(id){if(!confirm('캐릭터와 모든 데이터가 삭제됩니다. 계속하시겠습니까?'))return;await sb.from('characters').delete().eq('id',id);S.characters[S.selAcc]=(S.characters[S.selAcc]||[]).filter(c=>c.id!==id);delete S.tasks[id];delete S.raidTasks[id];delete S.currencies[id];delete S.customPopups[id];if(S.selChar===id)S.selChar=null;renderMain();const chars=S.characters[S.selAcc]||[];if(chars.length)await selectChar(chars[0].id);toast('🗑️ 캐릭터 삭제됨');}
 
 // ─── Data Loading ───
-async function loadExpTasks(accId){const{data}=await sb.from('expedition_tasks').select('*').eq('account_id',accId).order('sort_order').order('created_at');S.expTasks[accId]=data||[];await autoReset(S.expTasks[accId],'expedition_tasks');}
-async function loadTasks(charId){const{data}=await sb.from('tasks').select('*').eq('character_id',charId).order('sort_order').order('created_at');S.tasks[charId]=data||[];await autoReset(S.tasks[charId],'tasks');}
+async function loadExpTasks(accId){const res=await sb.from('expedition_tasks').select('*').eq('account_id',accId).order('sort_order').order('created_at');if(supaErr(res,'원정대 숙제 로딩 실패')){S.expTasks[accId]=[];return;}S.expTasks[accId]=res.data||[];await autoReset(S.expTasks[accId],'expedition_tasks');}
+async function loadTasks(charId){const res=await sb.from('tasks').select('*').eq('character_id',charId).order('sort_order').order('created_at');if(supaErr(res,'캐릭터 숙제 로딩 실패')){S.tasks[charId]=[];return;}S.tasks[charId]=res.data||[];await autoReset(S.tasks[charId],'tasks');}
 async function loadRaidTasks(charId){
-  const{data}=await sb.from('raid_tasks').select('*').eq('character_id',charId).order('sort_order').order('created_at');
-  const tasks=data||[];
+  const res=await sb.from('raid_tasks').select('*').eq('character_id',charId).order('sort_order').order('created_at');
+  if(supaErr(res,'레이드 숙제 로딩 실패')){S.raidTasks[charId]=[];return;}
+  const tasks=res.data||[];
   // preset 이름 매핑 (색상용)
   const pids=[...new Set(tasks.filter(t=>t.preset_id).map(t=>t.preset_id))];
   if(pids.length){
@@ -1436,8 +1659,8 @@ async function loadRaidTasks(charId){
   }
   S.raidTasks[charId]=tasks;await autoResetRaid(S.raidTasks[charId]);
 }
-async function loadCurrencies(charId){const{data}=await sb.from('currencies').select('*').eq('character_id',charId).order('sort_order').order('created_at');S.currencies[charId]=data||[];}
-async function loadCustomPopups(charId){const{data}=await sb.from('custom_popups').select('*').eq('character_id',charId).order('sort_order').order('created_at');S.customPopups[charId]=data||[];}
+async function loadCurrencies(charId){const res=await sb.from('currencies').select('*').eq('character_id',charId).order('sort_order').order('created_at');if(supaErr(res,'재화 로딩 실패')){S.currencies[charId]=[];return;}S.currencies[charId]=res.data||[];}
+async function loadCustomPopups(charId){const res=await sb.from('custom_popups').select('*').eq('character_id',charId).order('sort_order').order('created_at');if(supaErr(res,'커스텀 팝업 로딩 실패')){S.customPopups[charId]=[];return;}S.customPopups[charId]=res.data||[];}
 async function autoReset(list,table){const r=list.filter(t=>t.is_completed&&!isEffDone(t));if(!r.length)return;await sb.from(table).update({is_completed:false,last_completed_at:null,count_current:0}).in('id',r.map(t=>t.id));r.forEach(t=>{t.is_completed=false;t.last_completed_at=null;t.count_current=0;});}
 async function autoResetRaid(list){const now=new Date();const r=list.filter(t=>{if(!t.is_completed||!t.last_completed_at)return false;return new Date(t.last_completed_at)<=getLastResetUTC('weekly',t.reset_day);});if(!r.length)return;await sb.from('raid_tasks').update({is_completed:false,last_completed_at:null}).in('id',r.map(t=>t.id));r.forEach(t=>{t.is_completed=false;t.last_completed_at=null;});}
 
@@ -2148,9 +2371,9 @@ async function executeCopy(){
 // ─── Currency ───
 function openAddCurrencyModal(){buildPicker('curr-icon-picker',CURR_ICONS,'selCurrIcon','💰');document.getElementById('curr-name-input').value='';openModal('modal-add-currency');setTimeout(()=>document.getElementById('curr-name-input').focus(),80);}
 async function addCurrency(){const name=document.getElementById('curr-name-input').value.trim();if(!name){toast('❗ 이름을 입력하세요');return;}const{data,error}=await sb.from('currencies').insert({character_id:S.selChar,name,icon:S.selCurrIcon,amount:0,sort_order:(S.currencies[S.selChar]||[]).length}).select().single();if(error){toast('❗ '+error.message);return;}if(!S.currencies[S.selChar])S.currencies[S.selChar]=[];S.currencies[S.selChar].push(data);closeModal('modal-add-currency');renderTaskArea();toast('✅ 재화 추가됨');}
-function openCurrPopup(id){const c=(S.currencies[S.selChar]||[]).find(x=>x.id===id);if(!c)return;S.currPopupId=id;document.getElementById('curr-popup-icon').textContent=c.icon;document.getElementById('curr-popup-name').textContent=c.name;document.getElementById('curr-amount-display').textContent=c.amount.toLocaleString();document.getElementById('curr-direct-val').value='';openModal('modal-curr-popup');}
-async function adjustCurr(d){const c=(S.currencies[S.selChar]||[]).find(x=>x.id===S.currPopupId);if(!c)return;const na=c.amount+d;const now=new Date().toISOString();await sb.from('currencies').update({amount:na,updated_at:now}).eq('id',c.id);c.amount=na;c.updated_at=now;document.getElementById('curr-amount-display').textContent=na.toLocaleString();updateCurrChip(c);}
-async function setCurrDirect(mode){const val=parseInt(document.getElementById('curr-direct-val').value)||0;const c=(S.currencies[S.selChar]||[]).find(x=>x.id===S.currPopupId);if(!c)return;const na=mode==='add'?c.amount+val:val;const now=new Date().toISOString();await sb.from('currencies').update({amount:na,updated_at:now}).eq('id',c.id);c.amount=na;c.updated_at=now;document.getElementById('curr-amount-display').textContent=na.toLocaleString();document.getElementById('curr-direct-val').value='';updateCurrChip(c);}
+function openCurrPopup(id){const c=(S.currencies[S.selChar]||[]).find(x=>x.id===id);if(!c)return;S.currPopupId=id;const iconEl=document.getElementById('curr-popup-icon');if(iconEl){iconEl.innerHTML=c.icon_url?iconImg(c.icon_url,'entity-icon'):(c.icon||'💰');}document.getElementById('curr-popup-name').textContent=c.name;document.getElementById('curr-amount-display').textContent=(c.amount||0).toLocaleString();document.getElementById('curr-direct-val').value='';openModal('modal-curr-popup');}
+async function adjustCurr(d){const c=(S.currencies[S.selChar]||[]).find(x=>x.id===S.currPopupId);if(!c)return;const na=(c.amount||0)+d;const now=new Date().toISOString();const res=await sb.from('currencies').update({amount:na,updated_at:now}).eq('id',c.id);if(supaErr(res,'재화 수정 실패'))return;c.amount=na;c.updated_at=now;document.getElementById('curr-amount-display').textContent=na.toLocaleString();updateCurrChip(c);}
+async function setCurrDirect(mode){const val=parseInt(document.getElementById('curr-direct-val').value)||0;const c=(S.currencies[S.selChar]||[]).find(x=>x.id===S.currPopupId);if(!c)return;const na=mode==='add'?(c.amount||0)+val:val;const now=new Date().toISOString();const res=await sb.from('currencies').update({amount:na,updated_at:now}).eq('id',c.id);if(supaErr(res,'재화 수정 실패'))return;c.amount=na;c.updated_at=now;document.getElementById('curr-amount-display').textContent=na.toLocaleString();document.getElementById('curr-direct-val').value='';updateCurrChip(c);}
 function updateCurrChip(c){const chip=document.getElementById('curr-chip-'+c.id);if(!chip)return;const a=chip.querySelector('.curr-chip-amount');if(a)a.textContent=c.amount.toLocaleString();const dt=chip.querySelector('.curr-updated');if(dt)dt.textContent=c.updated_at?fmtRelDate(c.updated_at):'';}
 function fmtRelDate(iso){if(!iso)return'';const d=new Date(iso);return`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;}
 async function deleteCurrAndClose(){if(!confirm('재화를 삭제하시겠습니까?'))return;await sb.from('currencies').delete().eq('id',S.currPopupId);S.currencies[S.selChar]=(S.currencies[S.selChar]||[]).filter(c=>c.id!==S.currPopupId);closeModal('modal-curr-popup');renderTaskArea();toast('🗑️ 삭제됨');}
@@ -2178,7 +2401,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelect
 function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),2600);}
 
 // ─── Image Picker (shared) ───
-const ICON_REPO='ghk71/LoAHomeworkCheck';
+const ICON_REPO=localStorage.getItem('la_icon_repo')||'ghk71/LoAHomeworkCheck';
 const ICON_RAW=`https://raw.githubusercontent.com/${ICON_REPO}/main/`;
 const ICON_API=`https://api.github.com/repos/${ICON_REPO}/contents/`;
 let _pickerCb=null;
