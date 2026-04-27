@@ -81,6 +81,22 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 @keyframes toastIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
 @keyframes toastOut{to{opacity:0;transform:translateY(8px);}}
 .diff-nightmare{color:#bb88ff;font-weight:600;}.diff-hard{color:#c8a04a;font-weight:600;}.diff-normal{color:#7a8090;font-weight:600;}
+
+/* ─── Image Picker ─── */
+.pick-bc{cursor:pointer;color:var(--gold);font-size:.78rem;}.pick-bc:hover{text-decoration:underline;}
+.pick-folder{padding:7px 10px;background:var(--s3);border:1px solid var(--border);border-radius:5px;cursor:pointer;font-size:.82rem;margin-bottom:5px;transition:border-color .12s;display:flex;align-items:center;gap:6px;}
+.pick-folder:hover{border-color:var(--gold);}
+.pick-imgs{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+.pick-img-wrap{width:64px;height:64px;border:2px solid var(--border);border-radius:6px;overflow:hidden;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .12s;background:var(--s3);}
+.pick-img-wrap:hover{border-color:var(--gold);}
+.pick-img-wrap img{width:56px;height:56px;object-fit:contain;}
+.pick-empty{font-size:.8rem;color:var(--muted);padding:20px;text-align:center;}
+/* Icon display */
+.entity-icon{width:22px;height:22px;object-fit:contain;border-radius:3px;flex-shrink:0;}
+.entity-icon-sm{width:18px;height:18px;object-fit:contain;border-radius:2px;flex-shrink:0;}
+.icon-btn{padding:2px 6px;font-size:.68rem;border:1px solid var(--border);border-radius:3px;background:var(--s3);color:var(--muted);cursor:pointer;transition:border-color .12s;}
+.icon-btn:hover{border-color:var(--gold);color:var(--gold);}
+
 </style>
 </head>
 <body>
@@ -221,7 +237,7 @@ function partyCardHTML(p,myChar,myMember){
   return`<div class="party-card">
     <div class="pc-header">
       <div style="flex:1;min-width:0;">
-        <div class="pc-raid-name" style="color:${getGroupColor(preset?.name||'')};">${esc(preset?.name||'?')}</div>
+        <div class="pc-raid-name" style="color:${getGroupColor(preset?.name||'')};display:flex;align-items:center;gap:4px;">${iconImg(localStorage.getItem('la_gicon_'+(preset?.name||'')),'entity-icon-sm')}${esc(preset?.name||'?')}</div>
         <div class="pc-party-name"><span style="color:${getPartyColor(p)};font-weight:600;">${esc(p.name||'파티')}</span> · ${p.party_size}인${preset?.difficulty?` · <span class="${diffClass(preset.difficulty)}">${esc(preset.difficulty)}</span>`:''}${preset?.entry_level?` · 입장 ${preset.entry_level}`:''}</div>
       </div>
     </div>
@@ -232,6 +248,7 @@ function partyCardHTML(p,myChar,myMember){
           const isMe=slot.character_id===myChar.id;
           if(ch)return`<div class="slot-row ${isMe?'mine':''}">
             <span class="slot-num">${i+1}</span>
+            ${ch.icon_url?`<img class="entity-icon-sm" src="${ch.icon_url}" onerror="this.style.display='none'">`:''}
             <span class="slot-char-name ${isMe?'me':''}">${esc(ch.name)}</span>
             <span class="slot-char-class">${esc(ch.class_name||'')}${ch.item_level?' Lv.'+ch.item_level:''}</span>
           </div>`;
@@ -262,11 +279,64 @@ async function leaveParty(partyId,charId,memberId,presetId,presetName){
 }
 
 function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),2600);}
+
+// ─── Image Picker (shared) ───
+const ICON_REPO='ghk71/LoAHomeworkCheck';
+const ICON_RAW=`https://raw.githubusercontent.com/${ICON_REPO}/main/`;
+const ICON_API=`https://api.github.com/repos/${ICON_REPO}/contents/`;
+let _pickerCb=null;
+function iconImg(url,cls='entity-icon'){return url?`<img class="${cls}" src="${url}" onerror="this.style.display='none'">`:'';} 
+
+async function openImagePicker(cb,path='images/'){
+  _pickerCb=cb;
+  document.getElementById('picker-content').innerHTML='<div class="pick-empty"><div class="spinner"></div></div>';
+  openModal('modal-img-picker');
+  await loadPickerDir(path);
+}
+async function loadPickerDir(path){
+  const cKey='la_ic_'+path;
+  let items;
+  try{const c=sessionStorage.getItem(cKey);if(c)items=JSON.parse(c);}catch{}
+  if(!items){
+    const r=await fetch(ICON_API+path);
+    if(!r.ok){document.getElementById('picker-content').innerHTML='<div class="pick-empty">폴더를 불러올 수 없습니다<br><small>images/ 폴더가 repo에 있는지 확인하세요</small></div>';return;}
+    items=await r.json();
+    try{sessionStorage.setItem(cKey,JSON.stringify(items));}catch{}
+  }
+  const dirs=items.filter(x=>x.type==='dir');
+  const imgs=items.filter(x=>x.type==='file'&&/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(x.name));
+  // Breadcrumb
+  const parts=path.replace(/^\/images\//,'').replace(/^images\//,'').split('/').filter(Boolean);
+  let bc=`<span class="pick-bc" onclick="loadPickerDir('images/')">images</span>`;
+  let cum='images/';parts.forEach(p=>{cum+=p+'/';bc+=` / <span class="pick-bc" onclick="loadPickerDir('${cum}')">${p}</span>`;});
+  document.getElementById('picker-breadcrumb').innerHTML=bc;
+  // Content
+  let html='';
+  if(dirs.length){html+=dirs.map(d=>`<div class="pick-folder" onclick="loadPickerDir('${path}${d.name}/')">📁 ${d.name}</div>`).join('');}
+  if(imgs.length){html+=`<div class="pick-imgs">${imgs.map(f=>{const url=ICON_RAW+f.path;return`<div class="pick-img-wrap" title="${f.name}" onclick="selectPickerImg('${url}')"><img src="${url}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`;}).join('')}</div>`;}
+  if(!dirs.length&&!imgs.length)html='<div class="pick-empty">이미지가 없습니다</div>';
+  document.getElementById('picker-content').innerHTML=html;
+}
+function selectPickerImg(url){if(_pickerCb)_pickerCb(url);closeModal('modal-img-picker');}
+function pickerRemoveIcon(){if(_pickerCb)_pickerCb(null);closeModal('modal-img-picker');}
+
 function getGroupColor(name){return localStorage.getItem('la_gc_'+name)||'#4caf50';}
 function getPartyColor(p){return(p&&p.color)||'#e0ddd5';}
 function diffClass(d){if(!d)return'';const dl=d.toLowerCase();if(dl.includes('나이트메어')||dl.includes('3단계'))return'diff-nightmare';if(dl.includes('하드')||dl.includes('2단계'))return'diff-hard';if(dl.includes('노말')||dl.includes('1단계'))return'diff-normal';return'';}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 init();
 </script>
+
+<!-- Image Picker Modal -->
+<div class="overlay" id="modal-img-picker"><div class="modal" style="max-width:520px;height:70vh;display:flex;flex-direction:column;">
+  <div class="modal-title">🖼️ 아이콘 선택</div>
+  <div id="picker-breadcrumb" style="font-size:.78rem;padding:2px 0 8px;color:var(--muted);flex-shrink:0;border-bottom:1px solid var(--border);margin-bottom:8px;"></div>
+  <div id="picker-content" style="flex:1;overflow-y:auto;"></div>
+  <div class="modal-footer" style="margin-top:8px;">
+    <button class="btn btn-danger btn-sm" style="margin-right:auto;" onclick="pickerRemoveIcon()">🗑 아이콘 제거</button>
+    <button class="btn btn-sec" onclick="closeModal('modal-img-picker')">취소</button>
+  </div>
+</div></div>
+
 </body>
 </html>
