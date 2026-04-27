@@ -850,6 +850,86 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
 .radio-opt.active { border-color:rgba(245,158,11,.5); color:var(--gold-text); background:rgba(245,158,11,.08); }
 .radio-opt:hover:not(.active) { border-color:rgba(255,255,255,.15); color:var(--text); }
 
+
+/* ===== 2026 UI refresh / compatibility aliases ===== */
+:root{
+  --bg:#060b16;
+  --bg-grad:
+    radial-gradient(circle at 12% 0%, rgba(76, 109, 255, .22) 0%, rgba(76,109,255,0) 28%),
+    radial-gradient(circle at 88% 12%, rgba(255, 184, 77, .12) 0%, rgba(255,184,77,0) 28%),
+    linear-gradient(180deg, #0a1020 0%, #070b16 100%);
+  --surface-1:#0d1526;
+  --surface-2:#111b31;
+  --surface-3:#17233e;
+  --surface-4:#1d2d4f;
+  --surface-glass:rgba(17,27,49,.82);
+  --accent:#7c5cff;
+  --accent-2:#6148ff;
+  --accent-glow:rgba(124,92,255,.28);
+  --gold:#ffb84d;
+  --gold-bright:#ffd27d;
+  --gold-dim:#9a6321;
+  --gold-glow:rgba(255,184,77,.22);
+  --gold-text:#ffd88f;
+  --text:#edf4ff;
+  --text-2:#aab8d1;
+  --text-3:#6d7a96;
+  --dim:#334155;
+  --border:rgba(255,255,255,.08);
+  --border-lit:rgba(255,255,255,.13);
+  --shadow-sm:0 4px 14px rgba(0,0,0,.18);
+  --shadow-md:0 10px 30px rgba(0,0,0,.26);
+  --shadow-lg:0 24px 60px rgba(0,0,0,.36);
+  --s1:var(--surface-1);
+  --s2:var(--surface-2);
+  --s3:var(--surface-3);
+  --s4:var(--surface-4);
+  --muted:var(--text-2);
+}
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at 18% 16%, rgba(124,92,255,.16), transparent 24%),
+    radial-gradient(circle at 78% 10%, rgba(255,184,77,.08), transparent 18%);
+  z-index:0;
+}
+body > *{ position:relative; z-index:1; }
+button,input,select,textarea{ font:inherit; }
+.form-input,.form-select,textarea,input[type="time"]{
+  background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  border-radius:12px;
+}
+.modal{
+  background:linear-gradient(180deg, rgba(23,35,62,.96), rgba(13,21,38,.98));
+  border:1px solid rgba(255,255,255,.1);
+}
+.loading-full{
+  min-height:220px;display:flex;align-items:center;justify-content:center;
+  color:var(--text-2);font-size:.9rem;
+}
+.loading-full .spinner{ margin-right:10px; }
+.card-elevated, .panel-elevated{
+  background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.02));
+  border:1px solid rgba(255,255,255,.08);
+  box-shadow:var(--shadow-md);
+}
+
+
+/* ===== index page compatibility / polish ===== */
+.acc-btn-hide,.acc-del-btn{
+  border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.03); color:var(--text-2);
+  border-radius:10px; padding:5px 8px; cursor:pointer; transition:all var(--t);
+}
+.acc-btn-hide:hover{ border-color:rgba(124,92,255,.35); color:#ddd7ff; }
+.acc-del-btn:hover{ border-color:rgba(239,68,68,.35); color:#fca5a5; background:rgba(239,68,68,.08); }
+.modal-orange{ border-color:rgba(249,115,22,.28)!important; }
+.modal-teal{ border-color:rgba(20,184,166,.28)!important; }
+.orange{ color:var(--orange)!important; }
+.teal{ color:var(--teal)!important; }
+
 </style>
 </head>
 <body>
@@ -2440,6 +2520,81 @@ async function loadPickerDir(path){
 function selectPickerImg(url){if(_pickerCb)_pickerCb(url);closeModal('modal-img-picker');}
 function pickerRemoveIcon(){if(_pickerCb)_pickerCb(null);closeModal('modal-img-picker');}
 
+
+async function showPartyLinkPopup(presetId){
+  const el=document.getElementById('party-link-content');
+  if(!el)return;
+  el.innerHTML='<div class="loading-row"><div class="spinner"></div><div>파티 정보를 불러오는 중...</div></div>';
+  openModal('modal-party-link');
+  try{
+    const [presetRes, partiesRes] = await Promise.all([
+      sb.from('raid_presets').select('*').eq('id',presetId).single(),
+      sb.from('raid_parties').select('*').eq('preset_id',presetId).order('sort_order').order('created_at')
+    ]);
+    if(presetRes.error) throw presetRes.error;
+    if(partiesRes.error) throw partiesRes.error;
+    const preset=presetRes.data;
+    const partiesData=partiesRes.data||[];
+    if(!preset){
+      el.innerHTML='<span style="color:var(--muted);">레이드 정보를 불러올 수 없습니다</span>';
+      return;
+    }
+    const pIds=partiesData.map(p=>p.id);
+    let members=[], schData=[];
+    if(pIds.length){
+      const [memberRes, scheduleRes] = await Promise.all([
+        sb.from('raid_party_members').select('*,characters(id,name,class_name,item_level,icon_url)').in('party_id',pIds),
+        sb.from('raid_schedules').select('party_id,day_of_week').in('party_id',pIds)
+      ]);
+      if(memberRes.error) throw memberRes.error;
+      if(scheduleRes.error) throw scheduleRes.error;
+      members = memberRes.data || [];
+      schData = scheduleRes.data || [];
+    }
+    const DAYS_KO=['일','월','화','수','목','금','토'];
+    const dayMap={};
+    schData.forEach(s=>{
+      if(!dayMap[s.party_id]) dayMap[s.party_id]=[];
+      dayMap[s.party_id].push(s.day_of_week);
+    });
+    const gc=getGroupColor(preset.name||'');
+    let html=`<div style="padding:12px 14px;background:var(--s3);border-radius:12px;margin-bottom:14px;border:1px solid rgba(255,255,255,.08);border-left:3px solid ${gc};">
+      <div style="font-size:.92rem;font-weight:700;color:${gc};display:flex;align-items:center;gap:6px;">${iconImg(preset.icon_url,'entity-icon-sm')}${esc(preset.name)}${preset.difficulty?` <span class="${diffClass(preset.difficulty)}" style="font-size:.75rem;">${esc(preset.difficulty)}</span>`:''}</div>
+      ${preset.entry_level?`<div style="font-size:.74rem;color:var(--muted);margin-top:4px;">입장 레벨 ${preset.entry_level}</div>`:''}
+    </div>`;
+    partiesData.forEach(p=>{
+      const pMembers=members.filter(m=>m.party_id===p.id).sort((a,b)=>a.slot_index-b.slot_index);
+      const days=(dayMap[p.id]||[]).map(d=>DAYS_KO[d]+'요일').join(', ');
+      const pc=getPartyColor(p);
+      html+=`<div style="margin-bottom:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02);">
+        <div style="padding:10px 12px;background:rgba(255,255,255,.03);display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);">
+          <span style="font-size:.86rem;font-weight:700;color:${pc};">${esc(p.name||'파티')}</span>
+          <span style="font-size:.72rem;color:var(--muted);">${p.party_size}인</span>
+          ${days?`<span style="font-size:.72rem;color:var(--gold);margin-left:auto;">📅 ${days}</span>`:''}
+        </div>
+        <div style="padding:8px 10px;display:flex;flex-direction:column;gap:5px;">`;
+      for(let i=0;i<p.party_size;i++){
+        const m=pMembers.find(x=>x.slot_index===i);
+        const ch=m?.characters;
+        const isMe=!!(ch&&S.selChar&&m.character_id===S.selChar);
+        html+=`<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:${isMe?'rgba(255,184,77,.10)':'rgba(255,255,255,.015)'};border:1px solid ${isMe?'rgba(255,184,77,.28)':'rgba(255,255,255,.04)'};border-radius:10px;">
+          <span style="color:var(--dim);font-size:.7rem;width:16px;">${i+1}</span>
+          ${ch?`${ch.icon_url?`<img class="entity-icon-sm" src="${ch.icon_url}" onerror="this.style.display='none'">`:''}
+            <span style="font-size:.81rem;${isMe?'color:var(--gold);font-weight:700;':''}">${esc(ch.name)}</span>
+            <span style="color:var(--muted);font-size:.7rem;">${esc(ch.class_name||'')}${ch.item_level?' · Lv.'+ch.item_level:''}</span>`
+            :'<span style="color:var(--dim);font-size:.75rem;">빈 슬롯</span>'}
+        </div>`;
+      }
+      html+=`</div></div>`;
+    });
+    if(!partiesData.length) html+='<div style="color:var(--muted);font-size:.82rem;padding:8px 0;">등록된 파티가 없습니다</div>';
+    el.innerHTML=html;
+  }catch(err){
+    console.error(err);
+    el.innerHTML='<div style="color:#fca5a5;font-size:.82rem;line-height:1.6;">파티 정보를 불러오지 못했습니다.<br>잠시 후 다시 시도해주세요.</div>';
+  }
+}
+
 function getGroupColor(name){return localStorage.getItem('la_gc_'+name)||'#4caf50';}
 function getPartyColor(p){return(p&&p.color)||'#e0ddd5';}
 function diffClass(d){if(!d)return'';const dl=d.toLowerCase();if(dl.includes('나이트메어')||dl.includes('3단계'))return'diff-nightmare';if(dl.includes('하드')||dl.includes('2단계'))return'diff-hard';if(dl.includes('노말')||dl.includes('1단계'))return'diff-normal';return'';}
@@ -2488,52 +2643,4 @@ initApp();
 </div></div>
 
 </body>
-</html>async function showPartyLinkPopup(presetId){
-  const el=document.getElementById('party-link-content');
-  el.innerHTML='<div class="loading-row"><div class="spinner"></div></div>';
-  openModal('modal-party-link');
-  const[{data:preset},{data:partiesData}]=await Promise.all([
-    sb.from('raid_presets').select('*').eq('id',presetId).single(),
-    sb.from('raid_parties').select('*').eq('preset_id',presetId)
-  ]);
-  if(!preset){el.innerHTML='<span style="color:var(--muted);">레이드 정보를 불러올 수 없습니다</span>';return;}
-  const pIds=(partiesData||[]).map(p=>p.id);
-  const[{data:members},{data:schData}]=await Promise.all([
-    pIds.length?sb.from('raid_party_members').select('*,characters(id,name,class_name,item_level,icon_url)').in('party_id',pIds):{data:[]},
-    sb.from('raid_schedules').select('party_id,day_of_week').in('party_id',pIds)
-  ]);
-  const DAYS_KO=['일','월','화','수','목','금','토'];
-  const dayMap={};(schData||[]).forEach(s=>{if(!dayMap[s.party_id])dayMap[s.party_id]=[];dayMap[s.party_id].push(s.day_of_week);});
-  const gc=getGroupColor(preset.name||'');
-  let html=`<div style="padding:10px 12px;background:var(--s3);border-radius:6px;margin-bottom:14px;border-left:3px solid ${gc};">
-    <div style="font-size:.9rem;font-weight:700;color:${gc};">${esc(preset.name)}${preset.difficulty?` <span class="${diffClass(preset.difficulty)}" style="font-size:.75rem;">${esc(preset.difficulty)}</span>`:''}</div>
-    ${preset.entry_level?`<div style="font-size:.72rem;color:var(--muted);">입장 ${preset.entry_level}</div>`:''}
-  </div>`;
-  (partiesData||[]).forEach(p=>{
-    const pMembers=(members||[]).filter(m=>m.party_id===p.id).sort((a,b)=>a.slot_index-b.slot_index);
-    const days=(dayMap[p.id]||[]).map(d=>DAYS_KO[d]+'요일').join(', ');
-    const pc=p.color||'#e0ddd5';
-    html+=`<div style="margin-bottom:12px;border:1px solid var(--border);border-radius:6px;overflow:hidden;">
-      <div style="padding:8px 12px;background:var(--s1);display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);">
-        <span style="font-size:.84rem;font-weight:700;color:${pc};">${esc(p.name||'파티')}</span>
-        <span style="font-size:.7rem;color:var(--muted);">${p.party_size}인</span>
-        ${days?`<span style="font-size:.7rem;color:var(--gold);margin-left:auto;">📅 ${days}</span>`:''}
-      </div>
-      <div style="padding:6px 10px;display:flex;flex-direction:column;gap:3px;">`;
-    for(let i=0;i<p.party_size;i++){
-      const m=pMembers.find(x=>x.slot_index===i);const ch=m?.characters;
-      const isMe=ch&&S.selChar&&m.character_id===S.selChar;
-      html+=`<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:${isMe?'rgba(200,168,75,.12)':'transparent'};border:1px solid ${isMe?'rgba(200,168,75,.35)':'transparent'};border-radius:4px;">
-        <span style="color:var(--dim);font-size:.68rem;width:14px;">${i+1}</span>
-        ${ch?`${ch.icon_url?`<img class="entity-icon-sm" src="${ch.icon_url}" onerror="this.style.display='none'">`:''}
-        <span style="font-size:.8rem;${isMe?'color:var(--gold);font-weight:700;':''};">${esc(ch.name)}</span>
-        <span style="color:var(--muted);font-size:.69rem;">${esc(ch.class_name||'')}${ch.item_level?' Lv.'+ch.item_level:''}</span>`
-        :'<span style="color:var(--dim);font-size:.75rem;">빈 슬롯</span>'}
-      </div>`;
-    }
-    html+=`</div></div>`;
-  });
-  if(!partiesData?.length)html+='<div style="color:var(--muted);font-size:.82rem;padding:8px 0;">등록된 파티가 없습니다</div>';
-  el.innerHTML=html;
-}
-
+</html>
