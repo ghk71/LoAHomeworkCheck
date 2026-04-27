@@ -930,6 +930,20 @@ button,input,select,textarea{ font:inherit; }
 .orange{ color:var(--orange)!important; }
 .teal{ color:var(--teal)!important; }
 
+
+/* ===== account subgroup / task icon / gold chip refinements ===== */
+.account-subgroup{margin:8px 10px 10px;border:1px solid rgba(255,255,255,.08);border-radius:14px;overflow:hidden;background:rgba(255,255,255,.025)}
+.account-subgroup-title{padding:8px 11px;font-size:.74rem;font-weight:800;color:var(--gold-text);background:rgba(255,184,77,.075);border-bottom:1px solid rgba(255,255,255,.07);letter-spacing:.2px}
+.account-subgroup .account-item{margin:0;border-radius:0;border-left:0;border-right:0;border-top:0;background:transparent;padding-left:14px}
+.account-subgroup .account-item:last-child{border-bottom:0}
+.account-name{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.25;}
+.task-icon-preview{width:38px;height:38px;border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--s3);overflow:hidden;flex-shrink:0;}
+.task-icon-preview img{width:28px;height:28px;object-fit:contain;}
+.task-title-icon{width:18px;height:18px;object-fit:contain;border-radius:4px;flex-shrink:0;}
+.raid-reset-chip,.curr-date-chip{display:inline-flex;align-items:center;gap:4px;border:1px solid rgba(255,184,77,.28);background:rgba(255,184,77,.10);color:var(--gold-text);border-radius:999px;padding:3px 8px;font-size:.66rem;font-weight:700;}
+.party-jump-btn{display:inline-flex;align-items:center;justify-content:center;padding:5px 8px;border-radius:9px;border:1px solid rgba(124,92,255,.35);background:rgba(124,92,255,.10);color:#ddd7ff;text-decoration:none;font-size:.72rem;font-weight:700;}
+.party-jump-btn:hover{background:rgba(124,92,255,.18);}
+
 </style>
 </head>
 <body>
@@ -1041,6 +1055,14 @@ button,input,select,textarea{ font:inherit; }
 <div class="overlay" id="modal-task"><div class="modal" id="modal-task-box">
   <div class="modal-title" id="task-modal-title">숙제 추가</div>
   <div class="form-group"><label class="form-label">숙제명</label><input class="form-input" id="task-name" lang="ko" inputmode="text" maxlength="60"></div>
+  <div class="form-group">
+    <label class="form-label">숙제 아이콘</label>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="task-icon-preview" id="task-icon-preview"><span style="color:var(--dim);font-size:.7rem;">없음</span></div>
+      <button type="button" class="btn btn-sec btn-sm" onclick="openTaskIconPicker()">🖼 아이콘 선택</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="setTaskIcon(null)">제거</button>
+    </div>
+  </div>
   <div class="form-group" id="count-toggle-wrap">
     <div class="count-toggle-box" onclick="toggleHasCount()">
       <input type="checkbox" id="has-count" tabindex="-1">
@@ -1393,6 +1415,7 @@ alter table raid_schedules add column if not exists sort_order int default 0;
 alter table raid_presets add column if not exists color text;
 -- 레이드 숙제 골드 수령 여부 (초기화 안됨, 영구 설정)
 alter table raid_tasks add column if not exists receive_gold boolean default true;
+alter table raid_tasks add column if not exists receive_bound boolean default true;
 alter table raid_tasks add column if not exists receive_bonus boolean default true;
 -- 재화 마지막 수정일
 alter table currencies add column if not exists updated_at timestamptz;
@@ -1566,18 +1589,17 @@ function toggleHideAccount(e,accId){
 function renderSidebar(){
   const el=document.getElementById('account-list');
   const hiddenCount=S.hiddenAccounts.size;
-  const visible=S.accounts.filter(a=>!S.hiddenAccounts.has(a.id));
-  const hidden=S.accounts.filter(a=>S.hiddenAccounts.has(a.id));
   const togEl=document.getElementById('hidden-acc-toggle');
   if(hiddenCount>0){togEl.style.display='flex';document.getElementById('hidden-acc-text').textContent=S.showHidden?`숨긴 계정 접기`:`숨긴 계정 ${hiddenCount}개 보기`;}
   else{togEl.style.display='none';}
-  const toShow=S.showHidden?[...visible,...hidden]:visible;
-  if(!toShow.length){el.innerHTML='<div style="padding:14px;font-size:.8rem;color:var(--muted);text-align:center;">계정을 추가하세요</div>';return;}
-  el.innerHTML=toShow.map((a,idx)=>{
+  const shouldShow=a=>S.showHidden||!S.hiddenAccounts.has(a.id);
+  const roots=S.accounts.filter(a=>!a.parent_account_id&&shouldShow(a));
+  const orphanSubs=S.accounts.filter(a=>a.parent_account_id&&!S.accounts.some(p=>p.id===a.parent_account_id)&&shouldShow(a));
+  const itemHTML=(a,extraClass='')=>{
     const chars=S.characters[a.id]||[];
     const isHidden=S.hiddenAccounts.has(a.id);
     const realIdx=S.accounts.indexOf(a);
-    return `<div class="account-item clickable ${a.id===S.selAcc?'active':''} ${isHidden?'hidden-acc':''}"
+    return `<div class="account-item clickable ${extraClass} ${a.id===S.selAcc?'active':''} ${isHidden?'hidden-acc':''}"
       draggable="true"
       ondragstart="dndStart(event,'account',${realIdx})"
       ondragend="dndEnd(event)"
@@ -1587,14 +1609,26 @@ function renderSidebar(){
       onclick="selectAccount('${a.id}')">
       <span class="dnd-handle">⠿</span>
       <div style="flex:1;min-width:0;">
-        <div class="account-name">${esc(a.name)}${a.parent_account_id?`<span style="font-size:.64rem;color:var(--muted);margin-left:4px;padding:1px 5px;border:1px solid var(--border);border-radius:4px;">부계정</span>`:''}</div>
+        <div class="account-name">${esc(a.name)}</div>
         ${chars.length?`<div class="account-meta">${chars.length}캐릭터</div>`:''}
       </div>
       <button class="acc-btn" onclick="event.stopPropagation();openEditAccountModal('${a.id}')" title="계정 수정">✏️</button>
       <button class="acc-btn acc-btn-hide" onclick="toggleHideAccount(event,'${a.id}')" title="${isHidden?'표시':'숨김'}">${isHidden?'👁':'🙈'}</button>
       <button class="acc-btn acc-del-btn" onclick="event.stopPropagation();deleteAccount('${a.id}')" style="color:var(--red);">✕</button>
     </div>`;
-  }).join('');
+  };
+  let html='';
+  roots.forEach(a=>{
+    html+=itemHTML(a);
+    const subAccs=S.accounts.filter(s=>s.parent_account_id===a.id&&shouldShow(s));
+    if(subAccs.length){
+      const cnt=subAccs.reduce((n,s)=>n+(S.characters[s.id]||[]).length,0);
+      html+=`<div class="account-subgroup"><div class="account-subgroup-title">${esc(a.name)}의 부계정 <span style="font-size:.67rem;color:var(--text-2);font-weight:600;">${subAccs.length}계정 · ${cnt}캐릭터</span></div>${subAccs.map(s=>itemHTML(s,'sub-account-item')).join('')}</div>`;
+    }
+  });
+  orphanSubs.forEach(a=>{html+=itemHTML(a);});
+  if(!html){el.innerHTML='<div style="padding:14px;font-size:.8rem;color:var(--muted);text-align:center;">계정을 추가하세요</div>';return;}
+  el.innerHTML=html;
 }
 let editingAccountId=null;
 let _editCharIconUrl=null;
@@ -1734,8 +1768,8 @@ async function loadRaidTasks(charId){
   if(pids.length){
     // 캐시에 없는 preset만 fetch
     const missing=pids.filter(id=>!S.presetsCache[id]);
-    if(missing.length){const{data:ps}=await sb.from('raid_presets').select('id,name').in('id',missing);(ps||[]).forEach(p=>{S.presetsCache[p.id]=p;});}
-    tasks.forEach(t=>{if(t.preset_id&&S.presetsCache[t.preset_id])t.preset_name=S.presetsCache[t.preset_id].name;});
+    if(missing.length){const{data:ps}=await sb.from('raid_presets').select('id,name,icon_url,color').in('id',missing);(ps||[]).forEach(p=>{S.presetsCache[p.id]=p;});}
+    tasks.forEach(t=>{if(t.preset_id&&S.presetsCache[t.preset_id]){t.preset_name=S.presetsCache[t.preset_id].name;t.preset_icon_url=S.presetsCache[t.preset_id].icon_url||'';t.preset_color=S.presetsCache[t.preset_id].color||'';}});
   }
   S.raidTasks[charId]=tasks;await autoResetRaid(S.raidTasks[charId]);
 }
@@ -1785,12 +1819,20 @@ function renderTaskArea(){
   const raidList=S.raidTasks[S.selChar]||[];
   const currencies=S.currencies[S.selChar]||[],popups=S.customPopups[S.selChar]||[];
   const accName=esc(S.accounts.find(a=>a.id===S.selAcc)?.name||'');
-  // 유통골드 = 전체 - 귀속, 더보기 별도
-  const totalFlow=raidList.filter(t=>t.receive_gold!==false).reduce((s,t)=>s+(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0),0);
-  const totalBonus=raidList.filter(t=>t.receive_bonus!==false).reduce((s,t)=>s+(Number(t.bonus_gold)||0),0);
-  const earnedFlow=raidList.filter(t=>isEffDone(t)&&t.receive_gold!==false).reduce((s,t)=>s+(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0),0);
+  // 골드 3분리: 유통/귀속/더보기 각각 표시 및 수령 제외 반영
+  const flowOf=t=>Math.max(0,(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0));
+  const boundOf=t=>Number(t.bound_gold)||0;
+  const bonusOf=t=>Number(t.bonus_gold)||0;
+  const totalFlow=raidList.filter(t=>t.receive_gold!==false).reduce((s,t)=>s+flowOf(t),0);
+  const totalBound=raidList.filter(t=>t.receive_bound!==false).reduce((s,t)=>s+boundOf(t),0);
+  const totalBonus=raidList.filter(t=>t.receive_bonus!==false).reduce((s,t)=>s+bonusOf(t),0);
+  const earnedFlow=raidList.filter(t=>isEffDone(t)&&t.receive_gold!==false).reduce((s,t)=>s+flowOf(t),0);
+  const earnedBound=raidList.filter(t=>isEffDone(t)&&t.receive_bound!==false).reduce((s,t)=>s+boundOf(t),0);
+  const earnedBonus=raidList.filter(t=>isEffDone(t)&&t.receive_bonus!==false).reduce((s,t)=>s+bonusOf(t),0);
   const remainFlow=totalFlow-earnedFlow;
-  const totalGold=totalFlow; // backward compat for display
+  const remainBound=totalBound-earnedBound;
+  const remainBonus=totalBonus-earnedBonus;
+  const totalGold=totalFlow;
   const remainGold=remainFlow;
 
   el.innerHTML=`
@@ -1812,8 +1854,8 @@ function renderTaskArea(){
       <span class="coll-toggle">${S.raidCollapsed?'▶':'▼'}</span>
       <span class="coll-title">${iconImg(localStorage.getItem('la_icon_raid'),'entity-icon-sm')} 🏰 레이드 숙제</span>
       <span class="coll-stat">${raidList.filter(t=>isEffDone(t)).length}/${raidList.length}</span>
-      ${remainGold>0?`<span class="raid-gold-total">💰 유통 ${remainGold.toLocaleString()}G 남음${totalBonus?` +더보기 ${totalBonus.toLocaleString()}G`:''}  </span>`:''}
-      ${totalGold>0&&remainGold===0?`<span class="raid-gold-total" style="color:var(--green);">✓ 유통 ${totalGold.toLocaleString()}G 완료${totalBonus?' +더보기 '+totalBonus.toLocaleString()+'G':''}</span>`:''}
+      ${(totalFlow||totalBound||totalBonus)?`<span class="raid-gold-total">💰 유통 ${remainFlow.toLocaleString()}G · 귀속 ${remainBound.toLocaleString()}G · 더보기 ${remainBonus.toLocaleString()}G 남음</span>`:''}
+      ${(totalFlow||totalBound||totalBonus)&&(remainFlow+remainBound+remainBonus===0)?`<span class="raid-gold-total" style="color:var(--green);">✓ 골드 수령 완료</span>`:''}
       <button class="btn btn-orange" style="margin-left:auto;font-size:.72rem;padding:3px 9px;" onclick="event.stopPropagation();openAddRaidTask()">+ 추가</button>
     </div>
     ${!S.raidCollapsed?`<div class="coll-body">${raidList.length===0?'<div style="color:var(--muted);font-size:.82rem;padding:4px 0;">레이드 숙제가 없습니다</div>':`<div class="tasks-list">${raidList.map((t,i)=>raidItemHTML(t,i)).join('')}</div>`}</div>`:''}
@@ -1867,7 +1909,7 @@ function subTaskHTML(t,isExp,sibIdx){
     <span class="dnd-handle">⠿</span>
     <div class="checkbox" onclick="toggleTask('${t.id}',${iE})"><span class="checkbox-icon">✓</span></div>
     <div class="task-body">
-      <span class="task-name">${esc(t.name)}</span>
+      ${iconImg(t.icon_url||'','task-title-icon')}<span class="task-name">${esc(t.name)}</span>
       ${hasCount?`<div class="count-group" style="margin-left:7px;"><input type="number" class="count-input" value="${t.count_current||0}" min="0" max="${t.count_max}" onclick="event.stopPropagation()" onchange="updateCount('${t.id}',this.value,${iE})"><span class="count-sep">/</span><span class="count-max-lbl">${t.count_max}</span></div>`:''}
     </div>
     <div class="task-actions">
@@ -1900,7 +1942,7 @@ function rootTaskHTML(t,children,isExp,rootIdx){
       </div>
       <div class="task-body">
         <div class="task-name-row">
-          <span class="task-name">${esc(t.name)}</span>
+          ${iconImg(t.icon_url||'','task-title-icon')}<span class="task-name">${esc(t.name)}</span>
           ${hasCount&&!hasChildren?`<div class="count-group"><input type="number" class="count-input" value="${t.count_current||0}" min="0" max="${t.count_max}" onclick="event.stopPropagation()" onchange="updateCount('${t.id}',this.value,${iE})"><span class="count-sep">/</span><span class="count-max-lbl">${t.count_max}</span></div>`:''}
           ${hasChildren?`<span style="font-size:.68rem;color:var(--muted);margin-left:4px;">${children.filter(c=>isEffDone(c)).length}/${children.length}</span>`:''}
         </div>
@@ -1923,9 +1965,10 @@ function rootTaskHTML(t,children,isExp,rootIdx){
 
 function raidItemHTML(t,idx){
   const done=isEffDone(t);
-  const rg=t.receive_gold!==false,rb=t.receive_bonus!==false;
-  const cg=Number(t.clear_gold)||0,bg=Number(t.bound_gold)||0,bo=Number(t.bonus_gold)||0,fl=cg-bg;
-  const gc=getGroupColor(t.preset_name||t.name);
+  const rg=t.receive_gold!==false, rbd=t.receive_bound!==false, rb=t.receive_bonus!==false;
+  const cg=Number(t.clear_gold)||0,bg=Number(t.bound_gold)||0,bo=Number(t.bonus_gold)||0,fl=Math.max(0,cg-bg);
+  const rn=t.preset_name||t.name;
+  const gc=t.preset_color||getGroupColor(rn);
   const dc=diffClass(t.difficulty||'');
   return `<div class="raid-item ${done?'done':''}" id="ri-${t.id}"
     draggable="true"
@@ -1937,14 +1980,14 @@ function raidItemHTML(t,idx){
     <span class="dnd-handle">⠿</span>
     <div class="checkbox" onclick="toggleRaidTask('${t.id}')"><span class="checkbox-icon">✓</span></div>
     <div class="task-body">
-      <div class="task-name"><span style="color:${gc};">${esc(t.preset_name||t.name)}</span>${t.difficulty?` <span class="${dc}" style="font-size:.72rem;">${esc(t.difficulty)}</span>`:''}</div>
-      <div class="raid-meta" style="margin-top:3px;">
+      <div class="task-name" style="display:flex;align-items:center;gap:6px;">${iconImg(t.preset_icon_url||localStorage.getItem('la_gicon_'+rn)||'','entity-icon-sm')}<span style="color:${gc};">${esc(rn)}</span>${t.difficulty?` <span class="${dc}" style="font-size:.72rem;">${esc(t.difficulty)}</span>`:''}</div>
+      <div class="raid-meta" style="margin-top:4px;">
         ${t.entry_level?`<span class="raid-badge">입장 ${t.entry_level}</span>`:''}
-        ${cg?`<span class="raid-gold ${rg?'':'muted-gold'}" title="${rg?'클릭해서 수령 제외':'클릭해서 수령 중으로'}" style="cursor:pointer;" onclick="event.stopPropagation();toggleReceiveGold('${t.id}')">💰 유통 ${fl.toLocaleString()}G</span>`:''}
-        ${bg?`<span class="raid-gold" style="color:var(--orange);">귀속 ${bg.toLocaleString()}G</span>`:''}
-        ${bo?`<span class="raid-gold ${rb?'':'muted-gold'}" style="color:${rb?'#b39ddb':'var(--dim)'};cursor:pointer;" title="${rb?'클릭해서 더보기 제외':'클릭해서 더보기 수령'}" onclick="event.stopPropagation();toggleReceiveBonus('${t.id}')">더보기 ${bo.toLocaleString()}G</span>`:''}
+        ${fl?`<span class="raid-gold ${rg?'':'muted-gold'}" title="${rg?'클릭해서 유통골드 제외':'클릭해서 유통골드 수령'}" style="cursor:pointer;" onclick="event.stopPropagation();toggleReceiveGold('${t.id}')">💰 유통 ${fl.toLocaleString()}G</span>`:''}
+        ${bg?`<span class="raid-gold ${rbd?'':'muted-gold'}" title="${rbd?'클릭해서 귀속골드 제외':'클릭해서 귀속골드 수령'}" style="color:${rbd?'var(--orange)':'var(--dim)'};cursor:pointer;" onclick="event.stopPropagation();toggleReceiveBound('${t.id}')">🔒 귀속 ${bg.toLocaleString()}G</span>`:''}
+        ${bo?`<span class="raid-gold ${rb?'':'muted-gold'}" style="color:${rb?'#b39ddb':'var(--dim)'};cursor:pointer;" title="${rb?'클릭해서 더보기 제외':'클릭해서 더보기 수령'}" onclick="event.stopPropagation();toggleReceiveBonus('${t.id}')">➕ 더보기 ${bo.toLocaleString()}G</span>`:''}
         ${t.preset_id?`<span style="font-size:.63rem;color:var(--teal);padding:1px 5px;border:1px solid rgba(42,184,160,.3);border-radius:6px;cursor:pointer;" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id}')">🔗 파티연동</span>`:''}
-        <span style="font-size:.65rem;color:var(--dim);">${DAYS[t.reset_day]}요일 초기화 · ${nextResetLabel({...t,reset_type:'weekly'})}</span>
+        <span class="raid-reset-chip">📅 ${DAYS[t.reset_day]}요일 · ${nextResetLabel({...t,reset_type:'weekly'})}</span>
       </div>
     </div>
     <div class="task-actions">
@@ -2041,6 +2084,7 @@ function openAddTask(isExp=false,parentId=''){
   document.getElementById('modal-task-box').className=isE?'modal modal-purple':'modal';
   document.getElementById('task-submit-btn').textContent='추가';
   document.getElementById('task-name').value='';
+  setTaskIcon(null);
   document.getElementById('task-reset').value='weekly';
   document.getElementById('task-day').value='3';
   document.getElementById('day-group').style.display='block';
@@ -2074,6 +2118,7 @@ function openEditTask(taskId,isExp){
   document.getElementById('modal-task-box').className=isE?'modal modal-purple':'modal';
   document.getElementById('task-submit-btn').textContent='저장';
   document.getElementById('task-name').value=t.name;
+  setTaskIcon(t.icon_url||null);
   document.getElementById('task-reset').value=t.reset_type;
   document.getElementById('task-day').value=String(t.reset_day);
   document.getElementById('day-group').style.display=t.reset_type==='weekly'?'block':'none';
@@ -2105,7 +2150,7 @@ async function submitTask(){
   const activateDay=ha?(parseInt(document.getElementById('task-activate-day').value)):null;
   if(!name){toast('❗ 숙제명을 입력하세요');return;}
   if(hc&&!countMax){toast('❗ 최대 수량을 입력하세요');return;}
-  const rec={name,reset_type:resetType,reset_day:resetDay,count_max:countMax,activate_day:activateDay};
+  const rec={name,reset_type:resetType,reset_day:resetDay,count_max:countMax,activate_day:activateDay,icon_url:_taskIconUrl};
   const table=isExp?'expedition_tasks':'tasks';
   if(editId){const{error}=await sb.from(table).update(rec).eq('id',editId);if(error){toast('❗ '+error.message);return;}const t=getList(isExp).find(x=>x.id===editId);if(t)Object.assign(t,rec);toast('✅ 수정됨');}
   else{
@@ -2411,6 +2456,12 @@ async function toggleReceiveGold(taskId){
   sb.from('raid_tasks').update({receive_gold:t.receive_gold}).eq('id',taskId);
   scheduleRenderArea();
 }
+async function toggleReceiveBound(taskId){
+  const t=(S.raidTasks[S.selChar]||[]).find(x=>x.id===taskId);if(!t)return;
+  t.receive_bound=(t.receive_bound===false)?true:false;
+  sb.from('raid_tasks').update({receive_bound:t.receive_bound}).eq('id',taskId);
+  scheduleRenderArea();
+}
 async function toggleReceiveBonus(taskId){
   const t=(S.raidTasks[S.selChar]||[]).find(x=>x.id===taskId);if(!t)return;
   t.receive_bonus=(t.receive_bonus===false)?true:false;
@@ -2535,10 +2586,7 @@ async function showPartyLinkPopup(presetId){
     if(partiesRes.error) throw partiesRes.error;
     const preset=presetRes.data;
     const partiesData=partiesRes.data||[];
-    if(!preset){
-      el.innerHTML='<span style="color:var(--muted);">레이드 정보를 불러올 수 없습니다</span>';
-      return;
-    }
+    if(!preset){el.innerHTML='<span style="color:var(--muted);">레이드 정보를 불러올 수 없습니다</span>';return;}
     const pIds=partiesData.map(p=>p.id);
     let members=[], schData=[];
     if(pIds.length){
@@ -2551,18 +2599,17 @@ async function showPartyLinkPopup(presetId){
       members = memberRes.data || [];
       schData = scheduleRes.data || [];
     }
+    const targetParties=partiesData.filter(p=>members.some(m=>m.party_id===p.id&&m.character_id===S.selChar));
     const DAYS_KO=['일','월','화','수','목','금','토'];
     const dayMap={};
-    schData.forEach(s=>{
-      if(!dayMap[s.party_id]) dayMap[s.party_id]=[];
-      dayMap[s.party_id].push(s.day_of_week);
-    });
-    const gc=getGroupColor(preset.name||'');
+    schData.forEach(s=>{if(!dayMap[s.party_id])dayMap[s.party_id]=[];dayMap[s.party_id].push(s.day_of_week);});
+    const gc=preset.color||getGroupColor(preset.name||'');
     let html=`<div style="padding:12px 14px;background:var(--s3);border-radius:12px;margin-bottom:14px;border:1px solid rgba(255,255,255,.08);border-left:3px solid ${gc};">
       <div style="font-size:.92rem;font-weight:700;color:${gc};display:flex;align-items:center;gap:6px;">${iconImg(preset.icon_url,'entity-icon-sm')}${esc(preset.name)}${preset.difficulty?` <span class="${diffClass(preset.difficulty)}" style="font-size:.75rem;">${esc(preset.difficulty)}</span>`:''}</div>
       ${preset.entry_level?`<div style="font-size:.74rem;color:var(--muted);margin-top:4px;">입장 레벨 ${preset.entry_level}</div>`:''}
     </div>`;
-    partiesData.forEach(p=>{
+    if(!targetParties.length){el.innerHTML=html+'<div style="color:var(--muted);font-size:.82rem;padding:8px 0;">현재 캐릭터가 배치된 파티가 없습니다.</div>';return;}
+    targetParties.forEach(p=>{
       const pMembers=members.filter(m=>m.party_id===p.id).sort((a,b)=>a.slot_index-b.slot_index);
       const days=(dayMap[p.id]||[]).map(d=>DAYS_KO[d]+'요일').join(', ');
       const pc=getPartyColor(p);
@@ -2571,6 +2618,7 @@ async function showPartyLinkPopup(presetId){
           <span style="font-size:.86rem;font-weight:700;color:${pc};">${esc(p.name||'파티')}</span>
           <span style="font-size:.72rem;color:var(--muted);">${p.party_size}인</span>
           ${days?`<span style="font-size:.72rem;color:var(--gold);margin-left:auto;">📅 ${days}</span>`:''}
+          <a class="party-jump-btn" href="raid.html?party=${p.id}">파티 이동</a>
         </div>
         <div style="padding:8px 10px;display:flex;flex-direction:column;gap:5px;">`;
       for(let i=0;i<p.party_size;i++){
@@ -2587,12 +2635,8 @@ async function showPartyLinkPopup(presetId){
       }
       html+=`</div></div>`;
     });
-    if(!partiesData.length) html+='<div style="color:var(--muted);font-size:.82rem;padding:8px 0;">등록된 파티가 없습니다</div>';
     el.innerHTML=html;
-  }catch(err){
-    console.error(err);
-    el.innerHTML='<div style="color:#fca5a5;font-size:.82rem;line-height:1.6;">파티 정보를 불러오지 못했습니다.<br>잠시 후 다시 시도해주세요.</div>';
-  }
+  }catch(err){console.error(err);el.innerHTML='<div style="color:#fca5a5;font-size:.82rem;line-height:1.6;">파티 정보를 불러오지 못했습니다.<br>잠시 후 다시 시도해주세요.</div>';}
 }
 
 function getGroupColor(name){return localStorage.getItem('la_gc_'+name)||'#4caf50';}
