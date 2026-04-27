@@ -684,6 +684,30 @@ button,input,select,textarea{ font:inherit; }
   width:20px; height:20px; border:none; background:transparent; color:var(--gold-text); cursor:pointer;
 }
 
+
+/* ===== core compact layout / scroll repair ===== */
+body{overflow:hidden!important;}
+.main{min-height:0;}
+.core-content{height:calc(100vh - 164px);overflow:auto!important;padding-bottom:28px;}
+.vm-opts{gap:8px;padding:10px 16px;align-items:center;}
+.vm-opt{border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:7px 12px;background:rgba(255,255,255,.025);font-size:.76rem;}
+.vm-opt.on{background:rgba(255,184,77,.10);box-shadow:inset 0 0 0 1px rgba(255,184,77,.2);border-bottom-color:rgba(255,184,77,.35);}
+.grade-legend-row{padding:10px 16px;margin-bottom:0;gap:6px;background:rgba(13,21,38,.72);border-bottom:1px solid var(--border);}
+.grade-pill{padding:5px 10px;border-radius:999px;font-size:.72rem;}
+.char-filter-row{padding:8px 16px;gap:6px;}
+.char-filter-btn{padding:5px 10px;font-size:.74rem;}
+.combo-view{padding:12px 16px;gap:12px;}
+.combo-cards-wrap{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;align-items:start;}
+.combo-char-card{min-width:0!important;max-width:none!important;border-radius:14px;}
+.ccard-header{padding:8px 10px;}
+.ccard-body{padding:8px;gap:5px;}
+.combo-entry{padding:8px;border-radius:12px;}
+.combo-grade-row{padding:5px 6px;gap:6px;}
+.cgr-badge{min-width:46px;padding:4px 7px;font-size:.67rem;}
+.combo-add-btn{padding:8px 10px;margin:0 8px 8px;font-size:.76rem;}
+.core-table th,.core-table td{font-size:.76rem;}
+.core-cell{min-height:38px;padding:4px;}
+
 </style>
 </head>
 <body>
