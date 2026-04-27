@@ -58,6 +58,8 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 /* Account section */
 .acc-section{margin-bottom:20px;}
 .acc-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;cursor:pointer;user-select:none;padding:8px 12px;background:var(--s1);border:1px solid var(--border);border-radius:6px;transition:background .12s;}
+.acc-prog-wrap{flex:1;min-width:60px;max-width:140px;height:5px;background:var(--s3);border-radius:3px;overflow:hidden;}
+.acc-prog-bar{height:100%;border-radius:3px;transition:width .3s;}
 .acc-header:hover{background:rgba(255,255,255,.02);}
 .acc-toggle{font-size:.68rem;color:var(--muted);}
 .acc-name{font-family:'Cinzel',serif;font-size:.92rem;color:var(--gold);flex:1;}
@@ -300,13 +302,15 @@ function render(){
     const accEarnedFlow=withRaids.reduce((s,c)=>s+raidTasks.filter(t=>t.character_id===c.id&&isEffDone(t)&&t.receive_gold!==false).reduce((ss,t)=>ss+(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0),0),0);
     const isOpen=!collapsedAccs.has(acc.id);
     const allClear=accDone===accTotal&&accTotal>0;
+    const accPct=accTotal?Math.round(accDone/accTotal*100):0;
     return`<div class="acc-section">
       <div class="acc-header" onclick="toggleAcc('${acc.id}')">
         <span class="acc-toggle">${isOpen?'▼':'▶'}</span>
         <span class="acc-name">${esc(acc.name)}</span>
         <span class="acc-stat">${accDone}/${accTotal}</span>
-        ${accFlow?`<span style="font-size:.72rem;color:#f0c040;margin-left:4px;">💰 유통 ${accEarnedFlow.toLocaleString()}/${accFlow.toLocaleString()}G</span>`:''}
-        ${accBound?`<span style="font-size:.72rem;color:var(--orange);margin-left:4px;">귀속 ${accBound.toLocaleString()}G</span>`:''}
+        <div class="acc-prog-wrap"><div class="acc-prog-bar" style="width:${accPct}%;background:${allClear?'var(--green)':'var(--teal)'};"></div></div>
+        ${accFlow?`<span style="font-size:.72rem;color:#f0c040;">💰 유통 ${accEarnedFlow.toLocaleString()}/${accFlow.toLocaleString()}G</span>`:''}
+        ${accBound?`<span style="font-size:.72rem;color:var(--orange);">귀속 ${accBound.toLocaleString()}G</span>`:''}
         ${allClear?`<span class="acc-allclear">✓ 올클</span>`:''}
       </div>
       ${isOpen?`<div class="char-grid">${withRaids.map(c=>charCardHTML(c)).join('')}</div>`:''}
@@ -335,11 +339,12 @@ function charCardHTML(c){
 function raidTaskRowHTML(t){
   const done=isEffDone(t);
   const raidName=t.preset_name||t.name;
+  const gc=getGroupColor(raidName);
+  const dc=diffClass(t.difficulty||'');
   return`<div class="rt-row ${done?'done':''}" id="ov-rti-${t.id}" onclick="toggleRaidTask('${t.id}')">
     <div class="rt-check"><span class="rt-check-icon">✓</span></div>
     <div class="rt-info">
-      <div class="rt-name" style="color:${getGroupColor(raidName)};">${esc(raidName)}</div>
-      ${t.difficulty?`<div class="${diffClass(t.difficulty)}" style="font-size:.75rem;margin-top:2px;">${esc(t.difficulty)}</div>`:''}
+      <div class="rt-name"><span style="color:${gc};">${esc(raidName)}</span>${t.difficulty?` <span class="${dc}" style="font-size:.72rem;margin-left:3px;">${esc(t.difficulty)}</span>`:''}</div>
     </div>
   </div>`;
 }
