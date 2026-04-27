@@ -708,6 +708,27 @@ body{overflow:hidden!important;}
 .core-table th,.core-table td{font-size:.76rem;}
 .core-cell{min-height:38px;padding:4px;}
 
+
+/* ===== v4 core fixes: raid-like tabs, real scroll, editable chaos labels ===== */
+.main-content{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;}
+#content{flex:1;min-height:0;flex-direction:column;overflow:hidden;}
+#core-container{flex:1;min-height:0;overflow:auto!important;padding:12px 16px 34px;}
+.core-table-wrap{max-height:none;overflow:auto;}
+.view-mode-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(13,21,38,.78);border-top:1px solid var(--border);border-bottom:1px solid var(--border);border-left:0;border-right:0;border-radius:0;}
+.vm-label{font-size:.74rem;color:var(--text-2);font-weight:700;margin-right:2px;}
+.vm-opt{padding:9px 14px;border-radius:12px;border:1px solid transparent;background:transparent;color:var(--text-2);cursor:pointer;font-size:.82rem;font-weight:700;transition:all var(--t);}
+.vm-opt:hover{color:var(--text);background:rgba(255,255,255,.045);border-color:rgba(255,255,255,.08);}
+.vm-opt.on{color:var(--gold-text);background:rgba(255,184,77,.10);border-color:rgba(255,184,77,.24);box-shadow:none;}
+.lock-btn{margin-left:auto;border-radius:12px;padding:9px 13px;font-weight:700;}
+.filter-bar{margin:0;border-left:0;border-right:0;border-radius:0;background:rgba(13,21,38,.70);}
+.filter-bar-hd{padding:9px 16px;cursor:pointer;}
+.filter-bar-body{padding:8px 16px 12px;border-top:1px solid var(--border);}
+.combo-view{padding:0!important;}
+.combo-section-label{padding:6px 2px 8px;}
+.cgr-badge:hover{filter:brightness(1.18);transform:translateY(-1px) scale(1.03);box-shadow:0 8px 20px rgba(0,0,0,.25);}
+.core-row-label-text.editable-chaos{cursor:pointer;text-decoration:underline dotted rgba(255,184,77,.55);text-underline-offset:3px;}
+.core-row-label-text.editable-chaos:hover{color:var(--gold-text);}
+
 </style>
 </head>
 <body>
@@ -883,7 +904,7 @@ async function init(){
   allChars.forEach(c=>{if(!coreData[c.id])coreData[c.id]={id:null,cores:{}};});
   setViewModeUI(viewMode);
   document.getElementById('loading').style.display='none';
-  document.getElementById('content').style.display='block';
+  document.getElementById('content').style.display='flex';
   renderFilters();renderMain();applyLock();
 }
 function setViewMode(m){viewMode=m;localStorage.setItem('la_core_view',m);setViewModeUI(m);renderMain();}
@@ -937,7 +958,7 @@ function renderBasic(vis,el){
         if(isChaos){
           const firstCharId=vis[0]?.id||'';
           const chaosLabel=getChaosName(firstCharId,type,ek,s);
-          labelEl=`<span class="core-row-label-text" style="cursor:pointer;text-decoration:underline dotted;" title="클릭해서 이름 변경" onclick="promptChaosName('${firstCharId}','${ek}',${s},'${chaosLabel.replace(/'/g,"\\'")}');event.stopPropagation();">${chaosLabel}</span>`;
+          labelEl=`<span class="core-row-label-text editable-chaos" title="클릭해서 이름 변경" onclick="promptChaosName('${firstCharId}','${ek}',${s},'${escAttr(chaosLabel)}');event.stopPropagation();">${esc(chaosLabel)}</span>`;
         } else {
           labelEl=`<span class="core-row-label-text">${group}${name}${s}</span>`;
         }
@@ -948,7 +969,7 @@ function renderBasic(vis,el){
 }
 function renderNumbered(vis,el){
   let h=thead(vis);
-  TYPES.forEach(({group,type,cls,elements})=>{const tsk=`${type}_all`,col=collapsedSections.has(tsk);h+=`<tr class="section-hrow" onclick="toggleSection('${tsk}')"><td colspan="${vis.length+1}" class="section-hrow-td ${cls}"><span style="margin-right:6px;font-size:.65rem;">${col?'▶':'▼'}</span>${group}</td></tr>`;if(!col){for(let s=1;s<=6;s++){const nsk=`${type}_num_${s}`,ncol=collapsedSections.has(nsk);h+=`<tr class="section-hrow" onclick="event.stopPropagation();toggleSection('${nsk}')"><td colspan="${vis.length+1}" class="section-hrow-td sec-num" style="padding-left:20px;"><span style="margin-right:6px;font-size:.65rem;color:var(--muted);">${ncol?'▶':'▼'}</span>${s}번</td></tr>`;if(!ncol){elements.forEach(({name,key:ek})=>{const rk=ck(type,ek,s);if(hiddenRows.has(rk))return;h+=`<tr><td><div class="core-row-label-wrap" style="padding-left:18px;"><span class="core-row-label-text">${group}${name}${s}</span><button class="row-hide-btn" onclick="event.stopPropagation();hideRow('${rk}')">🙈</button></div></td>`;vis.forEach(c=>{h+=cell(c.id,rk);});h+=`</tr>`;});}}}});
+  TYPES.forEach(({group,type,cls,elements})=>{const tsk=`${type}_all`,col=collapsedSections.has(tsk);h+=`<tr class="section-hrow" onclick="toggleSection('${tsk}')"><td colspan="${vis.length+1}" class="section-hrow-td ${cls}"><span style="margin-right:6px;font-size:.65rem;">${col?'▶':'▼'}</span>${group}</td></tr>`;if(!col){for(let s=1;s<=6;s++){const nsk=`${type}_num_${s}`,ncol=collapsedSections.has(nsk);h+=`<tr class="section-hrow" onclick="event.stopPropagation();toggleSection('${nsk}')"><td colspan="${vis.length+1}" class="section-hrow-td sec-num" style="padding-left:20px;"><span style="margin-right:6px;font-size:.65rem;color:var(--muted);">${ncol?'▶':'▼'}</span>${s}번</td></tr>`;if(!ncol){elements.forEach(({name,key:ek})=>{const rk=ck(type,ek,s);if(hiddenRows.has(rk))return;let label=`<span class="core-row-label-text">${group}${name}${s}</span>`;if(type==='chaos'){const firstCharId=vis[0]?.id||'';const chaosLabel=getChaosName(firstCharId,type,ek,s);label=`<span class="core-row-label-text editable-chaos" title="클릭해서 이름 변경" onclick="promptChaosName('${firstCharId}','${ek}',${s},'${escAttr(chaosLabel)}');event.stopPropagation();">${esc(chaosLabel)}</span>`;}h+=`<tr><td><div class="core-row-label-wrap" style="padding-left:18px;">${label}<button class="row-hide-btn" onclick="event.stopPropagation();hideRow('${rk}')">🙈</button></div></td>`;vis.forEach(c=>{h+=cell(c.id,rk);});h+=`</tr>`;});}}}});
   el.innerHTML=`<div class="core-table-wrap"><table class="core-table">${h}</tbody></table></div>`;
 }
 function renderCombo(vis,el){
@@ -989,7 +1010,7 @@ function renderCombo(vis,el){
   let cH=`<div class="combo-section-label">💫 혼돈 (번호별 묶음)</div>`;
   let th=thead(vis);
   const chaosT=TYPES.find(t=>t.type==='chaos');
-  for(let s=1;s<=6;s++){const nsk=`chaos_num_${s}`,ncol=collapsedSections.has(nsk);th+=`<tr class="section-hrow" onclick="toggleSection('${nsk}')"><td colspan="${vis.length+1}" class="section-hrow-td sec-num"><span style="margin-right:6px;font-size:.65rem;color:var(--muted);">${ncol?'▶':'▼'}</span>${s}번</td></tr>`;if(!ncol){chaosT.elements.forEach(({name,key:ek})=>{const rk=ck('chaos',ek,s);if(hiddenRows.has(rk))return;th+=`<tr><td><div class="core-row-label-wrap"><span class="core-row-label-text">혼돈${name}${s}</span><button class="row-hide-btn" onclick="event.stopPropagation();hideRow('${rk}')">🙈</button></div></td>`;vis.forEach(c=>{th+=cell(c.id,rk);});th+=`</tr>`;});}}
+  for(let s=1;s<=6;s++){const nsk=`chaos_num_${s}`,ncol=collapsedSections.has(nsk);th+=`<tr class="section-hrow" onclick="toggleSection('${nsk}')"><td colspan="${vis.length+1}" class="section-hrow-td sec-num"><span style="margin-right:6px;font-size:.65rem;color:var(--muted);">${ncol?'▶':'▼'}</span>${s}번</td></tr>`;if(!ncol){chaosT.elements.forEach(({name,key:ek})=>{const rk=ck('chaos',ek,s);if(hiddenRows.has(rk))return;const firstCharId=vis[0]?.id||'';const chaosLabel=getChaosName(firstCharId,'chaos',ek,s);th+=`<tr><td><div class="core-row-label-wrap"><span class="core-row-label-text editable-chaos" title="클릭해서 이름 변경" onclick="promptChaosName('${firstCharId}','${ek}',${s},'${escAttr(chaosLabel)}');event.stopPropagation();">${esc(chaosLabel)}</span><button class="row-hide-btn" onclick="event.stopPropagation();hideRow('${rk}')">🙈</button></div></td>`;vis.forEach(c=>{th+=cell(c.id,rk);});th+=`</tr>`;});}}
   cH+=`<div class="core-table-wrap"><table class="core-table">${th}</tbody></table></div>`;
   el.innerHTML=oH+cH;
 }
@@ -998,20 +1019,19 @@ const _saveTimer={};
 function scheduleSave(cid){clearTimeout(_saveTimer[cid]);_saveTimer[cid]=setTimeout(()=>saveCores(cid),500);}
 // ─── 혼돈 코어 이름 편집 ───
 function getChaosName(charId,type,ek,slot){
-  const data=coreData[charId]||{};
-  const names=data.__chaosNames||{};
+  const data=coreData[charId]||{cores:{}};
+  const names=data.cores?.__chaosNames||{};
   const typeLabel=ek==='sun'?'해':ek==='moon'?'달':'별';
   const dflt=`혼돈${typeLabel}${slot}`;
   return names[ek+'_'+slot]||dflt;
 }
 async function saveChaosName(charId,ek,slot,name){
-  if(!coreData[charId])coreData[charId]={cores:{}};
-  if(!coreData[charId].__chaosNames)coreData[charId].__chaosNames={};
-  coreData[charId].__chaosNames[ek+'_'+slot]=name;
-  const e=coreData[charId];
-  const saveData={cores:e.cores,__chaosNames:e.__chaosNames};
-  if(e.id){await sb.from('character_cores').update(saveData).eq('id',e.id);}
-  else{const{data}=await sb.from('character_cores').insert({character_id:charId,...saveData}).select().single();if(data)coreData[charId].id=data.id;}
+  if(!charId)return;
+  if(!coreData[charId])coreData[charId]={id:null,cores:{}};
+  if(!coreData[charId].cores)coreData[charId].cores={};
+  if(!coreData[charId].cores.__chaosNames)coreData[charId].cores.__chaosNames={};
+  coreData[charId].cores.__chaosNames[ek+'_'+slot]=name;
+  await saveCores(charId);
 }
 function promptChaosName(charId,ek,slot,current){
   const newName=prompt('혼돈 코어 이름 변경:',current);
@@ -1072,6 +1092,7 @@ document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',e=
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'));});
 function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),2600);}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function escAttr(s){return esc(s).replace(/'/g,'&#39;');}
 init();
 </script>
 
