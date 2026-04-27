@@ -194,6 +194,22 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
 .toast{position:fixed;bottom:24px;right:24px;background:var(--s3);border:1px solid var(--gold-dim);color:var(--text);padding:9px 16px;border-radius:var(--r);font-size:.84rem;box-shadow:0 4px 20px rgba(0,0,0,.5);z-index:300;animation:toastIn .25s ease,toastOut .25s ease 2.25s forwards;}
 @keyframes toastIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
 @keyframes toastOut{to{opacity:0;transform:translateY(8px);}}
+
+/* ─── Image Picker ─── */
+.pick-bc{cursor:pointer;color:var(--gold);font-size:.78rem;}.pick-bc:hover{text-decoration:underline;}
+.pick-folder{padding:7px 10px;background:var(--s3);border:1px solid var(--border);border-radius:5px;cursor:pointer;font-size:.82rem;margin-bottom:5px;transition:border-color .12s;display:flex;align-items:center;gap:6px;}
+.pick-folder:hover{border-color:var(--gold);}
+.pick-imgs{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+.pick-img-wrap{width:64px;height:64px;border:2px solid var(--border);border-radius:6px;overflow:hidden;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .12s;background:var(--s3);}
+.pick-img-wrap:hover{border-color:var(--gold);}
+.pick-img-wrap img{width:56px;height:56px;object-fit:contain;}
+.pick-empty{font-size:.8rem;color:var(--muted);padding:20px;text-align:center;}
+/* Icon display */
+.entity-icon{width:22px;height:22px;object-fit:contain;border-radius:3px;flex-shrink:0;}
+.entity-icon-sm{width:18px;height:18px;object-fit:contain;border-radius:2px;flex-shrink:0;}
+.icon-btn{padding:2px 6px;font-size:.68rem;border:1px solid var(--border);border-radius:3px;background:var(--s3);color:var(--muted);cursor:pointer;transition:border-color .12s;}
+.icon-btn:hover{border-color:var(--gold);color:var(--gold);}
+
 </style>
 </head>
 <body>
@@ -341,6 +357,13 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-seri
   <div class="modal-title" id="raid-name-modal-title">레이드 추가</div>
   <div class="form-group"><label class="form-label">레이드 이름</label>
     <input class="form-input" id="rn-name" lang="ko" inputmode="text" placeholder="에키드나, 베히모스, 카멘..." maxlength="30">
+  </div>
+  <div class="form-group">
+    <label class="form-label">레이드 아이콘</label>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div id="rn-icon-preview" style="width:36px;height:36px;border:1px solid var(--border);border-radius:5px;display:flex;align-items:center;justify-content:center;background:var(--s3);"><span style="color:var(--dim);font-size:.7rem;">없음</span></div>
+      <button type="button" class="btn btn-sec btn-sm" onclick="openImagePicker(u=>{_rnIconUrl=u||null;const p=document.getElementById('rn-icon-preview');p.innerHTML=u?iconImg(u,'entity-icon'):'<span style=\'color:var(--dim);font-size:.7rem;\'>없음</span>';})">🖼 아이콘 선택</button>
+    </div>
   </div>
   <div class="form-group"><label class="form-label">레이드명 색상 <span style="font-size:.7rem;color:var(--muted);">(기본: 초록)</span></label>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -580,7 +603,7 @@ function renderPresetList(){
       <div class="preset-header" onclick="toggleGroup('${esc(gname)}')">
         ${!isViewer?`<span class="rdnd-handle" onclick="event.stopPropagation()">⠿</span>`:''}
         <span class="preset-toggle">${isGOpen?'▼':'▶'}</span>
-        <div class="preset-name" style="flex:1;color:${getGroupColor(gname)};">${esc(gname)}</div>
+        <div class="preset-name" style="flex:1;color:${getGroupColor(gname)};display:flex;align-items:center;gap:5px;">${iconImg(gPresets[0]?.icon_url||'')}${esc(gname)}</div>
         <div class="preset-actions">
           ${!isViewer?`<button class="btn btn-icon edit-only" style="font-size:.7rem;padding:3px 7px;" onclick="event.stopPropagation();openAddDifficulty('${esc(gname)}')">+난이도</button>
           <button class="btn btn-icon edit-only" onclick="event.stopPropagation();openEditRaidGroup('${esc(gname)}')">✏️</button>
@@ -676,7 +699,7 @@ async function renderPartyDetail(){
   el.innerHTML=`
     <div class="pdp-header">
       <div>
-        <div class="pdp-title">${esc(preset?.name||'?')} — ${esc(p.name||'파티')}</div>
+        <div class="pdp-title">${iconImg(getGroupIcon(preset?.name||'')||gPresets.find(r=>r.id===p.preset_id)?.icon_url||'')}${esc(preset?.name||'?')} — <span style="color:${getPartyColor(p)};">${esc(p.name||'파티')}</span></div>
         <div class="pdp-sub">${p.party_size}인 레이드 · ${esc(preset?.difficulty||'')}</div>
       </div>
       <div style="margin-left:auto;display:flex;gap:6px;">
@@ -689,7 +712,7 @@ async function renderPartyDetail(){
         const ch=allChars.find(c=>c.id===slot.character_id);
         if(ch)return`<div class="slot filled ${!isViewer?'clickable':''}" onclick="${!isViewer?`openCharPickerParty('${p.id}',${i})`:''}">
           <span class="slot-num">${i+1}</span>
-          <div style="flex:1;min-width:0;"><div class="slot-char">${esc(ch.name)}</div><div class="slot-class">${esc(ch.class_name||'')}${ch.item_level?' Lv.'+ch.item_level:''}</div></div>
+          <div style="flex:1;min-width:0;"><div class="slot-char" style="display:flex;align-items:center;gap:4px;">${iconImg(ch.icon_url||'','entity-icon-sm')}${esc(ch.name)}</div><div class="slot-class">${esc(ch.class_name||'')}${ch.item_level?' Lv.'+ch.item_level:''}</div></div>
           <button class="slot-remove edit-only" onclick="event.stopPropagation();removePartyMember('${p.id}',${i},'${slot.id||''}')">✕</button>
         </div>`;
         return`<div class="slot ${!isViewer?'clickable':''}" onclick="${!isViewer?`openCharPickerParty('${p.id}',${i})`:''}">
@@ -814,6 +837,9 @@ function openEditRaidGroup(groupName){
   document.getElementById('rn-submit-btn').textContent='저장';
   document.getElementById('rn-name').value=groupName;document.getElementById('rn-old-name').value=groupName;
   const c=getGroupColor(groupName);document.getElementById('rn-color').value=c;document.getElementById('rn-color-preview').textContent='● '+c;document.getElementById('rn-color-preview').style.color=c;
+  _rnIconUrl=getGroupIcon(groupName)||null;
+  const rp=document.getElementById('rn-icon-preview');
+  if(rp)rp.innerHTML=_rnIconUrl?iconImg(_rnIconUrl,'entity-icon'):'<span style="color:var(--dim);font-size:.7rem;">없음</span>';
   openModal('modal-raid-name');
 }
 function openAddPreset(){document.getElementById('raid-name-modal-title').textContent='레이드 추가';document.getElementById('rn-submit-btn').textContent='추가';document.getElementById('rn-name').value='';document.getElementById('rn-old-name').value='';resetRnColor();openModal('modal-raid-name');setTimeout(()=>document.getElementById('rn-name').focus(),80);}
@@ -821,7 +847,9 @@ async function submitRaidName(){
   const name=document.getElementById('rn-name').value.trim();if(!name){toast('❗ 이름 입력');return;}
   const oldName=document.getElementById('rn-old-name').value;
   const color=document.getElementById('rn-color').value||'#4caf50';
-  setGroupColor(name,color); // 색상 localStorage 저장
+  setGroupColor(name,color);
+  // icon_url 저장 (localStorage - 그룹명 기반)
+  if(typeof _rnIconUrl!=='undefined'){if(_rnIconUrl)localStorage.setItem('la_gicon_'+name,_rnIconUrl);else localStorage.removeItem('la_gicon_'+name);} // 색상 localStorage 저장
   if(oldName){
     // 수정: 해당 이름의 모든 presets 이름 변경
     await sb.from('raid_presets').update({name}).eq('name',oldName);
@@ -1204,7 +1232,7 @@ function schedCardHTML(s,wk){
   const pc=getPartyColor(p);
   return`<div class="sched-card ${isCompleted?'completed':''} ${hasOvr?'has-ovr':''}" id="sc-${s.id}">
     <div class="sc-header">
-      <div class="sc-raid-name" style="color:${gc};">${esc(preset?.name||'?')}<span class="${diffClass(preset?.difficulty||'')}" style="font-size:.65rem;margin-left:5px;font-weight:600;">${esc(preset?.difficulty||'')}</span></div>
+      <div class="sc-raid-name" style="color:${gc};display:flex;align-items:center;gap:4px;">${iconImg(getGroupIcon(preset?.name||'')||preset?.icon_url||'','entity-icon-sm')}${esc(preset?.name||'?')}<span class="${diffClass(preset?.difficulty||'')}" style="font-size:.65rem;margin-left:5px;font-weight:600;">${esc(preset?.difficulty||'')}</span></div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
         <span class="sc-party-name" style="color:${pc};">${esc(p?.name||'?')} · ${p?.party_size||'?'}인</span>
         ${s.time_str?`<span style="font-size:.72rem;font-weight:700;color:var(--gold-bright);background:rgba(200,168,75,.12);padding:1px 6px;border-radius:4px;border:1px solid rgba(200,168,75,.3);">🕐 ${s.time_str}</span>`:''}
@@ -1215,7 +1243,7 @@ function schedCardHTML(s,wk){
     <div class="sc-members">
       ${eff.map(slot=>{
         const ch=allChars.find(c=>c.id===slot.character_id);
-        if(ch){const isHL=schHighlightChars.has(ch.id);return`<div class="sc-member ${slot.isOvr?'temp':''} ${isHL?'hl-me':''}" style="${isHL?'border:1px solid rgba(200,168,75,.5);background:rgba(200,168,75,.1);border-radius:3px;padding:1px 3px;':''}"><span class="sc-member-name" style="${isHL?'color:var(--gold);font-weight:700;':''}">${esc(ch.name)}</span><span class="sc-member-class">${esc(ch.class_name||'')}</span></div>`;}
+        if(ch){const isHL=schHighlightChars.has(ch.id);return`<div class="sc-member ${slot.isOvr?'temp':''} ${isHL?'hl-me':''}" style="${isHL?'border:1px solid rgba(200,168,75,.5);background:rgba(200,168,75,.1);border-radius:3px;padding:1px 3px;':''}">${iconImg(ch.icon_url||'','entity-icon-sm')}<span class="sc-member-name" style="${isHL?'color:var(--gold);font-weight:700;':''}">${esc(ch.name)}</span><span class="sc-member-class">${esc(ch.class_name||'')}</span></div>`;}
         return`<div class="sc-empty-slot">—</div>`;
       }).join('')}
     </div>
@@ -1438,7 +1466,49 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'));});
 // ─── Color helpers ───
+
+// ─── Image Picker (shared) ───
+const ICON_REPO='ghk71/LoAHomeworkCheck';
+const ICON_RAW=`https://raw.githubusercontent.com/${ICON_REPO}/main/`;
+const ICON_API=`https://api.github.com/repos/${ICON_REPO}/contents/`;
+let _pickerCb=null;
+function iconImg(url,cls='entity-icon'){return url?`<img class="${cls}" src="${url}" onerror="this.style.display='none'">`:'';} 
+
+async function openImagePicker(cb,path='images/'){
+  _pickerCb=cb;
+  document.getElementById('picker-content').innerHTML='<div class="pick-empty"><div class="spinner"></div></div>';
+  openModal('modal-img-picker');
+  await loadPickerDir(path);
+}
+async function loadPickerDir(path){
+  const cKey='la_ic_'+path;
+  let items;
+  try{const c=sessionStorage.getItem(cKey);if(c)items=JSON.parse(c);}catch{}
+  if(!items){
+    const r=await fetch(ICON_API+path);
+    if(!r.ok){document.getElementById('picker-content').innerHTML='<div class="pick-empty">폴더를 불러올 수 없습니다<br><small>images/ 폴더가 repo에 있는지 확인하세요</small></div>';return;}
+    items=await r.json();
+    try{sessionStorage.setItem(cKey,JSON.stringify(items));}catch{}
+  }
+  const dirs=items.filter(x=>x.type==='dir');
+  const imgs=items.filter(x=>x.type==='file'&&/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(x.name));
+  // Breadcrumb
+  const parts=path.replace(/^\/images\//,'').replace(/^images\//,'').split('/').filter(Boolean);
+  let bc=`<span class="pick-bc" onclick="loadPickerDir('images/')">images</span>`;
+  let cum='images/';parts.forEach(p=>{cum+=p+'/';bc+=` / <span class="pick-bc" onclick="loadPickerDir('${cum}')">${p}</span>`;});
+  document.getElementById('picker-breadcrumb').innerHTML=bc;
+  // Content
+  let html='';
+  if(dirs.length){html+=dirs.map(d=>`<div class="pick-folder" onclick="loadPickerDir('${path}${d.name}/')">📁 ${d.name}</div>`).join('');}
+  if(imgs.length){html+=`<div class="pick-imgs">${imgs.map(f=>{const url=ICON_RAW+f.path;return`<div class="pick-img-wrap" title="${f.name}" onclick="selectPickerImg('${url}')"><img src="${url}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`;}).join('')}</div>`;}
+  if(!dirs.length&&!imgs.length)html='<div class="pick-empty">이미지가 없습니다</div>';
+  document.getElementById('picker-content').innerHTML=html;
+}
+function selectPickerImg(url){if(_pickerCb)_pickerCb(url);closeModal('modal-img-picker');}
+function pickerRemoveIcon(){if(_pickerCb)_pickerCb(null);closeModal('modal-img-picker');}
+
 function getGroupColor(name){return localStorage.getItem('la_gc_'+name)||'#4caf50';}
+function getGroupIcon(name){return localStorage.getItem('la_gicon_'+name)||'';}
 function setGroupColor(name,color){if(color)localStorage.setItem('la_gc_'+name,color);else localStorage.removeItem('la_gc_'+name);}
 function getPartyColor(p){return(p&&p.color)||'#e0ddd5';}
 
@@ -1454,5 +1524,17 @@ function toast(msg){const el=document.createElement('div');el.className='toast';
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 init();
 </script>
+
+<!-- Image Picker Modal -->
+<div class="overlay" id="modal-img-picker"><div class="modal" style="max-width:520px;height:70vh;display:flex;flex-direction:column;">
+  <div class="modal-title">🖼️ 아이콘 선택</div>
+  <div id="picker-breadcrumb" style="font-size:.78rem;padding:2px 0 8px;color:var(--muted);flex-shrink:0;border-bottom:1px solid var(--border);margin-bottom:8px;"></div>
+  <div id="picker-content" style="flex:1;overflow-y:auto;"></div>
+  <div class="modal-footer" style="margin-top:8px;">
+    <button class="btn btn-danger btn-sm" style="margin-right:auto;" onclick="pickerRemoveIcon()">🗑 아이콘 제거</button>
+    <button class="btn btn-sec" onclick="closeModal('modal-img-picker')">취소</button>
+  </div>
+</div></div>
+
 </body>
 </html>
