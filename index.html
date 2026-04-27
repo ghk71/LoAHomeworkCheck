@@ -944,6 +944,26 @@ button,input,select,textarea{ font:inherit; }
 .party-jump-btn{display:inline-flex;align-items:center;justify-content:center;padding:5px 8px;border-radius:9px;border:1px solid rgba(124,92,255,.35);background:rgba(124,92,255,.10);color:#ddd7ff;text-decoration:none;font-size:.72rem;font-weight:700;}
 .party-jump-btn:hover{background:rgba(124,92,255,.18);}
 
+
+/* ===== v4 fixes: account tabs, hover feedback, currency summary ===== */
+.account-item{border-radius:12px;margin:4px 8px;border:1px solid transparent;}
+.account-item.active{box-shadow:inset 0 0 0 1px rgba(255,184,77,.24),0 6px 18px rgba(0,0,0,.18);}
+.account-subgroup{margin:6px 8px 10px 18px;border:1px solid rgba(124,92,255,.18);border-radius:14px;background:rgba(124,92,255,.045);overflow:hidden;}
+.account-subgroup-title{display:flex;align-items:center;gap:7px;padding:8px 12px;font-size:.75rem;font-weight:800;color:#d8d2ff;background:rgba(124,92,255,.10);border-bottom:1px solid rgba(255,255,255,.06);}
+.account-subgroup-title::before{content:'↳';color:var(--gold-text);font-weight:900;}
+.sub-account-item{margin:0!important;border-radius:0!important;background:rgba(0,0,0,.08)!important;padding-left:18px!important;}
+.sub-account-item:hover{background:rgba(255,255,255,.045)!important;}
+.raid-gold{display:inline-flex;align-items:center;gap:3px;padding:3px 7px;border-radius:999px;border:1px solid transparent;transition:transform var(--t), background var(--t), border-color var(--t), filter var(--t);}
+.raid-gold:hover{background:rgba(255,184,77,.10);border-color:rgba(255,184,77,.28);transform:translateY(-1px);filter:brightness(1.12);}
+.party-link-chip{font-size:.65rem;color:var(--teal);padding:3px 7px;border:1px solid rgba(20,184,166,.30);border-radius:999px;cursor:pointer;background:rgba(20,184,166,.07);transition:all var(--t);}
+.party-link-chip:hover{background:rgba(20,184,166,.15);border-color:rgba(20,184,166,.55);color:#7dd3c7;transform:translateY(-1px);}
+.curr-updated-pill{margin-left:auto;margin-right:8px;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;background:rgba(255,184,77,.10);border:1px solid rgba(255,184,77,.24);color:var(--gold-text);font-size:.72rem;font-weight:700;white-space:nowrap;}
+.currency-chip .curr-updated{display:none!important;}
+.task-icon-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.task-icon-preview{box-shadow:inset 0 0 0 1px rgba(255,255,255,.04);}
+.pick-imgs{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:10px!important;align-items:start;}
+.pick-img-wrap{width:72px!important;height:72px!important;margin:0 auto;}
+
 </style>
 </head>
 <body>
@@ -1057,7 +1077,7 @@ button,input,select,textarea{ font:inherit; }
   <div class="form-group"><label class="form-label">숙제명</label><input class="form-input" id="task-name" lang="ko" inputmode="text" maxlength="60"></div>
   <div class="form-group">
     <label class="form-label">숙제 아이콘</label>
-    <div style="display:flex;align-items:center;gap:10px;">
+    <div class="task-icon-row">
       <div class="task-icon-preview" id="task-icon-preview"><span style="color:var(--dim);font-size:.7rem;">없음</span></div>
       <button type="button" class="btn btn-sec btn-sm" onclick="openTaskIconPicker()">🖼 아이콘 선택</button>
       <button type="button" class="btn btn-ghost btn-sm" onclick="setTaskIcon(null)">제거</button>
@@ -1632,6 +1652,7 @@ function renderSidebar(){
 }
 let editingAccountId=null;
 let _editCharIconUrl=null;
+let _taskIconUrl=null;
 function openAddAccountModal(){
   editingAccountId=null;
   document.getElementById('modal-account-title').textContent='계정 추가';
@@ -1818,6 +1839,7 @@ function renderTaskArea(){
   const edone=activeExpRoots.filter(t=>isEffDone(t)).length,etot=activeExpRoots.length,epct=etot?Math.round(edone/etot*100):0;
   const raidList=S.raidTasks[S.selChar]||[];
   const currencies=S.currencies[S.selChar]||[],popups=S.customPopups[S.selChar]||[];
+  const currLatest=getLatestCurrencyUpdated(currencies);
   const accName=esc(S.accounts.find(a=>a.id===S.selAcc)?.name||'');
   // 골드 3분리: 유통/귀속/더보기 각각 표시 및 수령 제외 반영
   const flowOf=t=>Math.max(0,(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0));
@@ -1866,9 +1888,10 @@ function renderTaskArea(){
     <div class="coll-header ${!S.currCollapsed?'open':''}" onclick="toggleSection('currCollapsed','la_curr_col')">
       <span class="coll-toggle">${S.currCollapsed?'▶':'▼'}</span>
       <span class="coll-title">${iconImg(localStorage.getItem('la_icon_curr'),'entity-icon-sm')} 💰 재화 현황</span>
+      ${currLatest?`<span class="curr-updated-pill" id="curr-final-updated">최종 수정 날짜: ${fmtRelDate(currLatest)}</span>`:`<span class="curr-updated-pill" id="curr-final-updated" style="display:none;"></span>`}
       <button class="btn btn-teal" style="margin-left:auto;font-size:.72rem;padding:3px 9px;" onclick="event.stopPropagation();openAddCurrencyModal()">+ 추가</button>
     </div>
-    ${!S.currCollapsed?`<div class="coll-body">${currencies.length===0?'<div class="curr-empty">재화를 추가하면 여기에 표시됩니다</div>':`<div class="currency-chips">${currencies.map((c,idx)=>`<div class="currency-chip" id="curr-chip-${c.id}" draggable="true" ondragstart="dndStart(event,'curr',${idx})" ondragend="dndEnd(event)" ondragover="dndOver(event,'curr',true)" ondragleave="dndLeave(event,true)" ondrop="dndDrop(event,'curr',${idx})" onclick="openCurrPopup('${c.id}')">${c.icon_url?`<img class="entity-icon-sm" src="${c.icon_url}" onerror="this.style.display='none'">`:(c.icon&&!c.icon_url?`<span>${c.icon}</span>`:'')}<span style="font-size:.77rem;color:var(--muted);">${esc(c.name)}</span><span class="curr-chip-amount">${c.amount.toLocaleString()}</span>${c.updated_at?`<span class="curr-updated" style="font-size:.64rem;color:var(--dim);">${fmtRelDate(c.updated_at)}</span>`:''}</div>`).join('')}</div>`}</div>`:''}
+    ${!S.currCollapsed?`<div class="coll-body">${currencies.length===0?'<div class="curr-empty">재화를 추가하면 여기에 표시됩니다</div>':`<div class="currency-chips">${currencies.map((c,idx)=>`<div class="currency-chip" id="curr-chip-${c.id}" draggable="true" ondragstart="dndStart(event,'curr',${idx})" ondragend="dndEnd(event)" ondragover="dndOver(event,'curr',true)" ondragleave="dndLeave(event,true)" ondrop="dndDrop(event,'curr',${idx})" onclick="openCurrPopup('${c.id}')">${c.icon_url?`<img class="entity-icon-sm" src="${c.icon_url}" onerror="this.style.display='none'">`:(c.icon&&!c.icon_url?`<span>${c.icon}</span>`:'')}<span style="font-size:.77rem;color:var(--muted);">${esc(c.name)}</span><span class="curr-chip-amount">${c.amount.toLocaleString()}</span></div>`).join('')}</div>`}</div>`:''}
   </div>
 
   <!-- Custom Popup -->
@@ -1986,12 +2009,11 @@ function raidItemHTML(t,idx){
         ${fl?`<span class="raid-gold ${rg?'':'muted-gold'}" title="${rg?'클릭해서 유통골드 제외':'클릭해서 유통골드 수령'}" style="cursor:pointer;" onclick="event.stopPropagation();toggleReceiveGold('${t.id}')">💰 유통 ${fl.toLocaleString()}G</span>`:''}
         ${bg?`<span class="raid-gold ${rbd?'':'muted-gold'}" title="${rbd?'클릭해서 귀속골드 제외':'클릭해서 귀속골드 수령'}" style="color:${rbd?'var(--orange)':'var(--dim)'};cursor:pointer;" onclick="event.stopPropagation();toggleReceiveBound('${t.id}')">🔒 귀속 ${bg.toLocaleString()}G</span>`:''}
         ${bo?`<span class="raid-gold ${rb?'':'muted-gold'}" style="color:${rb?'#b39ddb':'var(--dim)'};cursor:pointer;" title="${rb?'클릭해서 더보기 제외':'클릭해서 더보기 수령'}" onclick="event.stopPropagation();toggleReceiveBonus('${t.id}')">➕ 더보기 ${bo.toLocaleString()}G</span>`:''}
-        ${t.preset_id?`<span style="font-size:.63rem;color:var(--teal);padding:1px 5px;border:1px solid rgba(42,184,160,.3);border-radius:6px;cursor:pointer;" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id}')">🔗 파티연동</span>`:''}
+        ${t.preset_id?`<span class="party-link-chip" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id}')">🔗 파티연동</span>`:''}
         <span class="raid-reset-chip">📅 ${DAYS[t.reset_day]}요일 · ${nextResetLabel({...t,reset_type:'weekly'})}</span>
       </div>
     </div>
     <div class="task-actions">
-      <button class="btn btn-ghost" onclick="openEditRaidTask('${t.id}')">✏️</button>
       <button class="btn btn-danger" onclick="deleteRaidTask('${t.id}')">🗑</button>
     </div>
   </div>`;
@@ -2505,7 +2527,9 @@ async function addCurrency(){const name=document.getElementById('curr-name-input
 function openCurrPopup(id){const c=(S.currencies[S.selChar]||[]).find(x=>x.id===id);if(!c)return;S.currPopupId=id;const iconEl=document.getElementById('curr-popup-icon');if(iconEl){iconEl.innerHTML=c.icon_url?iconImg(c.icon_url,'entity-icon'):(c.icon||'💰');}document.getElementById('curr-popup-name').textContent=c.name;document.getElementById('curr-amount-display').textContent=(c.amount||0).toLocaleString();document.getElementById('curr-direct-val').value='';openModal('modal-curr-popup');}
 async function adjustCurr(d){const c=(S.currencies[S.selChar]||[]).find(x=>x.id===S.currPopupId);if(!c)return;const na=(c.amount||0)+d;const now=new Date().toISOString();const res=await sb.from('currencies').update({amount:na,updated_at:now}).eq('id',c.id);if(supaErr(res,'재화 수정 실패'))return;c.amount=na;c.updated_at=now;document.getElementById('curr-amount-display').textContent=na.toLocaleString();updateCurrChip(c);}
 async function setCurrDirect(mode){const val=parseInt(document.getElementById('curr-direct-val').value)||0;const c=(S.currencies[S.selChar]||[]).find(x=>x.id===S.currPopupId);if(!c)return;const na=mode==='add'?(c.amount||0)+val:val;const now=new Date().toISOString();const res=await sb.from('currencies').update({amount:na,updated_at:now}).eq('id',c.id);if(supaErr(res,'재화 수정 실패'))return;c.amount=na;c.updated_at=now;document.getElementById('curr-amount-display').textContent=na.toLocaleString();document.getElementById('curr-direct-val').value='';updateCurrChip(c);}
-function updateCurrChip(c){const chip=document.getElementById('curr-chip-'+c.id);if(!chip)return;const a=chip.querySelector('.curr-chip-amount');if(a)a.textContent=c.amount.toLocaleString();const dt=chip.querySelector('.curr-updated');if(dt)dt.textContent=c.updated_at?fmtRelDate(c.updated_at):'';}
+function getLatestCurrencyUpdated(list){const dates=(list||[]).map(c=>c.updated_at).filter(Boolean).sort((a,b)=>new Date(b)-new Date(a));return dates[0]||'';}
+function updateCurrUpdatedPill(){const el=document.getElementById('curr-final-updated');if(!el)return;const latest=getLatestCurrencyUpdated(S.currencies[S.selChar]||[]);if(latest){el.style.display='inline-flex';el.textContent='최종 수정 날짜: '+fmtRelDate(latest);}else{el.style.display='none';el.textContent='';}}
+function updateCurrChip(c){const chip=document.getElementById('curr-chip-'+c.id);if(chip){const a=chip.querySelector('.curr-chip-amount');if(a)a.textContent=c.amount.toLocaleString();}updateCurrUpdatedPill();}
 function fmtRelDate(iso){if(!iso)return'';const d=new Date(iso);return`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;}
 async function deleteCurrAndClose(){if(!confirm('재화를 삭제하시겠습니까?'))return;await sb.from('currencies').delete().eq('id',S.currPopupId);S.currencies[S.selChar]=(S.currencies[S.selChar]||[]).filter(c=>c.id!==S.currPopupId);closeModal('modal-curr-popup');renderTaskArea();toast('🗑️ 삭제됨');}
 
@@ -2530,6 +2554,17 @@ document.querySelectorAll('.overlay').forEach(ov=>{ov.addEventListener('click',e
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'));});
 
 function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),2600);}
+
+
+// ─── Task Icon Picker ───
+function setTaskIcon(url){
+  _taskIconUrl=url||null;
+  const prev=document.getElementById('task-icon-preview');
+  if(prev)prev.innerHTML=_taskIconUrl?iconImg(_taskIconUrl,'entity-icon'):'<span style="color:var(--dim);font-size:.7rem;">없음</span>';
+}
+function openTaskIconPicker(){
+  openImagePicker(url=>setTaskIcon(url));
+}
 
 // ─── Image Picker (shared) ───
 const ICON_REPO=localStorage.getItem('la_icon_repo')||'ghk71/LoAHomeworkCheck';
