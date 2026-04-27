@@ -354,6 +354,22 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
 .toast{position:fixed;bottom:24px;right:24px;background:var(--s3);border:1px solid var(--gold-dim);color:var(--text);padding:9px 16px;border-radius:var(--r);font-size:.84rem;box-shadow:0 4px 20px rgba(0,0,0,.5);z-index:300;animation:toastIn .25s ease,toastOut .25s ease 2.25s forwards;}
 @keyframes toastIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
 @keyframes toastOut{to{opacity:0;transform:translateY(8px);}}
+
+/* ─── Image Picker ─── */
+.pick-bc{cursor:pointer;color:var(--gold);font-size:.78rem;}.pick-bc:hover{text-decoration:underline;}
+.pick-folder{padding:7px 10px;background:var(--s3);border:1px solid var(--border);border-radius:5px;cursor:pointer;font-size:.82rem;margin-bottom:5px;transition:border-color .12s;display:flex;align-items:center;gap:6px;}
+.pick-folder:hover{border-color:var(--gold);}
+.pick-imgs{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+.pick-img-wrap{width:64px;height:64px;border:2px solid var(--border);border-radius:6px;overflow:hidden;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .12s;background:var(--s3);}
+.pick-img-wrap:hover{border-color:var(--gold);}
+.pick-img-wrap img{width:56px;height:56px;object-fit:contain;}
+.pick-empty{font-size:.8rem;color:var(--muted);padding:20px;text-align:center;}
+/* Icon display */
+.entity-icon{width:22px;height:22px;object-fit:contain;border-radius:3px;flex-shrink:0;}
+.entity-icon-sm{width:18px;height:18px;object-fit:contain;border-radius:2px;flex-shrink:0;}
+.icon-btn{padding:2px 6px;font-size:.68rem;border:1px solid var(--border);border-radius:3px;background:var(--s3);color:var(--muted);cursor:pointer;transition:border-color .12s;}
+.icon-btn:hover{border-color:var(--gold);color:var(--gold);}
+
 </style>
 </head>
 <body>
@@ -450,6 +466,13 @@ input[type="text"],input:not([type]),textarea{ime-mode:active;}
   <div class="form-row">
     <div class="form-group"><label class="form-label">직업</label><input class="form-input" id="edit-char-class" lang="ko" inputmode="text"></div>
     <div class="form-group"><label class="form-label">아이템 레벨</label><input class="form-input" id="edit-char-ilvl" type="number" min="0" max="9999"></div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">아이콘</label>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div id="edit-char-icon-preview" style="width:36px;height:36px;border:1px solid var(--border);border-radius:5px;display:flex;align-items:center;justify-content:center;background:var(--s3);"></div>
+      <button type="button" class="btn btn-sec btn-sm" onclick="openImagePicker(u=>{_editCharIconUrl=u||null;document.getElementById('edit-char-icon-preview').innerHTML=u?iconImg(u,'entity-icon'):'<span style=\'color:var(--dim);font-size:.7rem;\'>없음</span>';})">🖼 아이콘 선택</button>
+    </div>
   </div>
   <input type="hidden" id="edit-char-id">
   <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-edit-char')">취소</button><button class="btn btn-gold" onclick="updateChar()">저장</button></div>
@@ -783,7 +806,7 @@ function renderSidebar(){
       <span class="dnd-handle">⠿</span>
       <div style="flex:1;min-width:0;">
         <div class="account-name">${esc(a.name)}${a.parent_account_id?`<span style="font-size:.64rem;color:var(--muted);margin-left:4px;padding:1px 5px;border:1px solid var(--border);border-radius:4px;">부계정</span>`:''}</div>
-        ${chars.length?`<div class="account-meta">${chars.length}캐릭터</div>`:''}
+        ${chars.length?`<div class="account-meta" style="display:flex;gap:3px;flex-wrap:wrap;">${chars.map(c=>c.icon_url?iconImg(c.icon_url,'entity-icon-sm'):'').join('')}<span>${chars.length}캐릭터</span></div>`:''}
       </div>
       <button class="acc-btn" onclick="event.stopPropagation();openEditAccountModal('${a.id}')" title="계정 수정">✏️</button>
       <button class="acc-btn acc-btn-hide" onclick="toggleHideAccount(event,'${a.id}')" title="${isHidden?'표시':'숨김'}">${isHidden?'👁':'🙈'}</button>
@@ -792,6 +815,7 @@ function renderSidebar(){
   }).join('');
 }
 let editingAccountId=null;
+let _editCharIconUrl=null;
 function openAddAccountModal(){
   editingAccountId=null;
   document.getElementById('modal-account-title').textContent='계정 추가';
@@ -874,7 +898,7 @@ function renderTabs(){
       onclick="selectChar('${c.id}')">
       <span class="dnd-handle" onclick="event.stopPropagation()">⠿</span>
       <div>
-        <div class="char-tab-name">${esc(c.name)}</div>
+        <div class="char-tab-name">${c.icon_url?iconImg(c.icon_url,'entity-icon-sm'):''}${esc(c.name)}</div>
         ${c.item_level?`<div class="char-tab-ilvl">Lv.${c.item_level}</div>`:''}
         ${tot?`<div class="char-tab-prog"><div class="char-tab-prog-bar" style="width:${pct}%"></div></div>`:''}
       </div>
@@ -891,8 +915,29 @@ async function selectChar(charId){
   renderTaskArea();
 }
 async function createChar(){const name=document.getElementById('char-name').value.trim(),cls=document.getElementById('char-class').value.trim(),ilvl=parseFloat(document.getElementById('char-ilvl').value)||0;if(!name){toast('❗ 캐릭터명을 입력하세요');return;}const{data,error}=await sb.from('characters').insert({account_id:S.selAcc,name,class_name:cls,item_level:ilvl,sort_order:(S.characters[S.selAcc]||[]).length}).select().single();if(error){toast('❗ '+error.message);return;}if(!S.characters[S.selAcc])S.characters[S.selAcc]=[];S.characters[S.selAcc].push(data);closeModal('modal-char');renderMain();await selectChar(data.id);toast('✅ 캐릭터 추가됨');}
-function openEditCharModal(charId){const c=(S.characters[S.selAcc]||[]).find(x=>x.id===charId);if(!c)return;document.getElementById('edit-char-id').value=charId;document.getElementById('edit-char-name').value=c.name;document.getElementById('edit-char-class').value=c.class_name||'';document.getElementById('edit-char-ilvl').value=c.item_level||'';openModal('modal-edit-char');setTimeout(()=>document.getElementById('edit-char-name').focus(),80);}
-async function updateChar(){const id=document.getElementById('edit-char-id').value,name=document.getElementById('edit-char-name').value.trim(),cls=document.getElementById('edit-char-class').value.trim(),ilvl=parseFloat(document.getElementById('edit-char-ilvl').value)||0;if(!name){toast('❗ 캐릭터명을 입력하세요');return;}const{error}=await sb.from('characters').update({name,class_name:cls,item_level:ilvl}).eq('id',id);if(error){toast('❗ '+error.message);return;}const c=(S.characters[S.selAcc]||[]).find(x=>x.id===id);if(c){c.name=name;c.class_name=cls;c.item_level=ilvl;}closeModal('modal-edit-char');renderTabs();if(S.selChar===id)renderTaskArea();toast('✅ 캐릭터 수정됨');}
+function openEditCharModal(charId){
+  const c=(S.characters[S.selAcc]||[]).find(x=>x.id===charId);if(!c)return;
+  document.getElementById('edit-char-id').value=charId;
+  document.getElementById('edit-char-name').value=c.name;
+  document.getElementById('edit-char-class').value=c.class_name||'';
+  document.getElementById('edit-char-ilvl').value=c.item_level||'';
+  _editCharIconUrl=c.icon_url||null;
+  const prev=document.getElementById('edit-char-icon-preview');
+  if(prev)prev.innerHTML=c.icon_url?iconImg(c.icon_url,'entity-icon'):'<span style="color:var(--dim);font-size:.7rem;">없음</span>';
+  openModal('modal-edit-char');setTimeout(()=>document.getElementById('edit-char-name').focus(),80);
+}
+async function updateChar(){
+  const id=document.getElementById('edit-char-id').value,name=document.getElementById('edit-char-name').value.trim(),cls=document.getElementById('edit-char-class').value.trim(),ilvl=parseFloat(document.getElementById('edit-char-ilvl').value)||0;
+  if(!name){toast('❗ 캐릭터명을 입력하세요');return;}
+  const iconUrl=typeof _editCharIconUrl!=='undefined'?_editCharIconUrl:undefined;
+  const upd={name,class_name:cls,item_level:ilvl};
+  if(typeof _editCharIconUrl!=='undefined')upd.icon_url=_editCharIconUrl;
+  const{error}=await sb.from('characters').update(upd).eq('id',id);
+  if(error){toast('❗ '+error.message);return;}
+  const c=(S.characters[S.selAcc]||[]).find(x=>x.id===id);
+  if(c){c.name=name;c.class_name=cls;c.item_level=ilvl;if(typeof _editCharIconUrl!=='undefined')c.icon_url=_editCharIconUrl;}
+  closeModal('modal-edit-char');renderTabs();if(S.selChar===id)renderTaskArea();toast('✅ 캐릭터 수정됨');
+}
 async function deleteChar(id){if(!confirm('캐릭터와 모든 데이터가 삭제됩니다. 계속하시겠습니까?'))return;await sb.from('characters').delete().eq('id',id);S.characters[S.selAcc]=(S.characters[S.selAcc]||[]).filter(c=>c.id!==id);delete S.tasks[id];delete S.raidTasks[id];delete S.currencies[id];delete S.customPopups[id];if(S.selChar===id)S.selChar=null;renderMain();const chars=S.characters[S.selAcc]||[];if(chars.length)await selectChar(chars[0].id);toast('🗑️ 캐릭터 삭제됨');}
 
 // ─── Data Loading ───
@@ -970,7 +1015,7 @@ function renderTaskArea(){
   <div class="coll-section exp-s">
     <div class="coll-header ${!S.expCollapsed?'open':''}" onclick="toggleSection('expCollapsed','la_exp_col')">
       <span class="coll-toggle">${S.expCollapsed?'▶':'▼'}</span>
-      <span class="coll-title">⚔️ ${accName} 원정대 숙제</span>
+      <span class="coll-title">${iconImg(localStorage.getItem('la_icon_exp'),'entity-icon-sm')} ⚔️ ${accName} 원정대 숙제</span>
       <span class="coll-stat">${edone}/${etot}</span>
       ${etot?`<div class="exp-prog-wrap"><div class="exp-prog-bar" style="width:${epct}%"></div></div>`:''}
       <button class="btn btn-purple" style="margin-left:auto;font-size:.72rem;padding:3px 9px;" onclick="event.stopPropagation();openAddTask(true)">+ 추가</button>
@@ -982,7 +1027,7 @@ function renderTaskArea(){
   <div class="coll-section raid-s">
     <div class="coll-header ${!S.raidCollapsed?'open':''}" onclick="toggleSection('raidCollapsed','la_raid_col')">
       <span class="coll-toggle">${S.raidCollapsed?'▶':'▼'}</span>
-      <span class="coll-title">🏰 레이드 숙제</span>
+      <span class="coll-title">${iconImg(localStorage.getItem('la_icon_raid'),'entity-icon-sm')} 🏰 레이드 숙제</span>
       <span class="coll-stat">${raidList.filter(t=>isEffDone(t)).length}/${raidList.length}</span>
       ${remainGold>0?`<span class="raid-gold-total">💰 유통 ${remainGold.toLocaleString()}G 남음${totalBonus?` +더보기 ${totalBonus.toLocaleString()}G`:''}  </span>`:''}
       ${totalGold>0&&remainGold===0?`<span class="raid-gold-total" style="color:var(--green);">✓ 유통 ${totalGold.toLocaleString()}G 완료${totalBonus?' +더보기 '+totalBonus.toLocaleString()+'G':''}</span>`:''}
@@ -995,7 +1040,7 @@ function renderTaskArea(){
   <div class="coll-section curr-s">
     <div class="coll-header ${!S.currCollapsed?'open':''}" onclick="toggleSection('currCollapsed','la_curr_col')">
       <span class="coll-toggle">${S.currCollapsed?'▶':'▼'}</span>
-      <span class="coll-title">💰 재화 현황</span>
+      <span class="coll-title">${iconImg(localStorage.getItem('la_icon_curr'),'entity-icon-sm')} 💰 재화 현황</span>
       <button class="btn btn-teal" style="margin-left:auto;font-size:.72rem;padding:3px 9px;" onclick="event.stopPropagation();openAddCurrencyModal()">+ 추가</button>
     </div>
     ${!S.currCollapsed?`<div class="coll-body">${currencies.length===0?'<div class="curr-empty">재화를 추가하면 여기에 표시됩니다</div>':`<div class="currency-chips">${currencies.map((c,idx)=>`<div class="currency-chip" id="curr-chip-${c.id}" draggable="true" ondragstart="dndStart(event,'curr',${idx})" ondragend="dndEnd(event)" ondragover="dndOver(event,'curr',true)" ondragleave="dndLeave(event,true)" ondrop="dndDrop(event,'curr',${idx})" onclick="openCurrPopup('${c.id}')"><span>${c.icon}</span><span style="font-size:.77rem;color:var(--muted);">${esc(c.name)}</span><span class="curr-chip-amount">${c.amount.toLocaleString()}</span>${c.updated_at?`<span class="curr-updated" style="font-size:.64rem;color:var(--dim);">${fmtRelDate(c.updated_at)}</span>`:''}</div>`).join('')}</div>`}</div>`:''}
@@ -1014,7 +1059,7 @@ function renderTaskArea(){
   <!-- Character Tasks -->
   <div>
     <div class="char-section-header">
-      <span class="char-section-title">${esc(char?.name||'')}의 숙제</span>
+      <span class="char-section-title">${iconImg(localStorage.getItem('la_icon_daily'),'entity-icon-sm')} ${esc(char?.name||'')}의 숙제</span>
       ${char?.class_name?`<span class="char-section-class">${esc(char.class_name)}</span>`:''}
       <span style="font-size:.77rem;color:var(--muted);margin-left:auto;">${done} / ${tot}</span>
       <button class="hide-done-btn ${S.hideCompleted?'active':''}" onclick="toggleHideCompleted()">${S.hideCompleted?'완료 보이기':'완료 숨기기'}</button>
@@ -1635,6 +1680,47 @@ document.querySelectorAll('.overlay').forEach(ov=>{ov.addEventListener('click',e
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'));});
 
 function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),2600);}
+
+// ─── Image Picker (shared) ───
+const ICON_REPO='ghk71/LoAHomeworkCheck';
+const ICON_RAW=`https://raw.githubusercontent.com/${ICON_REPO}/main/`;
+const ICON_API=`https://api.github.com/repos/${ICON_REPO}/contents/`;
+let _pickerCb=null;
+function iconImg(url,cls='entity-icon'){return url?`<img class="${cls}" src="${url}" onerror="this.style.display='none'">`:'';} 
+
+async function openImagePicker(cb,path='images/'){
+  _pickerCb=cb;
+  document.getElementById('picker-content').innerHTML='<div class="pick-empty"><div class="spinner"></div></div>';
+  openModal('modal-img-picker');
+  await loadPickerDir(path);
+}
+async function loadPickerDir(path){
+  const cKey='la_ic_'+path;
+  let items;
+  try{const c=sessionStorage.getItem(cKey);if(c)items=JSON.parse(c);}catch{}
+  if(!items){
+    const r=await fetch(ICON_API+path);
+    if(!r.ok){document.getElementById('picker-content').innerHTML='<div class="pick-empty">폴더를 불러올 수 없습니다<br><small>images/ 폴더가 repo에 있는지 확인하세요</small></div>';return;}
+    items=await r.json();
+    try{sessionStorage.setItem(cKey,JSON.stringify(items));}catch{}
+  }
+  const dirs=items.filter(x=>x.type==='dir');
+  const imgs=items.filter(x=>x.type==='file'&&/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(x.name));
+  // Breadcrumb
+  const parts=path.replace(/^\/images\//,'').replace(/^images\//,'').split('/').filter(Boolean);
+  let bc=`<span class="pick-bc" onclick="loadPickerDir('images/')">images</span>`;
+  let cum='images/';parts.forEach(p=>{cum+=p+'/';bc+=` / <span class="pick-bc" onclick="loadPickerDir('${cum}')">${p}</span>`;});
+  document.getElementById('picker-breadcrumb').innerHTML=bc;
+  // Content
+  let html='';
+  if(dirs.length){html+=dirs.map(d=>`<div class="pick-folder" onclick="loadPickerDir('${path}${d.name}/')">📁 ${d.name}</div>`).join('');}
+  if(imgs.length){html+=`<div class="pick-imgs">${imgs.map(f=>{const url=ICON_RAW+f.path;return`<div class="pick-img-wrap" title="${f.name}" onclick="selectPickerImg('${url}')"><img src="${url}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`;}).join('')}</div>`;}
+  if(!dirs.length&&!imgs.length)html='<div class="pick-empty">이미지가 없습니다</div>';
+  document.getElementById('picker-content').innerHTML=html;
+}
+function selectPickerImg(url){if(_pickerCb)_pickerCb(url);closeModal('modal-img-picker');}
+function pickerRemoveIcon(){if(_pickerCb)_pickerCb(null);closeModal('modal-img-picker');}
+
 function getGroupColor(name){return localStorage.getItem('la_gc_'+name)||'#4caf50';}
 function getPartyColor(p){return(p&&p.color)||'#e0ddd5';}
 function diffClass(d){if(!d)return'';const dl=d.toLowerCase();if(dl.includes('나이트메어')||dl.includes('3단계'))return'diff-nightmare';if(dl.includes('하드')||dl.includes('2단계'))return'diff-hard';if(dl.includes('노말')||dl.includes('1단계'))return'diff-normal';return'';}
@@ -1670,5 +1756,17 @@ initApp();
   <div id="party-link-content" style="font-size:.84rem;color:var(--text);min-height:60px;"></div>
   <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-party-link')">닫기</button></div>
 </div></div>
+
+<!-- Image Picker Modal -->
+<div class="overlay" id="modal-img-picker"><div class="modal" style="max-width:520px;height:70vh;display:flex;flex-direction:column;">
+  <div class="modal-title">🖼️ 아이콘 선택</div>
+  <div id="picker-breadcrumb" style="font-size:.78rem;padding:2px 0 8px;color:var(--muted);flex-shrink:0;border-bottom:1px solid var(--border);margin-bottom:8px;"></div>
+  <div id="picker-content" style="flex:1;overflow-y:auto;"></div>
+  <div class="modal-footer" style="margin-top:8px;">
+    <button class="btn btn-danger btn-sm" style="margin-right:auto;" onclick="pickerRemoveIcon()">🗑 아이콘 제거</button>
+    <button class="btn btn-sec" onclick="closeModal('modal-img-picker')">취소</button>
+  </div>
+</div></div>
+
 </body>
 </html>
