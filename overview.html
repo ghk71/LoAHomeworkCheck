@@ -550,12 +550,15 @@ async function init(){
 async function loadAll(){
   document.getElementById('loading').style.display='flex';
   document.getElementById('content').style.display='none';
-  const[r1,r2,r3,r4]=await Promise.all([
+  const results=await Promise.all([
     sb.from('accounts').select('*').order('sort_order').order('created_at'),
     sb.from('characters').select('*').order('sort_order').order('created_at'),
     sb.from('raid_tasks').select('*').order('sort_order').order('created_at'),
     sb.from('raid_presets').select('id,name')
   ]);
+  const firstError=results.find(r=>r.error)?.error;
+  if(firstError){toast('❗ 로딩 오류: '+firstError.message);console.error(firstError);return;}
+  const[r1,r2,r3,r4]=results;
   accounts=r1.data||[];characters=r2.data||[];raidTasks=r3.data||[];
   const presetsMap={};(r4.data||[]).forEach(p=>{presetsMap[p.id]=p.name;});
   raidTasks.forEach(t=>{
@@ -844,7 +847,7 @@ function toggleAcc(id){
 function toast(msg){const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),2600);}
 
 // ─── Image Picker (shared) ───
-const ICON_REPO='ghk71/LoAHomeworkCheck';
+const ICON_REPO=localStorage.getItem('la_icon_repo')||'ghk71/LoAHomeworkCheck';
 const ICON_RAW=`https://raw.githubusercontent.com/${ICON_REPO}/main/`;
 const ICON_API=`https://api.github.com/repos/${ICON_REPO}/contents/`;
 let _pickerCb=null;
