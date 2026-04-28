@@ -546,14 +546,7 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
 }
 .coll-section.raid-s .coll-toggle { color:var(--orange); }
 .coll-section.raid-s .coll-title { color:#fdba74; font-family:'Cinzel',serif; }
-.raid-gold-total {
-  font-size:.76rem; color:var(--gold-text);
-  margin-left:auto;
-  padding:2px 10px;
-  background: rgba(245,158,11,.1);
-  border: 1px solid rgba(245,158,11,.2);
-  border-radius: 20px;
-}
+.raid-gold-total { font-size:.72rem; margin-left:0; white-space:nowrap; }
 
 /* Currency section */
 .coll-section.curr-s { background:var(--surface-2); border-color:var(--border); }
@@ -627,6 +620,7 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
   cursor:pointer; transition:all var(--t);
 }
 .hide-done-btn.active { border-color:rgba(16,185,129,.4); color:var(--green); background:rgba(16,185,129,.08); }
+.active-toggle-btn.active { border-color:rgba(245,158,11,.45); color:var(--gold-text); background:rgba(245,158,11,.09); }
 
 /* Tasks */
 .tasks-list { display:flex; flex-direction:column; gap:6px; }
@@ -964,6 +958,8 @@ button,input,select,textarea{ font:inherit; }
 .raid-gold.muted-gold{color:var(--dim)!important;border-color:rgba(255,255,255,.06);background:rgba(255,255,255,.03);}
 .party-link-chip{font-size:.65rem;color:var(--teal);padding:3px 7px;border:1px solid rgba(20,184,166,.30);border-radius:999px;cursor:pointer;background:rgba(20,184,166,.07);transition:all var(--t);}
 .party-link-chip:hover{background:rgba(20,184,166,.15);border-color:rgba(20,184,166,.55);color:#7dd3c7;transform:translateY(-1px);}
+.party-link-chip.temp-link{color:var(--gold-text);border-color:rgba(200,168,75,.38);background:rgba(200,168,75,.10);}
+.party-link-chip.temp-link:hover{background:rgba(200,168,75,.18);border-color:rgba(200,168,75,.58);color:var(--gold-bright);}
 .curr-updated-pill{margin-left:auto;margin-right:8px;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;background:rgba(255,184,77,.10);border:1px solid rgba(255,184,77,.24);color:var(--gold-text);font-size:.72rem;font-weight:700;white-space:nowrap;}
 .currency-chip .curr-updated{display:none!important;}
 .curr-icon-edit-row{display:flex;align-items:center;gap:8px;margin-top:8px;}
@@ -983,6 +979,11 @@ button,input,select,textarea{ font:inherit; }
   .account-actions{width:100%;justify-content:flex-end;padding-top:2px;}
   .account-item .acc-btn{opacity:.78;}
   .account-name{font-size:.9rem;}
+}
+@media (max-width:1180px){
+  .account-item{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;}
+  .account-actions{grid-column:2;justify-content:flex-start;flex-wrap:wrap;min-width:0;}
+  .account-main{min-width:0;}
 }
 
 </style>
@@ -1518,6 +1519,9 @@ let S={
   showHidden:false,
   hideCompleted:LS('la_hide')==='1',
   hideExpCompleted:LS('la_hide_exp')==='1',
+  showInactive:LS('la_show_inactive')==='1',
+  showExpInactive:LS('la_show_exp_inactive')==='1',
+  tempRaidTaskIds:new Set(),
   collapsedTasks:new Set(),
   currPopupId:null,viewPopupId:null,editPopupId:null,editBlocks:[],
   selCurrIcon:'💰',selPopupIcon:'📋',editorIcon:'📋',
@@ -1595,6 +1599,7 @@ function toggleIconPickerInEditor(){const w=document.getElementById('editor-icon
 
 // ─── Reset & Activation Logic ───
 function getLastResetUTC(type,day){const now=new Date();if(type==='daily'){const r=new Date(now);r.setUTCHours(21,0,0,0);if(now<r)r.setUTCDate(r.getUTCDate()-1);return r;}const rDay=(day+6)%7,r=new Date(now);r.setUTCHours(21,0,0,0);let back=(now.getUTCDay()-rDay+7)%7;if(back===0&&now<r)back=7;r.setUTCDate(r.getUTCDate()-back);return r;}
+function getRaidWeekKey(){const now=new Date(),kst=new Date(now.getTime()+9*3600000);let b=(kst.getUTCDay()-3+7)%7;if(b===0&&kst.getUTCHours()<6)b=7;const ws=new Date(kst);ws.setUTCDate(ws.getUTCDate()-b);ws.setUTCHours(6,0,0,0);return`${ws.getUTCFullYear()}-${String(ws.getUTCMonth()+1).padStart(2,'0')}-${String(ws.getUTCDate()).padStart(2,'0')}`;}
 function isEffDone(t){if(!t.is_completed||!t.last_completed_at)return false;return new Date(t.last_completed_at)>getLastResetUTC(t.reset_type||'weekly',t.reset_day);}
 // ★ Activation date check
 function isTaskActive(t){
@@ -1811,6 +1816,7 @@ async function loadRaidTasks(charId){
   const res=await sb.from('raid_tasks').select('*').eq('character_id',charId).order('sort_order').order('created_at');
   if(supaErr(res,'레이드 숙제 로딩 실패')){S.raidTasks[charId]=[];return;}
   const tasks=res.data||[];
+  await loadTempRaidTaskIds();
   // preset 이름 매핑 (색상용)
   const pids=[...new Set(tasks.filter(t=>t.preset_id).map(t=>t.preset_id))];
   if(pids.length){
@@ -1820,6 +1826,17 @@ async function loadRaidTasks(charId){
     tasks.forEach(t=>{if(t.preset_id&&S.presetsCache[t.preset_id]){t.preset_name=S.presetsCache[t.preset_id].name;t.preset_icon_url=S.presetsCache[t.preset_id].icon_url||'';t.preset_color=S.presetsCache[t.preset_id].color||'';}});
   }
   S.raidTasks[charId]=tasks;await autoResetRaid(S.raidTasks[charId]);
+}
+async function loadTempRaidTaskIds(){
+  const wk=getRaidWeekKey();
+  const res=await sb.from('raid_schedule_overrides').select('temp_changes').eq('week_start_date',wk);
+  if(res.error){S.tempRaidTaskIds=new Set();return;}
+  const ids=[];
+  (res.data||[]).forEach(o=>{
+    const added=(o.temp_changes&&o.temp_changes.added)||{};
+    Object.values(added).forEach(v=>{if(v&&v.taskId)ids.push(v.taskId);});
+  });
+  S.tempRaidTaskIds=new Set(ids);
 }
 async function loadCurrencies(charId){const res=await sb.from('currencies').select('*').eq('character_id',charId).order('sort_order').order('created_at');if(supaErr(res,'재화 로딩 실패')){S.currencies[charId]=[];return;}S.currencies[charId]=res.data||[];}
 async function loadCustomPopups(charId){const res=await sb.from('custom_popups').select('*').eq('character_id',charId).order('sort_order').order('created_at');if(supaErr(res,'커스텀 팝업 로딩 실패')){S.customPopups[charId]=[];return;}S.customPopups[charId]=res.data||[];}
@@ -1850,6 +1867,8 @@ function getList(isExp){return isExp?(S.expTasks[S.selAcc]||[]):(S.tasks[S.selCh
 function toggleSection(key,storageKey){S[key]=!S[key];LSS(storageKey,S[key]?'1':'0');scheduleRenderArea();}
 function toggleHideCompleted(){S.hideCompleted=!S.hideCompleted;LSS('la_hide',S.hideCompleted?'1':'0');scheduleRenderArea();}
 function toggleExpHideCompleted(){S.hideExpCompleted=!S.hideExpCompleted;LSS('la_hide_exp',S.hideExpCompleted?'1':'0');scheduleRenderArea();}
+function toggleShowInactive(){S.showInactive=!S.showInactive;LSS('la_show_inactive',S.showInactive?'1':'0');scheduleRenderArea();}
+function toggleShowExpInactive(){S.showExpInactive=!S.showExpInactive;LSS('la_show_exp_inactive',S.showExpInactive?'1':'0');scheduleRenderArea();}
 function toggleParentCollapse(taskId){if(S.collapsedTasks.has(taskId))S.collapsedTasks.delete(taskId);else S.collapsedTasks.add(taskId);scheduleRenderArea();}
 
 // ─── Render Task Area ───
@@ -1857,14 +1876,13 @@ function renderTaskArea(){
   const el=document.getElementById('task-area');if(!el||!S.selChar)return;
   const char=(S.characters[S.selAcc]||[]).find(c=>c.id===S.selChar);
   const allTasks=S.tasks[S.selChar]||[];
-  const activeTasks=allTasks.filter(t=>!t.parent_id&&isTaskActive(t));
   const{roots:taskRoots,childrenOf:taskChildren}=buildTaskTree(allTasks);
-  const activeRoots=taskRoots.filter(t=>isTaskActive(t));
-  const done=activeRoots.filter(t=>isEffDone(t)).length,tot=activeRoots.length,pct=tot?Math.round(done/tot*100):0;
+  const visibleRoots=taskRoots.filter(t=>S.showInactive||isTaskActive(t));
+  const done=visibleRoots.filter(t=>isEffDone(t)).length,tot=visibleRoots.length,pct=tot?Math.round(done/tot*100):0;
   const et=S.expTasks[S.selAcc]||[];
   const{roots:expRoots,childrenOf:expChildren}=buildTaskTree(et);
-  const activeExpRoots=expRoots.filter(t=>isTaskActive(t));
-  const edone=activeExpRoots.filter(t=>isEffDone(t)).length,etot=activeExpRoots.length,epct=etot?Math.round(edone/etot*100):0;
+  const visibleExpRoots=expRoots.filter(t=>S.showExpInactive||isTaskActive(t));
+  const edone=visibleExpRoots.filter(t=>isEffDone(t)).length,etot=visibleExpRoots.length,epct=etot?Math.round(edone/etot*100):0;
   const raidList=S.raidTasks[S.selChar]||[];
   const currencies=S.currencies[S.selChar]||[],popups=S.customPopups[S.selChar]||[];
   const currLatest=getLatestCurrencyUpdated(currencies);
@@ -1894,9 +1912,10 @@ function renderTaskArea(){
       <span class="coll-stat">${edone}/${etot}</span>
       ${etot?`<div class="exp-prog-wrap"><div class="exp-prog-bar" style="width:${epct}%"></div></div>`:''}
       <button class="hide-done-btn ${S.hideExpCompleted?'active':''}" onclick="event.stopPropagation();toggleExpHideCompleted()">${S.hideExpCompleted?'완료 보이기':'완료 숨기기'}</button>
+      <button class="hide-done-btn active-toggle-btn ${S.showExpInactive?'active':''}" onclick="event.stopPropagation();toggleShowExpInactive()">${S.showExpInactive?'활성화 숨기기':'활성화 보이기'}</button>
       <button class="btn btn-purple" style="margin-left:auto;font-size:.72rem;padding:3px 9px;" onclick="event.stopPropagation();openAddTask(true)">+ 추가</button>
     </div>
-    ${!S.expCollapsed?`<div class="coll-body">${etot===0?'<div style="color:var(--muted);font-size:.82rem;padding:4px 0;">원정대 숙제가 없습니다</div>':`<div class="tasks-list">${activeExpRoots.map((t,i)=>rootTaskHTML(t,expChildren[t.id]||[],true,expRoots.indexOf(t),S.hideExpCompleted)).join('')}</div>`}</div>`:''}
+    ${!S.expCollapsed?`<div class="coll-body">${etot===0?'<div style="color:var(--muted);font-size:.82rem;padding:4px 0;">원정대 숙제가 없습니다</div>':`<div class="tasks-list">${visibleExpRoots.map((t,i)=>rootTaskHTML(t,expChildren[t.id]||[],true,expRoots.indexOf(t),S.hideExpCompleted)).join('')}</div>`}</div>`:''}
   </div>
 
   <!-- Raid Tasks -->
@@ -1905,7 +1924,9 @@ function renderTaskArea(){
       <span class="coll-toggle">${S.raidCollapsed?'▶':'▼'}</span>
       <span class="coll-title">${iconImg(localStorage.getItem('la_icon_raid'),'entity-icon-sm')} 🏰 레이드 숙제</span>
       <span class="coll-stat">${raidList.filter(t=>isEffDone(t)).length}/${raidList.length}</span>
-      ${(totalFlow||totalBound||totalBonus)?`<span class="raid-gold-total">💰 유통 ${remainFlow.toLocaleString()}G · 귀속 ${remainBound.toLocaleString()}G · 더보기 ${remainBonus.toLocaleString()}G 남음</span>`:''}
+      ${totalFlow?`<span class="raid-gold raid-gold-flow raid-gold-total">💰 유통 ${remainFlow.toLocaleString()}G 남음</span>`:''}
+      ${totalBound?`<span class="raid-gold raid-gold-bound raid-gold-total">🔒 귀속 ${remainBound.toLocaleString()}G 남음</span>`:''}
+      ${totalBonus?`<span class="raid-gold raid-gold-bonus raid-gold-total">➕ 더보기 ${remainBonus.toLocaleString()}G 남음</span>`:''}
       ${(totalFlow||totalBound||totalBonus)&&(remainFlow+remainBound+remainBonus===0)?`<span class="raid-gold-total" style="color:var(--green);">✓ 골드 수령 완료</span>`:''}
       <button class="btn btn-orange" style="margin-left:auto;font-size:.72rem;padding:3px 9px;" onclick="event.stopPropagation();openAddRaidTask()">+ 추가</button>
     </div>
@@ -1940,10 +1961,11 @@ function renderTaskArea(){
       ${char?.class_name?`<span class="char-section-class">${esc(char.class_name)}</span>`:''}
       <span style="font-size:.77rem;color:var(--muted);margin-left:auto;">${done} / ${tot}</span>
       <button class="hide-done-btn ${S.hideCompleted?'active':''}" onclick="toggleHideCompleted()">${S.hideCompleted?'완료 보이기':'완료 숨기기'}</button>
+      <button class="hide-done-btn active-toggle-btn ${S.showInactive?'active':''}" onclick="toggleShowInactive()">${S.showInactive?'활성화 숨기기':'활성화 보이기'}</button>
       <button class="btn btn-gold" style="font-size:.76rem;padding:5px 11px;" onclick="openAddTask(false)">＋ 숙제 추가</button>
     </div>
     ${tot>0?`<div class="global-prog-wrap"><div class="global-prog-bar" style="width:${pct}%"></div></div><div class="prog-label">${pct}% 완료</div>`:''}
-    ${tot===0?`<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">숙제가 없습니다<br><b>＋ 숙제 추가</b> 버튼으로 추가하세요</div></div>`:`<div class="section-divider">숙제 목록</div><div class="tasks-list">${activeRoots.map((t,i)=>rootTaskHTML(t,taskChildren[t.id]||[],false,taskRoots.indexOf(t))).join('')||'<div style="text-align:center;padding:18px;color:var(--muted);font-size:.84rem;">✓ 모든 숙제 완료</div>'}</div>`}
+    ${tot===0?`<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">숙제가 없습니다<br><b>＋ 숙제 추가</b> 버튼으로 추가하세요</div></div>`:`<div class="section-divider">숙제 목록</div><div class="tasks-list">${visibleRoots.map((t,i)=>rootTaskHTML(t,taskChildren[t.id]||[],false,taskRoots.indexOf(t))).join('')||'<div style="text-align:center;padding:18px;color:var(--muted);font-size:.84rem;">✓ 모든 숙제 완료</div>'}</div>`}
   </div>`;
 }
 
@@ -2017,6 +2039,7 @@ function rootTaskHTML(t,children,isExp,rootIdx,hideDone=S.hideCompleted){
 
 function raidItemHTML(t,idx){
   const done=isEffDone(t);
+  const isTemp=S.tempRaidTaskIds&&S.tempRaidTaskIds.has(t.id);
   const rg=t.receive_gold!==false, rbd=t.receive_bound!==false, rb=t.receive_bonus!==false;
   const cg=Number(t.clear_gold)||0,bg=Number(t.bound_gold)||0,bo=Number(t.bonus_gold)||0,fl=Math.max(0,cg-bg);
   const rn=t.preset_name||t.name;
@@ -2038,7 +2061,7 @@ function raidItemHTML(t,idx){
         ${fl?`<span class="raid-gold raid-gold-flow ${rg?'':'muted-gold'}" title="${rg?'클릭해서 유통골드 제외':'클릭해서 유통골드 수령'}" style="cursor:pointer;" onclick="event.stopPropagation();toggleReceiveGold('${t.id}')">💰 유통 ${fl.toLocaleString()}G</span>`:''}
         ${bg?`<span class="raid-gold raid-gold-bound ${rbd?'':'muted-gold'}" title="${rbd?'클릭해서 귀속골드 제외':'클릭해서 귀속골드 수령'}" style="cursor:pointer;" onclick="event.stopPropagation();toggleReceiveBound('${t.id}')">🔒 귀속 ${bg.toLocaleString()}G</span>`:''}
         ${bo?`<span class="raid-gold raid-gold-bonus ${rb?'':'muted-gold'}" style="cursor:pointer;" title="${rb?'클릭해서 더보기 제외':'클릭해서 더보기 수령'}" onclick="event.stopPropagation();toggleReceiveBonus('${t.id}')">➕ 더보기 ${bo.toLocaleString()}G</span>`:''}
-        ${t.preset_id?`<span class="party-link-chip" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id}')">🔗 파티연동</span>`:''}
+        ${t.preset_id?`<span class="party-link-chip ${isTemp?'temp-link':''}" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id}','${t.id}')">🔗 ${isTemp?'임시파티연동':'파티연동'}</span>`:''}
         <span class="raid-reset-chip">📅 ${DAYS[t.reset_day]}요일 · ${nextResetLabel({...t,reset_type:'weekly'})}</span>
       </div>
     </div>
@@ -2090,7 +2113,7 @@ function updateTabDOM(charId){
 }
 
 // ─── Task Toggle & Count ───
-function toggleTask(taskId,isExp){
+async function toggleTask(taskId,isExp){
   const list=getList(isExp),t=list.find(x=>x.id===taskId);if(!t)return;
   const nowDone=!isEffDone(t),now=new Date().toISOString();
   const up={is_completed:nowDone,last_completed_at:nowDone?now:null};
@@ -2099,24 +2122,26 @@ function toggleTask(taskId,isExp){
   // DOM update immediately (no await)
   applyDoneToEl(document.getElementById('ti-'+taskId),nowDone);
   if(t.parent_id){
-    checkParentStatus(t.parent_id,isExp).then(()=>updateParentDOM(t.parent_id,isExp));
+    checkParentStatus(t.parent_id,isExp).then(()=>{updateParentDOM(t.parent_id,isExp);scheduleRenderArea();if(!isExp)updateTabDOM(S.selChar);});
   }
   if(!isExp){updateTabDOM(S.selChar);scheduleRenderArea();}
   // Fire-and-forget DB save
-  sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',taskId).then(({error})=>{if(error)toast('❗ 저장 오류');});
+  const{error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',taskId);
+  if(error)toast('❗ 저장 오류');
 }
-function updateCount(taskId,rawVal,isExp){
+async function updateCount(taskId,rawVal,isExp){
   const list=getList(isExp),t=list.find(x=>x.id===taskId);if(!t||t.count_max==null)return;
   const count=Math.max(0,Math.min(parseInt(rawVal)||0,t.count_max)),isDone=count>=t.count_max,now=new Date().toISOString();
   const up={count_current:count,is_completed:isDone,last_completed_at:isDone?now:null};
   Object.assign(t,up);
   const el=document.getElementById('ti-'+taskId);
   if(el){el.classList.toggle('done',isDone);const ic=el.querySelector('.checkbox-icon');if(ic)ic.style.opacity=isDone?'1':'0';const cb=el.querySelector('.checkbox');if(cb){cb.style.background=isDone?'var(--green)':'';cb.style.borderColor=isDone?'var(--green)':'';}const nm=el.querySelector('.task-name');if(nm)nm.style.textDecoration=isDone?'line-through':'';const inp=el.querySelector('.count-input');if(inp&&document.activeElement!==inp)inp.value=count;}
-  if(t.parent_id)checkParentStatus(t.parent_id,isExp).then(()=>updateParentDOM(t.parent_id,isExp));
+  if(t.parent_id)checkParentStatus(t.parent_id,isExp).then(()=>{updateParentDOM(t.parent_id,isExp);scheduleRenderArea();if(!isExp)updateTabDOM(S.selChar);});
   if(!isExp){updateTabDOM(S.selChar);scheduleRenderArea();}
-  sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',taskId).then(({error})=>{if(error)toast('❗ 저장 오류');});
+  const{error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',taskId);
+  if(error)toast('❗ 저장 오류');
 }
-function toggleRaidTask(id){
+async function toggleRaidTask(id){
   const t=(S.raidTasks[S.selChar]||[]).find(x=>x.id===id);if(!t)return;
   const nowDone=!isEffDone(t),now=new Date().toISOString();
   const up={is_completed:nowDone,last_completed_at:nowDone?now:null};
@@ -2124,7 +2149,8 @@ function toggleRaidTask(id){
   applyDoneToEl(document.getElementById('ri-'+id),nowDone);
   // Update gold display in raid header
   scheduleRenderArea();
-  sb.from('raid_tasks').update(up).eq('id',id).then(({error})=>{if(error)toast('❗ 저장 오류');});
+  const{error}=await sb.from('raid_tasks').update(up).eq('id',id);
+  if(error)toast('❗ 저장 오류');
 }
 
 // ─── Task CRUD ───
@@ -2640,7 +2666,7 @@ function selectPickerImg(url){if(_pickerCb)_pickerCb(url);closeModal('modal-img-
 function pickerRemoveIcon(){if(_pickerCb)_pickerCb(null);closeModal('modal-img-picker');}
 
 
-async function showPartyLinkPopup(presetId){
+async function showPartyLinkPopup(presetId,taskId=''){
   const el=document.getElementById('party-link-content');
   if(!el)return;
   el.innerHTML='<div class="loading-row"><div class="spinner"></div><div>파티 정보를 불러오는 중...</div></div>';
@@ -2660,14 +2686,23 @@ async function showPartyLinkPopup(presetId){
     if(pIds.length){
       const [memberRes, scheduleRes] = await Promise.all([
         sb.from('raid_party_members').select('*,characters(id,name,class_name,item_level,icon_url)').in('party_id',pIds),
-        sb.from('raid_schedules').select('party_id,day_of_week').in('party_id',pIds)
+        sb.from('raid_schedules').select('id,party_id,day_of_week').in('party_id',pIds)
       ]);
       if(memberRes.error) throw memberRes.error;
       if(scheduleRes.error) throw scheduleRes.error;
       members = memberRes.data || [];
       schData = scheduleRes.data || [];
     }
-    const targetParties=partiesData.filter(p=>members.some(m=>m.party_id===p.id&&m.character_id===S.selChar));
+    const tempPartyIds=new Set();
+    if(taskId){
+      const{data:ovrs}=await sb.from('raid_schedule_overrides').select('schedule_id,temp_changes').eq('week_start_date',getRaidWeekKey());
+      (ovrs||[]).forEach(o=>{
+        const added=(o.temp_changes&&o.temp_changes.added)||{};
+        const isTemp=Object.values(added).some(v=>v&&v.taskId===taskId);
+        if(isTemp){const sch=schData.find(s=>s.id===o.schedule_id);if(sch)tempPartyIds.add(sch.party_id);}
+      });
+    }
+    const targetParties=partiesData.filter(p=>members.some(m=>m.party_id===p.id&&m.character_id===S.selChar)||tempPartyIds.has(p.id));
     const DAYS_KO=['일','월','화','수','목','금','토'];
     const dayMap={};
     schData.forEach(s=>{if(!dayMap[s.party_id])dayMap[s.party_id]=[];dayMap[s.party_id].push(s.day_of_week);});
@@ -2681,9 +2716,11 @@ async function showPartyLinkPopup(presetId){
       const pMembers=members.filter(m=>m.party_id===p.id).sort((a,b)=>a.slot_index-b.slot_index);
       const days=(dayMap[p.id]||[]).map(d=>DAYS_KO[d]+'요일').join(', ');
       const pc=getPartyColor(p);
-      html+=`<div style="margin-bottom:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:rgba(255,255,255,.02);">
+      const isTemp=tempPartyIds.has(p.id);
+      html+=`<div style="margin-bottom:12px;border:1px solid ${isTemp?'rgba(200,168,75,.38)':'var(--border)'};border-radius:12px;overflow:hidden;background:${isTemp?'rgba(200,168,75,.06)':'rgba(255,255,255,.02)'};">
         <div style="padding:10px 12px;background:rgba(255,255,255,.03);display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);">
           <span style="font-size:.86rem;font-weight:700;color:${pc};">${esc(p.name||'파티')}</span>
+          ${isTemp?`<span class="party-link-chip temp-link" style="cursor:default;transform:none;">임시파티연동</span>`:''}
           <span style="font-size:.72rem;color:var(--muted);">${p.party_size}인</span>
           ${days?`<span style="font-size:.72rem;color:var(--gold);margin-left:auto;">📅 ${days}</span>`:''}
           <a class="party-jump-btn" href="raid.html?party=${p.id}">파티 이동</a>

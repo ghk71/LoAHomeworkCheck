@@ -387,7 +387,7 @@ body { overflow:hidden; }
 
 /* Summary bar */
 .summary-bar {
-  display:flex; gap:16px; flex-wrap:wrap;
+  display:grid; grid-template-columns:auto minmax(160px,1fr); gap:10px 16px;
   margin-bottom:18px; padding:12px 18px;
   background: var(--surface-2);
   border: 1px solid rgba(255,255,255,.07);
@@ -400,19 +400,20 @@ body { overflow:hidden; }
 .sum-item.done b { color:var(--green); }
 .sum-prog { height:5px; flex:1; min-width:120px; background:rgba(255,255,255,.07); border-radius:4px; overflow:hidden; }
 .sum-prog-bar { height:100%; background:linear-gradient(90deg,var(--green),#34d399); border-radius:4px; transition:width .4s; }
-.gold-split { display:flex; align-items:center; gap:7px; flex-wrap:wrap; width:100%; }
-.gold-mini { display:inline-flex; align-items:center; gap:6px; font-size:.72rem; color:var(--text-2); }
+.gold-split { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:7px; width:100%; grid-column:1/-1; }
+.acc-gold-split { grid-column:auto; flex:1 1 360px; min-width:260px; }
+.gold-mini { display:grid; grid-template-columns:auto auto minmax(52px,1fr); align-items:center; gap:6px; font-size:.72rem; color:var(--text-2); padding:5px 8px; border:1px solid rgba(255,255,255,.07); border-radius:8px; background:rgba(255,255,255,.025); }
 .gold-mini b { color:var(--text); }
 .gold-mini.flow b { color:var(--gold-text); }
 .gold-mini.bound b { color:var(--orange); }
 .gold-mini.bonus b { color:#c4b5fd; }
-.gold-mini-bar { width:70px; height:4px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,.08); }
+.gold-mini-bar { width:100%; height:4px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,.08); }
 .gold-mini-fill { height:100%; border-radius:4px; transition:width .3s; }
 
 /* Account sections */
 .acc-section { margin-bottom:20px; }
 .acc-header {
-  display:flex; align-items:center; gap:10px;
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
   margin-bottom:12px; cursor:pointer; user-select:none;
   padding: 10px 14px;
   background: var(--surface-2);
@@ -485,6 +486,8 @@ body { overflow:hidden; }
 .rt-row.done .rt-check-icon { opacity:1; }
 .rt-info { flex:1; min-width:0; }
 .rt-name { font-size:.8rem; font-weight:500; }
+.ov-party-chip{font-size:.63rem;color:var(--teal);padding:2px 6px;border:1px solid rgba(42,184,160,.3);border-radius:6px;cursor:pointer;background:rgba(42,184,160,.06);}
+.ov-party-chip.temp{color:var(--gold-text);border-color:rgba(200,168,75,.38);background:rgba(200,168,75,.10);}
 
 /* Week nav */
 .week-nav-bar {
@@ -612,7 +615,7 @@ button,input,select,textarea{ font:inherit; }
 const{createClient}=supabase;
 function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
 
-let sb,accounts=[],characters=[],raidTasks=[];
+let sb,accounts=[],characters=[],raidTasks=[],tempRaidTaskIds=new Set();
 let weekOffset=0;
 let collapsedAccs=new Set(JSON.parse(localStorage.getItem('la_ov_collapsed')||'[]'));
 let selectedChars=new Set(); // selected character ids for filter
@@ -639,6 +642,7 @@ async function loadAll(){
   if(firstError){toast('❗ 로딩 오류: '+firstError.message);console.error(firstError);return;}
   const[r1,r2,r3,r4]=results;
   accounts=r1.data||[];characters=r2.data||[];raidTasks=r3.data||[];
+  await loadTempRaidTaskIds();
   const presetsMap={};(r4.data||[]).forEach(p=>{presetsMap[p.id]=p.name;});
   raidTasks.forEach(t=>{
     if(t.preset_id&&presetsMap[t.preset_id]){
@@ -668,6 +672,7 @@ function getWeekStart(off=0){
   const ws=new Date(kst);ws.setUTCDate(ws.getUTCDate()-b+off*7);ws.setUTCHours(6,0,0,0);return ws;
 }
 function getLastReset(){return getWeekStart(weekOffset);}
+function getWeekKey(off=0){const ws=getWeekStart(off);return`${ws.getUTCFullYear()}-${String(ws.getUTCMonth()+1).padStart(2,'0')}-${String(ws.getUTCDate()).padStart(2,'0')}`;}
 function isEffDone(t){
   if(!t.is_completed||!t.last_completed_at)return false;
   return new Date(t.last_completed_at)>getWeekStart(0); // always compare against current week reset
@@ -693,6 +698,16 @@ async function autoReset(){
   if(!toReset.length)return;
   await sb.from('raid_tasks').update({is_completed:false,last_completed_at:null}).in('id',toReset.map(t=>t.id));
   toReset.forEach(t=>{t.is_completed=false;t.last_completed_at=null;});
+}
+async function loadTempRaidTaskIds(){
+  const{data,error}=await sb.from('raid_schedule_overrides').select('temp_changes').eq('week_start_date',getWeekKey(0));
+  if(error){tempRaidTaskIds=new Set();return;}
+  const ids=[];
+  (data||[]).forEach(o=>{
+    const added=(o.temp_changes&&o.temp_changes.added)||{};
+    Object.values(added).forEach(v=>{if(v&&v.taskId)ids.push(v.taskId);});
+  });
+  tempRaidTaskIds=new Set(ids);
 }
 
 // ─── Filter ───
@@ -792,9 +807,9 @@ function render(){
       <div class="acc-header" onclick="toggleAcc('${toggleKey}')">
         <span class="acc-toggle">${isOpen?'▼':'▶'}</span>
         <span class="acc-name">${esc(subLabel||acc.name)}</span>
-        <span class="acc-stat">${st.done}/${st.total}</span>
+        <span class="acc-stat">레이드 완료 ${st.done}/${st.total}</span>
         <div class="acc-prog-wrap"><div class="acc-prog-bar" style="width:${pct}%;background:${allClear?'var(--green)':'var(--teal)'};"></div></div>
-        <div class="gold-split">${goldMiniHTML('유통 골드',st.earnedFlow,st.flow,'flow')}${goldMiniHTML('귀속 골드',st.earnedBound,st.bound,'bound')}${goldMiniHTML('더보기 골드',st.earnedBonus,st.bonus,'bonus')}</div>
+        <div class="gold-split acc-gold-split">${goldMiniHTML('유통 골드',st.earnedFlow,st.flow,'flow')}${goldMiniHTML('귀속 골드',st.earnedBound,st.bound,'bound')}${goldMiniHTML('더보기 골드',st.earnedBonus,st.bonus,'bonus')}</div>
         ${allClear?`<span class="acc-allclear">✓ 올클</span>`:''}
       </div>
       ${isOpen?`<div class="char-grid">${chars.map(c=>charCardHTML(c)).join('')}</div>`:''}
@@ -836,6 +851,7 @@ function charCardHTML(c){
 
 function raidTaskRowHTML(t){
   const done=isEffDone(t);
+  const isTemp=tempRaidTaskIds&&tempRaidTaskIds.has(t.id);
   const raidName=t.preset_name||t.name;
   const gc=getGroupColor(raidName);
   const dc=diffClass(t.difficulty||'');
@@ -843,11 +859,11 @@ function raidTaskRowHTML(t){
     <div class="rt-check"><span class="rt-check-icon">✓</span></div>
     <div class="rt-info">
       <div class="rt-name" style="display:flex;align-items:center;gap:4px;">${iconImg(localStorage.getItem('la_gicon_'+raidName)||'','entity-icon-sm')}<span style="color:${gc};">${esc(raidName)}</span>${t.difficulty?` <span class="${dc}" style="font-size:.72rem;margin-left:2px;">${esc(t.difficulty)}</span>`:''}</div>
-      ${t.preset_id?`<div style="margin-top:2px;"><span style="font-size:.63rem;color:var(--teal);padding:1px 5px;border:1px solid rgba(42,184,160,.3);border-radius:6px;cursor:pointer;" onclick="event.stopPropagation();showOvPartyPopup('${t.preset_id}','${t.character_id}')">🔗 파티연동</span></div>`:''}
+      ${t.preset_id?`<div style="margin-top:2px;"><span class="ov-party-chip ${isTemp?'temp':''}" onclick="event.stopPropagation();showOvPartyPopup('${t.preset_id}','${t.character_id}','${t.id}')">🔗 ${isTemp?'임시파티연동':'파티연동'}</span></div>`:''}
     </div>
   </div>`;
 }
-async function showOvPartyPopup(presetId,charId){
+async function showOvPartyPopup(presetId,charId,taskId=''){
   if(!document.getElementById('modal-ov-party')){
     const m=document.createElement('div');m.className='overlay';m.id='modal-ov-party';
     m.innerHTML=`<div class="modal" style="max-width:440px;"><div class="modal-title">🔗 파티 연동 정보</div><div id="ov-party-content" style="min-height:60px;"></div><div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-ov-party')">닫기</button></div></div>`;
@@ -867,10 +883,19 @@ async function showOvPartyPopup(presetId,charId){
     const pIds=(partiesData||[]).map(p=>p.id);
     const[{data:members,error:mErr},{data:schData,error:sErr}]=await Promise.all([
       pIds.length?sb.from('raid_party_members').select('*,characters(id,name,class_name,item_level,icon_url)').in('party_id',pIds):{data:[]},
-      pIds.length?sb.from('raid_schedules').select('party_id,day_of_week').in('party_id',pIds):{data:[]}
+      pIds.length?sb.from('raid_schedules').select('id,party_id,day_of_week').in('party_id',pIds):{data:[]}
     ]);
     if(mErr)throw mErr;if(sErr)throw sErr;
-    const targetParties=(partiesData||[]).filter(p=>(members||[]).some(m=>m.party_id===p.id&&m.character_id===charId));
+    const tempPartyIds=new Set();
+    if(taskId){
+      const{data:ovrs}=await sb.from('raid_schedule_overrides').select('schedule_id,temp_changes').eq('week_start_date',getWeekKey(0));
+      (ovrs||[]).forEach(o=>{
+        const added=(o.temp_changes&&o.temp_changes.added)||{};
+        const isTemp=Object.values(added).some(v=>v&&v.taskId===taskId);
+        if(isTemp){const sch=(schData||[]).find(s=>s.id===o.schedule_id);if(sch)tempPartyIds.add(sch.party_id);}
+      });
+    }
+    const targetParties=(partiesData||[]).filter(p=>(members||[]).some(m=>m.party_id===p.id&&m.character_id===charId)||tempPartyIds.has(p.id));
     const dayMap={};(schData||[]).forEach(s=>{if(!dayMap[s.party_id])dayMap[s.party_id]=[];dayMap[s.party_id].push(s.day_of_week);});
     const gc=preset.color||getGroupColor(preset.name||'');
     let html=`<div style="padding:10px 12px;background:var(--s3);border-radius:10px;margin-bottom:12px;border-left:3px solid ${gc};">
@@ -881,9 +906,11 @@ async function showOvPartyPopup(presetId,charId){
       const pMembers=(members||[]).filter(m=>m.party_id===p.id).sort((a,b)=>a.slot_index-b.slot_index);
       const days=(dayMap[p.id]||[]).map(d=>DAYS_KO[d]+'요일').join(', ');
       const pc=p.color||'#e0ddd5';
-      html+=`<div style="margin-bottom:10px;border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+      const isTemp=tempPartyIds.has(p.id);
+      html+=`<div style="margin-bottom:10px;border:1px solid ${isTemp?'rgba(200,168,75,.38)':'var(--border)'};border-radius:10px;overflow:hidden;background:${isTemp?'rgba(200,168,75,.06)':'transparent'};">
         <div style="padding:8px 10px;background:var(--s1);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;">
           <span style="font-weight:700;font-size:.82rem;color:${pc};">${esc(p.name||'파티')}</span>${days?`<span style="font-size:.68rem;color:var(--gold);margin-left:auto;">📅 ${days}</span>`:''}
+          ${isTemp?`<span class="ov-party-chip temp" style="cursor:default;">임시파티연동</span>`:''}
           <a class="btn btn-sec btn-sm" style="text-decoration:none;" href="raid.html?party=${p.id}">파티 이동</a>
         </div>
         <div style="padding:6px 8px;">${Array.from({length:p.party_size},(_, i)=>{
@@ -919,8 +946,7 @@ async function toggleRaidTask(taskId){
   }
   // Memory update
   Object.assign(t,up);
-  // Summary re-render (lightweight)
-  renderSummary();
+  render();
   // ★ await: Supabase JS v2에서 await 없으면 쿼리 미실행
   const{error}=await sb.from('raid_tasks').update(up).eq('id',taskId);
   if(error){toast('❗ 저장 실패: '+error.message);return;}

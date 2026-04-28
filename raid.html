@@ -797,6 +797,7 @@ button,input,select,textarea{ font:inherit; }
 .modal-wide{ max-width:820px!important; }
 .share-link-box{
   background:rgba(13,21,38,.88); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:12px;
+  max-width:100%; overflow-wrap:anywhere; word-break:break-all; white-space:normal; line-height:1.55;
 }
 .radio-group{ display:flex; gap:8px; }
 .radio-opt{
@@ -1098,12 +1099,25 @@ async function loadViewerOverview(el){
   (rtasks||[]).forEach(t=>{if(t.preset_id&&pm[t.preset_id])t.preset_name=pm[t.preset_id];});
   const ws=getWeekStart(0);
   function isDone(t){if(!t.is_completed||!t.last_completed_at)return false;return new Date(t.last_completed_at)>ws;}
-  const vf=localStorage.getItem('la_viewer_ov_filter')||'all';
-  const pass=t=>vf==='done'?isDone(t):vf==='todo'?!isDone(t):true;
+  const charsWithRaids=(chars||[]).filter(c=>(rtasks||[]).some(t=>t.character_id===c.id));
+  let selectedViewerChars;
+  const savedViewerChars=localStorage.getItem('la_viewer_ov_chars');
+  try{selectedViewerChars=savedViewerChars?new Set(JSON.parse(savedViewerChars).filter(id=>charsWithRaids.some(c=>c.id===id))):new Set(charsWithRaids.map(c=>c.id));}catch{selectedViewerChars=new Set(charsWithRaids.map(c=>c.id));}
+  if(savedViewerChars===null)localStorage.setItem('la_viewer_ov_chars',JSON.stringify([...selectedViewerChars]));
+  const renderViewerFilter=()=>{
+    const allIds=charsWithRaids.map(c=>c.id);
+    const accRows=(accs||[]).map(acc=>{
+      const aChars=charsWithRaids.filter(c=>c.account_id===acc.id);
+      if(!aChars.length)return'';
+      const ids=aChars.map(c=>c.id);
+      const allOn=ids.every(id=>selectedViewerChars.has(id));
+      return`<div class="vo-filter-row"><button class="vo-chip ${allOn?'on':''}" onclick="(()=>{const ids=[${ids.map(id=>`'${id}'`).join(',')}];const cur=new Set(JSON.parse(localStorage.getItem('la_viewer_ov_chars')||'[]'));if(ids.every(id=>cur.has(id)))ids.forEach(id=>cur.delete(id));else ids.forEach(id=>cur.add(id));localStorage.setItem('la_viewer_ov_chars',JSON.stringify([...cur]));loadViewerOverview(document.getElementById('viewer-overview-area'));})()">${esc(acc.name)}</button>${aChars.map(c=>`<button class="vo-chip ${selectedViewerChars.has(c.id)?'on':''}" onclick="(()=>{const cur=new Set(JSON.parse(localStorage.getItem('la_viewer_ov_chars')||'[]'));if(cur.has('${c.id}'))cur.delete('${c.id}');else cur.add('${c.id}');localStorage.setItem('la_viewer_ov_chars',JSON.stringify([...cur]));loadViewerOverview(document.getElementById('viewer-overview-area'));})()">${esc(c.name)}</button>`).join('')}</div>`;
+    }).join('');
+    return`<div class="vo-filter-box"><div class="vo-filter-title">주간 일정 필터</div><div class="vo-filter-row"><button class="vo-chip" onclick="localStorage.setItem('la_viewer_ov_chars',JSON.stringify([${allIds.map(id=>`'${id}'`).join(',')} ]));loadViewerOverview(document.getElementById('viewer-overview-area'))">전체</button><button class="vo-chip" onclick="localStorage.setItem('la_viewer_ov_chars','[]');loadViewerOverview(document.getElementById('viewer-overview-area'))">해제</button></div>${accRows}</div>`;
+  };
+  const pass=t=>selectedViewerChars.has(t.character_id);
   let html=`<div style="font-size:.82rem;color:var(--muted);margin-bottom:12px;">🔒 뷰어 모드 — 체크 불가</div>
-  <div class="vo-filter-box"><div class="vo-filter-title">필터</div><div class="vo-filter-row">
-    ${[['all','전체'],['todo','미완료'],['done','완료']].map(([k,l])=>`<button class="vo-chip ${vf===k?'on':''}" onclick="localStorage.setItem('la_viewer_ov_filter','${k}');loadViewerOverview(document.getElementById('viewer-overview-area'))">${l}</button>`).join('')}
-  </div></div>`;
+  ${renderViewerFilter()}`;
   (accs||[]).forEach(acc=>{
     const aChars=(chars||[]).filter(c=>c.account_id===acc.id);
     const withRaids=aChars.filter(c=>(rtasks||[]).some(t=>t.character_id===c.id&&pass(t)));
