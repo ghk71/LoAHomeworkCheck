@@ -478,7 +478,8 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
 .char-tab.tab-done.active { background:rgba(16,185,129,.12)!important; }
 .char-tab.tab-done::after { background:linear-gradient(90deg,transparent,var(--green),transparent)!important; }
 .char-tab.tab-done .char-tab-name { color:var(--green)!important; }
-.char-tab-name { font-size:.83rem; font-weight:500; transition:color var(--t); }
+.char-tab-avatar { width:30px; height:30px; object-fit:contain; border-radius:6px; flex-shrink:0; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); padding:2px; }
+.char-tab-name { font-size:.83rem; font-weight:500; transition:color var(--t); display:flex; align-items:center; gap:5px; }
 .char-tab-ilvl { font-size:.66rem; color:var(--text-3); }
 .char-tab-prog { width:40px; height:2px; background:rgba(255,255,255,.08); border-radius:2px; margin-top:4px; overflow:hidden; }
 .char-tab-prog-bar { height:100%; background:var(--green); border-radius:2px; transition:width .4s; }
@@ -953,8 +954,12 @@ button,input,select,textarea{ font:inherit; }
 .account-subgroup-title::before{content:'↳';color:var(--gold-text);font-weight:900;}
 .sub-account-item{margin:0!important;border-radius:0!important;background:rgba(0,0,0,.08)!important;padding-left:18px!important;}
 .sub-account-item:hover{background:rgba(255,255,255,.045)!important;}
-.raid-gold{display:inline-flex;align-items:center;gap:3px;padding:3px 7px;border-radius:999px;border:1px solid transparent;transition:transform var(--t), background var(--t), border-color var(--t), filter var(--t);}
+.raid-gold{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:999px;border:1px solid transparent;transition:transform var(--t), background var(--t), border-color var(--t), filter var(--t);}
 .raid-gold:hover{background:rgba(255,184,77,.10);border-color:rgba(255,184,77,.28);transform:translateY(-1px);filter:brightness(1.12);}
+.raid-gold-flow{color:var(--gold-text);border-color:rgba(255,184,77,.26);background:rgba(255,184,77,.07);}
+.raid-gold-bound{color:var(--orange);border-color:rgba(249,115,22,.26);background:rgba(249,115,22,.07);}
+.raid-gold-bonus{color:#b39ddb;border-color:rgba(179,157,219,.26);background:rgba(179,157,219,.07);}
+.raid-gold.muted-gold{color:var(--dim)!important;border-color:rgba(255,255,255,.06);background:rgba(255,255,255,.03);}
 .party-link-chip{font-size:.65rem;color:var(--teal);padding:3px 7px;border:1px solid rgba(20,184,166,.30);border-radius:999px;cursor:pointer;background:rgba(20,184,166,.07);transition:all var(--t);}
 .party-link-chip:hover{background:rgba(20,184,166,.15);border-color:rgba(20,184,166,.55);color:#7dd3c7;transform:translateY(-1px);}
 .curr-updated-pill{margin-left:auto;margin-right:8px;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;background:rgba(255,184,77,.10);border:1px solid rgba(255,184,77,.24);color:var(--gold-text);font-size:.72rem;font-weight:700;white-space:nowrap;}
@@ -963,6 +968,14 @@ button,input,select,textarea{ font:inherit; }
 .task-icon-preview{box-shadow:inset 0 0 0 1px rgba(255,255,255,.04);}
 .pick-imgs{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:10px!important;align-items:start;}
 .pick-img-wrap{width:72px!important;height:72px!important;margin:0 auto;}
+@media (max-width: 900px){
+  .layout{flex-direction:column;}
+  .sidebar{width:100%;max-height:220px;border-right:0;border-bottom:1px solid var(--border);}
+  .task-area{padding:14px 12px;}
+  .header{padding:9px 12px;gap:8px;flex-wrap:wrap;}
+  .header-right{width:100%;margin-left:0;justify-content:flex-end;flex-wrap:wrap;}
+  .char-tab{min-width:128px;padding:9px 12px;}
+}
 
 </style>
 </head>
@@ -1734,8 +1747,9 @@ function renderTabs(){
       ondrop="dndDrop(event,'char',${idx})"
       onclick="selectChar('${c.id}')">
       <span class="dnd-handle" onclick="event.stopPropagation()">⠿</span>
+      ${c.icon_url?`<img class="char-tab-avatar" src="${c.icon_url}" onerror="this.style.display='none'">`:''}
       <div>
-        <div class="char-tab-name">${c.icon_url?iconImg(c.icon_url,'entity-icon-sm'):''}${esc(c.name)}</div>
+        <div class="char-tab-name">${esc(c.name)}</div>
         ${c.item_level?`<div class="char-tab-ilvl">Lv.${c.item_level}</div>`:''}
         ${tot?`<div class="char-tab-prog"><div class="char-tab-prog-bar" style="width:${pct}%"></div></div>`:''}
       </div>
@@ -2003,12 +2017,12 @@ function raidItemHTML(t,idx){
     <span class="dnd-handle">⠿</span>
     <div class="checkbox" onclick="toggleRaidTask('${t.id}')"><span class="checkbox-icon">✓</span></div>
     <div class="task-body">
-      <div class="task-name" style="display:flex;align-items:center;gap:6px;">${iconImg(t.preset_icon_url||localStorage.getItem('la_gicon_'+rn)||'','entity-icon-sm')}<span style="color:${gc};">${esc(rn)}</span>${t.difficulty?` <span class="${dc}" style="font-size:.72rem;">${esc(t.difficulty)}</span>`:''}</div>
+      <div class="task-name" style="display:flex;align-items:center;gap:6px;">${iconImg(t.preset_icon_url||localStorage.getItem('la_gicon_'+rn)||'','entity-icon-sm')}<span style="color:${gc};">${esc(rn)}</span>${t.difficulty?` <span class="${dc}" style="font-size:.72rem;color:${gc};border-color:${gc};">${esc(t.difficulty)}</span>`:''}</div>
       <div class="raid-meta" style="margin-top:4px;">
         ${t.entry_level?`<span class="raid-badge">입장 ${t.entry_level}</span>`:''}
-        ${fl?`<span class="raid-gold ${rg?'':'muted-gold'}" title="${rg?'클릭해서 유통골드 제외':'클릭해서 유통골드 수령'}" style="cursor:pointer;" onclick="event.stopPropagation();toggleReceiveGold('${t.id}')">💰 유통 ${fl.toLocaleString()}G</span>`:''}
-        ${bg?`<span class="raid-gold ${rbd?'':'muted-gold'}" title="${rbd?'클릭해서 귀속골드 제외':'클릭해서 귀속골드 수령'}" style="color:${rbd?'var(--orange)':'var(--dim)'};cursor:pointer;" onclick="event.stopPropagation();toggleReceiveBound('${t.id}')">🔒 귀속 ${bg.toLocaleString()}G</span>`:''}
-        ${bo?`<span class="raid-gold ${rb?'':'muted-gold'}" style="color:${rb?'#b39ddb':'var(--dim)'};cursor:pointer;" title="${rb?'클릭해서 더보기 제외':'클릭해서 더보기 수령'}" onclick="event.stopPropagation();toggleReceiveBonus('${t.id}')">➕ 더보기 ${bo.toLocaleString()}G</span>`:''}
+        ${fl?`<span class="raid-gold raid-gold-flow ${rg?'':'muted-gold'}" title="${rg?'클릭해서 유통골드 제외':'클릭해서 유통골드 수령'}" style="cursor:pointer;" onclick="event.stopPropagation();toggleReceiveGold('${t.id}')">💰 유통 ${fl.toLocaleString()}G</span>`:''}
+        ${bg?`<span class="raid-gold raid-gold-bound ${rbd?'':'muted-gold'}" title="${rbd?'클릭해서 귀속골드 제외':'클릭해서 귀속골드 수령'}" style="cursor:pointer;" onclick="event.stopPropagation();toggleReceiveBound('${t.id}')">🔒 귀속 ${bg.toLocaleString()}G</span>`:''}
+        ${bo?`<span class="raid-gold raid-gold-bonus ${rb?'':'muted-gold'}" style="cursor:pointer;" title="${rb?'클릭해서 더보기 제외':'클릭해서 더보기 수령'}" onclick="event.stopPropagation();toggleReceiveBonus('${t.id}')">➕ 더보기 ${bo.toLocaleString()}G</span>`:''}
         ${t.preset_id?`<span class="party-link-chip" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id}')">🔗 파티연동</span>`:''}
         <span class="raid-reset-chip">📅 ${DAYS[t.reset_day]}요일 · ${nextResetLabel({...t,reset_type:'weekly'})}</span>
       </div>
@@ -2350,8 +2364,8 @@ async function confirmCloneExp(){
   let count=0;
   for(const cb of checks){
     const accId=cb.dataset.cloneAcc;
-    const{data:newTask}=await sb.from('expedition_tasks').insert({account_id:accId,name:task.name,reset_type:task.reset_type,reset_day:task.reset_day,activate_day:task.activate_day,count_max:task.count_max,sort_order:99}).select().single();
-    if(newTask&&children.length){for(const c of children)await sb.from('expedition_tasks').insert({account_id:accId,parent_id:newTask.id,name:c.name,reset_type:c.reset_type,reset_day:c.reset_day,count_max:c.count_max,sort_order:c.sort_order});}
+    const{data:newTask}=await sb.from('expedition_tasks').insert({account_id:accId,name:task.name,reset_type:task.reset_type,reset_day:task.reset_day,activate_day:task.activate_day,count_max:task.count_max,icon_url:task.icon_url||null,sort_order:99}).select().single();
+    if(newTask&&children.length){for(const c of children)await sb.from('expedition_tasks').insert({account_id:accId,parent_id:newTask.id,name:c.name,reset_type:c.reset_type,reset_day:c.reset_day,activate_day:c.activate_day,count_max:c.count_max,icon_url:c.icon_url||null,sort_order:c.sort_order});}
     if(!S.expTasks[accId])S.expTasks[accId]=[];
     if(newTask)S.expTasks[accId].push(newTask);
     count++;
@@ -2475,19 +2489,22 @@ async function deleteRaidTask(id){
 async function toggleReceiveGold(taskId){
   const t=(S.raidTasks[S.selChar]||[]).find(x=>x.id===taskId);if(!t)return;
   t.receive_gold=(t.receive_gold===false)?true:false;
-  sb.from('raid_tasks').update({receive_gold:t.receive_gold}).eq('id',taskId);
+  const{error}=await sb.from('raid_tasks').update({receive_gold:t.receive_gold}).eq('id',taskId);
+  if(error)toast('❗ 저장 오류: '+error.message);
   scheduleRenderArea();
 }
 async function toggleReceiveBound(taskId){
   const t=(S.raidTasks[S.selChar]||[]).find(x=>x.id===taskId);if(!t)return;
   t.receive_bound=(t.receive_bound===false)?true:false;
-  sb.from('raid_tasks').update({receive_bound:t.receive_bound}).eq('id',taskId);
+  const{error}=await sb.from('raid_tasks').update({receive_bound:t.receive_bound}).eq('id',taskId);
+  if(error)toast('❗ 저장 오류: '+error.message);
   scheduleRenderArea();
 }
 async function toggleReceiveBonus(taskId){
   const t=(S.raidTasks[S.selChar]||[]).find(x=>x.id===taskId);if(!t)return;
   t.receive_bonus=(t.receive_bonus===false)?true:false;
-  sb.from('raid_tasks').update({receive_bonus:t.receive_bonus}).eq('id',taskId);
+  const{error}=await sb.from('raid_tasks').update({receive_bonus:t.receive_bonus}).eq('id',taskId);
+  if(error)toast('❗ 저장 오류: '+error.message);
   scheduleRenderArea();
 }
 
@@ -2513,9 +2530,9 @@ async function executeCopy(){
   let cnt=0;
   for(const cb of checked){
     const charId=cb.value;if(!S.tasks[charId])S.tasks[charId]=[];
-    const{data:pd,error}=await sb.from('tasks').insert({character_id:charId,name:src.name,reset_type:src.reset_type,reset_day:src.reset_day,activate_day:src.activate_day,count_max:src.count_max,sort_order:(S.tasks[charId].filter(t=>!t.parent_id)).length}).select().single();
+    const{data:pd,error}=await sb.from('tasks').insert({character_id:charId,name:src.name,reset_type:src.reset_type,reset_day:src.reset_day,activate_day:src.activate_day,count_max:src.count_max,icon_url:src.icon_url||null,sort_order:(S.tasks[charId].filter(t=>!t.parent_id)).length}).select().single();
     if(error)continue;S.tasks[charId].push(pd);
-    if(srcChildren.length&&pd){const ins=srcChildren.map((c,i)=>({character_id:charId,parent_id:pd.id,name:c.name,reset_type:c.reset_type,reset_day:c.reset_day,count_max:c.count_max,sort_order:i}));const{data:cd}=await sb.from('tasks').insert(ins).select();if(cd)S.tasks[charId].push(...cd);}
+    if(srcChildren.length&&pd){const ins=srcChildren.map((c,i)=>({character_id:charId,parent_id:pd.id,name:c.name,reset_type:c.reset_type,reset_day:c.reset_day,activate_day:c.activate_day,count_max:c.count_max,icon_url:c.icon_url||null,sort_order:i}));const{data:cd}=await sb.from('tasks').insert(ins).select();if(cd)S.tasks[charId].push(...cd);}
     cnt++;
   }
   closeModal('modal-copy');renderTabs();toast(`✅ ${cnt}개 캐릭터에 복제 완료`);

@@ -386,6 +386,9 @@ body { overflow:hidden; }
   transition:all var(--t);
 }
 .party-card:hover { border-color:rgba(255,255,255,.14); box-shadow:var(--shadow-md); transform:translateY(-2px); }
+.party-card.no-party { border-color:rgba(249,115,22,.22); background:rgba(249,115,22,.045); }
+.party-card.no-party:hover { border-color:rgba(249,115,22,.34); }
+.no-party-msg { padding:14px; color:var(--orange); font-size:.8rem; line-height:1.6; }
 .pc-header {
   padding: 11px 14px;
   background: rgba(255,255,255,.03);
@@ -537,7 +540,7 @@ button,input,select,textarea{ font:inherit; }
 const{createClient}=supabase;
 function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
 
-let sb,accounts=[],characters=[],raids=[],parties=[],members=[];
+let sb,accounts=[],characters=[],raids=[],parties=[],members=[],raidTasks=[];
 let selectedChars=new Set();
 let filterOpen=localStorage.getItem('la_pt_filter_open')!=='0';
 
@@ -555,12 +558,13 @@ async function loadAll(){
     sb.from('raid_presets').select('*').order('sort_order').order('created_at'),
     sb.from('raid_parties').select('*').order('sort_order').order('created_at'),
     sb.from('raid_party_members').select('*'),
-    sb.from('raid_schedules').select('party_id,day_of_week')
+    sb.from('raid_schedules').select('party_id,day_of_week'),
+    sb.from('raid_tasks').select('*').order('sort_order').order('created_at')
   ]);
   const firstError=results.find(r=>r.error)?.error;
   if(firstError){toast('❗ 로딩 오류: '+firstError.message);console.error(firstError);return;}
-  const[r1,r2,r3,r4,r5,r6]=results;
-  accounts=r1.data||[];characters=r2.data||[];raids=r3.data||[];parties=r4.data||[];members=r5.data||[];
+  const[r1,r2,r3,r4,r5,r6,r7]=results;
+  accounts=r1.data||[];characters=r2.data||[];raids=r3.data||[];parties=r4.data||[];members=r5.data||[];raidTasks=r7.data||[];
   const DAYS_KO=['일','월','화','수','목','금','토'];
   const schMap={};(r6.data||[]).forEach(s=>{if(!schMap[s.party_id])schMap[s.party_id]=[];schMap[s.party_id].push(s.day_of_week);});
   parties.forEach(p=>{
@@ -568,8 +572,8 @@ async function loadAll(){
     const days=schMap[p.id]||[];
     p._sched_days=days.map(d=>DAYS_KO[d]+'요일').join(', ');
   });
-  // Init filter: all chars that are in any party
-  const charsInParties=characters.filter(c=>members.some(m=>m.character_id===c.id));
+  // Init filter: all chars that are in any party or have raid homework
+  const charsInParties=characters.filter(c=>members.some(m=>m.character_id===c.id)||raidTasks.some(t=>t.character_id===c.id));
   const saved=localStorage.getItem('la_pt_sel_chars');
   if(saved){try{const ids=JSON.parse(saved);selectedChars=new Set(ids.filter(id=>charsInParties.some(c=>c.id===id)));}catch{selectedChars=new Set(charsInParties.map(c=>c.id));}}
   else selectedChars=new Set(charsInParties.map(c=>c.id));
@@ -583,7 +587,7 @@ function saveFilter(){localStorage.setItem('la_pt_sel_chars',JSON.stringify([...
 function toggleFilter(){filterOpen=!filterOpen;localStorage.setItem('la_pt_filter_open',filterOpen?'1':'0');applyFilterOpen();}
 function applyFilterOpen(){document.getElementById('fb-body').style.display=filterOpen?'flex':'none';document.getElementById('fb-toggle').textContent=filterOpen?'▼':'▶';}
 function renderFilter(){
-  const charsInParties=characters.filter(c=>members.some(m=>m.character_id===c.id));
+  const charsInParties=characters.filter(c=>members.some(m=>m.character_id===c.id)||raidTasks.some(t=>t.character_id===c.id));
   let html='';
   const mainAccs=accounts.filter(a=>!a.parent_account_id);
   const renderRow=(label,chars,sub=false)=>{
@@ -612,7 +616,7 @@ function renderFilter(){
 }
 function toggleGroup(ids){const allOn=ids.every(id=>selectedChars.has(id));ids.forEach(id=>{if(allOn)selectedChars.delete(id);else selectedChars.add(id);});saveFilter();renderFilter();render();}
 function toggleCharFilter(id){if(selectedChars.has(id))selectedChars.delete(id);else selectedChars.add(id);saveFilter();renderFilter();render();}
-function selectAll(){const ci=characters.filter(c=>members.some(m=>m.character_id===c.id));selectedChars=new Set(ci.map(c=>c.id));saveFilter();renderFilter();render();}
+function selectAll(){const ci=characters.filter(c=>members.some(m=>m.character_id===c.id)||raidTasks.some(t=>t.character_id===c.id));selectedChars=new Set(ci.map(c=>c.id));saveFilter();renderFilter();render();}
 function deselectAll(){selectedChars.clear();saveFilter();renderFilter();render();}
 
 // ─── Render ───
@@ -627,21 +631,37 @@ function render(){
     if(!chars.length)return;
     chars.forEach(c=>{
       const charMembers=members.filter(m=>m.character_id===c.id);
-      if(!charMembers.length)return;
+      const charRaidTasks=raidTasks.filter(t=>t.character_id===c.id);
+      if(!charMembers.length&&!charRaidTasks.length)return;
       const charParties=charMembers.map(m=>{const p=parties.find(x=>x.id===m.party_id);return p?{party:p,member:m}:null;}).filter(Boolean);
-      if(!charParties.length)return;
+      const partylessTasks=charRaidTasks.filter(t=>!t.preset_id||!charParties.some(({party:p})=>p.preset_id===t.preset_id));
       html+=`<div class="char-section">
         <div class="char-section-header">
           <div class="cs-name">${esc(c.name)}</div>
           ${c.class_name?`<div class="cs-class">${esc(c.class_name)}</div>`:''}
           ${c.item_level?`<div class="cs-ilvl">Lv.${c.item_level}</div>`:''}
-          <div class="cs-count">${charParties.length}개 파티</div>
+          <div class="cs-count">${charParties.length}개 파티${partylessTasks.length?` · 파티 없음 ${partylessTasks.length}`:''}</div>
         </div>
-        <div class="party-cards">${charParties.map(({party:p,member:m})=>partyCardHTML(p,c,m)).join('')}</div>
+        <div class="party-cards">${charParties.map(({party:p,member:m})=>partyCardHTML(p,c,m)).join('')}${partylessTasks.map(t=>noPartyCardHTML(t,c)).join('')}</div>
       </div>`;
     });
   });
   el.innerHTML=html||'<div class="empty-state"><div class="empty-icon">👥</div><div>참여 중인 파티가 없습니다</div></div>';
+}
+
+function noPartyCardHTML(t,myChar){
+  const raidName=t.preset_id?(raids.find(r=>r.id===t.preset_id)?.name||t.name):t.name;
+  const preset=raids.find(r=>r.id===t.preset_id);
+  return`<div class="party-card no-party">
+    <div class="pc-header">
+      <div style="flex:1;min-width:0;">
+        <div class="pc-raid-name" style="color:${getGroupColor(raidName||'')};display:flex;align-items:center;gap:5px;">${iconImg(localStorage.getItem('la_gicon_'+(raidName||'')),'entity-icon-sm')}${esc(raidName||'?')}${(t.difficulty||preset?.difficulty)?` <span class="${diffClass(t.difficulty||preset?.difficulty)}" style="font-size:.72rem;">${esc(t.difficulty||preset?.difficulty)}</span>`:''}</div>
+        <div class="pc-party-name">레이드 숙제 있음 · 파티 없음</div>
+      </div>
+    </div>
+    <div class="no-party-msg">이 캐릭터는 레이드 숙제가 있지만 파티연동 파티에 배치되어 있지 않습니다.</div>
+    <div class="pc-footer"><button class="btn btn-sec btn-sm" onclick="window.location.href='raid.html'" title="raid.html에서 파티 구성 확인">🗡️ 파티 구성</button></div>
+  </div>`;
 }
 
 function partyCardHTML(p,myChar,myMember){

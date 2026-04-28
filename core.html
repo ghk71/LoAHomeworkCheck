@@ -455,6 +455,9 @@ body { overflow:hidden; }
 }
 .section-hrow:hover .section-hrow-td { background:rgba(255,255,255,.04); }
 .sec-order { color:#93c5fd; border-left-color:#93c5fd!important; background:rgba(147,197,253,.04)!important; }
+.sec-order-sun { color:#93c5fd!important; border-left-color:#93c5fd!important; background:rgba(147,197,253,.05)!important; }
+.sec-order-moon { color:#c4b5fd!important; border-left-color:#a78bfa!important; background:rgba(167,139,250,.07)!important; }
+.sec-order-star { color:#f9d976!important; border-left-color:#f59e0b!important; background:rgba(245,158,11,.07)!important; }
 .sec-chaos { color:#fca5a5; border-left-color:#fca5a5!important; background:rgba(252,165,165,.04)!important; }
 .sec-num { color:var(--gold-text); }
 
@@ -950,7 +953,7 @@ function renderBasic(vis,el){
       const sk2=sk(type,ek),col=collapsedSections.has(sk2);
       // 질서: 해/달/별 사이에 구분선
       if(type==='order'&&ei>0)h+=`<tr><td colspan="${vis.length+1}" style="height:6px;background:rgba(160,200,255,.15);border-top:2px solid rgba(160,200,255,.4);border-bottom:1px solid rgba(160,200,255,.2);padding:0;"></td></tr>`;
-      h+=`<tr class="section-hrow" onclick="toggleSection('${sk2}')"><td colspan="${vis.length+1}" class="section-hrow-td ${cls}"><span style="margin-right:6px;font-size:.65rem;">${col?'▶':'▼'}</span>${group} ${name}</td></tr>`;
+      h+=`<tr class="section-hrow" onclick="toggleSection('${sk2}')"><td colspan="${vis.length+1}" class="section-hrow-td ${cls} ${type==='order'?'sec-order-'+ek:''}"><span style="margin-right:6px;font-size:.65rem;">${col?'▶':'▼'}</span>${group} ${name}</td></tr>`;
       if(!col){for(let s=1;s<=6;s++){const rk=ck(type,ek,s);if(hiddenRows.has(rk))continue;
         // 혼돈: 클릭 가능한 이름 (첫번째 표시 캐릭터 기준)
         const isChaos=type==='chaos';
@@ -1045,18 +1048,21 @@ function ensure(cid,key){if(!coreData[cid])coreData[cid]={id:null,cores:{}};if(k
 
 // 테이블 셀 클릭 - DOM 직접 업데이트 (re-render 없음)
 function cycleGrade(cid,key,el){
+  if(isLocked)return;
   ensure(cid,key);const cur=getGrade(cid,key),next=cur==='skip'?'none':GRADES[(GRADES.indexOf(cur)+1)%GRADES.length];
   coreData[cid].cores[key].grade=next;
   el.className=`core-cell ${GC[next]}`;el.querySelector('span').textContent=GL[next];
   scheduleSave(cid);
 }
 function toggleSkip(cid,key,el){
+  if(isLocked)return;
   ensure(cid,key);const n=getGrade(cid,key)==='skip'?'none':'skip';
   coreData[cid].cores[key].grade=n;
   el.className=`core-cell ${GC[n]}`;el.querySelector('span').textContent=GL[n];
   scheduleSave(cid);
 }
 function togglePriority(cid,key,btn){
+  if(isLocked)return;
   ensure(cid,key);const p=!coreData[cid].cores[key].priority;
   coreData[cid].cores[key].priority=p;
   btn.textContent=p?'⭐':'☆';btn.parentElement.classList.toggle('is-priority',p);
@@ -1065,12 +1071,14 @@ function togglePriority(cid,key,btn){
 
 // 콤보 뷰 뱃지 클릭 - DOM 직접 업데이트 (re-render 없음)
 function comboCycleGrade(cid,key,badgeEl){
+  if(isLocked)return;
   ensure(cid,key);const cur=getGrade(cid,key),next=cur==='skip'?'none':GRADES[(GRADES.indexOf(cur)+1)%GRADES.length];
   coreData[cid].cores[key].grade=next;
   badgeEl.textContent=GL[next];badgeEl.style.cssText=GB[next]||GB.none;
   scheduleSave(cid);
 }
 function comboPrio(cid,key,btn){
+  if(isLocked)return;
   ensure(cid,key);const p=!coreData[cid].cores[key].priority;
   coreData[cid].cores[key].priority=p;
   btn.textContent=p?'⭐':'☆';btn.classList.toggle('on',p);
@@ -1078,14 +1086,14 @@ function comboPrio(cid,key,btn){
 }
 
 const _nt={};
-function saveCoreName(cid,key,val){ensure(cid,key);coreData[cid].cores[key].name=val;clearTimeout(_nt[cid+key]);_nt[cid+key]=setTimeout(()=>saveCores(cid),800);}
+function saveCoreName(cid,key,val){if(isLocked)return;ensure(cid,key);coreData[cid].cores[key].name=val;clearTimeout(_nt[cid+key]);_nt[cid+key]=setTimeout(()=>saveCores(cid),800);}
 async function resetAll(){if(!confirm('화면에 보이는 캐릭터의 코어 데이터를 모두 초기화하시겠습니까?'))return;const vis=allChars.filter(c=>selectedChars.has(c.id));for(const c of vis){const combos=getCombos(c.id);coreData[c.id]={...(coreData[c.id]||{}),cores:{__combos:combos}};await saveCores(c.id);}renderMain();toast('✅ 초기화 완료');}
 const genId=()=>'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 const slotOpts=()=>[1,2,3,4,5,6].map(n=>`<option value="${n}">${n}</option>`).join('');
-function openAddCombo(cid){document.getElementById('combo-modal-title').textContent='조합 추가';document.getElementById('combo-submit-btn').textContent='추가';document.getElementById('combo-char-id').value=cid;document.getElementById('combo-id').value='';document.getElementById('combo-label').value='';['combo-sun','combo-moon','combo-star'].forEach(id=>{document.getElementById(id).innerHTML=slotOpts();});const c=allChars.find(x=>x.id===cid);document.getElementById('combo-char-label').textContent=c?`${c.name}${c.item_level?' (Lv.'+c.item_level+')':''}의 조합`:'';openModal('modal-combo');}
-function openEditCombo(cid,cid2){const combo=getCombos(cid).find(x=>x.id===cid2);if(!combo)return;document.getElementById('combo-modal-title').textContent='조합 수정';document.getElementById('combo-submit-btn').textContent='저장';document.getElementById('combo-char-id').value=cid;document.getElementById('combo-id').value=cid2;document.getElementById('combo-label').value=combo.label||'';['combo-sun','combo-moon','combo-star'].forEach(id=>{document.getElementById(id).innerHTML=slotOpts();});document.getElementById('combo-sun').value=String(combo.sun);document.getElementById('combo-moon').value=String(combo.moon);document.getElementById('combo-star').value=String(combo.star);const c=allChars.find(x=>x.id===cid);document.getElementById('combo-char-label').textContent=c?`${c.name}의 조합`:'';openModal('modal-combo');}
-async function submitCombo(){const cid=document.getElementById('combo-char-id').value,cid2=document.getElementById('combo-id').value,label=document.getElementById('combo-label').value.trim(),sun=parseInt(document.getElementById('combo-sun').value),moon=parseInt(document.getElementById('combo-moon').value),star=parseInt(document.getElementById('combo-star').value);ensure(cid,null);if(!coreData[cid].cores.__combos)coreData[cid].cores.__combos=[];const combos=coreData[cid].cores.__combos;if(cid2){const idx=combos.findIndex(x=>x.id===cid2);if(idx>=0)combos[idx]={...combos[idx],label,sun,moon,star};toast('✅ 조합 수정됨');}else{combos.push({id:genId(),label:label||`조합${combos.length+1}`,sun,moon,star});toast('✅ 조합 추가됨');}await saveCores(cid);closeModal('modal-combo');renderMain();}
-async function deleteCombo(cid,cid2){if(!confirm('이 조합을 삭제하시겠습니까?'))return;ensure(cid,null);if(!coreData[cid].cores.__combos)return;coreData[cid].cores.__combos=coreData[cid].cores.__combos.filter(x=>x.id!==cid2);await saveCores(cid);renderMain();toast('🗑️ 삭제됨');}
+function openAddCombo(cid){if(isLocked)return;document.getElementById('combo-modal-title').textContent='조합 추가';document.getElementById('combo-submit-btn').textContent='추가';document.getElementById('combo-char-id').value=cid;document.getElementById('combo-id').value='';document.getElementById('combo-label').value='';['combo-sun','combo-moon','combo-star'].forEach(id=>{document.getElementById(id).innerHTML=slotOpts();});const c=allChars.find(x=>x.id===cid);document.getElementById('combo-char-label').textContent=c?`${c.name}${c.item_level?' (Lv.'+c.item_level+')':''}의 조합`:'';openModal('modal-combo');}
+function openEditCombo(cid,cid2){if(isLocked)return;const combo=getCombos(cid).find(x=>x.id===cid2);if(!combo)return;document.getElementById('combo-modal-title').textContent='조합 수정';document.getElementById('combo-submit-btn').textContent='저장';document.getElementById('combo-char-id').value=cid;document.getElementById('combo-id').value=cid2;document.getElementById('combo-label').value=combo.label||'';['combo-sun','combo-moon','combo-star'].forEach(id=>{document.getElementById(id).innerHTML=slotOpts();});document.getElementById('combo-sun').value=String(combo.sun);document.getElementById('combo-moon').value=String(combo.moon);document.getElementById('combo-star').value=String(combo.star);const c=allChars.find(x=>x.id===cid);document.getElementById('combo-char-label').textContent=c?`${c.name}의 조합`:'';openModal('modal-combo');}
+async function submitCombo(){if(isLocked)return;const cid=document.getElementById('combo-char-id').value,cid2=document.getElementById('combo-id').value,label=document.getElementById('combo-label').value.trim(),sun=parseInt(document.getElementById('combo-sun').value),moon=parseInt(document.getElementById('combo-moon').value),star=parseInt(document.getElementById('combo-star').value);ensure(cid,null);if(!coreData[cid].cores.__combos)coreData[cid].cores.__combos=[];const combos=coreData[cid].cores.__combos;if(cid2){const idx=combos.findIndex(x=>x.id===cid2);if(idx>=0)combos[idx]={...combos[idx],label,sun,moon,star};toast('✅ 조합 수정됨');}else{combos.push({id:genId(),label:label||`조합${combos.length+1}`,sun,moon,star});toast('✅ 조합 추가됨');}await saveCores(cid);closeModal('modal-combo');renderMain();}
+async function deleteCombo(cid,cid2){if(isLocked)return;if(!confirm('이 조합을 삭제하시겠습니까?'))return;ensure(cid,null);if(!coreData[cid].cores.__combos)return;coreData[cid].cores.__combos=coreData[cid].cores.__combos.filter(x=>x.id!==cid2);await saveCores(cid);renderMain();toast('🗑️ 삭제됨');}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');}));
