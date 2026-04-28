@@ -854,8 +854,8 @@ button,input,select,textarea{ font:inherit; }
 .vo-group-head{display:grid;grid-template-columns:auto minmax(140px,1fr);align-items:center;gap:10px;margin:0 0 10px;padding:8px 10px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:rgba(255,255,255,.025);}
 .vo-group-title{font-size:.9rem;font-weight:900;color:var(--gold-text);}
 .vo-group-progress{display:grid;grid-template-columns:auto minmax(90px,1fr);align-items:center;gap:8px;font-size:.72rem;font-weight:800;color:var(--text-2);}
-.vo-progress-track{height:5px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.08);}
-.vo-progress-fill{height:100%;border-radius:999px;background:var(--teal);}
+.vo-progress-track{display:block;height:5px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.08);}
+.vo-progress-fill{display:block;height:100%;border-radius:999px;background:var(--teal);}
 .vo-gold-split{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:7px;}
 .vo-gold-mini{display:grid;grid-template-columns:auto auto minmax(52px,1fr);align-items:center;gap:6px;font-size:.72rem;color:var(--text-2);padding:5px 8px;border:1px solid rgba(255,255,255,.07);border-radius:8px;background:rgba(255,255,255,.025);}
 .vo-gold-mini b{color:var(--text);}
@@ -864,10 +864,11 @@ button,input,select,textarea{ font:inherit; }
 .vo-gold-mini.bonus b{color:#c4b5fd;}
 .vo-raid-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;}
 .vo-char-card{background:linear-gradient(180deg,rgba(16,25,43,.96),rgba(11,18,32,.98));border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;box-shadow:0 12px 28px rgba(0,0,0,.18);}
-.vo-char-head{padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.07);display:grid;grid-template-columns:minmax(0,1fr) 58px;align-items:center;gap:8px;background:rgba(255,255,255,.025);}
+.vo-char-head{padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.07);display:grid;grid-template-columns:minmax(0,1fr) 58px auto;align-items:center;gap:8px;background:rgba(255,255,255,.025);}
 .vo-char-name{min-width:0;display:flex;align-items:center;gap:5px;font-size:.86rem;font-weight:900;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.vo-card-progress{height:5px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.08);}
-.vo-card-progress-fill{height:100%;border-radius:999px;background:var(--teal);}
+.vo-card-progress{display:block;height:5px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.08);}
+.vo-card-progress-fill{display:block;height:100%;border-radius:999px;background:var(--teal);}
+.vo-card-count{font-size:.72rem;font-weight:900;color:var(--text-2);white-space:nowrap;}
 .vo-raid-list{padding:7px 9px 9px;display:flex;flex-direction:column;gap:5px;}
 .vo-raid-line{display:grid;grid-template-columns:18px minmax(0,1fr) auto;align-items:center;gap:7px;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,.035);}
 .vo-raid-line:last-child{border-bottom:none;}
@@ -1253,6 +1254,7 @@ async function loadViewerOverview(el){
         <div class="vo-char-head">
           <span class="vo-char-name">${c.icon_url?`<img class="entity-icon-sm" src="${c.icon_url}" onerror="this.style.display='none'">`:''}${esc(c.name)}</span>
           <span class="vo-card-progress" title="${done}/${tasks.length}"><span class="vo-card-progress-fill" style="width:${cpct}%;background:${tasks.length&&done===tasks.length?'var(--green)':'var(--teal)'};"></span></span>
+          <span class="vo-card-count">${done}/${tasks.length}</span>
         </div>
         <div class="vo-raid-list">
           ${tasks.length?tasks.map(t=>{const d=isDone(t),p=t.preset_id?presetMap[t.preset_id]:null,rn=p?.name||t.preset_name||t.name,gc2=getGroupColor(rn),date=t.preset_id?charScheduleByPreset[t.character_id+'_'+t.preset_id]:'';return`<div class="vo-raid-line ${d?'done':''}">
