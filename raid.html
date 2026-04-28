@@ -848,6 +848,7 @@ button,input,select,textarea{ font:inherit; }
 .vo-chip{padding:5px 10px;border-radius:999px;border:1px solid var(--border);background:var(--s3);color:var(--text-2);font-size:.76rem;font-weight:700;cursor:pointer;transition:all var(--t);}
 .vo-chip:hover{border-color:rgba(255,184,77,.35);color:var(--gold-text);}
 .vo-chip.on{border-color:rgba(255,184,77,.50);background:rgba(255,184,77,.10);color:var(--gold-text);}
+.vo-chip.partial{border-color:rgba(59,130,246,.42);background:rgba(59,130,246,.08);color:#93c5fd;}
 .vo-card{background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:14px;min-width:190px;flex:1;overflow:hidden;}
 
 </style>
@@ -1106,14 +1107,26 @@ async function loadViewerOverview(el){
   if(savedViewerChars===null)localStorage.setItem('la_viewer_ov_chars',JSON.stringify([...selectedViewerChars]));
   const renderViewerFilter=()=>{
     const allIds=charsWithRaids.map(c=>c.id);
-    const accRows=(accs||[]).map(acc=>{
-      const aChars=charsWithRaids.filter(c=>c.account_id===acc.id);
+    const filterOpen=localStorage.getItem('la_viewer_ov_filter_open')==='1';
+    const chipToggle=id=>`(()=>{const cur=new Set(JSON.parse(localStorage.getItem('la_viewer_ov_chars')||'[]'));if(cur.has('${id}'))cur.delete('${id}');else cur.add('${id}');localStorage.setItem('la_viewer_ov_chars',JSON.stringify([...cur]));loadViewerOverview(document.getElementById('viewer-overview-area'));})()`;
+    const groupToggle=ids=>`(()=>{const ids=[${ids.map(id=>`'${id}'`).join(',')}];const cur=new Set(JSON.parse(localStorage.getItem('la_viewer_ov_chars')||'[]'));if(ids.every(id=>cur.has(id)))ids.forEach(id=>cur.delete(id));else ids.forEach(id=>cur.add(id));localStorage.setItem('la_viewer_ov_chars',JSON.stringify([...cur]));loadViewerOverview(document.getElementById('viewer-overview-area'));})()`;
+    const row=(label,aChars,sub=false)=>{
       if(!aChars.length)return'';
       const ids=aChars.map(c=>c.id);
       const allOn=ids.every(id=>selectedViewerChars.has(id));
-      return`<div class="vo-filter-row"><button class="vo-chip ${allOn?'on':''}" onclick="(()=>{const ids=[${ids.map(id=>`'${id}'`).join(',')}];const cur=new Set(JSON.parse(localStorage.getItem('la_viewer_ov_chars')||'[]'));if(ids.every(id=>cur.has(id)))ids.forEach(id=>cur.delete(id));else ids.forEach(id=>cur.add(id));localStorage.setItem('la_viewer_ov_chars',JSON.stringify([...cur]));loadViewerOverview(document.getElementById('viewer-overview-area'));})()">${esc(acc.name)}</button>${aChars.map(c=>`<button class="vo-chip ${selectedViewerChars.has(c.id)?'on':''}" onclick="(()=>{const cur=new Set(JSON.parse(localStorage.getItem('la_viewer_ov_chars')||'[]'));if(cur.has('${c.id}'))cur.delete('${c.id}');else cur.add('${c.id}');localStorage.setItem('la_viewer_ov_chars',JSON.stringify([...cur]));loadViewerOverview(document.getElementById('viewer-overview-area'));})()">${esc(c.name)}</button>`).join('')}</div>`;
-    }).join('');
-    return`<div class="vo-filter-box"><div class="vo-filter-title">주간 일정 필터</div><div class="vo-filter-row"><button class="vo-chip" onclick="localStorage.setItem('la_viewer_ov_chars',JSON.stringify([${allIds.map(id=>`'${id}'`).join(',')} ]));loadViewerOverview(document.getElementById('viewer-overview-area'))">전체</button><button class="vo-chip" onclick="localStorage.setItem('la_viewer_ov_chars','[]');loadViewerOverview(document.getElementById('viewer-overview-area'))">해제</button></div>${accRows}</div>`;
+      const anyOn=ids.some(id=>selectedViewerChars.has(id));
+      return`<div class="vo-filter-row" ${sub?'style="padding-left:14px;"':''}><button class="vo-chip ${allOn?'on':anyOn?'partial':''}" onclick="${groupToggle(ids)}">${esc(label)}</button>${aChars.map(c=>`<button class="vo-chip ${selectedViewerChars.has(c.id)?'on':''}" onclick="${chipToggle(c.id)}">${esc(c.name)}</button>`).join('')}</div>`;
+    };
+    let accRows='';
+    (accs||[]).filter(a=>!a.parent_account_id).forEach(acc=>{
+      const mainChars=charsWithRaids.filter(c=>c.account_id===acc.id);
+      const subAccs=(accs||[]).filter(a=>a.parent_account_id===acc.id);
+      const subChars=subAccs.flatMap(sa=>charsWithRaids.filter(c=>c.account_id===sa.id));
+      accRows+=row(acc.name,mainChars.concat(subChars));
+      subAccs.forEach(sa=>{accRows+=row('↳ '+sa.name,charsWithRaids.filter(c=>c.account_id===sa.id),true);});
+    });
+    (accs||[]).filter(a=>a.parent_account_id&&!(accs||[]).some(m=>m.id===a.parent_account_id)).forEach(acc=>{accRows+=row(acc.name,charsWithRaids.filter(c=>c.account_id===acc.id));});
+    return`<div class="vo-filter-box"><div class="vo-filter-title" style="cursor:pointer;" onclick="localStorage.setItem('la_viewer_ov_filter_open','${filterOpen?'0':'1'}');loadViewerOverview(document.getElementById('viewer-overview-area'))">캐릭터 필터 <span style="margin-left:auto;">${filterOpen?'▼':'▶'}</span></div><div style="display:${filterOpen?'block':'none'}"><div class="vo-filter-row"><button class="vo-chip" onclick="localStorage.setItem('la_viewer_ov_chars',JSON.stringify([${allIds.map(id=>`'${id}'`).join(',')} ]));loadViewerOverview(document.getElementById('viewer-overview-area'))">전체</button><button class="vo-chip" onclick="localStorage.setItem('la_viewer_ov_chars','[]');loadViewerOverview(document.getElementById('viewer-overview-area'))">해제</button></div>${accRows}</div></div>`;
   };
   const pass=t=>selectedViewerChars.has(t.character_id);
   let html=`<div style="font-size:.82rem;color:var(--muted);margin-bottom:12px;">🔒 뷰어 모드 — 체크 불가</div>
@@ -1252,14 +1265,16 @@ function rdStartSch(e,schId,srcDn,srcIdx){
 function rdOverSch(e){
   e.preventDefault();e.stopPropagation();
   if(_rd.type!=='sched')return;
+  document.querySelectorAll('.r-dnd-h').forEach(x=>x.classList.remove('r-dnd-h'));
   e.currentTarget.classList.add('r-dnd-h');
 }
 function rdOverDay(e){
-  e.preventDefault();
+  e.preventDefault();e.stopPropagation();
   if(_rd.type!=='sched')return;
+  document.querySelectorAll('.r-dnd-day').forEach(x=>x.classList.remove('r-dnd-day'));
   e.currentTarget.classList.add('r-dnd-day');
 }
-function rdEnd(e){e.target.classList.remove('r-drag');document.querySelectorAll('.r-dnd-v,.r-dnd-h').forEach(x=>x.classList.remove('r-dnd-v','r-dnd-h'));}
+function rdEnd(e){e.target.classList.remove('r-drag');document.querySelectorAll('.r-dnd-v,.r-dnd-h,.r-dnd-day').forEach(x=>x.classList.remove('r-dnd-v','r-dnd-h','r-dnd-day'));}
 function rdOver(e,type,horiz){e.preventDefault();e.stopPropagation();if(_rd.type!==type)return;const cls=horiz?'r-dnd-h':'r-dnd-v';document.querySelectorAll('.'+cls).forEach(x=>x.classList.remove(cls));e.currentTarget.classList.add(cls);}
 function rdLeave(e,horiz){e.currentTarget.classList.remove(horiz?'r-dnd-h':'r-dnd-v');}
 function rdClean(){document.querySelectorAll('.r-drag,.r-dnd-v,.r-dnd-h,.r-dnd-day').forEach(x=>x.classList.remove('r-drag','r-dnd-v','r-dnd-h','r-dnd-day'));}

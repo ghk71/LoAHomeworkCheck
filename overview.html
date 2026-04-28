@@ -619,7 +619,7 @@ let sb,accounts=[],characters=[],raidTasks=[],tempRaidTaskIds=new Set();
 let weekOffset=0;
 let collapsedAccs=new Set(JSON.parse(localStorage.getItem('la_ov_collapsed')||'[]'));
 let selectedChars=new Set(); // selected character ids for filter
-let filterOpen=localStorage.getItem('la_ov_filter_open')!=='0';
+let filterOpen=localStorage.getItem('la_ov_filter_open')==='1';
 
 const DAYS=['일','월','화','수','목','금','토'];
 

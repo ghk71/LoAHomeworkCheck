@@ -556,7 +556,7 @@ function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getIt
 
 let sb,accounts=[],characters=[],raids=[],parties=[],members=[],raidTasks=[],schedules=[],scheduleOverrides=[];
 let selectedChars=new Set();
-let filterOpen=localStorage.getItem('la_pt_filter_open')!=='0';
+let filterOpen=localStorage.getItem('la_pt_filter_open')==='1';
 let partyOrderMode=localStorage.getItem('la_pt_order_mode')||'partyless_last';
 function getWeekStart(){const now=new Date(),kst=new Date(now.getTime()+9*3600000);let b=(kst.getUTCDay()-3+7)%7;if(b===0&&kst.getUTCHours()<6)b=7;const ws=new Date(kst);ws.setUTCDate(ws.getUTCDate()-b);ws.setUTCHours(6,0,0,0);return ws;}
 function getWeekKey(){const ws=getWeekStart();return`${ws.getUTCFullYear()}-${String(ws.getUTCMonth()+1).padStart(2,'0')}-${String(ws.getUTCDate()).padStart(2,'0')}`;}

@@ -470,16 +470,24 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
   min-width: 105px;
 }
 .char-tab:hover { background:rgba(255,255,255,.04); }
-.char-tab.active { background:rgba(245,158,11,.06); }
+.char-tab.active { background:rgba(245,158,11,.08); box-shadow:inset 0 0 0 1px rgba(245,158,11,.26); }
 .char-tab.active::after {
   content:''; position:absolute; bottom:0; left:10%; right:10%; height:2px;
   background: linear-gradient(90deg, transparent, var(--gold), transparent);
   border-radius:1px;
 }
 .char-tab.tab-done { background:rgba(16,185,129,.06)!important; }
-.char-tab.tab-done.active { background:rgba(16,185,129,.12)!important; }
+.char-tab.tab-done.active { background:linear-gradient(90deg,rgba(245,158,11,.13),rgba(16,185,129,.1))!important; box-shadow:inset 0 0 0 1px rgba(245,158,11,.42),0 0 0 1px rgba(16,185,129,.18); }
 .char-tab.tab-done::after { background:linear-gradient(90deg,transparent,var(--green),transparent)!important; }
-.char-tab.tab-done .char-tab-name { color:var(--green)!important; }
+.char-tab.tab-done:not(.active) .char-tab-name { color:var(--green)!important; }
+.char-tab.tab-done.active .char-tab-name { color:var(--gold-text)!important; }
+.char-tab.tab-done.active::before {
+  content:'선택';
+  position:absolute; top:4px; right:6px;
+  font-size:.58rem; color:var(--gold-text);
+  background:rgba(245,158,11,.13); border:1px solid rgba(245,158,11,.28);
+  border-radius:999px; padding:1px 5px;
+}
 .char-tab-avatar { width:30px; height:30px; object-fit:contain; border-radius:6px; flex-shrink:0; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07); padding:2px; }
 .char-tab-name { font-size:.83rem; font-weight:500; transition:color var(--t); display:flex; align-items:center; gap:5px; }
 .char-tab-ilvl { font-size:.66rem; color:var(--text-3); }
@@ -728,6 +736,8 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
   border:1px solid rgba(249,115,22,.2);
 }
 .raid-gold { font-size:.73rem; color:var(--gold-text); }
+.raid-title-line { display:flex; align-items:center; gap:6px; font-size:.87rem; font-weight:600; }
+.raid-difficulty { font-size:inherit; font-weight:600; }
 
 /* Preset select list */
 .preset-select-list { max-height:360px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; }
@@ -984,6 +994,16 @@ button,input,select,textarea{ font:inherit; }
   .account-item{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;}
   .account-actions{grid-column:2;justify-content:flex-start;flex-wrap:wrap;min-width:0;}
   .account-main{min-width:0;}
+  .layout{grid-template-columns:220px 1fr;}
+  .sidebar{min-width:0;}
+  .account-list{padding:6px;}
+  .account-item{padding:8px 7px;gap:6px;}
+  .account-subgroup{margin:4px 6px 6px 18px;padding-left:8px;}
+  .char-tab{padding:9px 12px;min-width:96px;}
+  .task-area{padding:16px 18px;}
+  .coll-header{padding:10px 12px;gap:7px;flex-wrap:wrap;}
+  .coll-title{min-width:0;}
+  .raid-gold-total{font-size:.68rem;}
 }
 
 </style>
@@ -1560,11 +1580,16 @@ async function dndDrop(e,type,destIdx){
 async function dndSubDrop(e,parentId,destIdx,isExp){
   e.preventDefault();e.stopPropagation();
   document.querySelectorAll('.dnd-over-v,.dnd-over-h,.dnd-dragging').forEach(el=>el.classList.remove('dnd-over-v','dnd-over-h','dnd-dragging'));
-  const srcType=_dnd.srcType,srcIdx=_dnd.srcIdx;_dnd.srcType=null;_dnd.srcIdx=null;
-  if(!srcType||srcType!==`stask_${parentId}`||srcIdx===null||srcIdx===destIdx)return;
+  const srcType=_dnd.srcType,srcId=_dnd.srcIdx;_dnd.srcType=null;_dnd.srcIdx=null;
+  if(!srcType||srcType!==`stask_${parentId}`||!srcId)return;
   const table=isExp?'expedition_tasks':'tasks';
   const mainList=getList(isExp);
   const list=mainList.filter(t=>t.parent_id===parentId).sort((a,b)=>a.sort_order-b.sort_order);
+  const srcIdx=list.findIndex(t=>t.id===srcId);
+  const destId=String(destIdx);
+  const targetIdx=list.findIndex(t=>t.id===destId);
+  destIdx=targetIdx>=0?targetIdx:Number(destIdx);
+  if(srcIdx===destIdx)return;
   if(srcIdx<0||srcIdx>=list.length||destIdx<0||destIdx>=list.length)return;
   const[moved]=list.splice(srcIdx,1);list.splice(destIdx,0,moved);
   list.forEach((item,i)=>{item.sort_order=i;});
@@ -1625,7 +1650,9 @@ async function loadAccounts(){
   S.characters={};
   (chars||[]).forEach(c=>{if(!S.characters[c.account_id])S.characters[c.account_id]=[];S.characters[c.account_id]=S.characters[c.account_id]||[];S.characters[c.account_id].push(c);});
   renderSidebar();
-  if(S.accounts.length)await selectAccount(S.selAcc||S.accounts[0].id);
+  const savedChar=LS('la_index_last_char');
+  const savedAcc=(chars||[]).find(c=>c.id===savedChar)?.account_id;
+  if(S.accounts.length)await selectAccount(savedAcc||S.selAcc||S.accounts[0].id,savedChar);
 }
 function toggleShowHidden(){S.showHidden=!S.showHidden;renderSidebar();}
 function toggleHideAccount(e,accId){
@@ -1738,10 +1765,15 @@ async function createAccount(){await saveAccountModal();}
 async function deleteAccount(id){if(!confirm('계정과 모든 데이터가 삭제됩니다. 계속하시겠습니까?'))return;await sb.from('accounts').delete().eq('id',id);S.accounts=S.accounts.filter(a=>a.id!==id);delete S.characters[id];delete S.expTasks[id];if(S.selAcc===id){S.selAcc=null;S.selChar=null;document.getElementById('main-area').innerHTML='<div class="center-state"><div class="center-state-icon">🗡️</div><span style="color:var(--muted);font-size:.87rem">왼쪽에서 계정을 선택하세요</span></div>';}renderSidebar();toast('🗑️ 계정 삭제됨');}
 
 // ─── Characters ───
-async function selectAccount(accId){
+async function selectAccount(accId,preferredCharId=null){
   S.selAcc=accId;S.selChar=null;renderSidebar();
   if(!S.expTasks[accId])await loadExpTasks(accId);
-  renderMain();const chars=S.characters[accId]||[];if(chars.length)await selectChar(chars[0].id);
+  await loadAccountTaskSummaries(accId);
+  renderMain();
+  const chars=S.characters[accId]||[];
+  const saved=preferredCharId||LS('la_index_last_char');
+  const target=chars.some(c=>c.id===saved)?saved:chars[0]?.id;
+  if(target)await selectChar(target);
 }
 function renderMain(){
   const main=document.getElementById('main-area'),chars=S.characters[S.selAcc]||[];
@@ -1779,9 +1811,10 @@ function renderTabs(){
   }).join('')+`<div class="tab-add-btn" onclick="openModal('modal-char')">＋ 추가</div>`;
 }
 async function selectChar(charId){
-  S.selChar=charId;renderTabs();
+  S.selChar=charId;LSS('la_index_last_char',charId);renderTabs();
   await Promise.all([loadTasks(charId),loadRaidTasks(charId),loadCurrencies(charId),loadCustomPopups(charId)]);
   renderTaskArea();
+  renderTabs();
 }
 async function createChar(){const name=document.getElementById('char-name').value.trim(),cls=document.getElementById('char-class').value.trim(),ilvl=parseFloat(document.getElementById('char-ilvl').value)||0;if(!name){toast('❗ 캐릭터명을 입력하세요');return;}const{data,error}=await sb.from('characters').insert({account_id:S.selAcc,name,class_name:cls,item_level:ilvl,sort_order:(S.characters[S.selAcc]||[]).length}).select().single();if(error){toast('❗ '+error.message);return;}if(!S.characters[S.selAcc])S.characters[S.selAcc]=[];S.characters[S.selAcc].push(data);closeModal('modal-char');renderMain();await selectChar(data.id);toast('✅ 캐릭터 추가됨');}
 function openEditCharModal(charId){
@@ -1811,6 +1844,18 @@ async function deleteChar(id){if(!confirm('캐릭터와 모든 데이터가 삭�
 
 // ─── Data Loading ───
 async function loadExpTasks(accId){const res=await sb.from('expedition_tasks').select('*').eq('account_id',accId).order('sort_order').order('created_at');if(supaErr(res,'원정대 숙제 로딩 실패')){S.expTasks[accId]=[];return;}S.expTasks[accId]=res.data||[];await autoReset(S.expTasks[accId],'expedition_tasks');}
+async function loadAccountTaskSummaries(accId){
+  const ids=(S.characters[accId]||[]).map(c=>c.id);
+  if(!ids.length)return;
+  const missing=ids.filter(id=>!S.tasks[id]);
+  if(!missing.length)return;
+  const res=await sb.from('tasks').select('*').in('character_id',missing).order('sort_order').order('created_at');
+  if(supaErr(res,'캐릭터 숙제 요약 로딩 실패')){missing.forEach(id=>{S.tasks[id]=[];});return;}
+  missing.forEach(id=>{S.tasks[id]=[];});
+  (res.data||[]).forEach(t=>{if(!S.tasks[t.character_id])S.tasks[t.character_id]=[];S.tasks[t.character_id].push(t);});
+  const loaded=missing.flatMap(id=>S.tasks[id]||[]);
+  await autoReset(loaded,'tasks');
+}
 async function loadTasks(charId){const res=await sb.from('tasks').select('*').eq('character_id',charId).order('sort_order').order('created_at');if(supaErr(res,'캐릭터 숙제 로딩 실패')){S.tasks[charId]=[];return;}S.tasks[charId]=res.data||[];await autoReset(S.tasks[charId],'tasks');}
 async function loadRaidTasks(charId){
   const res=await sb.from('raid_tasks').select('*').eq('character_id',charId).order('sort_order').order('created_at');
@@ -1975,11 +2020,11 @@ function subTaskHTML(t,isExp,sibIdx){
   const hasCount=t.count_max!=null;
   return `<div class="subtask-item ${done?'done':''}" id="ti-${t.id}"
     draggable="true"
-    ondragstart="dndStart(event,'stask_${t.parent_id}',${sibIdx})"
+    ondragstart="dndStart(event,'stask_${t.parent_id}','${t.id}')"
     ondragend="dndEnd(event)"
     ondragover="dndOver(event,'stask_${t.parent_id}',false)"
     ondragleave="dndLeave(event,false)"
-    ondrop="dndSubDrop(event,'${t.parent_id}',${sibIdx},${iE})">
+    ondrop="dndSubDrop(event,'${t.parent_id}','${t.id}',${iE})">
     <span class="dnd-handle">⠿</span>
     <div class="checkbox" onclick="toggleTask('${t.id}',${iE})"><span class="checkbox-icon">✓</span></div>
     <div class="task-body">
@@ -2055,7 +2100,7 @@ function raidItemHTML(t,idx){
     <span class="dnd-handle">⠿</span>
     <div class="checkbox" onclick="toggleRaidTask('${t.id}')"><span class="checkbox-icon">✓</span></div>
     <div class="task-body">
-      <div class="task-name" style="display:flex;align-items:center;gap:6px;">${iconImg(t.preset_icon_url||localStorage.getItem('la_gicon_'+rn)||'','entity-icon-sm')}<span style="color:${gc};">${esc(rn)}</span>${t.difficulty?` <span class="${dc}" style="font-size:.72rem;color:${gc};border-color:${gc};">${esc(t.difficulty)}</span>`:''}</div>
+      <div class="task-name raid-title-line">${iconImg(t.preset_icon_url||localStorage.getItem('la_gicon_'+rn)||'','entity-icon-sm')}<span style="color:${gc};">${esc(rn)}</span>${t.difficulty?` <span class="raid-difficulty ${dc}">${esc(t.difficulty)}</span>`:''}</div>
       <div class="raid-meta" style="margin-top:4px;">
         ${t.entry_level?`<span class="raid-badge">입장 ${t.entry_level}</span>`:''}
         ${fl?`<span class="raid-gold raid-gold-flow ${rg?'':'muted-gold'}" title="${rg?'클릭해서 유통골드 제외':'클릭해서 유통골드 수령'}" style="cursor:pointer;" onclick="event.stopPropagation();toggleReceiveGold('${t.id}')">💰 유통 ${fl.toLocaleString()}G</span>`:''}
@@ -2118,28 +2163,29 @@ async function toggleTask(taskId,isExp){
   const nowDone=!isEffDone(t),now=new Date().toISOString();
   const up={is_completed:nowDone,last_completed_at:nowDone?now:null};
   if(t.count_max!=null)up.count_current=nowDone?t.count_max:0;
-  Object.assign(t,up);
-  // DOM update immediately (no await)
-  applyDoneToEl(document.getElementById('ti-'+taskId),nowDone);
-  if(t.parent_id){
-    checkParentStatus(t.parent_id,isExp).then(()=>{updateParentDOM(t.parent_id,isExp);scheduleRenderArea();if(!isExp)updateTabDOM(S.selChar);});
-  }
-  if(!isExp){updateTabDOM(S.selChar);scheduleRenderArea();}
-  // Fire-and-forget DB save
   const{error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',taskId);
-  if(error)toast('❗ 저장 오류');
+  if(error){toast('❗ 저장 오류');return;}
+  Object.assign(t,up);
+  if(t.parent_id){
+    await checkParentStatus(t.parent_id,isExp);
+    updateParentDOM(t.parent_id,isExp);
+  }
+  applyDoneToEl(document.getElementById('ti-'+taskId),nowDone);
+  scheduleRenderArea();
+  if(!isExp)updateTabDOM(S.selChar);
 }
 async function updateCount(taskId,rawVal,isExp){
   const list=getList(isExp),t=list.find(x=>x.id===taskId);if(!t||t.count_max==null)return;
   const count=Math.max(0,Math.min(parseInt(rawVal)||0,t.count_max)),isDone=count>=t.count_max,now=new Date().toISOString();
   const up={count_current:count,is_completed:isDone,last_completed_at:isDone?now:null};
+  const{error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',taskId);
+  if(error){toast('❗ 저장 오류');return;}
   Object.assign(t,up);
   const el=document.getElementById('ti-'+taskId);
   if(el){el.classList.toggle('done',isDone);const ic=el.querySelector('.checkbox-icon');if(ic)ic.style.opacity=isDone?'1':'0';const cb=el.querySelector('.checkbox');if(cb){cb.style.background=isDone?'var(--green)':'';cb.style.borderColor=isDone?'var(--green)':'';}const nm=el.querySelector('.task-name');if(nm)nm.style.textDecoration=isDone?'line-through':'';const inp=el.querySelector('.count-input');if(inp&&document.activeElement!==inp)inp.value=count;}
-  if(t.parent_id)checkParentStatus(t.parent_id,isExp).then(()=>{updateParentDOM(t.parent_id,isExp);scheduleRenderArea();if(!isExp)updateTabDOM(S.selChar);});
-  if(!isExp){updateTabDOM(S.selChar);scheduleRenderArea();}
-  const{error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',taskId);
-  if(error)toast('❗ 저장 오류');
+  if(t.parent_id){await checkParentStatus(t.parent_id,isExp);updateParentDOM(t.parent_id,isExp);}
+  scheduleRenderArea();
+  if(!isExp)updateTabDOM(S.selChar);
 }
 async function toggleRaidTask(id){
   const t=(S.raidTasks[S.selChar]||[]).find(x=>x.id===id);if(!t)return;

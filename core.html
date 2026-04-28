@@ -901,6 +901,7 @@ const GB={
 const getGrade=(cid,k)=>(coreData[cid]?.cores[k]?.grade)||'none';
 const getPrio=(cid,k)=>!!(coreData[cid]?.cores[k]?.priority);
 const getCname=(cid,k)=>(coreData[cid]?.cores[k]?.name)||'';
+const coreDisplayName=(cid,k,fallback)=>getCname(cid,k).trim()||fallback;
 const getCombos=(cid)=>(coreData[cid]?.cores.__combos)||[];
 const ck=(t,e,s)=>`${t}_${e}_${s}`;
 const sk=(t,e)=>`${t}_${e}`;
@@ -962,7 +963,7 @@ function renderMain(){
 }
 function thead(vis){return`<thead><tr><th class="type-header">코어</th>${vis.map(c=>`<th class="char-header">${c.icon_url?`<img class="entity-icon-sm" src="${c.icon_url}" onerror="this.style.display='none'" style="display:block;margin:0 auto 2px;"><br>`:''}<span style="display:flex;align-items:center;justify-content:center;gap:3px;">${esc(c.name)}</span>${c.item_level?`<br><span style="font-size:.66rem;font-weight:400;color:var(--muted)">Lv.${c.item_level}</span>`:''}</th>`).join('')}</tr></thead><tbody>`;
 }
-function cell(cid,key){const g=getGrade(cid,key),p=getPrio(cid,key),cn=getCname(cid,key);return`<td><div class="core-cell-wrap ${p?'is-priority':''}"><div class="core-cell ${GC[g]}" onclick="cycleGrade('${cid}','${key}',this)" oncontextmenu="toggleSkip('${cid}','${key}',this);return false;"><span>${GL[g]}</span></div><input class="core-name-input" value="${esc(cn)}" placeholder="코어명" onchange="saveCoreName('${cid}','${key}',this.value)" onclick="event.stopPropagation()" oncontextmenu="event.stopPropagation()"><button class="core-priority-btn" onclick="togglePriority('${cid}','${key}',this)">${p?'⭐':'☆'}</button></div></td>`;}
+function cell(cid,key){const g=getGrade(cid,key),p=getPrio(cid,key),cn=getCname(cid,key),isChaos=key.startsWith('chaos_');return`<td><div class="core-cell-wrap ${p?'is-priority':''}"><div class="core-cell ${GC[g]}" onclick="cycleGrade('${cid}','${key}',this)" oncontextmenu="toggleSkip('${cid}','${key}',this);return false;"><span>${GL[g]}</span></div>${isChaos?'':`<input class="core-name-input" value="${esc(cn)}" placeholder="코어명" onchange="saveCoreName('${cid}','${key}',this.value)" onclick="event.stopPropagation()" oncontextmenu="event.stopPropagation()">`}<button class="core-priority-btn" onclick="togglePriority('${cid}','${key}',this)">${p?'⭐':'☆'}</button></div></td>`;}
 function renderBasic(vis,el){
   let h=thead(vis);
   TYPES.forEach(({group,type,cls,elements},ti)=>{
@@ -998,9 +999,9 @@ function renderCombo(vis,el){
     const combos=getCombos(c.id);
     const combosHTML=combos.map(combo=>{
       const rows=[
-        {nm:`질서해${combo.sun}`, key:ck('order','sun',combo.sun)},
-        {nm:`질서달${combo.moon}`, key:ck('order','moon',combo.moon)},
-        {nm:`질서별${combo.star}`, key:ck('order','star',combo.star)}
+        {nm:coreDisplayName(c.id,ck('order','sun',combo.sun),`질서해${combo.sun}`), key:ck('order','sun',combo.sun)},
+        {nm:coreDisplayName(c.id,ck('order','moon',combo.moon),`질서달${combo.moon}`), key:ck('order','moon',combo.moon)},
+        {nm:coreDisplayName(c.id,ck('order','star',combo.star),`질서별${combo.star}`), key:ck('order','star',combo.star)}
       ].map(r=>{
         const g=getGrade(c.id,r.key),p=getPrio(c.id,r.key);
         return`<div class="combo-grade-row">
@@ -1103,7 +1104,7 @@ function comboPrio(cid,key,btn){
 }
 
 const _nt={};
-function saveCoreName(cid,key,val){if(isLocked)return;ensure(cid,key);coreData[cid].cores[key].name=val;clearTimeout(_nt[cid+key]);_nt[cid+key]=setTimeout(()=>saveCores(cid),800);}
+function saveCoreName(cid,key,val){if(isLocked)return;ensure(cid,key);coreData[cid].cores[key].name=val;clearTimeout(_nt[cid+key]);_nt[cid+key]=setTimeout(()=>saveCores(cid),800);if(viewMode==='combo'&&key.startsWith('order_'))renderMain();}
 async function resetAll(){if(!confirm('화면에 보이는 캐릭터의 코어 데이터를 모두 초기화하시겠습니까?'))return;const vis=allChars.filter(c=>selectedChars.has(c.id));for(const c of vis){const combos=getCombos(c.id);coreData[c.id]={...(coreData[c.id]||{}),cores:{__combos:combos}};await saveCores(c.id);}renderMain();toast('✅ 초기화 완료');}
 const genId=()=>'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 const slotOpts=()=>[1,2,3,4,5,6].map(n=>`<option value="${n}">${n}</option>`).join('');
