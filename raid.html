@@ -627,6 +627,7 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
   border-color:rgba(16,185,129,.35);
   color:var(--green);
 }
+.sc-footer:empty{display:none;}
 .sched-card.completed .sc-complete-btn {
   background:rgba(16,185,129,.15)!important;
   border-color:rgba(16,185,129,.4)!important;
@@ -850,6 +851,24 @@ button,input,select,textarea{ font:inherit; }
 .vo-chip.on{border-color:rgba(255,184,77,.50);background:rgba(255,184,77,.10);color:var(--gold-text);}
 .vo-chip.partial{border-color:rgba(59,130,246,.42);background:rgba(59,130,246,.08);color:#93c5fd;}
 .vo-card{background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:14px;min-width:190px;flex:1;overflow:hidden;}
+.vo-account-summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;}
+.vo-summary-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);font-size:.72rem;font-weight:800;color:var(--text-2);}
+.vo-summary-pill.good{color:#86efac;border-color:rgba(16,185,129,.24);background:rgba(16,185,129,.08);}
+.vo-summary-pill.gold{color:var(--gold-text);border-color:rgba(255,184,77,.24);background:rgba(255,184,77,.08);}
+.vo-raid-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;}
+.vo-char-card{background:linear-gradient(180deg,rgba(16,25,43,.96),rgba(11,18,32,.98));border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;box-shadow:0 12px 28px rgba(0,0,0,.18);}
+.vo-char-head{padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.025);}
+.vo-char-name{font-size:.86rem;font-weight:900;color:var(--text);}
+.vo-char-count{margin-left:auto;font-size:.72rem;color:var(--text-2);font-weight:800;}
+.vo-raid-list{padding:7px 9px 9px;display:flex;flex-direction:column;gap:5px;}
+.vo-raid-line{display:grid;grid-template-columns:18px minmax(0,1fr) auto;align-items:center;gap:7px;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,.035);}
+.vo-raid-line:last-child{border-bottom:none;}
+.vo-raid-check{width:16px;height:16px;border:2px solid var(--border-lit);border-radius:4px;background:transparent;display:grid;place-items:center;color:#fff;font-size:10px;font-weight:900;}
+.vo-raid-line.done .vo-raid-check{border-color:var(--green);background:var(--green);}
+.vo-raid-title{min-width:0;font-size:.78rem;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vo-raid-line.done .vo-raid-title{color:var(--muted)!important;text-decoration:line-through;}
+.vo-raid-date{font-size:.68rem;font-weight:900;color:var(--gold-text);border:1px solid rgba(255,184,77,.22);background:rgba(255,184,77,.08);border-radius:999px;padding:2px 7px;white-space:nowrap;}
+.vo-empty{font-size:.76rem;color:var(--muted);padding:8px 10px;}
 .sch-party-select{display:none;}
 .sch-modal-layout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:14px;align-items:start;}
 .sch-party-list{max-height:300px;overflow:auto;border:1px solid var(--border);border-radius:14px;background:rgba(8,13,25,.52);padding:8px;display:flex;flex-direction:column;gap:8px;}
@@ -1120,16 +1139,40 @@ async function switchViewerTab(tab){
 async function loadViewerOverview(el){
   el.innerHTML='<div class="loading-full"><div class="spinner"></div> 불러오는 중...</div>';
   // overview 데이터 로드
-  const[{data:accs},{data:chars},{data:rtasks},{data:presets}]=await Promise.all([
+  const[{data:accs},{data:chars},{data:rtasks},{data:presets},{data:vParties},{data:vMembers},{data:vSchedules}]=await Promise.all([
     sb.from('accounts').select('*').order('sort_order'),
     sb.from('characters').select('*').order('sort_order'),
     sb.from('raid_tasks').select('*').order('sort_order'),
-    sb.from('raid_presets').select('id,name')
+    sb.from('raid_presets').select('*').order('sort_order').order('created_at'),
+    sb.from('raid_parties').select('*').order('sort_order').order('created_at'),
+    sb.from('raid_party_members').select('*'),
+    sb.from('raid_schedules').select('id,party_id,day_of_week,time_str,is_fixed,sort_order').order('sort_order').order('created_at')
   ]);
-  const pm={};(presets||[]).forEach(p=>{pm[p.id]=p.name;});
-  (rtasks||[]).forEach(t=>{if(t.preset_id&&pm[t.preset_id])t.preset_name=pm[t.preset_id];});
-  const ws=getWeekStart(0);
+  const presetMap={};(presets||[]).forEach(p=>{presetMap[p.id]=p;});
+  (rtasks||[]).forEach(t=>{const p=t.preset_id?presetMap[t.preset_id]:null;if(p){t.preset_name=p.name;t.difficulty=t.difficulty||p.difficulty;}});
+  const ws=new Date(getWeekStart(0).getTime()-9*3600000);
   function isDone(t){if(!t.is_completed||!t.last_completed_at)return false;return new Date(t.last_completed_at)>ws;}
+  const raidSortKey=t=>{
+    const p=t.preset_id?presetMap[t.preset_id]:null;
+    return `${String(p?.sort_order??999).padStart(4,'0')}-${String(t.sort_order??999).padStart(4,'0')}-${t.name||''}`;
+  };
+  const flowOf=t=>Math.max(0,(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0));
+  const boundOf=t=>Number(t.bound_gold)||0;
+  const bonusOf=t=>Number(t.bonus_gold)||0;
+  const weekDays=getWeekDays(0);
+  const dateForDn=dn=>{const idx=WEEK_DAY_NUMS.indexOf(Number(dn));const d=idx>=0?weekDays[idx]:null;return d?`${d.getUTCMonth()+1}/${d.getUTCDate()}`:'';};
+  const partyMembers=(vMembers||[]).reduce((m,x)=>{(m[x.party_id]||(m[x.party_id]=[])).push(x);return m;},{});
+  const charScheduleByPreset={};
+  (vSchedules||[]).forEach(s=>{
+    const pty=(vParties||[]).find(p=>p.id===s.party_id),preset=pty?presetMap[pty.preset_id]:null;
+    if(!pty||!preset)return;
+    (partyMembers[pty.id]||[]).forEach(mem=>{
+      if(!mem.character_id)return;
+      const key=mem.character_id+'_'+preset.id;
+      const label=dateForDn(s.day_of_week);
+      if(label&&!charScheduleByPreset[key])charScheduleByPreset[key]=label;
+    });
+  });
   const charsWithRaids=(chars||[]).filter(c=>(rtasks||[]).some(t=>t.character_id===c.id));
   let selectedViewerChars;
   const savedViewerChars=localStorage.getItem('la_viewer_ov_chars');
@@ -1159,26 +1202,40 @@ async function loadViewerOverview(el){
     return`<div class="vo-filter-box"><div class="vo-filter-title" style="cursor:pointer;" onclick="localStorage.setItem('la_viewer_ov_filter_open','${filterOpen?'0':'1'}');loadViewerOverview(document.getElementById('viewer-overview-area'))">캐릭터 필터 <span style="margin-left:auto;">${filterOpen?'▼':'▶'}</span></div><div style="display:${filterOpen?'block':'none'}"><div class="vo-filter-row"><button class="vo-chip" onclick="localStorage.setItem('la_viewer_ov_chars',JSON.stringify([${allIds.map(id=>`'${id}'`).join(',')} ]));loadViewerOverview(document.getElementById('viewer-overview-area'))">전체</button><button class="vo-chip" onclick="localStorage.setItem('la_viewer_ov_chars','[]');loadViewerOverview(document.getElementById('viewer-overview-area'))">해제</button></div>${accRows}</div></div>`;
   };
   const pass=t=>selectedViewerChars.has(t.character_id);
+  const accountSummary=(label,aChars)=>{
+    const ids=new Set(aChars.map(c=>c.id));
+    const tasks=(rtasks||[]).filter(t=>ids.has(t.character_id));
+    const done=tasks.filter(t=>isDone(t));
+    const remainFlow=tasks.filter(t=>t.receive_gold!==false).reduce((s,t)=>s+flowOf(t),0)-done.filter(t=>t.receive_gold!==false).reduce((s,t)=>s+flowOf(t),0);
+    const remainBound=tasks.filter(t=>t.receive_bound!==false).reduce((s,t)=>s+boundOf(t),0)-done.filter(t=>t.receive_bound!==false).reduce((s,t)=>s+boundOf(t),0);
+    const remainBonus=tasks.filter(t=>t.receive_bonus!==false).reduce((s,t)=>s+bonusOf(t),0)-done.filter(t=>t.receive_bonus!==false).reduce((s,t)=>s+bonusOf(t),0);
+    return`<div class="vo-account-summary">
+      <span class="vo-summary-pill good">${esc(label)} ${done.length}/${tasks.length}</span>
+      <span class="vo-summary-pill gold">유통 ${Math.max(0,remainFlow).toLocaleString()}G</span>
+      <span class="vo-summary-pill gold">귀속 ${Math.max(0,remainBound).toLocaleString()}G</span>
+      <span class="vo-summary-pill gold">더보기 ${Math.max(0,remainBonus).toLocaleString()}G</span>
+    </div>`;
+  };
   let html=`<div style="font-size:.82rem;color:var(--muted);margin-bottom:12px;">🔒 뷰어 모드 — 체크 불가</div>
   ${renderViewerFilter()}`;
   const renderViewerGroup=(label,withRaids)=>{
     if(!withRaids.length)return;
-    html+=`<div style="margin-bottom:16px;"><div style="font-size:.88rem;font-weight:700;color:var(--gold);margin-bottom:8px;font-family:'Cinzel',serif;">${esc(label)}</div><div style="display:flex;flex-wrap:wrap;gap:8px;">`;
+    html+=`<div style="margin-bottom:18px;"><div style="font-size:.9rem;font-weight:900;color:var(--gold-text);margin-bottom:8px;">${esc(label)}</div>${accountSummary(label,withRaids)}<div class="vo-raid-grid">`;
     withRaids.forEach(c=>{
-      const tasks=(rtasks||[]).filter(t=>t.character_id===c.id&&pass(t));
+      const tasks=(rtasks||[]).filter(t=>t.character_id===c.id&&pass(t)).sort((a,b)=>raidSortKey(a).localeCompare(raidSortKey(b)));
       const done=tasks.filter(t=>isDone(t)).length;
-      const gc=getGroupColor(c.name||'');
-      html+=`<div style="background:var(--s2);border:1px solid var(--border);border-radius:6px;min-width:180px;flex:1;overflow:hidden;">
-        <div style="padding:7px 10px;background:var(--s1);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;">
+      html+=`<div class="vo-char-card">
+        <div class="vo-char-head">
           ${c.icon_url?`<img class="entity-icon-sm" src="${c.icon_url}" onerror="this.style.display='none'">`:''}
-          <span style="font-size:.84rem;font-weight:700;">${esc(c.name)}</span>
-          <span style="font-size:.7rem;color:var(--muted);margin-left:auto;">${done}/${tasks.length}</span>
+          <span class="vo-char-name">${esc(c.name)}</span>
+          <span class="vo-char-count">${done}/${tasks.length}</span>
         </div>
-        <div style="padding:5px 8px;">
-          ${tasks.map(t=>{const d=isDone(t);const rn=t.preset_name||t.name;const gc2=getGroupColor(rn);return`<div style="display:flex;align-items:center;gap:6px;padding:4px 3px;border-bottom:1px solid rgba(255,255,255,.03);">
-            <div style="width:16px;height:16px;border:2px solid ${d?'var(--green)':'var(--border-lit)'};border-radius:3px;background:${d?'var(--green)':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">${d?'<span style="color:#fff;font-size:10px;font-weight:700;">✓</span>':''}</div>
-            <span style="font-size:.76rem;color:${d?'var(--muted)':'var(--text)'};${d?'text-decoration:line-through;':''}"><span style="color:${gc2};">${esc(rn)}</span>${t.difficulty?` <span class="${diffClass(t.difficulty)}" style="font-size:.65rem;">${esc(t.difficulty)}</span>`:''}</span>
-          </div>`;}).join('')}
+        <div class="vo-raid-list">
+          ${tasks.length?tasks.map(t=>{const d=isDone(t),p=t.preset_id?presetMap[t.preset_id]:null,rn=p?.name||t.preset_name||t.name,gc2=getGroupColor(rn),date=t.preset_id?charScheduleByPreset[t.character_id+'_'+t.preset_id]:'';return`<div class="vo-raid-line ${d?'done':''}">
+            <span class="vo-raid-check">${d?'✓':''}</span>
+            <span class="vo-raid-title" style="color:${gc2};">${esc(rn)}${(t.difficulty||p?.difficulty)?` <span class="${diffClass(t.difficulty||p?.difficulty)}" style="font-size:.68rem;">${esc(t.difficulty||p?.difficulty)}</span>`:''}</span>
+            ${date?`<span class="vo-raid-date">${date}</span>`:''}
+          </div>`;}).join(''):'<div class="vo-empty">레이드가 없습니다</div>'}
         </div>
       </div>`;
     });
@@ -1254,6 +1311,7 @@ async function init(){
 }
 
 // ─── Week helpers ───
+function getGameNowKST(){const d=new Date(Date.now()+9*3600000);if(d.getUTCHours()<6)d.setUTCDate(d.getUTCDate()-1);return d;}
 function getWeekStart(off=0){const now=new Date(),kst=new Date(now.getTime()+9*3600000);let b=(kst.getUTCDay()-3+7)%7;if(b===0&&kst.getUTCHours()<6)b=7;const ws=new Date(kst);ws.setUTCDate(ws.getUTCDate()-b+off*7);ws.setUTCHours(6,0,0,0);return ws;}
 function getWeekKey(off=0){const ws=getWeekStart(off);return`${ws.getUTCFullYear()}-${String(ws.getUTCMonth()+1).padStart(2,'0')}-${String(ws.getUTCDate()).padStart(2,'0')}`;}
 function getWeekDays(off=0){const s=getWeekStart(off);return WEEK_DAY_NUMS.map((_,i)=>{const d=new Date(s);d.setUTCDate(d.getUTCDate()+i);return d;});}
@@ -2029,7 +2087,7 @@ function autoOpenParty(partyId){
 function renderSchedule(){
   const el=document.getElementById('sch-body');if(!el)return;
   populateDaySelect();populatePartySelect('');
-  const days=getWeekDays(weekOffset),todayKST=new Date(Date.now()+9*3600000).getUTCDay(),wk=getWeekKey(weekOffset);
+  const days=getWeekDays(weekOffset),todayKST=getGameNowKST().getUTCDay(),wk=getWeekKey(weekOffset);
   const wsMs=getWeekStart(weekOffset).getTime()-9*3600000;
   const weMs=wsMs+7*24*3600000;
   const daySlots=buildDaySlots();
@@ -2113,7 +2171,7 @@ function schedCardHTML(s,wk){
       }).join('')}
     </div>
     <div class="sc-footer">
-      <button class="sc-complete-btn ${isViewer?'viewer-disabled':''}" onclick="${isViewer?'':` toggleCompletion('${s.id}','${wk}')`}">${isCompleted?'✓ 완료':'○ 완료'}</button>
+      ${!isViewer?`<button class="sc-complete-btn" onclick="toggleCompletion('${s.id}','${wk}')">${isCompleted?'✓ 완료':'○ 완료'}</button>`:''}
       ${!isViewer?`<button class="sc-edit-btn edit-only" onclick="openSchEdit('${s.id}','${wk}')">✏️</button>`:''}
     </div>
   </div>`;
@@ -2356,7 +2414,7 @@ async function resetOverrides(){
 }
 
 // ─── Schedule CRUD ───
-function openAddSchForParty(partyId){resetSchModal();document.getElementById('sch-modal-title').textContent='일정 추가';document.getElementById('sch-submit-btn').textContent='추가';populatePartySelect(partyId);document.getElementById('sch-day-select').value=String(new Date(Date.now()+9*3600000).getUTCDay());openModal('modal-schedule');}
+function openAddSchForParty(partyId){resetSchModal();document.getElementById('sch-modal-title').textContent='일정 추가';document.getElementById('sch-submit-btn').textContent='추가';populatePartySelect(partyId);document.getElementById('sch-day-select').value=String(getGameNowKST().getUTCDay());openModal('modal-schedule');}
 function openAddSchForDay(dn){resetSchModal();document.getElementById('sch-modal-title').textContent='일정 추가';document.getElementById('sch-submit-btn').textContent='추가';populatePartySelect('');document.getElementById('sch-day-select').value=String(dn);openModal('modal-schedule');}
 function openEditScheduleById(id){const s=schedules.find(x=>x.id===id);if(!s)return;resetSchModal();document.getElementById('sch-modal-title').textContent='일정 수정';document.getElementById('sch-submit-btn').textContent='저장';document.getElementById('sch-delete-btn').style.display='flex';document.getElementById('sch-edit-id').value=id;document.getElementById('sch-fixed').checked=s.is_fixed;document.getElementById('sch-time').value=s.time_str||'';populatePartySelect(s.party_id);document.getElementById('sch-day-select').value=String(s.day_of_week);closeModal('modal-sch-edit');openModal('modal-schedule');}
 function resetSchModal(){document.getElementById('sch-delete-btn').style.display='none';document.getElementById('sch-edit-id').value='';document.getElementById('sch-fixed').checked=false;document.getElementById('sch-time').value='';}

@@ -604,7 +604,9 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
 .currency-quick-btn.minus { border-radius:0; }
 .currency-quick-btn.plus { border-radius:0; }
 .currency-chip.quick-core { min-width:0; flex:1; border-radius:0; }
+.currency-chip.quick-core.has-action { grid-template-columns:auto minmax(0,1fr) minmax(74px,86px) 32px; }
 .currency-chip.quick-core:hover { transform:none; }
+.currency-quick.is-action-mode .currency-chip.quick-core { border-radius:12px; border-left:1px solid rgba(255,184,77,.16); border-right:1px solid rgba(255,184,77,.16); }
 .curr-chip-name{font-size:.76rem;color:var(--text-2);min-width:0;overflow:visible;white-space:normal;line-height:1.2;font-weight:800;word-break:keep-all;}
 .curr-chip-amount {
   width:100%;
@@ -1986,9 +1988,9 @@ function currencyQuickHTML(c,idx){
     :mode==='delete'
       ?`<button class="curr-chip-action danger" title="재화 삭제" onclick="event.stopPropagation();deleteCurrencyById('${c.id}')">🗑</button>`
       :'';
-  return`<div class="currency-quick" id="curr-chip-${c.id}" draggable="true" ondragstart="dndStart(event,'curr',${idx})" ondragend="dndEnd(event)" ondragover="dndOver(event,'curr',true)" ondragleave="dndLeave(event,true)" ondrop="dndDrop(event,'curr',${idx})">
+  return`<div class="currency-quick ${mode==='normal'?'':'is-action-mode'}" id="curr-chip-${c.id}" draggable="true" ondragstart="dndStart(event,'curr',${idx})" ondragend="dndEnd(event)" ondragover="dndOver(event,'curr',true)" ondragleave="dndLeave(event,true)" ondrop="dndDrop(event,'curr',${idx})">
     ${mode==='normal'?`<button class="currency-quick-btn minus" title="1 감소" onclick="event.stopPropagation();quickAdjustCurr('${c.id}',-1)">−</button>`:''}
-    <div class="currency-chip quick-core">
+    <div class="currency-chip quick-core ${mode==='normal'?'':'has-action'}">
       ${c.icon_url?`<img class="entity-icon-sm" src="${c.icon_url}" onerror="this.style.display='none'">`:(c.icon&&!c.icon_url?`<span>${c.icon}</span>`:'')}
       <span class="curr-chip-name">${esc(c.name)}</span>
       <input class="curr-chip-amount" type="number" min="0" step="1" value="${Number(c.amount||0)}" title="수량 직접 입력" onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter')this.blur()" onchange="setCurrInput('${c.id}',this.value)">
