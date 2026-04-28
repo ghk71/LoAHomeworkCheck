@@ -850,6 +850,17 @@ button,input,select,textarea{ font:inherit; }
 .vo-chip.on{border-color:rgba(255,184,77,.50);background:rgba(255,184,77,.10);color:var(--gold-text);}
 .vo-chip.partial{border-color:rgba(59,130,246,.42);background:rgba(59,130,246,.08);color:#93c5fd;}
 .vo-card{background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:14px;min-width:190px;flex:1;overflow:hidden;}
+.sch-party-select{display:none;}
+.sch-party-list{max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:14px;background:rgba(8,13,25,.52);padding:8px;display:flex;flex-direction:column;gap:8px;}
+.sch-party-group-label{font-size:.72rem;color:var(--text-3);font-weight:800;padding:4px 4px 0;}
+.sch-party-card{position:relative;width:100%;text-align:left;padding:9px 11px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:var(--s2);color:var(--text);cursor:pointer;transition:all var(--t);}
+.sch-party-card:hover,.sch-party-card.selected{border-color:rgba(255,184,77,.48);background:rgba(255,184,77,.08);}
+.sch-party-main{display:flex;align-items:center;gap:8px;font-size:.86rem;font-weight:800;}
+.sch-party-meta{font-size:.7rem;color:var(--muted);margin-top:3px;}
+.sch-party-members{display:none;margin-top:8px;padding:9px;border-radius:12px;border:1px solid rgba(255,184,77,.28);background:#11192b;box-shadow:var(--shadow-md);}
+.sch-party-card:hover .sch-party-members{display:block;}
+.sch-party-member{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:.74rem;color:var(--text-2);}
+.sch-party-empty{font-size:.74rem;color:var(--muted);padding:8px;}
 
 </style>
 </head>
@@ -947,7 +958,8 @@ button,input,select,textarea{ font:inherit; }
 <div class="overlay" id="modal-schedule"><div class="modal">
   <div class="modal-title" id="sch-modal-title">일정 추가</div>
   <div class="form-group"><label class="form-label">레이드 / 파티 선택</label>
-    <select class="form-select" id="sch-party-select"></select>
+    <select class="form-select sch-party-select" id="sch-party-select" onchange="renderSchedulePartyList(this.value)"></select>
+    <div class="sch-party-list" id="sch-party-list"></div>
   </div>
   <div class="form-group"><label class="form-label">요일</label><select class="form-select" id="sch-day-select"></select></div>
   <div class="form-group"><label class="form-label">시간</label><input class="form-input" id="sch-time" type="time"></div>
@@ -1122,8 +1134,8 @@ async function loadViewerOverview(el){
       const mainChars=charsWithRaids.filter(c=>c.account_id===acc.id);
       const subAccs=(accs||[]).filter(a=>a.parent_account_id===acc.id);
       const subChars=subAccs.flatMap(sa=>charsWithRaids.filter(c=>c.account_id===sa.id));
-      accRows+=row(acc.name,mainChars.concat(subChars));
-      subAccs.forEach(sa=>{accRows+=row('↳ '+sa.name,charsWithRaids.filter(c=>c.account_id===sa.id),true);});
+      accRows+=row(acc.name,mainChars);
+      accRows+=row(acc.name+'-부계정',subChars,true);
     });
     (accs||[]).filter(a=>a.parent_account_id&&!(accs||[]).some(m=>m.id===a.parent_account_id)).forEach(acc=>{accRows+=row(acc.name,charsWithRaids.filter(c=>c.account_id===acc.id));});
     return`<div class="vo-filter-box"><div class="vo-filter-title" style="cursor:pointer;" onclick="localStorage.setItem('la_viewer_ov_filter_open','${filterOpen?'0':'1'}');loadViewerOverview(document.getElementById('viewer-overview-area'))">캐릭터 필터 <span style="margin-left:auto;">${filterOpen?'▼':'▶'}</span></div><div style="display:${filterOpen?'block':'none'}"><div class="vo-filter-row"><button class="vo-chip" onclick="localStorage.setItem('la_viewer_ov_chars',JSON.stringify([${allIds.map(id=>`'${id}'`).join(',')} ]));loadViewerOverview(document.getElementById('viewer-overview-area'))">전체</button><button class="vo-chip" onclick="localStorage.setItem('la_viewer_ov_chars','[]');loadViewerOverview(document.getElementById('viewer-overview-area'))">해제</button></div>${accRows}</div></div>`;
@@ -2322,14 +2334,55 @@ function openAddSchForDay(dn){resetSchModal();document.getElementById('sch-modal
 function openEditScheduleById(id){const s=schedules.find(x=>x.id===id);if(!s)return;resetSchModal();document.getElementById('sch-modal-title').textContent='일정 수정';document.getElementById('sch-submit-btn').textContent='저장';document.getElementById('sch-delete-btn').style.display='flex';document.getElementById('sch-edit-id').value=id;document.getElementById('sch-fixed').checked=s.is_fixed;document.getElementById('sch-time').value=s.time_str||'';populatePartySelect(s.party_id);document.getElementById('sch-day-select').value=String(s.day_of_week);closeModal('modal-sch-edit');openModal('modal-schedule');}
 function resetSchModal(){document.getElementById('sch-delete-btn').style.display='none';document.getElementById('sch-edit-id').value='';document.getElementById('sch-fixed').checked=false;document.getElementById('sch-time').value='';}
 function toggleFixed(){const cb=document.getElementById('sch-fixed');cb.checked=!cb.checked;}
-function populatePartySelect(selId=''){document.getElementById('sch-party-select').innerHTML=raids.map(r=>`<optgroup label="${esc(r.name)}">${parties.filter(p=>p.preset_id===r.id).map(p=>`<option value="${p.id}" ${p.id===selId?'selected':''}>${esc(p.name||'파티')} (${p.party_size}인)</option>`).join('')}</optgroup>`).join('');}
+function partyMemberPreview(p){
+  const rows=Array.from({length:p.party_size||4},(_,i)=>{
+    const m=(p.members||[]).find(x=>x.slot_index===i);
+    const ch=m?allChars.find(c=>c.id===m.character_id):null;
+    return ch?`<div class="sch-party-member">${iconImg(ch.icon_url||'','entity-icon-sm')}<span>${i+1}. ${esc(ch.name)}</span><span style="margin-left:auto;color:var(--muted);">${esc(ch.class_name||'')}</span></div>`:`<div class="sch-party-member" style="color:var(--muted);">${i+1}. 빈 슬롯</div>`;
+  }).join('');
+  return`<div class="sch-party-members"><div style="font-size:.72rem;color:var(--gold-text);font-weight:800;margin-bottom:5px;">파티 구성원</div>${rows}</div>`;
+}
+function schedulePartyCard(r,p,selId){
+  const selected=p.id===selId;
+  const color=getPartyColor(p);
+  return`<button type="button" class="sch-party-card ${selected?'selected':''}" onclick="selectScheduleParty('${p.id}')" style="${selected?`border-color:${color};`:''}">
+    <div class="sch-party-main"><span style="color:${color};">${esc(p.name||'파티')}</span><span class="${diffClass(r.difficulty||'')}">${esc(r.difficulty||'')}</span></div>
+    <div class="sch-party-meta">${esc(r.name)} · ${p.party_size||4}인${r.entry_level?` · 입장 ${r.entry_level}`:''}</div>
+    ${partyMemberPreview(p)}
+  </button>`;
+}
+function renderSchedulePartyList(selId=''){
+  const box=document.getElementById('sch-party-list');if(!box)return;
+  const select=document.getElementById('sch-party-select');
+  if(select&&selId)select.value=selId;
+  let html='';
+  const groups=[...new Set(raids.map(r=>r.name))];
+  groups.forEach(gname=>{
+    const groupPresets=raids.filter(r=>r.name===gname);
+    const cards=groupPresets.flatMap(r=>parties.filter(p=>p.preset_id===r.id).map(p=>schedulePartyCard(r,p,selId)));
+    if(cards.length)html+=`<div class="sch-party-group-label">${esc(gname)}</div>${cards.join('')}`;
+  });
+  box.innerHTML=html||'<div class="sch-party-empty">등록된 파티가 없습니다</div>';
+}
+function selectScheduleParty(partyId){
+  const select=document.getElementById('sch-party-select');if(select)select.value=partyId;
+  renderSchedulePartyList(partyId);
+}
+function populatePartySelect(selId=''){
+  const opts=raids.map(r=>`<optgroup label="${esc(r.name)}">${parties.filter(p=>p.preset_id===r.id).map(p=>`<option value="${p.id}" ${p.id===selId?'selected':''}>${esc(r.name)} ${r.difficulty?esc(r.difficulty)+' ':''}- ${esc(p.name||'파티')} (${p.party_size}인)</option>`).join('')}</optgroup>`).join('');
+  const select=document.getElementById('sch-party-select');
+  select.innerHTML=opts;
+  const first=selId||select.value||parties[0]?.id||'';
+  if(first)select.value=first;
+  renderSchedulePartyList(first);
+}
 function populateDaySelect(){document.getElementById('sch-day-select').innerHTML=WEEK_DAY_NUMS.map(n=>`<option value="${n}">${DKO[n]}요일</option>`).join('');}
 async function submitSchedule(){
   const partyId=document.getElementById('sch-party-select').value,dayOfWeek=parseInt(document.getElementById('sch-day-select').value),timeStr=document.getElementById('sch-time').value,isFixed=document.getElementById('sch-fixed').checked,editId=document.getElementById('sch-edit-id').value;
   if(!partyId){toast('❗ 파티를 선택하세요');return;}
   if(editId){const{error}=await sb.from('raid_schedules').update({party_id:partyId,day_of_week:dayOfWeek,time_str:timeStr,is_fixed:isFixed}).eq('id',editId);if(error){toast('❗ '+error.message);return;}const s=schedules.find(x=>x.id===editId);if(s)Object.assign(s,{party_id:partyId,day_of_week:dayOfWeek,time_str:timeStr,is_fixed:isFixed});toast('✅ 수정됨');}
   else{const{data,error}=await sb.from('raid_schedules').insert({party_id:partyId,day_of_week:dayOfWeek,time_str:timeStr,is_fixed:isFixed}).select().single();if(error){toast('❗ '+error.message);return;}schedules.push(data);toast('✅ 일정 추가됨');}
-  closeModal('modal-schedule');renderSchedule();
+  closeModal('modal-schedule');renderSchFilter();renderSchedule();
 }
 async function deleteScheduleFromModal(){const id=document.getElementById('sch-edit-id').value;if(!id||!confirm('일정을 삭제하시겠습니까?'))return;await sb.from('raid_schedules').delete().eq('id',id);schedules=schedules.filter(s=>s.id!==id);closeModal('modal-schedule');renderSchedule();toast('🗑️ 삭제됨');}
 async function deleteScheduleFromOvrModal(id){if(!confirm('일정을 삭제하시겠습니까?'))return;await sb.from('raid_schedules').delete().eq('id',id);schedules=schedules.filter(s=>s.id!==id);closeModal('modal-sch-edit');renderSchedule();toast('🗑️ 삭제됨');}

@@ -570,7 +570,7 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
 .coll-section.popup-s .coll-toggle { color:var(--orange); }
 
 /* Currency chips */
-.currency-chips { display:flex; flex-wrap:wrap; gap:8px; }
+.currency-chips { display:flex; flex-wrap:wrap; gap:10px; }
 .currency-chip {
   display: inline-flex; align-items:center; gap:7px;
   padding: 7px 13px;
@@ -586,7 +586,25 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
   background: var(--surface-4);
   box-shadow: 0 0 12px rgba(20,184,166,.1);
 }
-.curr-chip-amount { font-size:.88rem; font-weight:700; }
+.currency-quick { display:inline-flex; align-items:center; gap:0; }
+.currency-quick-btn {
+  width:34px; height:34px; border:none;
+  background:rgba(20,184,166,.22); color:#b7fff2;
+  font-size:1.05rem; font-weight:900; cursor:pointer;
+  transition:all var(--t);
+}
+.currency-quick-btn:hover { background:rgba(20,184,166,.34); color:#fff; }
+.currency-quick-btn.minus { border-radius:8px 0 0 8px; }
+.currency-quick-btn.plus { border-radius:0 8px 8px 0; }
+.currency-chip.quick-core { min-height:34px; border-radius:0; }
+.currency-chip.quick-core:hover { transform:none; }
+.curr-chip-amount { font-size:.88rem; font-weight:700; cursor:text; }
+.curr-chip-menu {
+  width:28px; height:28px; border-radius:8px;
+  border:1px solid var(--border); background:var(--surface-2);
+  color:var(--text-3); cursor:pointer;
+}
+.curr-chip-menu:hover { color:var(--gold-text); border-color:rgba(245,158,11,.35); }
 .curr-updated { font-size:.66rem; color:var(--text-3); }
 .curr-empty { font-size:.82rem; color:var(--text-3); padding:4px 0; }
 
@@ -632,6 +650,11 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
 
 /* Tasks */
 .tasks-list { display:flex; flex-direction:column; gap:6px; }
+.task-split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; align-items:start; }
+.task-lane { min-width:0; border:1px solid rgba(255,255,255,.06); border-radius:var(--r); background:rgba(255,255,255,.018); padding:10px; }
+.task-lane-hd { display:flex; align-items:center; gap:8px; margin-bottom:9px; font-size:.78rem; font-weight:800; color:var(--text-2); }
+.task-lane-hd .lane-count { margin-left:auto; color:var(--muted); font-size:.7rem; }
+.task-lane-empty { text-align:center; padding:16px 8px; color:var(--muted); font-size:.8rem; border:1px dashed rgba(255,255,255,.08); border-radius:var(--r-sm); }
 .task-group { display:flex; flex-direction:column; gap:4px; }
 .task-item {
   background: var(--surface-2);
@@ -989,6 +1012,7 @@ button,input,select,textarea{ font:inherit; }
   .account-actions{width:100%;justify-content:flex-end;padding-top:2px;}
   .account-item .acc-btn{opacity:.78;}
   .account-name{font-size:.9rem;}
+  .task-split-grid{grid-template-columns:1fr;}
 }
 @media (max-width:1180px){
   .account-item{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;}
@@ -1135,7 +1159,7 @@ button,input,select,textarea{ font:inherit; }
     </div>
   </div>
   <div class="form-row" id="task-reset-row">
-    <div class="form-group"><label class="form-label">초기화 주기</label>
+    <div class="form-group"><label class="form-label">일일/주간 선택</label>
       <select class="form-select" id="task-reset" onchange="onResetTypeChange()">
         <option value="daily">매일 (06:00 KST)</option><option value="weekly">매주</option>
       </select>
@@ -1785,7 +1809,7 @@ function renderTabs(){
   const el=document.getElementById('char-tabs');if(!el)return;
   const chars=S.characters[S.selAcc]||[];
   el.innerHTML=chars.map((c,idx)=>{
-    const ct=(S.tasks[c.id]||[]).filter(t=>!t.parent_id&&isTaskActive(t));
+    const ct=(S.tasks[c.id]||[]).filter(t=>!t.parent_id&&(t.reset_type||'daily')!=='weekly'&&isTaskActive(t));
     const done=ct.filter(t=>isEffDone(t)).length,tot=ct.length,pct=tot?Math.round(done/tot*100):0;
     const isDone=tot>0&&pct===100;
     return `<div class="char-tab ${c.id===S.selChar?'active':''} ${isDone?'tab-done':''}"
@@ -1915,6 +1939,18 @@ function toggleExpHideCompleted(){S.hideExpCompleted=!S.hideExpCompleted;LSS('la
 function toggleShowInactive(){S.showInactive=!S.showInactive;LSS('la_show_inactive',S.showInactive?'1':'0');scheduleRenderArea();}
 function toggleShowExpInactive(){S.showExpInactive=!S.showExpInactive;LSS('la_show_exp_inactive',S.showExpInactive?'1':'0');scheduleRenderArea();}
 function toggleParentCollapse(taskId){if(S.collapsedTasks.has(taskId))S.collapsedTasks.delete(taskId);else S.collapsedTasks.add(taskId);scheduleRenderArea();}
+function currencyQuickHTML(c,idx){
+  return`<div class="currency-quick" id="curr-chip-${c.id}" draggable="true" ondragstart="dndStart(event,'curr',${idx})" ondragend="dndEnd(event)" ondragover="dndOver(event,'curr',true)" ondragleave="dndLeave(event,true)" ondrop="dndDrop(event,'curr',${idx})">
+    <button class="currency-quick-btn minus" title="1 감소" onclick="event.stopPropagation();quickAdjustCurr('${c.id}',-1)">−</button>
+    <div class="currency-chip quick-core">
+      ${c.icon_url?`<img class="entity-icon-sm" src="${c.icon_url}" onerror="this.style.display='none'">`:(c.icon&&!c.icon_url?`<span>${c.icon}</span>`:'')}
+      <span style="font-size:.77rem;color:var(--muted);">${esc(c.name)}</span>
+      <span class="curr-chip-amount" title="클릭해서 숫자 직접 설정" onclick="event.stopPropagation();setCurrInline('${c.id}')">${Number(c.amount||0).toLocaleString()}</span>
+      <button class="curr-chip-menu" title="상세 수정" onclick="event.stopPropagation();openCurrPopup('${c.id}')">⋯</button>
+    </div>
+    <button class="currency-quick-btn plus" title="1 증가" onclick="event.stopPropagation();quickAdjustCurr('${c.id}',1)">＋</button>
+  </div>`;
+}
 
 // ─── Render Task Area ───
 function renderTaskArea(){
@@ -1923,7 +1959,9 @@ function renderTaskArea(){
   const allTasks=S.tasks[S.selChar]||[];
   const{roots:taskRoots,childrenOf:taskChildren}=buildTaskTree(allTasks);
   const visibleRoots=taskRoots.filter(t=>S.showInactive||isTaskActive(t));
-  const done=visibleRoots.filter(t=>isEffDone(t)).length,tot=visibleRoots.length,pct=tot?Math.round(done/tot*100):0;
+  const dailyRoots=visibleRoots.filter(t=>(t.reset_type||'daily')!=='weekly');
+  const weeklyRoots=visibleRoots.filter(t=>(t.reset_type||'daily')==='weekly');
+  const done=dailyRoots.filter(t=>isEffDone(t)).length,tot=dailyRoots.length,pct=tot?Math.round(done/tot*100):0;
   const et=S.expTasks[S.selAcc]||[];
   const{roots:expRoots,childrenOf:expChildren}=buildTaskTree(et);
   const visibleExpRoots=expRoots.filter(t=>S.showExpInactive||isTaskActive(t));
@@ -1986,7 +2024,7 @@ function renderTaskArea(){
       ${currLatest?`<span class="curr-updated-pill" id="curr-final-updated">최종 수정 날짜: ${fmtRelDate(currLatest)}</span>`:`<span class="curr-updated-pill" id="curr-final-updated" style="display:none;"></span>`}
       <button class="btn btn-teal" style="margin-left:auto;font-size:.72rem;padding:3px 9px;" onclick="event.stopPropagation();openAddCurrencyModal()">+ 추가</button>
     </div>
-    ${!S.currCollapsed?`<div class="coll-body">${currencies.length===0?'<div class="curr-empty">재화를 추가하면 여기에 표시됩니다</div>':`<div class="currency-chips">${currencies.map((c,idx)=>`<div class="currency-chip" id="curr-chip-${c.id}" draggable="true" ondragstart="dndStart(event,'curr',${idx})" ondragend="dndEnd(event)" ondragover="dndOver(event,'curr',true)" ondragleave="dndLeave(event,true)" ondrop="dndDrop(event,'curr',${idx})" onclick="openCurrPopup('${c.id}')">${c.icon_url?`<img class="entity-icon-sm" src="${c.icon_url}" onerror="this.style.display='none'">`:(c.icon&&!c.icon_url?`<span>${c.icon}</span>`:'')}<span style="font-size:.77rem;color:var(--muted);">${esc(c.name)}</span><span class="curr-chip-amount">${c.amount.toLocaleString()}</span></div>`).join('')}</div>`}</div>`:''}
+    ${!S.currCollapsed?`<div class="coll-body">${currencies.length===0?'<div class="curr-empty">재화를 추가하면 여기에 표시됩니다</div>':`<div class="currency-chips">${currencies.map((c,idx)=>currencyQuickHTML(c,idx)).join('')}</div>`}</div>`:''}
   </div>
 
   <!-- Custom Popup -->
@@ -2010,7 +2048,17 @@ function renderTaskArea(){
       <button class="btn btn-gold" style="font-size:.76rem;padding:5px 11px;" onclick="openAddTask(false)">＋ 숙제 추가</button>
     </div>
     ${tot>0?`<div class="global-prog-wrap"><div class="global-prog-bar" style="width:${pct}%"></div></div><div class="prog-label">${pct}% 완료</div>`:''}
-    ${tot===0?`<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">숙제가 없습니다<br><b>＋ 숙제 추가</b> 버튼으로 추가하세요</div></div>`:`<div class="section-divider">숙제 목록</div><div class="tasks-list">${visibleRoots.map((t,i)=>rootTaskHTML(t,taskChildren[t.id]||[],false,taskRoots.indexOf(t))).join('')||'<div style="text-align:center;padding:18px;color:var(--muted);font-size:.84rem;">✓ 모든 숙제 완료</div>'}</div>`}
+    ${visibleRoots.length===0?`<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">숙제가 없습니다<br><b>＋ 숙제 추가</b> 버튼으로 추가하세요</div></div>`:`<div class="section-divider">숙제 목록</div>
+      <div class="task-split-grid">
+        <div class="task-lane">
+          <div class="task-lane-hd">☀️ 일일 숙제 <span class="lane-count">${dailyRoots.filter(t=>isEffDone(t)).length}/${dailyRoots.length}</span></div>
+          <div class="tasks-list">${dailyRoots.map(t=>rootTaskHTML(t,taskChildren[t.id]||[],false,taskRoots.indexOf(t))).join('')||'<div class="task-lane-empty">표시할 일일 숙제가 없습니다</div>'}</div>
+        </div>
+        <div class="task-lane">
+          <div class="task-lane-hd">📅 주간 숙제 <span class="lane-count">${weeklyRoots.filter(t=>isEffDone(t)).length}/${weeklyRoots.length}</span></div>
+          <div class="tasks-list">${weeklyRoots.map(t=>rootTaskHTML(t,taskChildren[t.id]||[],false,taskRoots.indexOf(t))).join('')||'<div class="task-lane-empty">표시할 주간 숙제가 없습니다</div>'}</div>
+        </div>
+      </div>`}
   </div>`;
 }
 
@@ -2208,9 +2256,9 @@ function openAddTask(isExp=false,parentId=''){
   document.getElementById('task-submit-btn').textContent='추가';
   document.getElementById('task-name').value='';
   setTaskIcon(null);
-  document.getElementById('task-reset').value='weekly';
+  document.getElementById('task-reset').value='daily';
   document.getElementById('task-day').value='3';
-  document.getElementById('day-group').style.display='block';
+  document.getElementById('day-group').style.display='none';
   document.getElementById('task-edit-id').value='';
   document.getElementById('task-is-exp').value=isE?'1':'0';
   document.getElementById('task-parent-id').value=parentId;
@@ -2228,7 +2276,7 @@ function openAddTask(isExp=false,parentId=''){
   } else {
     document.getElementById('count-toggle-wrap').style.display='block';
     document.getElementById('task-reset-row').style.display='flex';
-    document.getElementById('activate-group').style.display=document.getElementById('task-reset').value==='weekly'?'block':'none';
+    document.getElementById('activate-group').style.display='none';
   }
   openModal('modal-task');setTimeout(()=>document.getElementById('task-name').focus(),80);
 }
@@ -2629,11 +2677,14 @@ async function executeCopy(){
 function openAddCurrencyModal(){S.selCurrIconUrl=null;buildPicker('curr-icon-picker',CURR_ICONS,'selCurrIcon','💰');document.getElementById('curr-name-input').value='';openModal('modal-add-currency');setTimeout(()=>document.getElementById('curr-name-input').focus(),80);}
 async function addCurrency(){const name=document.getElementById('curr-name-input').value.trim();if(!name){toast('❗ 이름을 입력하세요');return;}const{data,error}=await sb.from('currencies').insert({character_id:S.selChar,name,icon:S.selCurrIcon,icon_url:S.selCurrIconUrl||null,amount:0,sort_order:(S.currencies[S.selChar]||[]).length}).select().single();if(error){toast('❗ '+error.message);return;}if(!S.currencies[S.selChar])S.currencies[S.selChar]=[];S.currencies[S.selChar].push(data);S.selCurrIconUrl=null;closeModal('modal-add-currency');renderTaskArea();toast('✅ 재화 추가됨');}
 function openCurrPopup(id){const c=(S.currencies[S.selChar]||[]).find(x=>x.id===id);if(!c)return;S.currPopupId=id;const iconEl=document.getElementById('curr-popup-icon');if(iconEl){iconEl.innerHTML=c.icon_url?iconImg(c.icon_url,'entity-icon'):(c.icon||'💰');}document.getElementById('curr-popup-name').textContent=c.name;document.getElementById('curr-amount-display').textContent=(c.amount||0).toLocaleString();document.getElementById('curr-direct-val').value='';openModal('modal-curr-popup');}
-async function adjustCurr(d){const c=(S.currencies[S.selChar]||[]).find(x=>x.id===S.currPopupId);if(!c)return;const na=(c.amount||0)+d;const now=new Date().toISOString();const res=await sb.from('currencies').update({amount:na,updated_at:now}).eq('id',c.id);if(supaErr(res,'재화 수정 실패'))return;c.amount=na;c.updated_at=now;document.getElementById('curr-amount-display').textContent=na.toLocaleString();updateCurrChip(c);}
-async function setCurrDirect(mode){const val=parseInt(document.getElementById('curr-direct-val').value)||0;const c=(S.currencies[S.selChar]||[]).find(x=>x.id===S.currPopupId);if(!c)return;const na=mode==='add'?(c.amount||0)+val:val;const now=new Date().toISOString();const res=await sb.from('currencies').update({amount:na,updated_at:now}).eq('id',c.id);if(supaErr(res,'재화 수정 실패'))return;c.amount=na;c.updated_at=now;document.getElementById('curr-amount-display').textContent=na.toLocaleString();document.getElementById('curr-direct-val').value='';updateCurrChip(c);}
+async function saveCurrAmount(c,amount){const na=Math.max(0,Number(amount)||0),now=new Date().toISOString();const res=await sb.from('currencies').update({amount:na,updated_at:now}).eq('id',c.id);if(supaErr(res,'재화 수정 실패'))return false;c.amount=na;c.updated_at=now;const disp=document.getElementById('curr-amount-display');if(disp&&S.currPopupId===c.id)disp.textContent=na.toLocaleString();updateCurrChip(c);return true;}
+async function quickAdjustCurr(id,d){const c=(S.currencies[S.selChar]||[]).find(x=>x.id===id);if(!c)return;await saveCurrAmount(c,(Number(c.amount)||0)+d);}
+async function setCurrInline(id){const c=(S.currencies[S.selChar]||[]).find(x=>x.id===id);if(!c)return;const v=prompt(`${c.name} 수량을 입력하세요`,String(c.amount||0));if(v===null)return;const n=parseInt(String(v).replace(/,/g,''));if(Number.isNaN(n)){toast('❗ 숫자를 입력하세요');return;}await saveCurrAmount(c,n);}
+async function adjustCurr(d){const c=(S.currencies[S.selChar]||[]).find(x=>x.id===S.currPopupId);if(!c)return;await saveCurrAmount(c,(Number(c.amount)||0)+d);}
+async function setCurrDirect(mode){const val=parseInt(document.getElementById('curr-direct-val').value)||0;const c=(S.currencies[S.selChar]||[]).find(x=>x.id===S.currPopupId);if(!c)return;const na=mode==='add'?(Number(c.amount)||0)+val:val;if(await saveCurrAmount(c,na))document.getElementById('curr-direct-val').value='';}
 function getLatestCurrencyUpdated(list){const dates=(list||[]).map(c=>c.updated_at).filter(Boolean).sort((a,b)=>new Date(b)-new Date(a));return dates[0]||'';}
 function updateCurrUpdatedPill(){const el=document.getElementById('curr-final-updated');if(!el)return;const latest=getLatestCurrencyUpdated(S.currencies[S.selChar]||[]);if(latest){el.style.display='inline-flex';el.textContent='최종 수정 날짜: '+fmtRelDate(latest);}else{el.style.display='none';el.textContent='';}}
-function updateCurrChip(c){const chip=document.getElementById('curr-chip-'+c.id);if(chip){const a=chip.querySelector('.curr-chip-amount');if(a)a.textContent=c.amount.toLocaleString();const first=chip.firstElementChild;if(first&&(first.tagName==='IMG'||first.tagName==='SPAN'))first.outerHTML=c.icon_url?iconImg(c.icon_url,'entity-icon-sm'):`<span>${esc(c.icon||'💰')}</span>`;}updateCurrUpdatedPill();}
+function updateCurrChip(c){const chip=document.getElementById('curr-chip-'+c.id);if(chip){const a=chip.querySelector('.curr-chip-amount');if(a)a.textContent=Number(c.amount||0).toLocaleString();const core=chip.querySelector('.quick-core');if(core){const idx=(S.currencies[S.selChar]||[]).findIndex(x=>x.id===c.id);chip.outerHTML=currencyQuickHTML(c,idx);}}updateCurrUpdatedPill();}
 function fmtRelDate(iso){if(!iso)return'';const d=new Date(iso);return`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;}
 function editCurrIcon(){const c=(S.currencies[S.selChar]||[]).find(x=>x.id===S.currPopupId);if(!c)return;openImagePicker(async u=>{const now=new Date().toISOString();const{error}=await sb.from('currencies').update({icon_url:u||null,updated_at:now}).eq('id',c.id);if(error){toast('❗ '+error.message);return;}c.icon_url=u||null;c.updated_at=now;const iconEl=document.getElementById('curr-popup-icon');if(iconEl)iconEl.innerHTML=c.icon_url?iconImg(c.icon_url,'entity-icon'):(c.icon||'💰');updateCurrChip(c);toast('✅ 아이콘 수정됨');});}
 async function deleteCurrAndClose(){if(!confirm('재화를 삭제하시겠습니까?'))return;await sb.from('currencies').delete().eq('id',S.currPopupId);S.currencies[S.selChar]=(S.currencies[S.selChar]||[]).filter(c=>c.id!==S.currPopupId);closeModal('modal-curr-popup');renderTaskArea();toast('🗑️ 삭제됨');}
