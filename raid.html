@@ -851,18 +851,25 @@ button,input,select,textarea{ font:inherit; }
 .vo-chip.partial{border-color:rgba(59,130,246,.42);background:rgba(59,130,246,.08);color:#93c5fd;}
 .vo-card{background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:14px;min-width:190px;flex:1;overflow:hidden;}
 .sch-party-select{display:none;}
-.sch-modal-layout{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:14px;align-items:start;}
+.sch-modal-layout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:14px;align-items:start;}
 .sch-party-list{max-height:300px;overflow:auto;border:1px solid var(--border);border-radius:14px;background:rgba(8,13,25,.52);padding:8px;display:flex;flex-direction:column;gap:8px;}
 .sch-party-group-label{font-size:.72rem;color:var(--text-3);font-weight:800;padding:4px 4px 0;}
 .sch-party-card{position:relative;width:100%;text-align:left;padding:9px 11px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:var(--s2);color:var(--text);cursor:pointer;transition:all var(--t);}
 .sch-party-card:hover,.sch-party-card.selected{border-color:rgba(255,184,77,.48);background:rgba(255,184,77,.08);}
 .sch-party-main{display:flex;align-items:center;gap:8px;font-size:.86rem;font-weight:800;}
 .sch-party-meta{font-size:.7rem;color:var(--muted);margin-top:3px;}
-.sch-party-preview{position:sticky;top:0;min-height:260px;border:1px solid rgba(255,184,77,.22);border-radius:16px;background:linear-gradient(180deg,rgba(255,184,77,.08),rgba(255,255,255,.025));padding:12px;}
-.sch-party-preview-title{font-size:.82rem;font-weight:900;color:var(--gold-text);margin-bottom:4px;}
-.sch-party-preview-meta{font-size:.7rem;color:var(--muted);margin-bottom:10px;}
+.sch-party-preview{position:sticky;top:0;min-height:260px;border:1px solid rgba(255,184,77,.22);border-radius:14px;background:linear-gradient(180deg,rgba(21,32,54,.98),rgba(13,22,39,.98));box-shadow:0 18px 36px rgba(0,0,0,.24);overflow:hidden;}
+.sch-party-preview-head{padding:12px 13px 10px;border-bottom:1px solid rgba(255,255,255,.07);}
+.sch-party-preview-title{font-size:.94rem;font-weight:900;color:var(--gold-text);margin-bottom:4px;line-height:1.2;}
+.sch-party-preview-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:.7rem;color:var(--muted);}
+.sch-party-preview-body{padding:10px;}
 .sch-party-members{display:flex;flex-direction:column;gap:6px;}
-.sch-party-member{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:.74rem;color:var(--text-2);}
+.sch-party-member{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:7px;padding:7px 8px;border:1px solid transparent;border-radius:7px;font-size:.74rem;color:var(--text-2);}
+.sch-party-member.filled{border-color:rgba(255,184,77,.25);background:rgba(255,184,77,.075);}
+.sch-party-member.empty{color:var(--muted);opacity:.78;}
+.sch-party-slot-num{color:var(--text-3);font-size:.7rem;text-align:center;}
+.sch-party-member-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:800;color:var(--text);}
+.sch-party-member-class{color:var(--muted);font-size:.7rem;white-space:nowrap;}
 .sch-party-empty{font-size:.74rem;color:var(--muted);padding:8px;}
 @media(max-width:720px){.sch-modal-layout{grid-template-columns:1fr}.sch-party-preview{position:relative;min-height:auto;}}
 
@@ -2358,16 +2365,18 @@ function partyMemberRows(p){
   const rows=Array.from({length:p.party_size||4},(_,i)=>{
     const m=(p.members||[]).find(x=>x.slot_index===i);
     const ch=m?allChars.find(c=>c.id===m.character_id):null;
-    return ch?`<div class="sch-party-member">${iconImg(ch.icon_url||'','entity-icon-sm')}<span>${i+1}. ${esc(ch.name)}</span><span style="margin-left:auto;color:var(--muted);">${esc(ch.class_name||'')}</span></div>`:`<div class="sch-party-member" style="color:var(--muted);">${i+1}. 빈 슬롯</div>`;
+    return ch?`<div class="sch-party-member filled"><span class="sch-party-slot-num">${i+1}</span><span class="sch-party-member-name">${iconImg(ch.icon_url||'','entity-icon-sm')} ${esc(ch.name)}</span><span class="sch-party-member-class">${esc(ch.class_name||'')}</span></div>`:`<div class="sch-party-member empty"><span class="sch-party-slot-num">${i+1}</span><span class="sch-party-member-name">빈 슬롯</span><span></span></div>`;
   }).join('');
   return rows;
 }
 function partyPreviewHTML(r,p){
-  if(!p)return`<div class="sch-party-preview-title">파티 미리보기</div><div class="sch-party-preview-meta">파티에 마우스를 올리면 구성원이 표시됩니다.</div>`;
+  if(!p)return`<div class="sch-party-preview-head"><div class="sch-party-preview-title">파티 미리보기</div><div class="sch-party-preview-meta">파티에 마우스를 올리면 구성원이 표시됩니다.</div></div>`;
   const color=getPartyColor(p);
-  return`<div class="sch-party-preview-title" style="color:${color};">${esc(p.name||'파티')}</div>
-    <div class="sch-party-preview-meta">${esc(r?.name||'레이드')} ${r?.difficulty?`· ${esc(r.difficulty)}`:''} · ${p.party_size||4}인</div>
-    <div class="sch-party-members">${partyMemberRows(p)}</div>`;
+  return`<div class="sch-party-preview-head">
+      <div class="sch-party-preview-title" style="color:${color};">${esc(r?.name||'레이드')} <span style="color:#c4b5fd;">${esc(r?.difficulty||'')}</span></div>
+      <div class="sch-party-preview-meta"><b style="color:var(--text);">${esc(p.name||'파티')}</b><span>· ${p.party_size||4}인</span>${r?.entry_level?`<span>· 입장 ${r.entry_level}</span>`:''}</div>
+    </div>
+    <div class="sch-party-preview-body"><div class="sch-party-members">${partyMemberRows(p)}</div></div>`;
 }
 function schedulePartyCard(r,p,selId){
   const selected=p.id===selId;
