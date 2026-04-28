@@ -853,7 +853,7 @@ button,input,select,textarea{ font:inherit; }
 .sch-party-select{display:none;}
 .sch-modal-layout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:14px;align-items:start;}
 .sch-party-list{max-height:300px;overflow:auto;border:1px solid var(--border);border-radius:14px;background:rgba(8,13,25,.52);padding:8px;display:flex;flex-direction:column;gap:8px;}
-.sch-party-group-label{font-size:.72rem;color:var(--text-3);font-weight:800;padding:4px 4px 0;}
+.sch-party-group-label{font-size:.92rem;font-weight:900;padding:8px 5px 2px;display:flex;align-items:center;gap:6px;letter-spacing:.2px;}
 .sch-party-card{position:relative;width:100%;text-align:left;padding:9px 11px;border-radius:12px;border:1px solid rgba(255,255,255,.08);background:var(--s2);color:var(--text);cursor:pointer;transition:all var(--t);}
 .sch-party-card:hover,.sch-party-card.selected{border-color:rgba(255,184,77,.48);background:rgba(255,184,77,.08);}
 .sch-party-main{display:flex;align-items:center;gap:8px;font-size:.86rem;font-weight:800;}
@@ -2371,9 +2371,9 @@ function partyMemberRows(p){
 }
 function partyPreviewHTML(r,p){
   if(!p)return`<div class="sch-party-preview-head"><div class="sch-party-preview-title">파티 미리보기</div><div class="sch-party-preview-meta">파티에 마우스를 올리면 구성원이 표시됩니다.</div></div>`;
-  const color=getPartyColor(p);
+  const raidColor=getGroupColor(r?.name||'');
   return`<div class="sch-party-preview-head">
-      <div class="sch-party-preview-title" style="color:${color};">${esc(r?.name||'레이드')} <span style="color:#c4b5fd;">${esc(r?.difficulty||'')}</span></div>
+      <div class="sch-party-preview-title"><span style="color:${raidColor};">${iconImg(getGroupIcon(r?.name||''),'entity-icon-sm')}${esc(r?.name||'레이드')}</span> <span class="${diffClass(r?.difficulty||'')}">${esc(r?.difficulty||'')}</span></div>
       <div class="sch-party-preview-meta"><b style="color:var(--text);">${esc(p.name||'파티')}</b><span>· ${p.party_size||4}인</span>${r?.entry_level?`<span>· 입장 ${r.entry_level}</span>`:''}</div>
     </div>
     <div class="sch-party-preview-body"><div class="sch-party-members">${partyMemberRows(p)}</div></div>`;
@@ -2397,21 +2397,22 @@ function renderSchedulePartyList(selId=''){
   const select=document.getElementById('sch-party-select');
   if(select&&selId)select.value=selId;
   let html='';
-  const groups=[...new Set(raids.map(r=>r.name))];
+  const groups=getAllGroupNames();
+  let firstPartyId='';
   groups.forEach(gname=>{
-    const groupPresets=raids.filter(r=>r.name===gname);
-    const cards=groupPresets.flatMap(r=>parties.filter(p=>p.preset_id===r.id).map(p=>schedulePartyCard(r,p,selId)));
-    if(cards.length)html+=`<div class="sch-party-group-label">${esc(gname)}</div>${cards.join('')}`;
+    const groupPresets=raids.filter(r=>r.name===gname).sort((a,b)=>(a.sort_order??0)-(b.sort_order??0));
+    const cards=groupPresets.flatMap(r=>parties.filter(p=>p.preset_id===r.id).sort((a,b)=>(a.sort_order??0)-(b.sort_order??0)).map(p=>{if(!firstPartyId)firstPartyId=p.id;return schedulePartyCard(r,p,selId);}));
+    if(cards.length)html+=`<div class="sch-party-group-label" style="color:${getGroupColor(gname)};">${iconImg(getGroupIcon(gname),'entity-icon-sm')}${esc(gname)}</div>${cards.join('')}`;
   });
   box.innerHTML=html||'<div class="sch-party-empty">등록된 파티가 없습니다</div>';
-  showSchedulePartyPreview(selId||parties[0]?.id||'');
+  showSchedulePartyPreview(selId||firstPartyId||'');
 }
 function selectScheduleParty(partyId){
   const select=document.getElementById('sch-party-select');if(select)select.value=partyId;
   renderSchedulePartyList(partyId);
 }
 function populatePartySelect(selId=''){
-  const opts=raids.map(r=>`<optgroup label="${esc(r.name)}">${parties.filter(p=>p.preset_id===r.id).map(p=>`<option value="${p.id}" ${p.id===selId?'selected':''}>${esc(r.name)} ${r.difficulty?esc(r.difficulty)+' ':''}- ${esc(p.name||'파티')} (${p.party_size}인)</option>`).join('')}</optgroup>`).join('');
+  const opts=getAllGroupNames().map(gname=>raids.filter(r=>r.name===gname).sort((a,b)=>(a.sort_order??0)-(b.sort_order??0)).map(r=>`<optgroup label="${esc(r.name)} ${esc(r.difficulty||'')}">${parties.filter(p=>p.preset_id===r.id).sort((a,b)=>(a.sort_order??0)-(b.sort_order??0)).map(p=>`<option value="${p.id}" ${p.id===selId?'selected':''}>${esc(r.name)} ${r.difficulty?esc(r.difficulty)+' ':''}- ${esc(p.name||'파티')} (${p.party_size}인)</option>`).join('')}</optgroup>`).join('')).join('');
   const select=document.getElementById('sch-party-select');
   select.innerHTML=opts;
   const first=selId||select.value||parties[0]?.id||'';
