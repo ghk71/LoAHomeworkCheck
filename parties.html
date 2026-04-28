@@ -388,6 +388,8 @@ body { overflow:hidden; }
 .party-card:hover { border-color:rgba(255,255,255,.14); box-shadow:var(--shadow-md); transform:translateY(-2px); }
 .party-card.no-party { border-color:rgba(249,115,22,.22); background:rgba(249,115,22,.045); }
 .party-card.no-party:hover { border-color:rgba(249,115,22,.34); }
+.party-card.temp-party { border-color:rgba(200,168,75,.34); background:linear-gradient(180deg, rgba(200,168,75,.08), rgba(255,255,255,.02)); }
+.temp-party-badge { font-size:.62rem; color:var(--gold-text); border:1px solid rgba(200,168,75,.36); border-radius:999px; padding:2px 7px; background:rgba(200,168,75,.10); }
 .no-party-msg { padding:14px; color:var(--orange); font-size:.8rem; line-height:1.6; }
 .pc-header {
   padding: 11px 14px;
@@ -396,6 +398,7 @@ body { overflow:hidden; }
   display:flex; align-items:flex-start; gap:8px;
 }
 .pc-raid-name { font-size:.9rem; font-weight:700; }
+.pc-raid-name .diff-nightmare,.pc-raid-name .diff-hard,.pc-raid-name .diff-normal { font-size:inherit!important; }
 .pc-party-name { font-size:.72rem; color:var(--text-3); margin-top:2px; }
 .pc-body { padding:8px 12px; }
 .slot-list { display:flex; flex-direction:column; gap:4px; }
@@ -540,9 +543,12 @@ button,input,select,textarea{ font:inherit; }
 const{createClient}=supabase;
 function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
 
-let sb,accounts=[],characters=[],raids=[],parties=[],members=[],raidTasks=[];
+let sb,accounts=[],characters=[],raids=[],parties=[],members=[],raidTasks=[],schedules=[],scheduleOverrides=[];
 let selectedChars=new Set();
 let filterOpen=localStorage.getItem('la_pt_filter_open')!=='0';
+let partyOrderMode=localStorage.getItem('la_pt_order_mode')||'partyless_last';
+function getWeekStart(){const now=new Date(),kst=new Date(now.getTime()+9*3600000);let b=(kst.getUTCDay()-3+7)%7;if(b===0&&kst.getUTCHours()<6)b=7;const ws=new Date(kst);ws.setUTCDate(ws.getUTCDate()-b);ws.setUTCHours(6,0,0,0);return ws;}
+function getWeekKey(){const ws=getWeekStart();return`${ws.getUTCFullYear()}-${String(ws.getUTCMonth()+1).padStart(2,'0')}-${String(ws.getUTCDate()).padStart(2,'0')}`;}
 
 async function init(){
   const cfg=getConfig();if(!cfg){window.location.href='index.html';return;}
@@ -558,15 +564,17 @@ async function loadAll(){
     sb.from('raid_presets').select('*').order('sort_order').order('created_at'),
     sb.from('raid_parties').select('*').order('sort_order').order('created_at'),
     sb.from('raid_party_members').select('*'),
-    sb.from('raid_schedules').select('party_id,day_of_week'),
+    sb.from('raid_schedules').select('id,party_id,day_of_week'),
     sb.from('raid_tasks').select('*').order('sort_order').order('created_at')
   ]);
   const firstError=results.find(r=>r.error)?.error;
   if(firstError){toast('❗ 로딩 오류: '+firstError.message);console.error(firstError);return;}
   const[r1,r2,r3,r4,r5,r6,r7]=results;
-  accounts=r1.data||[];characters=r2.data||[];raids=r3.data||[];parties=r4.data||[];members=r5.data||[];raidTasks=r7.data||[];
+  accounts=r1.data||[];characters=r2.data||[];raids=r3.data||[];parties=r4.data||[];members=r5.data||[];schedules=r6.data||[];raidTasks=r7.data||[];
+  const{data:ovrData}=await sb.from('raid_schedule_overrides').select('*').eq('week_start_date',getWeekKey());
+  scheduleOverrides=ovrData||[];
   const DAYS_KO=['일','월','화','수','목','금','토'];
-  const schMap={};(r6.data||[]).forEach(s=>{if(!schMap[s.party_id])schMap[s.party_id]=[];schMap[s.party_id].push(s.day_of_week);});
+  const schMap={};schedules.forEach(s=>{if(!schMap[s.party_id])schMap[s.party_id]=[];schMap[s.party_id].push(s.day_of_week);});
   parties.forEach(p=>{
     p.members=members.filter(m=>m.party_id===p.id).sort((a,b)=>a.slot_index-b.slot_index);
     const days=schMap[p.id]||[];
@@ -618,6 +626,25 @@ function toggleGroup(ids){const allOn=ids.every(id=>selectedChars.has(id));ids.f
 function toggleCharFilter(id){if(selectedChars.has(id))selectedChars.delete(id);else selectedChars.add(id);saveFilter();renderFilter();render();}
 function selectAll(){const ci=characters.filter(c=>members.some(m=>m.character_id===c.id)||raidTasks.some(t=>t.character_id===c.id));selectedChars=new Set(ci.map(c=>c.id));saveFilter();renderFilter();render();}
 function deselectAll(){selectedChars.clear();saveFilter();renderFilter();render();}
+function togglePartyOrderMode(){partyOrderMode=partyOrderMode==='raid_order'?'partyless_last':'raid_order';localStorage.setItem('la_pt_order_mode',partyOrderMode);render();}
+function raidSortKeyByPresetId(presetId){
+  const preset=raids.find(r=>r.id===presetId);
+  if(!preset)return 999999;
+  const groupOrder=JSON.parse(localStorage.getItem('la_raid_group_order')||'[]');
+  const gi=groupOrder.includes(preset.name)?groupOrder.indexOf(preset.name):999;
+  return gi*1000+(Number(preset.sort_order)||0);
+}
+function getTempPartiesForChar(charId){
+  const out=[];
+  scheduleOverrides.forEach(ovr=>{
+    const sch=schedules.find(s=>s.id===ovr.schedule_id);
+    const p=sch?parties.find(x=>x.id===sch.party_id):null;
+    if(!p)return;
+    const slots=ovr.slot_overrides||{};
+    Object.keys(slots).forEach(k=>{if(slots[k]===charId&&!p.members.some(m=>m.character_id===charId))out.push({party:p,slotIndex:Number(k),override:ovr});});
+  });
+  return out;
+}
 
 // ─── Render ───
 function render(){
@@ -632,17 +659,25 @@ function render(){
     chars.forEach(c=>{
       const charMembers=members.filter(m=>m.character_id===c.id);
       const charRaidTasks=raidTasks.filter(t=>t.character_id===c.id);
-      if(!charMembers.length&&!charRaidTasks.length)return;
       const charParties=charMembers.map(m=>{const p=parties.find(x=>x.id===m.party_id);return p?{party:p,member:m}:null;}).filter(Boolean);
+      const tempParties=getTempPartiesForChar(c.id);
+      if(!charMembers.length&&!charRaidTasks.length&&!tempParties.length)return;
       const partylessTasks=charRaidTasks.filter(t=>!t.preset_id||!charParties.some(({party:p})=>p.preset_id===t.preset_id));
+      const cards=[
+        ...charParties.map(x=>({type:'party',key:raidSortKeyByPresetId(x.party.preset_id),html:partyCardHTML(x.party,c,x.member,false)})),
+        ...tempParties.map(x=>({type:'temp',key:raidSortKeyByPresetId(x.party.preset_id),html:partyCardHTML(x.party,c,{slot_index:x.slotIndex,character_id:c.id,id:''},true)})),
+        ...partylessTasks.map(t=>({type:'none',key:raidSortKeyByPresetId(t.preset_id),html:noPartyCardHTML(t,c)}))
+      ];
+      if(partyOrderMode==='raid_order')cards.sort((a,b)=>a.key-b.key||(a.type==='none')-(b.type==='none'));
       html+=`<div class="char-section">
         <div class="char-section-header">
           <div class="cs-name">${esc(c.name)}</div>
           ${c.class_name?`<div class="cs-class">${esc(c.class_name)}</div>`:''}
           ${c.item_level?`<div class="cs-ilvl">Lv.${c.item_level}</div>`:''}
-          <div class="cs-count">${charParties.length}개 파티${partylessTasks.length?` · 파티 없음 ${partylessTasks.length}`:''}</div>
+          <button class="btn btn-sec btn-sm" onclick="togglePartyOrderMode()" title="파티 없음 위치/레이드 순서 정렬">${partyOrderMode==='raid_order'?'레이드 순서':'파티 없음 뒤'}</button>
+          <div class="cs-count">${charParties.length+tempParties.length}개 파티${tempParties.length?` · 임시 ${tempParties.length}`:''}${partylessTasks.length?` · 파티 없음 ${partylessTasks.length}`:''}</div>
         </div>
-        <div class="party-cards">${charParties.map(({party:p,member:m})=>partyCardHTML(p,c,m)).join('')}${partylessTasks.map(t=>noPartyCardHTML(t,c)).join('')}</div>
+        <div class="party-cards">${cards.map(x=>x.html).join('')}</div>
       </div>`;
     });
   });
@@ -664,14 +699,14 @@ function noPartyCardHTML(t,myChar){
   </div>`;
 }
 
-function partyCardHTML(p,myChar,myMember){
+function partyCardHTML(p,myChar,myMember,isTemp=false){
   const preset=raids.find(x=>x.id===p.preset_id);
   const slots=[];for(let i=0;i<p.party_size;i++){const m=p.members.find(x=>x.slot_index===i);slots.push(m||{slot_index:i,character_id:null});}
-  return`<div class="party-card">
+  return`<div class="party-card ${isTemp?'temp-party':''}">
     <div class="pc-header">
       <div style="flex:1;min-width:0;">
         <div class="pc-raid-name" style="color:${getGroupColor(preset?.name||'')};display:flex;align-items:center;gap:5px;">${iconImg(localStorage.getItem('la_gicon_'+(preset?.name||'')),'entity-icon-sm')}${esc(preset?.name||'?')}${preset?.difficulty?` <span class="${diffClass(preset.difficulty)}" style="font-size:.72rem;">${esc(preset.difficulty)}</span>`:''}</div>
-        <div class="pc-party-name"><span style="color:${getPartyColor(p)};font-weight:600;">${esc(p.name||'파티')}</span> · ${p.party_size}인${preset?.entry_level?` · 입장 ${preset.entry_level}`:''}${p._sched_days?` · <span style="color:var(--gold);font-size:.68rem;">📅 ${p._sched_days}</span>`:''}</div>
+        <div class="pc-party-name"><span style="color:${getPartyColor(p)};font-weight:600;">${esc(p.name||'파티')}</span> · ${p.party_size}인${isTemp?' · <span class="temp-party-badge">임시파티연동</span>':''}${preset?.entry_level?` · 입장 ${preset.entry_level}`:''}${p._sched_days?` · <span style="color:var(--gold);font-size:.68rem;cursor:pointer;" onclick="event.stopPropagation();goToPartySchedule('${p.id}')">📅 ${p._sched_days}</span>`:''}</div>
       </div>
     </div>
     <div class="pc-body">
@@ -691,7 +726,8 @@ function partyCardHTML(p,myChar,myMember){
     </div>
     <div class="pc-footer">
       <button class="btn btn-sec btn-sm" onclick="goToParty('${p.id}')" title="raid.html에서 이 파티 열기">🗡️ 파티로 이동</button>
-      <button class="leave-btn" onclick="leaveParty('${p.id}','${myChar.id}','${myMember.id}','${preset?.id||''}','${esc(preset?.name||'')}')">탈퇴</button>
+      <button class="btn btn-sec btn-sm" onclick="goToPartySchedule('${p.id}')" title="raid.html 주간 일정에서 보기">📅 일정</button>
+      ${isTemp?'':`<button class="leave-btn" onclick="leaveParty('${p.id}','${myChar.id}','${myMember.id}','${preset?.id||''}','${esc(preset?.name||'')}')">탈퇴</button>`}
     </div>
   </div>`;
 }
@@ -699,6 +735,11 @@ function partyCardHTML(p,myChar,myMember){
 // ─── Leave party ───
 function goToParty(partyId){
   localStorage.setItem('la_open_party_id',partyId);
+  window.location.href='raid.html';
+}
+function goToPartySchedule(partyId){
+  localStorage.setItem('la_open_party_id',partyId);
+  localStorage.setItem('la_open_party_tab','schedule');
   window.location.href='raid.html';
 }
 async function leaveParty(partyId,charId,memberId,presetId,presetName){

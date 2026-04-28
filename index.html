@@ -435,6 +435,8 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
   background: linear-gradient(to bottom, var(--gold), transparent);
 }
 .account-item.hidden-acc { opacity:.35; }
+.account-main { flex:1; min-width:0; }
+.account-actions { display:flex; align-items:center; gap:2px; flex-shrink:0; }
 .account-name { font-size:.86rem; font-weight:500; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .account-meta { font-size:.68rem; color:var(--text-3); margin-top:1px; }
 .acc-btn { opacity:0; background:none; border:none; font-size:.8rem; cursor:pointer; padding:3px 5px; border-radius:4px; transition:opacity .15s; flex-shrink:0; }
@@ -964,6 +966,7 @@ button,input,select,textarea{ font:inherit; }
 .party-link-chip:hover{background:rgba(20,184,166,.15);border-color:rgba(20,184,166,.55);color:#7dd3c7;transform:translateY(-1px);}
 .curr-updated-pill{margin-left:auto;margin-right:8px;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;background:rgba(255,184,77,.10);border:1px solid rgba(255,184,77,.24);color:var(--gold-text);font-size:.72rem;font-weight:700;white-space:nowrap;}
 .currency-chip .curr-updated{display:none!important;}
+.curr-icon-edit-row{display:flex;align-items:center;gap:8px;margin-top:8px;}
 .task-icon-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .task-icon-preview{box-shadow:inset 0 0 0 1px rgba(255,255,255,.04);}
 .pick-imgs{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:10px!important;align-items:start;}
@@ -975,6 +978,11 @@ button,input,select,textarea{ font:inherit; }
   .header{padding:9px 12px;gap:8px;flex-wrap:wrap;}
   .header-right{width:100%;margin-left:0;justify-content:flex-end;flex-wrap:wrap;}
   .char-tab{min-width:128px;padding:9px 12px;}
+  .account-item{align-items:flex-start;flex-wrap:wrap;gap:7px;}
+  .account-main{width:100%;flex-basis:100%;}
+  .account-actions{width:100%;justify-content:flex-end;padding-top:2px;}
+  .account-item .acc-btn{opacity:.78;}
+  .account-name{font-size:.9rem;}
 }
 
 </style>
@@ -1188,12 +1196,14 @@ button,input,select,textarea{ font:inherit; }
 <div class="overlay" id="modal-add-currency"><div class="modal modal-teal">
   <div class="modal-title teal">💰 재화 추가</div>
   <div class="form-group"><label class="form-label">재화 이름</label><input class="form-input" id="curr-name-input" lang="ko" inputmode="text" placeholder="골드, 코어정수, 실링..." maxlength="20"></div>
-  <div class="form-group"><label class="form-label">아이콘</label><div class="icon-picker" id="curr-icon-picker"></div></div>
+  <div class="form-group"><label class="form-label">아이콘</label><div class="icon-picker" id="curr-icon-picker"></div>
+    <div class="curr-icon-edit-row"><button type="button" class="btn btn-sec btn-sm" onclick="openImagePicker(u=>{S.selCurrIconUrl=u||null;})">🖼 이미지 아이콘</button><button type="button" class="btn btn-ghost btn-sm" onclick="S.selCurrIconUrl=null">이미지 제거</button></div>
+  </div>
   <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-add-currency')">취소</button><button class="btn btn-teal" onclick="addCurrency()">추가</button></div>
 </div></div>
 
 <div class="overlay" id="modal-curr-popup"><div class="modal curr-popup-modal modal-teal">
-  <div class="curr-popup-top"><span class="curr-popup-icon" id="curr-popup-icon"></span><span class="curr-popup-name" id="curr-popup-name"></span><button class="btn btn-icon" onclick="closeModal('modal-curr-popup')">✕</button></div>
+  <div class="curr-popup-top"><span class="curr-popup-icon" id="curr-popup-icon"></span><span class="curr-popup-name" id="curr-popup-name"></span><button class="btn btn-sec btn-sm" onclick="editCurrIcon()">🖼 아이콘</button><button class="btn btn-icon" onclick="closeModal('modal-curr-popup')">✕</button></div>
   <div class="curr-amount-display" id="curr-amount-display">0</div>
   <div class="curr-adj-section"><div class="curr-adj-label">빼기</div><div class="curr-adj-row">
     <button class="curr-adj-btn curr-adj-minus" onclick="adjustCurr(-10000)">-10,000</button>
@@ -1507,6 +1517,7 @@ let S={
   hiddenAccounts:new Set(JSON.parse(LS('la_hidden_accs')||'[]')),
   showHidden:false,
   hideCompleted:LS('la_hide')==='1',
+  hideExpCompleted:LS('la_hide_exp')==='1',
   collapsedTasks:new Set(),
   currPopupId:null,viewPopupId:null,editPopupId:null,editBlocks:[],
   selCurrIcon:'💰',selPopupIcon:'📋',editorIcon:'📋',
@@ -1641,13 +1652,15 @@ function renderSidebar(){
       ondrop="dndDrop(event,'account',${realIdx})"
       onclick="selectAccount('${a.id}')">
       <span class="dnd-handle">⠿</span>
-      <div style="flex:1;min-width:0;">
+      <div class="account-main">
         <div class="account-name">${esc(a.name)}</div>
         ${chars.length?`<div class="account-meta">${chars.length}캐릭터</div>`:''}
       </div>
+      <div class="account-actions">
       <button class="acc-btn" onclick="event.stopPropagation();openEditAccountModal('${a.id}')" title="계정 수정">✏️</button>
       <button class="acc-btn acc-btn-hide" onclick="toggleHideAccount(event,'${a.id}')" title="${isHidden?'표시':'숨김'}">${isHidden?'👁':'🙈'}</button>
       <button class="acc-btn acc-del-btn" onclick="event.stopPropagation();deleteAccount('${a.id}')" style="color:var(--red);">✕</button>
+      </div>
     </div>`;
   };
   let html='';
@@ -1836,6 +1849,7 @@ function getList(isExp){return isExp?(S.expTasks[S.selAcc]||[]):(S.tasks[S.selCh
 // ─── Collapsible toggles ───
 function toggleSection(key,storageKey){S[key]=!S[key];LSS(storageKey,S[key]?'1':'0');scheduleRenderArea();}
 function toggleHideCompleted(){S.hideCompleted=!S.hideCompleted;LSS('la_hide',S.hideCompleted?'1':'0');scheduleRenderArea();}
+function toggleExpHideCompleted(){S.hideExpCompleted=!S.hideExpCompleted;LSS('la_hide_exp',S.hideExpCompleted?'1':'0');scheduleRenderArea();}
 function toggleParentCollapse(taskId){if(S.collapsedTasks.has(taskId))S.collapsedTasks.delete(taskId);else S.collapsedTasks.add(taskId);scheduleRenderArea();}
 
 // ─── Render Task Area ───
@@ -1879,9 +1893,10 @@ function renderTaskArea(){
       <span class="coll-title">${iconImg(localStorage.getItem('la_icon_exp'),'entity-icon-sm')} ⚔️ ${accName} 원정대 숙제</span>
       <span class="coll-stat">${edone}/${etot}</span>
       ${etot?`<div class="exp-prog-wrap"><div class="exp-prog-bar" style="width:${epct}%"></div></div>`:''}
+      <button class="hide-done-btn ${S.hideExpCompleted?'active':''}" onclick="event.stopPropagation();toggleExpHideCompleted()">${S.hideExpCompleted?'완료 보이기':'완료 숨기기'}</button>
       <button class="btn btn-purple" style="margin-left:auto;font-size:.72rem;padding:3px 9px;" onclick="event.stopPropagation();openAddTask(true)">+ 추가</button>
     </div>
-    ${!S.expCollapsed?`<div class="coll-body">${etot===0?'<div style="color:var(--muted);font-size:.82rem;padding:4px 0;">원정대 숙제가 없습니다</div>':`<div class="tasks-list">${activeExpRoots.map((t,i)=>rootTaskHTML(t,expChildren[t.id]||[],true,expRoots.indexOf(t))).join('')}</div>`}</div>`:''}
+    ${!S.expCollapsed?`<div class="coll-body">${etot===0?'<div style="color:var(--muted);font-size:.82rem;padding:4px 0;">원정대 숙제가 없습니다</div>':`<div class="tasks-list">${activeExpRoots.map((t,i)=>rootTaskHTML(t,expChildren[t.id]||[],true,expRoots.indexOf(t),S.hideExpCompleted)).join('')}</div>`}</div>`:''}
   </div>
 
   <!-- Raid Tasks -->
@@ -1956,15 +1971,15 @@ function subTaskHTML(t,isExp,sibIdx){
   </div>`;
 }
 
-function rootTaskHTML(t,children,isExp,rootIdx){
+function rootTaskHTML(t,children,isExp,rootIdx,hideDone=S.hideCompleted){
   const done=isEffDone(t),iE=isExp?'true':'false';
   const hasChildren=children&&children.length>0;
   const collapsed=S.collapsedTasks.has(t.id);
   const dndType=isExp?'exptask':'task';
   const hasCount=t.count_max!=null;
-  if(S.hideCompleted&&done&&!hasChildren)return'';
-  if(S.hideCompleted&&done&&hasChildren)return'';
-  const visChildren=hasChildren?(S.hideCompleted?children.filter(c=>!isEffDone(c)):children):[];
+  if(hideDone&&done&&!hasChildren)return'';
+  if(hideDone&&done&&hasChildren)return'';
+  const visChildren=hasChildren?(hideDone?children.filter(c=>!isEffDone(c)):children):[];
   return `<div class="task-group">
     <div class="task-item ${done?'done':''} ${hasChildren?'is-parent':''}" id="ti-${t.id}"
       draggable="true"
@@ -2086,7 +2101,7 @@ function toggleTask(taskId,isExp){
   if(t.parent_id){
     checkParentStatus(t.parent_id,isExp).then(()=>updateParentDOM(t.parent_id,isExp));
   }
-  if(!isExp)updateTabDOM(S.selChar);
+  if(!isExp){updateTabDOM(S.selChar);scheduleRenderArea();}
   // Fire-and-forget DB save
   sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',taskId).then(({error})=>{if(error)toast('❗ 저장 오류');});
 }
@@ -2098,7 +2113,7 @@ function updateCount(taskId,rawVal,isExp){
   const el=document.getElementById('ti-'+taskId);
   if(el){el.classList.toggle('done',isDone);const ic=el.querySelector('.checkbox-icon');if(ic)ic.style.opacity=isDone?'1':'0';const cb=el.querySelector('.checkbox');if(cb){cb.style.background=isDone?'var(--green)':'';cb.style.borderColor=isDone?'var(--green)':'';}const nm=el.querySelector('.task-name');if(nm)nm.style.textDecoration=isDone?'line-through':'';const inp=el.querySelector('.count-input');if(inp&&document.activeElement!==inp)inp.value=count;}
   if(t.parent_id)checkParentStatus(t.parent_id,isExp).then(()=>updateParentDOM(t.parent_id,isExp));
-  if(!isExp)updateTabDOM(S.selChar);
+  if(!isExp){updateTabDOM(S.selChar);scheduleRenderArea();}
   sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',taskId).then(({error})=>{if(error)toast('❗ 저장 오류');});
 }
 function toggleRaidTask(id){
@@ -2539,15 +2554,16 @@ async function executeCopy(){
 }
 
 // ─── Currency ───
-function openAddCurrencyModal(){buildPicker('curr-icon-picker',CURR_ICONS,'selCurrIcon','💰');document.getElementById('curr-name-input').value='';openModal('modal-add-currency');setTimeout(()=>document.getElementById('curr-name-input').focus(),80);}
-async function addCurrency(){const name=document.getElementById('curr-name-input').value.trim();if(!name){toast('❗ 이름을 입력하세요');return;}const{data,error}=await sb.from('currencies').insert({character_id:S.selChar,name,icon:S.selCurrIcon,amount:0,sort_order:(S.currencies[S.selChar]||[]).length}).select().single();if(error){toast('❗ '+error.message);return;}if(!S.currencies[S.selChar])S.currencies[S.selChar]=[];S.currencies[S.selChar].push(data);closeModal('modal-add-currency');renderTaskArea();toast('✅ 재화 추가됨');}
+function openAddCurrencyModal(){S.selCurrIconUrl=null;buildPicker('curr-icon-picker',CURR_ICONS,'selCurrIcon','💰');document.getElementById('curr-name-input').value='';openModal('modal-add-currency');setTimeout(()=>document.getElementById('curr-name-input').focus(),80);}
+async function addCurrency(){const name=document.getElementById('curr-name-input').value.trim();if(!name){toast('❗ 이름을 입력하세요');return;}const{data,error}=await sb.from('currencies').insert({character_id:S.selChar,name,icon:S.selCurrIcon,icon_url:S.selCurrIconUrl||null,amount:0,sort_order:(S.currencies[S.selChar]||[]).length}).select().single();if(error){toast('❗ '+error.message);return;}if(!S.currencies[S.selChar])S.currencies[S.selChar]=[];S.currencies[S.selChar].push(data);S.selCurrIconUrl=null;closeModal('modal-add-currency');renderTaskArea();toast('✅ 재화 추가됨');}
 function openCurrPopup(id){const c=(S.currencies[S.selChar]||[]).find(x=>x.id===id);if(!c)return;S.currPopupId=id;const iconEl=document.getElementById('curr-popup-icon');if(iconEl){iconEl.innerHTML=c.icon_url?iconImg(c.icon_url,'entity-icon'):(c.icon||'💰');}document.getElementById('curr-popup-name').textContent=c.name;document.getElementById('curr-amount-display').textContent=(c.amount||0).toLocaleString();document.getElementById('curr-direct-val').value='';openModal('modal-curr-popup');}
 async function adjustCurr(d){const c=(S.currencies[S.selChar]||[]).find(x=>x.id===S.currPopupId);if(!c)return;const na=(c.amount||0)+d;const now=new Date().toISOString();const res=await sb.from('currencies').update({amount:na,updated_at:now}).eq('id',c.id);if(supaErr(res,'재화 수정 실패'))return;c.amount=na;c.updated_at=now;document.getElementById('curr-amount-display').textContent=na.toLocaleString();updateCurrChip(c);}
 async function setCurrDirect(mode){const val=parseInt(document.getElementById('curr-direct-val').value)||0;const c=(S.currencies[S.selChar]||[]).find(x=>x.id===S.currPopupId);if(!c)return;const na=mode==='add'?(c.amount||0)+val:val;const now=new Date().toISOString();const res=await sb.from('currencies').update({amount:na,updated_at:now}).eq('id',c.id);if(supaErr(res,'재화 수정 실패'))return;c.amount=na;c.updated_at=now;document.getElementById('curr-amount-display').textContent=na.toLocaleString();document.getElementById('curr-direct-val').value='';updateCurrChip(c);}
 function getLatestCurrencyUpdated(list){const dates=(list||[]).map(c=>c.updated_at).filter(Boolean).sort((a,b)=>new Date(b)-new Date(a));return dates[0]||'';}
 function updateCurrUpdatedPill(){const el=document.getElementById('curr-final-updated');if(!el)return;const latest=getLatestCurrencyUpdated(S.currencies[S.selChar]||[]);if(latest){el.style.display='inline-flex';el.textContent='최종 수정 날짜: '+fmtRelDate(latest);}else{el.style.display='none';el.textContent='';}}
-function updateCurrChip(c){const chip=document.getElementById('curr-chip-'+c.id);if(chip){const a=chip.querySelector('.curr-chip-amount');if(a)a.textContent=c.amount.toLocaleString();}updateCurrUpdatedPill();}
+function updateCurrChip(c){const chip=document.getElementById('curr-chip-'+c.id);if(chip){const a=chip.querySelector('.curr-chip-amount');if(a)a.textContent=c.amount.toLocaleString();const first=chip.firstElementChild;if(first&&(first.tagName==='IMG'||first.tagName==='SPAN'))first.outerHTML=c.icon_url?iconImg(c.icon_url,'entity-icon-sm'):`<span>${esc(c.icon||'💰')}</span>`;}updateCurrUpdatedPill();}
 function fmtRelDate(iso){if(!iso)return'';const d=new Date(iso);return`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;}
+function editCurrIcon(){const c=(S.currencies[S.selChar]||[]).find(x=>x.id===S.currPopupId);if(!c)return;openImagePicker(async u=>{const now=new Date().toISOString();const{error}=await sb.from('currencies').update({icon_url:u||null,updated_at:now}).eq('id',c.id);if(error){toast('❗ '+error.message);return;}c.icon_url=u||null;c.updated_at=now;const iconEl=document.getElementById('curr-popup-icon');if(iconEl)iconEl.innerHTML=c.icon_url?iconImg(c.icon_url,'entity-icon'):(c.icon||'💰');updateCurrChip(c);toast('✅ 아이콘 수정됨');});}
 async function deleteCurrAndClose(){if(!confirm('재화를 삭제하시겠습니까?'))return;await sb.from('currencies').delete().eq('id',S.currPopupId);S.currencies[S.selChar]=(S.currencies[S.selChar]||[]).filter(c=>c.id!==S.currPopupId);closeModal('modal-curr-popup');renderTaskArea();toast('🗑️ 삭제됨');}
 
 // ─── Custom Popup ───

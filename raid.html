@@ -609,6 +609,7 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
 .sc-member-name { font-weight:500; }
 .sc-member-class { color:var(--text-3); font-size:.67rem; }
 .sc-member.temp .sc-member-name { color:var(--gold); }
+.temp-link-label { font-size:.58rem; color:var(--gold); padding:0 4px; border:1px solid rgba(200,168,75,.38); border-radius:4px; background:rgba(200,168,75,.08); white-space:nowrap; }
 .sc-empty-slot { font-size:.72rem; color:var(--text-3); padding:1px 0; }
 .sc-footer { display:flex; gap:5px; margin-top:9px; border-top:1px solid rgba(255,255,255,.06); padding-top:8px; align-items:center; }
 .sc-complete-btn {
@@ -1097,14 +1098,19 @@ async function loadViewerOverview(el){
   (rtasks||[]).forEach(t=>{if(t.preset_id&&pm[t.preset_id])t.preset_name=pm[t.preset_id];});
   const ws=getWeekStart(0);
   function isDone(t){if(!t.is_completed||!t.last_completed_at)return false;return new Date(t.last_completed_at)>ws;}
-  let html='<div style="font-size:.82rem;color:var(--muted);margin-bottom:12px;">🔒 뷰어 모드 — 체크 불가</div>';
+  const vf=localStorage.getItem('la_viewer_ov_filter')||'all';
+  const pass=t=>vf==='done'?isDone(t):vf==='todo'?!isDone(t):true;
+  let html=`<div style="font-size:.82rem;color:var(--muted);margin-bottom:12px;">🔒 뷰어 모드 — 체크 불가</div>
+  <div class="vo-filter-box"><div class="vo-filter-title">필터</div><div class="vo-filter-row">
+    ${[['all','전체'],['todo','미완료'],['done','완료']].map(([k,l])=>`<button class="vo-chip ${vf===k?'on':''}" onclick="localStorage.setItem('la_viewer_ov_filter','${k}');loadViewerOverview(document.getElementById('viewer-overview-area'))">${l}</button>`).join('')}
+  </div></div>`;
   (accs||[]).forEach(acc=>{
     const aChars=(chars||[]).filter(c=>c.account_id===acc.id);
-    const withRaids=aChars.filter(c=>(rtasks||[]).some(t=>t.character_id===c.id));
+    const withRaids=aChars.filter(c=>(rtasks||[]).some(t=>t.character_id===c.id&&pass(t)));
     if(!withRaids.length)return;
     html+=`<div style="margin-bottom:16px;"><div style="font-size:.88rem;font-weight:700;color:var(--gold);margin-bottom:8px;font-family:'Cinzel',serif;">${esc(acc.name)}</div><div style="display:flex;flex-wrap:wrap;gap:8px;">`;
     withRaids.forEach(c=>{
-      const tasks=(rtasks||[]).filter(t=>t.character_id===c.id);
+      const tasks=(rtasks||[]).filter(t=>t.character_id===c.id&&pass(t));
       const done=tasks.filter(t=>isDone(t)).length;
       const gc=getGroupColor(c.name||'');
       html+=`<div style="background:var(--s2);border:1px solid var(--border);border-radius:6px;min-width:180px;flex:1;overflow:hidden;">
@@ -1477,8 +1483,10 @@ function openCharPickerParty(partyId,slotIndex){
 }
 function openCharPickerOverride(schId,slotIndex){
   pickCtx={mode:'override',partyId:null,slotIndex,scheduleId:schId};
-  document.getElementById('char-pick-info').textContent=`슬롯 ${slotIndex+1} — 이번 주 임시 변경`;
-  buildCharPickGrid(0);openModal('modal-char-pick');
+  const s=schedules.find(x=>x.id===schId),p=s?parties.find(x=>x.id===s.party_id):null,preset=p?raids.find(x=>x.id===p.preset_id):null;
+  const minIlvl=Number(preset?.entry_level)||0;
+  document.getElementById('char-pick-info').textContent=`슬롯 ${slotIndex+1} — 이번 주 임시 변경${minIlvl?` (입장 ${minIlvl} 이상)`:''}`;
+  buildCharPickGrid(minIlvl);openModal('modal-char-pick');
 }
 function buildCharPickGrid(minIlvl=0){
   const el=document.getElementById('char-pick-grid');
@@ -1934,7 +1942,9 @@ function openDayGroupModal(i){
 function autoOpenParty(partyId){
   const p=parties.find(x=>x.id===partyId);if(!p)return;
   const preset=raids.find(x=>x.id===p.preset_id);if(!preset)return;
-  switchTab('party');
+  const targetTab=localStorage.getItem('la_open_party_tab')||'party';
+  localStorage.removeItem('la_open_party_tab');
+  switchTab(targetTab==='schedule'?'schedule':'party');
   // 그룹 열기
   selGroupName=preset.name;
   // 난이도 열기
@@ -2030,7 +2040,7 @@ function schedCardHTML(s,wk){
     <div class="sc-members">
       ${eff.map(slot=>{
         const ch=allChars.find(c=>c.id===slot.character_id);
-        if(ch){const isHL=schHighlightChars.has(ch.id);return`<div class="sc-member ${slot.isOvr?'temp':''} ${isHL?'hl-me':''}" style="${isHL?'border:1px solid rgba(200,168,75,.5);background:rgba(200,168,75,.1);border-radius:3px;padding:1px 3px;':''}">${iconImg(ch.icon_url||'','entity-icon-sm')}<span class="sc-member-name" style="${isHL?'color:var(--gold);font-weight:700;':''}">${esc(ch.name)}</span><span class="sc-member-class">${esc(ch.class_name||'')}</span></div>`;}
+        if(ch){const isHL=schHighlightChars.has(ch.id);return`<div class="sc-member ${slot.isOvr?'temp':''} ${isHL?'hl-me':''}" style="${isHL?'border:1px solid rgba(200,168,75,.5);background:rgba(200,168,75,.1);border-radius:3px;padding:1px 3px;':''}">${iconImg(ch.icon_url||'','entity-icon-sm')}<span class="sc-member-name" style="${isHL?'color:var(--gold);font-weight:700;':''}">${esc(ch.name)}</span>${slot.isOvr?'<span class="temp-link-label">임시파티연동</span>':''}<span class="sc-member-class">${esc(ch.class_name||'')}</span></div>`;}
         return`<div class="sc-empty-slot">—</div>`;
       }).join('')}
     </div>
@@ -2186,7 +2196,7 @@ async function assignOverrideChar(charId){
   await persistOverride(pickCtx.scheduleId,wk,ovr);
   closeModal('modal-char-pick');
   await openSchEdit(pickCtx.scheduleId,wk);
-  scheduleRenderSchedule();toast('✅ 임시 추가됨');
+  renderSchFilter();scheduleRenderSchedule();toast('✅ 임시 추가됨');
 }
 
 // ─── 임시 삭제: 캐릭터 제거 + raid_task 처리 ───
@@ -2224,7 +2234,7 @@ async function removeOvrSlot(schId,slotIdx,wk){
   await persistOverride(schId,wk,ovr);
   const modal=document.getElementById('modal-sch-edit');
   if(modal&&modal.classList.contains('open'))await openSchEdit(schId,wk);
-  scheduleRenderSchedule();toast('✅ 임시 제거됨');
+  renderSchFilter();scheduleRenderSchedule();toast('✅ 임시 제거됨');
 }
 
 // ─── 임시변경 DB 저장 ───

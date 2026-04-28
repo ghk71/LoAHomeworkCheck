@@ -400,6 +400,14 @@ body { overflow:hidden; }
 .sum-item.done b { color:var(--green); }
 .sum-prog { height:5px; flex:1; min-width:120px; background:rgba(255,255,255,.07); border-radius:4px; overflow:hidden; }
 .sum-prog-bar { height:100%; background:linear-gradient(90deg,var(--green),#34d399); border-radius:4px; transition:width .4s; }
+.gold-split { display:flex; align-items:center; gap:7px; flex-wrap:wrap; width:100%; }
+.gold-mini { display:inline-flex; align-items:center; gap:6px; font-size:.72rem; color:var(--text-2); }
+.gold-mini b { color:var(--text); }
+.gold-mini.flow b { color:var(--gold-text); }
+.gold-mini.bound b { color:var(--orange); }
+.gold-mini.bonus b { color:#c4b5fd; }
+.gold-mini-bar { width:70px; height:4px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,.08); }
+.gold-mini-fill { height:100%; border-radius:4px; transition:width .3s; }
 
 /* Account sections */
 .acc-section { margin-bottom:20px; }
@@ -727,25 +735,40 @@ function selectAllChars(){const ci=characters.filter(c=>raidTasks.some(t=>t.char
 function deselectAllChars(){selectedChars.clear();saveFilter();renderFilterBar();render();}
 
 // ─── Render ───
+function goldBreakdownFor(charsOrIds){
+  const ids=charsOrIds.map(x=>typeof x==='string'?x:x.id);
+  const out={flow:0,bound:0,bonus:0,earnedFlow:0,earnedBound:0,earnedBonus:0};
+  ids.forEach(cid=>raidTasks.filter(t=>t.character_id===cid).forEach(t=>{
+    const flow=Math.max(0,(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0));
+    const bound=Number(t.bound_gold)||0;
+    const bonus=Number(t.bonus_gold)||0;
+    if(t.receive_gold!==false){out.flow+=flow;if(isEffDone(t))out.earnedFlow+=flow;}
+    if(t.receive_bound!==false){out.bound+=bound;if(isEffDone(t))out.earnedBound+=bound;}
+    if(t.receive_bonus!==false){out.bonus+=bonus;if(isEffDone(t))out.earnedBonus+=bonus;}
+  }));
+  return out;
+}
+function goldMiniHTML(label,earned,total,cls){
+  if(!total)return'';
+  const pct=Math.max(0,Math.min(100,Math.round(earned/total*100)));
+  const color=cls==='flow'?'var(--gold)':cls==='bound'?'var(--orange)':'#a78bfa';
+  return`<span class="gold-mini ${cls}">${label} <b>${earned.toLocaleString()} / ${total.toLocaleString()}G</b><span class="gold-mini-bar"><span class="gold-mini-fill" style="width:${pct}%;background:${color};"></span></span></span>`;
+}
 function render(){
   // Summary - only selected chars
-  let totalRaids=0,doneRaids=0,totalGold=0,earnedGold=0,totalBound=0;
+  let totalRaids=0,doneRaids=0;
   [...selectedChars].forEach(cid=>{
     raidTasks.filter(t=>t.character_id===cid).forEach(t=>{
       totalRaids++;
-      const flow=(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0);
-      const bg=Number(t.bound_gold)||0;
-      if(t.receive_gold!==false)totalGold+=flow;
-      if(t.receive_bound!==false)totalBound+=bg;
-      if(isEffDone(t)&&t.receive_gold!==false){earnedGold+=flow;}
       if(isEffDone(t))doneRaids++;
     });
   });
+  const gsum=goldBreakdownFor([...selectedChars]);
   const pct=totalRaids?Math.round(doneRaids/totalRaids*100):0;
   document.getElementById('summary-bar').innerHTML=`
     <div class="sum-item done">레이드 완료 <b>${doneRaids}/${totalRaids}</b></div>
     <div class="sum-prog"><div class="sum-prog-bar" style="width:${pct}%"></div></div>
-    <div class="sum-item gold">유통골드 <b>${earnedGold.toLocaleString()} / ${totalGold.toLocaleString()} G</b></div>
+    <div class="gold-split">${goldMiniHTML('유통 골드',gsum.earnedFlow,gsum.flow,'flow')}${goldMiniHTML('귀속 골드',gsum.earnedBound,gsum.bound,'bound')}${goldMiniHTML('더보기 골드',gsum.earnedBonus,gsum.bonus,'bonus')}</div>
     ${weekOffset===0?`<div class="sum-item" style="margin-left:auto;font-size:.72rem;color:var(--dim);">초기화 ${nextResetLabel()}</div>`:''}`;
 
   // Account sections - filtered (부계정 그룹핑)
@@ -757,10 +780,7 @@ function render(){
   function accStats(chars){
     const total=chars.reduce((s,c)=>s+raidTasks.filter(t=>t.character_id===c.id).length,0);
     const done=chars.reduce((s,c)=>s+raidTasks.filter(t=>t.character_id===c.id&&isEffDone(t)).length,0);
-    const flow=chars.reduce((s,c)=>s+raidTasks.filter(t=>t.character_id===c.id&&t.receive_gold!==false).reduce((ss,t)=>ss+(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0),0),0);
-    const bound=chars.reduce((s,c)=>s+raidTasks.filter(t=>t.character_id===c.id&&t.receive_bound!==false).reduce((ss,t)=>ss+(Number(t.bound_gold)||0),0),0);
-    const earnedFlow=chars.reduce((s,c)=>s+raidTasks.filter(t=>t.character_id===c.id&&isEffDone(t)&&t.receive_gold!==false).reduce((ss,t)=>ss+(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0),0),0);
-    return{total,done,flow,bound,earnedFlow};
+    return{total,done,...goldBreakdownFor(chars)};
   }
   function renderAccHeader(acc,chars,subLabel){
     const st=accStats(chars);
@@ -774,8 +794,7 @@ function render(){
         <span class="acc-name">${esc(subLabel||acc.name)}</span>
         <span class="acc-stat">${st.done}/${st.total}</span>
         <div class="acc-prog-wrap"><div class="acc-prog-bar" style="width:${pct}%;background:${allClear?'var(--green)':'var(--teal)'};"></div></div>
-        ${st.flow?`<span style="font-size:.72rem;color:#f0c040;">💰 유통 ${st.earnedFlow.toLocaleString()}/${st.flow.toLocaleString()}G</span>`:''}
-        ${st.bound?`<span style="font-size:.72rem;color:var(--orange);">귀속 ${st.bound.toLocaleString()}G</span>`:''}
+        <div class="gold-split">${goldMiniHTML('유통 골드',st.earnedFlow,st.flow,'flow')}${goldMiniHTML('귀속 골드',st.earnedBound,st.bound,'bound')}${goldMiniHTML('더보기 골드',st.earnedBonus,st.bonus,'bonus')}</div>
         ${allClear?`<span class="acc-allclear">✓ 올클</span>`:''}
       </div>
       ${isOpen?`<div class="char-grid">${chars.map(c=>charCardHTML(c)).join('')}</div>`:''}
@@ -908,11 +927,12 @@ async function toggleRaidTask(taskId){
 }
 
 function renderSummary(){
-  let totalRaids=0,doneRaids=0,totalGold=0,earnedGold=0,totalBound=0;
-  [...selectedChars].forEach(cid=>{raidTasks.filter(t=>t.character_id===cid).forEach(t=>{totalRaids++;const flow=(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0);const bg=Number(t.bound_gold)||0;if(t.receive_gold!==false){totalGold+=flow;totalBound+=bg;}if(isEffDone(t)&&t.receive_gold!==false){doneRaids++;earnedGold+=flow;}else if(isEffDone(t))doneRaids++;});});
+  let totalRaids=0,doneRaids=0;
+  [...selectedChars].forEach(cid=>{raidTasks.filter(t=>t.character_id===cid).forEach(t=>{totalRaids++;if(isEffDone(t))doneRaids++;});});
+  const gsum=goldBreakdownFor([...selectedChars]);
   const pct=totalRaids?Math.round(doneRaids/totalRaids*100):0;
   const sb2=document.getElementById('summary-bar');
-  if(sb2)sb2.innerHTML=`<div class="sum-item done">레이드 완료 <b>${doneRaids}/${totalRaids}</b></div><div class="sum-prog"><div class="sum-prog-bar" style="width:${pct}%"></div></div><div class="sum-item gold">유통골드 <b>${earnedGold.toLocaleString()} / ${totalGold.toLocaleString()} G</b></div>${totalBound?`<div class="sum-item" style="color:var(--orange);">귀속골드 <b>${totalBound.toLocaleString()} G</b></div>`:''}<div class="sum-item">남은 유통 <b style="color:${totalGold-earnedGold>0?'var(--orange)':'var(--green)'}">${(totalGold-earnedGold).toLocaleString()} G</b></div>${weekOffset===0?`<div class="sum-item" style="margin-left:auto;font-size:.72rem;color:var(--dim);">초기화 ${nextResetLabel()}</div>`:''}`;
+  if(sb2)sb2.innerHTML=`<div class="sum-item done">레이드 완료 <b>${doneRaids}/${totalRaids}</b></div><div class="sum-prog"><div class="sum-prog-bar" style="width:${pct}%"></div></div><div class="gold-split">${goldMiniHTML('유통 골드',gsum.earnedFlow,gsum.flow,'flow')}${goldMiniHTML('귀속 골드',gsum.earnedBound,gsum.bound,'bound')}${goldMiniHTML('더보기 골드',gsum.earnedBonus,gsum.bonus,'bonus')}</div>${weekOffset===0?`<div class="sum-item" style="margin-left:auto;font-size:.72rem;color:var(--dim);">초기화 ${nextResetLabel()}</div>`:''}`;
 }
 
 function toggleAcc(id){
