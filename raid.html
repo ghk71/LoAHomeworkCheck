@@ -846,6 +846,11 @@ button,input,select,textarea{ font:inherit; }
 .notice-save-hint{color:var(--gold-text)!important;font-weight:700;}
 .notice-comment-box{margin:0 14px 10px;padding:10px 12px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.025);}
 .notice-comment-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:.76rem;font-weight:900;color:var(--text-2);}
+.notice-comment-toggle{margin-left:auto;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);color:var(--text-2);border-radius:8px;padding:4px 8px;font-size:.7rem;font-weight:900;cursor:pointer;transition:all var(--t);}
+.notice-comment-toggle:hover{border-color:rgba(255,184,77,.35);color:var(--gold-text);background:rgba(255,184,77,.07);}
+.notice-comment-body{display:block;}
+.notice-comment-box.collapsed .notice-comment-body{display:none;}
+.notice-comment-box.collapsed .notice-comment-head{margin-bottom:0;}
 .notice-comment-list{display:flex;flex-direction:column;gap:6px;margin-bottom:8px;}
 .notice-comment-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:7px 9px;border:1px solid rgba(255,255,255,.065);border-radius:10px;background:rgba(0,0,0,.12);}
 .notice-comment-meta{display:flex;align-items:center;gap:6px;min-width:0;margin-bottom:2px;font-size:.68rem;color:var(--text-3);}
@@ -980,13 +985,15 @@ button,input,select,textarea{ font:inherit; }
       <span class="notice-save-hint" id="notice-hint"></span>
       <button class="btn btn-sec btn-sm edit-only" style="flex-shrink:0;" onclick="openAdvanceNotice()">📅 미리 쓰기</button>
     </div>
-    <div class="notice-comment-box">
-      <div class="notice-comment-head">💬 댓글 <span id="notice-comment-count" style="color:var(--gold-text);"></span><span id="notice-comment-status" style="margin-left:auto;font-size:.7rem;color:var(--text-3);"></span></div>
-      <div class="notice-comment-list" id="notice-comment-list"></div>
-      <div class="notice-comment-form">
-        <input class="notice-comment-input" id="notice-comment-author" lang="ko" inputmode="text" maxlength="20" placeholder="닉네임">
-        <input class="notice-comment-input" id="notice-comment-content" lang="ko" inputmode="text" maxlength="300" placeholder="댓글을 입력하세요" onkeydown="if(event.key==='Enter')submitNoticeComment()">
-        <button class="btn btn-teal btn-sm" onclick="submitNoticeComment()">등록</button>
+    <div class="notice-comment-box" id="notice-comment-box">
+      <div class="notice-comment-head">💬 댓글 <span id="notice-comment-count" style="color:var(--gold-text);"></span><span id="notice-comment-status" style="font-size:.7rem;color:var(--text-3);"></span><button class="notice-comment-toggle" id="notice-comment-toggle" onclick="toggleNoticeComments()">접기</button></div>
+      <div class="notice-comment-body" id="notice-comment-body">
+        <div class="notice-comment-list" id="notice-comment-list"></div>
+        <div class="notice-comment-form">
+          <input class="notice-comment-input" id="notice-comment-author" lang="ko" inputmode="text" maxlength="20" placeholder="닉네임">
+          <input class="notice-comment-input" id="notice-comment-content" lang="ko" inputmode="text" maxlength="300" placeholder="댓글을 입력하세요" onkeydown="if(event.key==='Enter')submitNoticeComment()">
+          <button class="btn btn-teal btn-sm" onclick="submitNoticeComment()">등록</button>
+        </div>
       </div>
     </div>
     <div class="week-nav">
@@ -1345,7 +1352,7 @@ async function loadViewerOverview(el){
 }
 
 // ─── State ───
-let sb,accounts=[],allChars=[],raids=[],parties=[],schedules=[],overrides={},notices={},noticeComments={},noticeCommentsAvailable=true,raidTasksAll={};
+let sb,accounts=[],allChars=[],raids=[],parties=[],schedules=[],overrides={},notices={},noticeComments={},noticeCommentsAvailable=true,noticeCommentsCollapsed=localStorage.getItem('la_notice_comments_collapsed')==='1',raidTasksAll={};
 let selPartyId=null,selGroupName=null,weekOffset=0,partySize=4,selPresetId=null;
 let pickCtx={mode:'party',partyId:null,slotIndex:null,scheduleId:null};
 let ovrEditSchId=null;
@@ -2645,12 +2652,16 @@ function fmtCommentTime(v){
 }
 function renderNoticeComments(){
   const wk=getWeekKey(weekOffset);
+  const box=document.getElementById('notice-comment-box');
   const list=document.getElementById('notice-comment-list');
   const cnt=document.getElementById('notice-comment-count');
   const status=document.getElementById('notice-comment-status');
+  const toggle=document.getElementById('notice-comment-toggle');
   if(!list)return;
   const rows=noticeComments[wk]||[];
-  if(cnt)cnt.textContent=rows.length?`${rows.length}`:'';
+  if(box)box.classList.toggle('collapsed',noticeCommentsCollapsed);
+  if(toggle)toggle.textContent=noticeCommentsCollapsed?'펼치기':'접기';
+  if(cnt)cnt.textContent=`${rows.length}`;
   if(status)status.textContent=noticeCommentsAvailable?'':'댓글 테이블 미적용';
   if(!noticeCommentsAvailable){
     list.innerHTML='<div class="notice-comment-empty">댓글 기능을 사용하려면 Supabase에 raid_notice_comments 테이블을 적용해야 합니다.</div>';
@@ -2664,6 +2675,11 @@ function renderNoticeComments(){
     <button class="notice-comment-del edit-only" onclick="deleteNoticeComment('${c.id}')">삭제</button>
   </div>`).join(''):'<div class="notice-comment-empty">아직 댓글이 없습니다</div>';
   if(isViewer)document.querySelectorAll('.notice-comment-del').forEach(el=>el.style.display='none');
+}
+function toggleNoticeComments(){
+  noticeCommentsCollapsed=!noticeCommentsCollapsed;
+  localStorage.setItem('la_notice_comments_collapsed',noticeCommentsCollapsed?'1':'0');
+  renderNoticeComments();
 }
 async function submitNoticeComment(){
   if(!noticeCommentsAvailable){toast('❗ 댓글 테이블을 먼저 적용하세요');return;}
