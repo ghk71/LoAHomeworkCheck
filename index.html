@@ -852,6 +852,12 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
 .copy-item input[type=checkbox] { width:14px; height:14px; cursor:pointer; accent-color:var(--gold); }
 .copy-item label { cursor:pointer; font-size:.85rem; flex:1; }
 .copy-item .ci-meta { font-size:.71rem; color:var(--text-3); }
+.copy-toolbar { display:flex; align-items:center; gap:8px; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+.copy-check-label { display:flex; align-items:center; gap:6px; cursor:pointer; font-size:.82rem; color:var(--gold); }
+.copy-check-label input { width:16px; height:16px; accent-color:var(--gold); }
+.copy-acc-row { display:flex; align-items:center; gap:8px; padding:6px 10px 2px; }
+.copy-acc-row .copy-acc-header { padding:0; flex:1; }
+.copy-acc-body { padding-bottom:5px; }
 
 /* Popup editor */
 .popup-viewer-modal { max-width:640px!important; max-height:90vh!important; }
@@ -2423,8 +2429,8 @@ async function deleteTask(taskId,isExp){
       return;
     }
   } else {
-    // Find same-name tasks in other characters of same account
-    const allCharsOfAcc=S.characters[S.selAcc]||[];
+    // Find same-name tasks in every character across all accounts.
+    const allCharsOfAcc=S.accounts.flatMap(acc=>S.characters[acc.id]||[]);
     const others=[];
     for(const ch of allCharsOfAcc){
       if(ch.id===S.selChar)continue;
@@ -2502,7 +2508,15 @@ async function openBulkDeleteModal(taskId,taskName,others,mode){
 }
 function bulkSelectAll(checked){document.querySelectorAll('.bulk-item-cb,[data-bulk-acc]').forEach(cb=>{cb.checked=checked;});const allCb=document.getElementById('bulk-select-all');if(allCb)allCb.checked=checked;}
 function bulkSelectAcc(accId,checked){document.querySelectorAll(`[data-bulk-acc-id="${accId}"]`).forEach(cb=>{cb.checked=checked;});updateBulkSelectAll();}
-function updateBulkSelectAll(){const all=[...document.querySelectorAll('.bulk-item-cb')];const allCb=document.getElementById('bulk-select-all');if(allCb)allCb.checked=all.length>0&&all.every(c=>c.checked);}
+function updateBulkSelectAll(){
+  const all=[...document.querySelectorAll('.bulk-item-cb')];
+  document.querySelectorAll('[data-bulk-acc]').forEach(accCb=>{
+    const items=[...document.querySelectorAll(`.bulk-item-cb[data-bulk-acc-id="${accCb.dataset.bulkAcc}"]`)];
+    accCb.checked=items.length>0&&items.every(c=>c.checked);
+  });
+  const allCb=document.getElementById('bulk-select-all');
+  if(allCb)allCb.checked=all.length>0&&all.every(c=>c.checked);
+}
 async function confirmBulkDelete(){
   const{taskId,others,mode}=_bulkDeleteCtx;
   const isExp=mode==='exp';
@@ -2716,19 +2730,35 @@ async function toggleReceiveBonus(taskId){
 async function openCopyTask(taskId){
   S.copyTaskId=taskId;const t=(S.tasks[S.selChar]||[]).find(x=>x.id===taskId);
   document.getElementById('copy-task-label').textContent=`"${t?.name}" 을(를) 복제합니다`;
-  let html='';
+  let html='<div class="copy-toolbar"><label class="copy-check-label"><input type="checkbox" id="copy-select-all" onchange="copySelectAll(this.checked)"> 전체 선택</label></div>';
+  let hasTarget=false;
   for(const acc of S.accounts){
     if(!S.characters[acc.id]){const{data}=await sb.from('characters').select('*').eq('account_id',acc.id).order('sort_order').order('created_at');S.characters[acc.id]=data||[];}
     const chars=(S.characters[acc.id]||[]).filter(c=>c.id!==S.selChar);
     if(!chars.length)continue;
-    html+=`<div class="copy-acc-header">${esc(acc.name)}</div>`;
-    html+=chars.map(c=>`<div class="copy-item"><input type="checkbox" id="cc-${c.id}" value="${c.id}"><label for="cc-${c.id}">${esc(c.name)}</label><span class="ci-meta">${c.class_name?esc(c.class_name):''}${c.item_level?' · Lv.'+c.item_level:''}</span></div>`).join('');
+    hasTarget=true;
+    html+=`<div class="copy-acc-row">
+      <label class="copy-check-label"><input type="checkbox" data-copy-acc="${acc.id}" onchange="copySelectAcc('${acc.id}',this.checked)"> 계정별 선택</label>
+      <div class="copy-acc-header">${esc(acc.name)}</div>
+    </div>`;
+    html+=`<div class="copy-acc-body">`+chars.map(c=>`<div class="copy-item"><input type="checkbox" id="cc-${c.id}" value="${c.id}" data-copy-char data-copy-acc-id="${acc.id}" onchange="updateCopySelectAll()"><label for="cc-${c.id}">${esc(c.name)}</label><span class="ci-meta">${c.class_name?esc(c.class_name):''}${c.item_level?' · Lv.'+c.item_level:''}</span></div>`).join('')+`</div>`;
   }
-  document.getElementById('copy-char-list').innerHTML=html||'<div style="padding:12px;color:var(--muted);font-size:.82rem;text-align:center;">복제할 다른 캐릭터가 없습니다</div>';
+  document.getElementById('copy-char-list').innerHTML=hasTarget?html:'<div style="padding:12px;color:var(--muted);font-size:.82rem;text-align:center;">복제할 다른 캐릭터가 없습니다</div>';
   openModal('modal-copy');
 }
+function copySelectAll(checked){document.querySelectorAll('[data-copy-char],[data-copy-acc]').forEach(cb=>{cb.checked=checked;});const allCb=document.getElementById('copy-select-all');if(allCb)allCb.checked=checked;}
+function copySelectAcc(accId,checked){document.querySelectorAll(`[data-copy-acc-id="${accId}"]`).forEach(cb=>{cb.checked=checked;});updateCopySelectAll();}
+function updateCopySelectAll(){
+  const all=[...document.querySelectorAll('[data-copy-char]')];
+  document.querySelectorAll('[data-copy-acc]').forEach(accCb=>{
+    const items=[...document.querySelectorAll(`[data-copy-char][data-copy-acc-id="${accCb.dataset.copyAcc}"]`)];
+    accCb.checked=items.length>0&&items.every(c=>c.checked);
+  });
+  const allCb=document.getElementById('copy-select-all');
+  if(allCb)allCb.checked=all.length>0&&all.every(c=>c.checked);
+}
 async function executeCopy(){
-  const checked=[...document.querySelectorAll('#copy-char-list input:checked')];if(!checked.length){toast('❗ 캐릭터를 선택하세요');return;}
+  const checked=[...document.querySelectorAll('#copy-char-list [data-copy-char]:checked')];if(!checked.length){toast('❗ 캐릭터를 선택하세요');return;}
   const src=(S.tasks[S.selChar]||[]).find(t=>t.id===S.copyTaskId);if(!src)return;
   const srcChildren=(S.tasks[S.selChar]||[]).filter(t=>t.parent_id===S.copyTaskId);
   let cnt=0;
