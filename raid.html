@@ -1226,8 +1226,12 @@ async function loadViewerOverview(el){
     (accs||[]).filter(a=>a.parent_account_id&&!(accs||[]).some(m=>m.id===a.parent_account_id)).forEach(acc=>{accRows+=row(acc.name,charsWithRaids.filter(c=>c.account_id===acc.id));});
     return`<div class="vo-filter-box"><div class="vo-filter-title" style="cursor:pointer;" onclick="localStorage.setItem('la_viewer_ov_filter_open','${filterOpen?'0':'1'}');loadViewerOverview(document.getElementById('viewer-overview-area'))">캐릭터 필터 <span style="margin-left:auto;">${filterOpen?'▼':'▶'}</span></div><div style="display:${filterOpen?'block':'none'}"><div class="vo-filter-row"><button class="vo-chip" onclick="localStorage.setItem('la_viewer_ov_chars',JSON.stringify([${allIds.map(id=>`'${id}'`).join(',')} ]));loadViewerOverview(document.getElementById('viewer-overview-area'))">전체</button><button class="vo-chip" onclick="localStorage.setItem('la_viewer_ov_chars','[]');loadViewerOverview(document.getElementById('viewer-overview-area'))">해제</button></div>${accRows}</div></div>`;
   };
-  const sortMode=localStorage.getItem('la_viewer_ov_sort')==='day'?'day':'raid';
+  const sortMode=localStorage.getItem('la_viewer_ov_sort')==='raid'?'raid':'day';
   const setSortMode=mode=>`localStorage.setItem('la_viewer_ov_sort','${mode}');loadViewerOverview(document.getElementById('viewer-overview-area'))`;
+  const daySortValue=dn=>{
+    const order={3:0,4:1,5:2,6:3,0:4,1:5,2:6};
+    return order[Number(dn)]??99;
+  };
   const pass=t=>selectedViewerChars.has(t.character_id);
   const accountStats=aChars=>{
     const ids=new Set(aChars.map(c=>c.id));
@@ -1261,7 +1265,7 @@ async function loadViewerOverview(el){
     if(sortMode==='day'){
       const da=charScheduleDayByPreset[a.character_id+'_'+a.preset_id];
       const db=charScheduleDayByPreset[b.character_id+'_'+b.preset_id];
-      const va=da==null?99:da, vb=db==null?99:db;
+      const va=da==null?99:daySortValue(da), vb=db==null?99:daySortValue(db);
       if(va!==vb)return va-vb;
     }
     return raidSortKey(a).localeCompare(raidSortKey(b));
