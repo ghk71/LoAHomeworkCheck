@@ -676,12 +676,12 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
 
 /* Tasks */
 .tasks-list { display:flex; flex-direction:column; gap:6px; }
-.task-split-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; align-items:start; }
+.task-split-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; align-items:start; }
 .task-lane { min-width:0; border:1px solid rgba(255,255,255,.06); border-radius:var(--r); background:rgba(255,255,255,.018); padding:10px; }
 .task-lane-hd { display:flex; align-items:center; gap:8px; margin-bottom:9px; font-size:.78rem; font-weight:800; color:var(--text-2); }
 .task-lane-hd .lane-count { margin-left:auto; color:var(--muted); font-size:.7rem; }
 .task-lane-empty { text-align:center; padding:16px 8px; color:var(--muted); font-size:.8rem; border:1px dashed rgba(255,255,255,.08); border-radius:var(--r-sm); }
-.task-group-select{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.task-group-select{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
 .task-group-opt{border:1px solid var(--border);background:var(--surface-3);color:var(--text-2);border-radius:var(--r);padding:10px 12px;text-align:left;cursor:pointer;transition:all var(--t);}
 .task-group-opt:hover{border-color:rgba(255,184,77,.32);background:var(--surface-4);}
 .task-group-opt.active{border-color:rgba(255,184,77,.55);background:rgba(255,184,77,.10);color:var(--gold-text);}
@@ -725,6 +725,7 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
 }
 .badge-daily { background:rgba(59,130,246,.12); color:#93c5fd; border:1px solid rgba(59,130,246,.25); }
 .badge-weekly { background:rgba(245,158,11,.1); color:var(--gold-text); border:1px solid rgba(245,158,11,.2); }
+.badge-monthly { background:rgba(168,85,247,.12); color:#d8b4fe; border:1px solid rgba(168,85,247,.25); }
 .badge-inactive { background:rgba(100,100,100,.1); color:var(--text-3); border:1px solid rgba(100,100,100,.15); }
 .reset-info { font-size:.65rem; color:var(--text-3); }
 .task-actions { display:flex; gap:3px; opacity:0; transition:opacity var(--t); flex-shrink:0; }
@@ -1201,13 +1202,14 @@ button,input,select,textarea{ font:inherit; }
       <div class="task-group-select" id="task-group-select">
         <button type="button" class="task-group-opt active" id="task-group-daily" onclick="selectTaskGroup('daily')"><b>일일 숙제</b><span>하단 왼쪽 영역에 표시</span></button>
         <button type="button" class="task-group-opt" id="task-group-weekly" onclick="selectTaskGroup('weekly')"><b>주간 숙제</b><span>하단 오른쪽 영역에 표시</span></button>
+        <button type="button" class="task-group-opt" id="task-group-monthly" onclick="selectTaskGroup('monthly')"><b>월간 숙제</b><span>매월 1일 06:00 초기화</span></button>
       </div>
     </div>
   </div>
   <div class="form-row" id="task-reset-detail-row">
     <div class="form-group"><label class="form-label">초기화 주기</label>
       <select class="form-select" id="task-reset" onchange="onResetTypeChange()">
-        <option value="daily">매일 (06:00 KST)</option><option value="weekly">매주</option>
+        <option value="daily">매일 (06:00 KST)</option><option value="weekly">매주</option><option value="monthly">매월 1일 (06:00 KST)</option>
       </select>
     </div>
     <div class="form-group" id="day-group"><label class="form-label">초기화 요일</label>
@@ -1695,20 +1697,37 @@ function selectIcon(cid,icon,sk){S[sk]=icon;document.querySelectorAll(`#${cid} .
 function toggleIconPickerInEditor(){const w=document.getElementById('editor-icon-picker-wrap');w.style.display=w.style.display==='none'?'block':'none';}
 
 // ─── Reset & Activation Logic ───
-function getLastResetUTC(type,day){const now=new Date();if(type==='daily'){const r=new Date(now);r.setUTCHours(21,0,0,0);if(now<r)r.setUTCDate(r.getUTCDate()-1);return r;}const rDay=(day+6)%7,r=new Date(now);r.setUTCHours(21,0,0,0);let back=(now.getUTCDay()-rDay+7)%7;if(back===0&&now<r)back=7;r.setUTCDate(r.getUTCDate()-back);return r;}
+function getLastResetUTC(type,day){
+  const now=new Date();
+  if(type==='daily'){const r=new Date(now);r.setUTCHours(21,0,0,0);if(now<r)r.setUTCDate(r.getUTCDate()-1);return r;}
+  if(type==='monthly'){
+    const kst=new Date(now.getTime()+9*3600000);
+    const r=new Date(Date.UTC(kst.getUTCFullYear(),kst.getUTCMonth(),0,21,0,0,0));
+    if(now<r)r.setUTCMonth(r.getUTCMonth()-1);
+    return r;
+  }
+  const rDay=(day+6)%7,r=new Date(now);r.setUTCHours(21,0,0,0);let back=(now.getUTCDay()-rDay+7)%7;if(back===0&&now<r)back=7;r.setUTCDate(r.getUTCDate()-back);return r;
+}
 function getRaidWeekKey(){const now=new Date(),kst=new Date(now.getTime()+9*3600000);let b=(kst.getUTCDay()-3+7)%7;if(b===0&&kst.getUTCHours()<6)b=7;const ws=new Date(kst);ws.setUTCDate(ws.getUTCDate()-b);ws.setUTCHours(6,0,0,0);return`${ws.getUTCFullYear()}-${String(ws.getUTCMonth()+1).padStart(2,'0')}-${String(ws.getUTCDate()).padStart(2,'0')}`;}
 function isEffDone(t){if(!t.is_completed||!t.last_completed_at)return false;return new Date(t.last_completed_at)>getLastResetUTC(t.reset_type||'weekly',t.reset_day);}
 // ★ Activation date check
 function isTaskActive(t){
-  if(t.activate_day==null||t.reset_type==='daily')return true;
+  if(t.activate_day==null||t.reset_type==='daily'||t.reset_type==='monthly')return true;
   if(t.activate_day===t.reset_day)return true;
   const lastActivate=getLastResetUTC('weekly',t.activate_day);
   const lastReset=getLastResetUTC('weekly',t.reset_day);
   return lastActivate>=lastReset;
 }
 const DAYS=['일','월','화','수','목','금','토'];
-function resetLabel(t){return t.reset_type==='daily'?'매일':'매주 '+DAYS[t.reset_day]+'요일';}
-function nextResetLabel(t){const r=getLastResetUTC(t.reset_type,t.reset_day),next=new Date(r);if(t.reset_type==='daily')next.setUTCDate(next.getUTCDate()+1);else next.setUTCDate(next.getUTCDate()+7);const diff=next-Date.now();if(diff<=0)return '곧 초기화';const h=Math.floor(diff/3600000),m=Math.floor((diff%3600000)/60000);return h>0?`${h}시간 후 초기화`:`${m}분 후 초기화`;}
+function resetLabel(t){return t.reset_type==='daily'?'매일':t.reset_type==='monthly'?'매월 1일':'매주 '+DAYS[t.reset_day]+'요일';}
+function resetBadgeClass(t){return t.reset_type==='daily'?'badge-daily':t.reset_type==='monthly'?'badge-monthly':'badge-weekly';}
+function nextResetLabel(t){
+  const r=getLastResetUTC(t.reset_type,t.reset_day),next=new Date(r);
+  if(t.reset_type==='daily')next.setUTCDate(next.getUTCDate()+1);
+  else if(t.reset_type==='monthly')next.setUTCMonth(next.getUTCMonth()+1);
+  else next.setUTCDate(next.getUTCDate()+7);
+  const diff=next-Date.now();if(diff<=0)return '곧 초기화';const h=Math.floor(diff/3600000),m=Math.floor((diff%3600000)/60000);return h>0?`${h}시간 후 초기화`:`${m}분 후 초기화`;
+}
 
 // ─── Accounts (★ loads all chars upfront) ───
 async function loadAccounts(){
@@ -2013,8 +2032,9 @@ function renderTaskArea(){
   const allTasks=S.tasks[S.selChar]||[];
   const{roots:taskRoots,childrenOf:taskChildren}=buildTaskTree(allTasks);
   const visibleRoots=taskRoots.filter(t=>S.showInactive||isTaskActive(t));
-  const dailyRoots=visibleRoots.filter(t=>(t.reset_type||'daily')!=='weekly');
+  const dailyRoots=visibleRoots.filter(t=>(t.reset_type||'daily')==='daily');
   const weeklyRoots=visibleRoots.filter(t=>(t.reset_type||'daily')==='weekly');
+  const monthlyRoots=visibleRoots.filter(t=>(t.reset_type||'daily')==='monthly');
   const done=dailyRoots.filter(t=>isEffDone(t)).length,tot=dailyRoots.length,pct=tot?Math.round(done/tot*100):0;
   const et=S.expTasks[S.selAcc]||[];
   const{roots:expRoots,childrenOf:expChildren}=buildTaskTree(et);
@@ -2116,6 +2136,10 @@ function renderTaskArea(){
           <div class="task-lane-hd">📅 주간 숙제 <span class="lane-count">${weeklyRoots.filter(t=>isEffDone(t)).length}/${weeklyRoots.length}</span></div>
           <div class="tasks-list">${weeklyRoots.map(t=>rootTaskHTML(t,taskChildren[t.id]||[],false,taskRoots.indexOf(t))).join('')||'<div class="task-lane-empty">표시할 주간 숙제가 없습니다</div>'}</div>
         </div>
+        <div class="task-lane">
+          <div class="task-lane-hd">🗓️ 월간 숙제 <span class="lane-count">${monthlyRoots.filter(t=>isEffDone(t)).length}/${monthlyRoots.length}</span></div>
+          <div class="tasks-list">${monthlyRoots.map(t=>rootTaskHTML(t,taskChildren[t.id]||[],false,taskRoots.indexOf(t))).join('')||'<div class="task-lane-empty">표시할 월간 숙제가 없습니다</div>'}</div>
+        </div>
       </div>`}
   </div>`;
 }
@@ -2172,7 +2196,7 @@ function rootTaskHTML(t,children,isExp,rootIdx,hideDone=S.hideCompleted){
           ${hasChildren?`<span style="font-size:.68rem;color:var(--muted);margin-left:4px;">${children.filter(c=>isEffDone(c)).length}/${children.length}</span>`:''}
         </div>
         <div class="task-badge-row">
-          <span class="badge ${t.reset_type==='daily'?'badge-daily':'badge-weekly'}">${resetLabel(t)}</span>
+          <span class="badge ${resetBadgeClass(t)}">${resetLabel(t)}</span>
           ${t.activate_day!=null?`<span class="badge badge-inactive">활성화 ${DAYS[t.activate_day]}요일~</span>`:''}
           ${!done?`<span class="reset-info">${nextResetLabel(t)}</span>`:''}
         </div>
@@ -2307,11 +2331,12 @@ async function toggleRaidTask(id){
 
 // ─── Task CRUD ───
 function syncTaskGroupUI(v){
-  const isWeekly=v==='weekly';
   const daily=document.getElementById('task-group-daily');
   const weekly=document.getElementById('task-group-weekly');
-  if(daily)daily.classList.toggle('active',!isWeekly);
-  if(weekly)weekly.classList.toggle('active',isWeekly);
+  const monthly=document.getElementById('task-group-monthly');
+  if(daily)daily.classList.toggle('active',v==='daily');
+  if(weekly)weekly.classList.toggle('active',v==='weekly');
+  if(monthly)monthly.classList.toggle('active',v==='monthly');
 }
 function selectTaskGroup(v){
   document.getElementById('task-reset').value=v;
