@@ -2404,24 +2404,35 @@ async function submitTask(){
     if(parentId){rec.parent_id=parentId;rec.sort_order=getList(isExp).filter(t=>t.parent_id===parentId).length;}
     else{rec.sort_order=getList(isExp).filter(t=>!t.parent_id).length;}
     const{data,error}=await sb.from(table).insert(rec).select().single();if(error){toast('❗ '+error.message);return;}
+    if(data&&!parentId)await ensureTaskCloneGroup(data,isExp);
     if(isExp){if(!S.expTasks[S.selAcc])S.expTasks[S.selAcc]=[];S.expTasks[S.selAcc].push(data);}
     else{if(!S.tasks[S.selChar])S.tasks[S.selChar]=[];S.tasks[S.selChar].push(data);}
     toast('✅ 숙제 추가됨');
   }
   closeModal('modal-task');renderTaskArea();renderTabs();
 }
+async function ensureTaskCloneGroup(task,isExp){
+  if(!task||task.parent_id)return task?.clone_group_id||null;
+  if(task.clone_group_id)return task.clone_group_id;
+  const groupId=task.id;
+  const table=isExp?'expedition_tasks':'tasks';
+  const{error}=await sb.from(table).update({clone_group_id:groupId}).eq('id',task.id);
+  if(error){return null;}
+  task.clone_group_id=groupId;
+  return groupId;
+}
 async function deleteTask(taskId,isExp){
   const list=getList(isExp);
   const t=list.find(x=>x.id===taskId);if(!t)return;
   const tName=t.name||'';
-  // Check for same-name tasks across accounts (exp) or characters (char)
+  const groupId=await ensureTaskCloneGroup(t,isExp);
+  // Check for cloned tasks in the same clone_group_id across accounts or characters.
   if(isExp){
-    // Find same-name exp tasks in other accounts
     const others=[];
     for(const acc of S.accounts){
       if(acc.id===S.selAcc)continue;
       if(!S.expTasks[acc.id])await loadExpTasks(acc.id);
-      const match=(S.expTasks[acc.id]||[]).filter(x=>!x.parent_id&&x.name===tName);
+      const match=groupId?(S.expTasks[acc.id]||[]).filter(x=>!x.parent_id&&x.clone_group_id===groupId):[];
       if(match.length)others.push({acc,tasks:match});
     }
     if(others.length){
@@ -2429,13 +2440,12 @@ async function deleteTask(taskId,isExp){
       return;
     }
   } else {
-    // Find same-name tasks in every character across all accounts.
     const allCharsOfAcc=S.accounts.flatMap(acc=>S.characters[acc.id]||[]);
     const others=[];
     for(const ch of allCharsOfAcc){
       if(ch.id===S.selChar)continue;
       if(!S.tasks[ch.id]){const{data}=await sb.from('tasks').select('*').eq('character_id',ch.id).order('sort_order');S.tasks[ch.id]=data||[];}
-      const match=(S.tasks[ch.id]||[]).filter(x=>!x.parent_id&&x.name===tName);
+      const match=groupId?(S.tasks[ch.id]||[]).filter(x=>!x.parent_id&&x.clone_group_id===groupId):[];
       if(match.length)others.push({ch,tasks:match});
     }
     if(others.length){
@@ -2459,7 +2469,7 @@ async function openBulkDeleteModal(taskId,taskName,others,mode){
   _bulkDeleteCtx={taskId,taskName,others,mode};
   const el=document.getElementById('bulk-delete-list');
   const isExp=mode==='exp';
-  let html=`<div style="font-size:.82rem;color:var(--muted);margin-bottom:12px;">"${esc(taskName)}" 와 같은 이름의 숙제가 다른 ${isExp?'계정':'캐릭터'}에도 있습니다.<br>같이 삭제할 ${isExp?'계정':'캐릭터'}을 선택하세요:</div>`;
+  let html=`<div style="font-size:.82rem;color:var(--muted);margin-bottom:12px;">"${esc(taskName)}" 복제본이 다른 ${isExp?'계정':'캐릭터'}에도 있습니다.<br>같이 삭제할 ${isExp?'계정':'캐릭터'}을 선택하세요:</div>`;
   if(isExp){
     // 원정대: 계정별 단순 목록
     html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">
@@ -2580,9 +2590,11 @@ async function confirmCloneExp(){
   const checks=document.querySelectorAll('[data-clone-acc]:checked');
   closeModal('modal-clone-exp');
   let count=0;
+  const groupId=await ensureTaskCloneGroup(task,true);
   for(const cb of checks){
     const accId=cb.dataset.cloneAcc;
     const{data:newTask}=await sb.from('expedition_tasks').insert({account_id:accId,name:task.name,reset_type:task.reset_type,reset_day:task.reset_day,activate_day:task.activate_day,count_max:task.count_max,icon_url:task.icon_url||null,sort_order:99}).select().single();
+    if(newTask&&groupId){await sb.from('expedition_tasks').update({clone_group_id:groupId}).eq('id',newTask.id);newTask.clone_group_id=groupId;}
     if(newTask&&children.length){for(const c of children)await sb.from('expedition_tasks').insert({account_id:accId,parent_id:newTask.id,name:c.name,reset_type:c.reset_type,reset_day:c.reset_day,activate_day:c.activate_day,count_max:c.count_max,icon_url:c.icon_url||null,sort_order:c.sort_order});}
     if(!S.expTasks[accId])S.expTasks[accId]=[];
     if(newTask)S.expTasks[accId].push(newTask);
@@ -2761,11 +2773,13 @@ async function executeCopy(){
   const checked=[...document.querySelectorAll('#copy-char-list [data-copy-char]:checked')];if(!checked.length){toast('❗ 캐릭터를 선택하세요');return;}
   const src=(S.tasks[S.selChar]||[]).find(t=>t.id===S.copyTaskId);if(!src)return;
   const srcChildren=(S.tasks[S.selChar]||[]).filter(t=>t.parent_id===S.copyTaskId);
+  const groupId=await ensureTaskCloneGroup(src,false);
   let cnt=0;
   for(const cb of checked){
     const charId=cb.value;if(!S.tasks[charId])S.tasks[charId]=[];
     const{data:pd,error}=await sb.from('tasks').insert({character_id:charId,name:src.name,reset_type:src.reset_type,reset_day:src.reset_day,activate_day:src.activate_day,count_max:src.count_max,icon_url:src.icon_url||null,sort_order:(S.tasks[charId].filter(t=>!t.parent_id)).length}).select().single();
     if(error)continue;S.tasks[charId].push(pd);
+    if(pd&&groupId){await sb.from('tasks').update({clone_group_id:groupId}).eq('id',pd.id);pd.clone_group_id=groupId;}
     if(srcChildren.length&&pd){const ins=srcChildren.map((c,i)=>({character_id:charId,parent_id:pd.id,name:c.name,reset_type:c.reset_type,reset_day:c.reset_day,activate_day:c.activate_day,count_max:c.count_max,icon_url:c.icon_url||null,sort_order:i}));const{data:cd}=await sb.from('tasks').insert(ins).select();if(cd)S.tasks[charId].push(...cd);}
     cnt++;
   }

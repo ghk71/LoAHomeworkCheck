@@ -186,8 +186,10 @@ alter table tasks            add column if not exists count_current int default 
 alter table tasks            add column if not exists count_max int default null;
 alter table tasks            add column if not exists parent_id uuid references tasks(id) on delete cascade;
 alter table tasks            add column if not exists activate_day int default null;
+alter table tasks            add column if not exists clone_group_id uuid;
 alter table expedition_tasks add column if not exists parent_id uuid references expedition_tasks(id) on delete cascade;
 alter table expedition_tasks add column if not exists activate_day int default null;
+alter table expedition_tasks add column if not exists clone_group_id uuid;
 -- raid_parties 기존 설치 업데이트
 alter table raid_parties     add column if not exists preset_id uuid references raid_presets(id) on delete cascade;
 -- raid_schedule_overrides 기존 설치 업데이트
@@ -230,7 +232,9 @@ alter table raid_schedule_overrides add column if not exists temp_changes jsonb 
 -- 성능 최적화용 인덱스 (중복 실행 안전)
 create index if not exists idx_characters_account_sort on characters(account_id, sort_order, created_at);
 create index if not exists idx_tasks_character_parent_sort on tasks(character_id, parent_id, sort_order, created_at);
+create index if not exists idx_tasks_clone_group on tasks(clone_group_id);
 create index if not exists idx_expedition_tasks_account_parent_sort on expedition_tasks(account_id, parent_id, sort_order, created_at);
+create index if not exists idx_expedition_tasks_clone_group on expedition_tasks(clone_group_id);
 create index if not exists idx_raid_tasks_character_sort on raid_tasks(character_id, sort_order, created_at);
 create index if not exists idx_raid_tasks_character_preset on raid_tasks(character_id, preset_id);
 create index if not exists idx_currencies_character_sort on currencies(character_id, sort_order, created_at);

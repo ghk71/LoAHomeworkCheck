@@ -67,3 +67,29 @@ ALTER TABLE raid_tasks ADD COLUMN IF NOT EXISTS receive_bound BOOLEAN DEFAULT TR
 ### 관련 기능
 
 - index.html 레이드 숙제의 귀속골드 토글
+
+---
+
+## 2026-04-29 - tasks.clone_group_id / expedition_tasks.clone_group_id 추가
+
+### 변경
+
+복제된 숙제 묶음을 이름이 아니라 안정적인 그룹 ID로 추적하기 위해 컬럼과 인덱스 추가.
+
+### SQL
+
+```sql
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS clone_group_id UUID;
+ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS clone_group_id UUID;
+CREATE INDEX IF NOT EXISTS idx_tasks_clone_group ON tasks(clone_group_id);
+CREATE INDEX IF NOT EXISTS idx_expedition_tasks_clone_group ON expedition_tasks(clone_group_id);
+```
+
+### 적용 여부
+
+수동 확인 필요.
+
+### 관련 기능
+
+- 일일/주간 숙제 복제본 일괄 삭제 대상 조회
+- 원정대 숙제 복제본 일괄 삭제 대상 조회
