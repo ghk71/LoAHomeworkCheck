@@ -135,6 +135,14 @@ create table if not exists raid_presets(
   created_at timestamptz default now()
 );
 
+-- 레이드 그룹 표시 설정
+create table if not exists raid_group_settings(
+  name text primary key,
+  icon_url text,
+  color text default '#4caf50',
+  updated_at timestamptz default now()
+);
+
 -- 레이드 파티 (raid_presets에 종속)
 create table if not exists raid_parties(
   id uuid default uuid_generate_v4() primary key,
@@ -202,6 +210,7 @@ alter table currencies        disable row level security;
 alter table custom_popups     disable row level security;
 alter table character_cores   disable row level security;
 alter table raid_presets      disable row level security;
+alter table raid_group_settings disable row level security;
 alter table raid_parties      disable row level security;
 alter table raid_party_members disable row level security;
 alter table raid_schedules    disable row level security;
@@ -270,6 +279,15 @@ alter table raid_presets add column if not exists icon_url text;
 alter table expedition_tasks add column if not exists icon_url text;
 alter table tasks add column if not exists icon_url text;
 alter table currencies add column if not exists icon_url text;
+
+-- 레이드 그룹 표시 설정
+create table if not exists raid_group_settings(
+  name text primary key,
+  icon_url text,
+  color text default '#4caf50',
+  updated_at timestamptz default now()
+);
+alter table raid_group_settings disable row level security;
 
 -- 재화 마지막 수정일
 alter table currencies add column if not exists updated_at timestamptz;

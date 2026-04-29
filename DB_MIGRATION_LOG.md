@@ -186,3 +186,32 @@ ALTER TABLE characters ADD COLUMN IF NOT EXISTS show_custom_notes BOOLEAN DEFAUL
 - 캐릭터별 레이드 숙제 섹션 숨김/표시
 - 캐릭터별 재화 현황 섹션 숨김/표시
 - 캐릭터별 커스텀 노트 섹션 숨김/표시
+
+## 2026-04-29 - raid_group_settings 추가
+
+### 변경
+
+`raid.html`의 레이드 그룹 아이콘과 색상을 브라우저 `localStorage`가 아니라 Supabase DB에 저장하기 위한 테이블 추가.
+
+### SQL
+
+```sql
+CREATE TABLE IF NOT EXISTS raid_group_settings(
+  name TEXT PRIMARY KEY,
+  icon_url TEXT,
+  color TEXT DEFAULT '#4caf50',
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE raid_group_settings DISABLE ROW LEVEL SECURITY;
+```
+
+### 적용 여부
+
+수동 확인 필요.
+
+### 관련 기능
+
+- 레이드 그룹명 앞 아이콘을 모든 컴퓨터에서 동일하게 표시
+- 레이드 그룹 색상 DB 저장
+- 기존 `la_gicon_*`, `la_gc_*`, `la_raid_groups` localStorage 값의 DB 이전

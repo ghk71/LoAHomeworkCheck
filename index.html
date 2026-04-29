@@ -1517,6 +1517,14 @@ create table if not exists raid_presets(
   created_at timestamptz default now()
 );
 
+-- 레이드 그룹 표시 설정
+create table if not exists raid_group_settings(
+  name text primary key,
+  icon_url text,
+  color text default '#4caf50',
+  updated_at timestamptz default now()
+);
+
 -- 레이드 파티 (raid_presets에 종속)
 create table if not exists raid_parties(
   id uuid default uuid_generate_v4() primary key,
@@ -1575,6 +1583,7 @@ alter table currencies        disable row level security;
 alter table custom_popups     disable row level security;
 alter table character_cores   disable row level security;
 alter table raid_presets      disable row level security;
+alter table raid_group_settings disable row level security;
 alter table raid_parties      disable row level security;
 alter table raid_party_members disable row level security;
 alter table raid_schedules    disable row level security;
@@ -1642,6 +1651,15 @@ ALTER TABLE raid_presets ADD COLUMN IF NOT EXISTS icon_url TEXT;
 ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS icon_url TEXT;
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS icon_url TEXT;
 ALTER TABLE currencies ADD COLUMN IF NOT EXISTS icon_url TEXT;
+
+-- 레이드 그룹 표시 설정
+create table if not exists raid_group_settings(
+  name text primary key,
+  icon_url text,
+  color text default '#4caf50',
+  updated_at timestamptz default now()
+);
+alter table raid_group_settings disable row level security;
 
 -- 임시 파티 변경사항 추적 (주 초기화 시 복원용)
 ALTER TABLE raid_schedule_overrides ADD COLUMN IF NOT EXISTS temp_changes JSONB DEFAULT '{}';
@@ -2384,7 +2402,7 @@ function raidItemHTML(t,idx){
     <span class="dnd-handle">⠿</span>
     <div class="checkbox" onclick="toggleRaidTask('${t.id}')"><span class="checkbox-icon">✓</span></div>
     <div class="task-body">
-      <div class="task-name raid-title-line">${iconImg(t.preset_icon_url||localStorage.getItem('la_gicon_'+rn)||'','entity-icon-sm')}<span style="color:${gc};">${esc(rn)}</span>${t.difficulty?` <span class="raid-difficulty ${dc}">${esc(t.difficulty)}</span>`:''}</div>
+      <div class="task-name raid-title-line">${iconImg(t.preset_icon_url||'','entity-icon-sm')}<span style="color:${gc};">${esc(rn)}</span>${t.difficulty?` <span class="raid-difficulty ${dc}">${esc(t.difficulty)}</span>`:''}</div>
       <div class="raid-meta" style="margin-top:4px;">
         ${t.entry_level?`<span class="raid-badge">입장 ${t.entry_level}</span>`:''}
         ${fl?`<span class="raid-gold raid-gold-flow ${rg?'':'muted-gold'}" title="${rg?'클릭해서 유통골드 제외':'클릭해서 유통골드 수령'}" style="cursor:pointer;" onclick="event.stopPropagation();toggleReceiveGold('${t.id}')">💰 유통 ${fl.toLocaleString()}G</span>`:''}

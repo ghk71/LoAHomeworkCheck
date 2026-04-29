@@ -1352,7 +1352,7 @@ async function loadViewerOverview(el){
 }
 
 // ─── State ───
-let sb,accounts=[],allChars=[],raids=[],parties=[],schedules=[],overrides={},notices={},noticeComments={},noticeCommentsAvailable=true,noticeCommentsCollapsed=localStorage.getItem('la_notice_comments_collapsed')==='1',raidTasksAll={};
+let sb,accounts=[],allChars=[],raids=[],parties=[],schedules=[],overrides={},notices={},noticeComments={},noticeCommentsAvailable=true,noticeCommentsCollapsed=localStorage.getItem('la_notice_comments_collapsed')==='1',raidTasksAll={},raidGroupSettings={},raidGroupSettingsAvailable=true;
 let selPartyId=null,selGroupName=null,weekOffset=0,partySize=4,selPresetId=null;
 let pickCtx={mode:'party',partyId:null,slotIndex:null,scheduleId:null};
 let ovrEditSchId=null;
@@ -1397,6 +1397,7 @@ async function init(){
     (r8.data||[]).forEach(n=>{notices[n.week_start_date]=n;});
     raidTasksData=r9.data||[];
     raidTasksData.forEach(t=>{if(!raidTasksAll[t.character_id])raidTasksAll[t.character_id]=[];raidTasksAll[t.character_id].push(t);});
+    await loadRaidGroupSettings();
     await loadNoticeCommentsData();
   }catch(err){toast('❗ 로딩 오류: '+err.message);console.error(err);return;}
   await autoResetNonFixed();
@@ -1478,11 +1479,57 @@ function rdClean(){document.querySelectorAll('.r-drag,.r-dnd-v,.r-dnd-h,.r-dnd-d
 
 function getAllGroupNames(){
   const dbNames=[...new Set(raids.map(r=>r.name))];
-  const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]').filter(n=>!dbNames.includes(n));
-  const all=[...dbNames,...extras];
+  const settingNames=Object.keys(raidGroupSettings);
+  const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]').filter(n=>!dbNames.includes(n)&&!settingNames.includes(n));
+  const all=[...dbNames,...settingNames.filter(n=>!dbNames.includes(n)),...extras];
   const saved=JSON.parse(localStorage.getItem('la_raid_group_order')||'[]');
   if(!saved.length)return all;
   return[...saved.filter(n=>all.includes(n)),...all.filter(n=>!saved.includes(n))];
+}
+async function loadRaidGroupSettings(){
+  raidGroupSettings={};raidGroupSettingsAvailable=true;
+  const {data,error}=await sb.from('raid_group_settings').select('*');
+  if(error){
+    raidGroupSettingsAvailable=false;
+    console.warn('raid_group_settings unavailable:',error.message);
+    return;
+  }
+  (data||[]).forEach(r=>{raidGroupSettings[r.name]=r;});
+  await migrateLegacyRaidGroupSettings();
+}
+async function migrateLegacyRaidGroupSettings(){
+  if(!raidGroupSettingsAvailable)return;
+  const names=new Set(JSON.parse(localStorage.getItem('la_raid_groups')||'[]'));
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k?.startsWith('la_gicon_'))names.add(k.slice('la_gicon_'.length));
+    if(k?.startsWith('la_gc_'))names.add(k.slice('la_gc_'.length));
+  }
+  const rows=[...names].filter(Boolean).map(name=>({
+    name,
+    icon_url:localStorage.getItem('la_gicon_'+name)||raidGroupSettings[name]?.icon_url||null,
+    color:localStorage.getItem('la_gc_'+name)||raidGroupSettings[name]?.color||'#4caf50'
+  }));
+  if(!rows.length)return;
+  const {data,error}=await sb.from('raid_group_settings').upsert(rows,{onConflict:'name'}).select();
+  if(error){console.warn('legacy raid group setting migration failed:',error.message);return;}
+  (data||rows).forEach(r=>{raidGroupSettings[r.name]=r;});
+  rows.forEach(r=>{localStorage.removeItem('la_gicon_'+r.name);localStorage.removeItem('la_gc_'+r.name);});
+  localStorage.removeItem('la_raid_groups');
+}
+async function saveRaidGroupSetting(name,patch){
+  if(!raidGroupSettingsAvailable){toast('❗ raid_group_settings 테이블을 먼저 적용하세요');return false;}
+  const rec={name,color:patch.color??raidGroupSettings[name]?.color??'#4caf50',icon_url:patch.icon_url??null,updated_at:new Date().toISOString()};
+  const {data,error}=await sb.from('raid_group_settings').upsert(rec,{onConflict:'name'}).select().single();
+  if(error){toast('❗ '+error.message);console.error(error);return false;}
+  raidGroupSettings[name]=data||rec;
+  return true;
+}
+async function deleteRaidGroupSetting(name){
+  if(!raidGroupSettingsAvailable)return;
+  const {error}=await sb.from('raid_group_settings').delete().eq('name',name);
+  if(error)console.warn('raid group setting delete failed:',error.message);
+  delete raidGroupSettings[name];
 }
 function getDaySchs(dn,wsMs,weMs){
   return schedules.filter(s=>{
@@ -1823,14 +1870,14 @@ async function submitRaidName(){
   const name=document.getElementById('rn-name').value.trim();if(!name){toast('❗ 이름 입력');return;}
   const oldName=document.getElementById('rn-old-name').value;
   const color=document.getElementById('rn-color').value||'#4caf50';
-  setGroupColor(name,color);
-  // icon_url 저장 (localStorage - 그룹명 기반)
-  if(typeof _rnIconUrl!=='undefined'){if(_rnIconUrl)localStorage.setItem('la_gicon_'+name,_rnIconUrl);else localStorage.removeItem('la_gicon_'+name);} // 색상 localStorage 저장
+  const iconUrl=typeof _rnIconUrl!=='undefined'?_rnIconUrl:null;
+  const savedSetting=await saveRaidGroupSetting(name,{color,icon_url:iconUrl});
+  if(!savedSetting)return;
   if(oldName){
     // 수정: 해당 이름의 모든 presets 이름 변경
     await sb.from('raid_presets').update({name}).eq('name',oldName);
     raids.filter(r=>r.name===oldName).forEach(r=>{r.name=name;});
-    if(oldName!==name){localStorage.removeItem('la_gc_'+oldName);}
+    if(oldName!==name)await deleteRaidGroupSetting(oldName);
     // localStorage 그룹 이름도 업데이트
     const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]');
     const idx=extras.indexOf(oldName);if(idx>=0)extras[idx]=name;localStorage.setItem('la_raid_groups',JSON.stringify(extras));
@@ -1838,10 +1885,9 @@ async function submitRaidName(){
     if(openRaidGroups.has(oldName)){openRaidGroups.delete(oldName);openRaidGroups.add(name);saveRaidOpenState();}
     toast('✅ 이름 변경됨');
   } else {
-    // 추가: localStorage에만 저장 (프리셋 없는 빈 그룹)
+    // 추가: 빈 그룹도 raid_group_settings DB 테이블에 저장
     const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]');
-    if(!extras.includes(name)&&!raids.some(r=>r.name===name))extras.push(name);
-    localStorage.setItem('la_raid_groups',JSON.stringify(extras));
+    if(extras.includes(name))localStorage.setItem('la_raid_groups',JSON.stringify(extras.filter(n=>n!==name)));
     selGroupName=name;openRaidGroups.add(name);saveRaidOpenState();toast('✅ 레이드 추가됨');
   }
   closeModal('modal-raid-name');renderPresetList();
@@ -1857,6 +1903,7 @@ async function deleteGroup(groupName){
   raids=raids.filter(r=>r.name!==groupName);
   const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]').filter(n=>n!==groupName);
   localStorage.setItem('la_raid_groups',JSON.stringify(extras));
+  await deleteRaidGroupSetting(groupName);
   openRaidGroups.delete(groupName);
   gPresets.forEach(r=>openRaidPresets.delete(r.id));
   saveRaidOpenState();
@@ -2773,9 +2820,8 @@ async function loadPickerDir(path){
 function selectPickerImg(url){if(_pickerCb)_pickerCb(url);closeModal('modal-img-picker');}
 function pickerRemoveIcon(){if(_pickerCb)_pickerCb(null);closeModal('modal-img-picker');}
 
-function getGroupColor(name){return localStorage.getItem('la_gc_'+name)||'#4caf50';}
-function getGroupIcon(name){return localStorage.getItem('la_gicon_'+name)||'';}
-function setGroupColor(name,color){if(color)localStorage.setItem('la_gc_'+name,color);else localStorage.removeItem('la_gc_'+name);}
+function getGroupColor(name){return raidGroupSettings[name]?.color||raids.find(r=>r.name===name&&r.color)?.color||'#4caf50';}
+function getGroupIcon(name){return raidGroupSettings[name]?.icon_url||raids.find(r=>r.name===name&&r.icon_url)?.icon_url||'';}
 function getPartyColor(p){return(p&&p.color)||'#e0ddd5';}
 
 function diffClass(d){
