@@ -1356,8 +1356,11 @@ let sb,accounts=[],allChars=[],raids=[],parties=[],schedules=[],overrides={},not
 let selPartyId=null,selGroupName=null,weekOffset=0,partySize=4,selPresetId=null;
 let pickCtx={mode:'party',partyId:null,slotIndex:null,scheduleId:null};
 let ovrEditSchId=null;
+let openRaidGroups=new Set(JSON.parse(localStorage.getItem('la_raid_open_groups')||'[]'));
+let openRaidPresets=new Set(JSON.parse(localStorage.getItem('la_raid_open_presets')||'[]'));
 const WEEK_DAY_NUMS=[3,4,5,6,0,1,2];
 const DKO=['일','월','화','수','목','금','토'];
+function saveRaidOpenState(){localStorage.setItem('la_raid_open_groups',JSON.stringify([...openRaidGroups]));localStorage.setItem('la_raid_open_presets',JSON.stringify([...openRaidPresets]));}
 function normalizeTempChanges(tc={}){
   const out={added:{},removed:{}};
   Object.entries(tc.added||{}).forEach(([cid,info])=>{out.added[cid]={wasNew:!!(info.wasNew??info.was_new),taskId:info.taskId||info.task_id||null};});
@@ -1562,10 +1565,12 @@ async function rdDropOnDay(e,destDn){
 function renderPresetList(){
   const el=document.getElementById('preset-list');
   const allNames=getAllGroupNames();
+  openRaidGroups=new Set([...openRaidGroups].filter(n=>allNames.includes(n)));
+  openRaidPresets=new Set([...openRaidPresets].filter(id=>raids.some(r=>r.id===id)));
   if(!allNames.length){el.innerHTML='<div style="text-align:center;padding:20px;font-size:.82rem;color:var(--muted);">레이드를 추가하세요</div>';return;}
   el.innerHTML=allNames.map((gname,gi)=>{
     const gPresets=raids.filter(r=>r.name===gname).sort((a,b)=>a.sort_order-b.sort_order);
-    const isGOpen=selGroupName===gname||gPresets.some(r=>selPresetId===r.id||parties.find(p=>p.preset_id===r.id&&p.id===selPartyId));
+    const isGOpen=openRaidGroups.has(gname)||selGroupName===gname||gPresets.some(r=>selPresetId===r.id||parties.find(p=>p.preset_id===r.id&&p.id===selPartyId));
     return`<div class="preset-card"
       draggable="${!isViewer}"
       ondragstart="rdStart(event,'group',${gi})"
@@ -1587,7 +1592,7 @@ function renderPresetList(){
         ${gPresets.length===0?'<div style="font-size:.78rem;color:var(--muted);padding:3px 0 6px;">난이도를 추가하세요</div>':''}
         ${gPresets.map((r,di)=>{
           const rParties=parties.filter(p=>p.preset_id===r.id).sort((a,b)=>a.sort_order-b.sort_order);
-          const isPOpen=selPresetId===r.id||rParties.some(p=>p.id===selPartyId);
+          const isPOpen=openRaidPresets.has(r.id)||selPresetId===r.id||rParties.some(p=>p.id===selPartyId);
           const cg=Number(r.clear_gold)||0,bg=Number(r.bound_gold)||0,bo=Number(r.bonus_gold)||0,tr=cg-bg;
           const diffType='diff_'+gname;
           return`<div style="margin-bottom:6px;background:var(--s1);border:1px solid ${isPOpen?'rgba(200,168,75,.3)':'var(--border)'};border-radius:5px;overflow:hidden;"
@@ -1640,25 +1645,22 @@ function renderPresetList(){
   applyViewer();
 }
 function toggleGroup(name){
-  // isGOpen과 동일한 로직으로 "실제로 열려있는지" 판단
-  const gPresets=raids.filter(r=>r.name===name);
-  const alreadyOpen=selGroupName===name||gPresets.some(r=>selPresetId===r.id||parties.find(p=>p.preset_id===r.id&&p.id===selPartyId));
-  selGroupName=alreadyOpen?null:name;
-  selPresetId=null;
-  if(alreadyOpen){
-    selPartyId=null;
-    document.getElementById('party-detail').innerHTML='<div class="empty-state"><div class="empty-icon">🗡️</div><div>왼쪽에서 파티를 선택하세요</div></div>';
-  }
+  if(openRaidGroups.has(name))openRaidGroups.delete(name);
+  else openRaidGroups.add(name);
+  selGroupName=name;
+  saveRaidOpenState();
   renderPresetList();
 }
 function togglePreset(id){
-  const rParties=parties.filter(p=>p.preset_id===id);
-  const isOpen=selPresetId===id||rParties.some(p=>p.id===selPartyId);
-  if(isOpen){selPresetId=null;selPartyId=null;document.getElementById('party-detail').innerHTML='<div class="empty-state"><div class="empty-icon">🗡️</div><div>왼쪽에서 파티를 선택하세요</div></div>';}
-  else{selPresetId=id;}
+  const r=raids.find(x=>x.id===id);
+  if(r)openRaidGroups.add(r.name);
+  if(openRaidPresets.has(id))openRaidPresets.delete(id);
+  else openRaidPresets.add(id);
+  selPresetId=id;
+  saveRaidOpenState();
   renderPresetList();
 }
-function selectParty(id){selPartyId=id;renderPresetList();renderPartyDetail();}
+function selectParty(id){const p=parties.find(x=>x.id===id),r=p?raids.find(x=>x.id===p.preset_id):null;if(r){openRaidGroups.add(r.name);openRaidPresets.add(r.id);saveRaidOpenState();}selPartyId=id;renderPresetList();renderPartyDetail();}
 
 function getMembersForParty(p){const r=[];for(let i=0;i<p.party_size;i++){const m=p.members.find(x=>x.slot_index===i);r.push(m||{slot_index:i,character_id:null,id:null});}return r;}
 
@@ -1833,13 +1835,14 @@ async function submitRaidName(){
     const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]');
     const idx=extras.indexOf(oldName);if(idx>=0)extras[idx]=name;localStorage.setItem('la_raid_groups',JSON.stringify(extras));
     if(selGroupName===oldName)selGroupName=name;
+    if(openRaidGroups.has(oldName)){openRaidGroups.delete(oldName);openRaidGroups.add(name);saveRaidOpenState();}
     toast('✅ 이름 변경됨');
   } else {
     // 추가: localStorage에만 저장 (프리셋 없는 빈 그룹)
     const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]');
     if(!extras.includes(name)&&!raids.some(r=>r.name===name))extras.push(name);
     localStorage.setItem('la_raid_groups',JSON.stringify(extras));
-    selGroupName=name;toast('✅ 레이드 추가됨');
+    selGroupName=name;openRaidGroups.add(name);saveRaidOpenState();toast('✅ 레이드 추가됨');
   }
   closeModal('modal-raid-name');renderPresetList();
 }
@@ -1854,6 +1857,9 @@ async function deleteGroup(groupName){
   raids=raids.filter(r=>r.name!==groupName);
   const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]').filter(n=>n!==groupName);
   localStorage.setItem('la_raid_groups',JSON.stringify(extras));
+  openRaidGroups.delete(groupName);
+  gPresets.forEach(r=>openRaidPresets.delete(r.id));
+  saveRaidOpenState();
   if(selGroupName===groupName)selGroupName=null;
   selPresetId=null;selPartyId=null;
   document.getElementById('party-detail').innerHTML='<div class="empty-state"><div class="empty-icon">🗡️</div><div>왼쪽에서 파티를 선택하세요</div></div>';

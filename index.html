@@ -1183,6 +1183,14 @@ button,input,select,textarea{ font:inherit; }
       <button type="button" class="btn btn-sec btn-sm" onclick="openImagePicker(u=>{_editCharIconUrl=u||null;document.getElementById('edit-char-icon-preview').innerHTML=u?iconImg(u,'entity-icon'):'<span style=\'color:var(--dim);font-size:.7rem;\'>없음</span>';})">🖼 아이콘 선택</button>
     </div>
   </div>
+  <div class="form-group">
+    <label class="form-label">캐릭터 화면 표시</label>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;">
+      <label class="count-toggle-box" style="margin:0;"><input type="checkbox" id="edit-char-show-raid" tabindex="-1"><div class="count-toggle-lbl">레이드 숙제<small>체크 해제 시 숨김</small></div></label>
+      <label class="count-toggle-box" style="margin:0;"><input type="checkbox" id="edit-char-show-curr" tabindex="-1"><div class="count-toggle-lbl">재화 현황<small>체크 해제 시 숨김</small></div></label>
+      <label class="count-toggle-box" style="margin:0;"><input type="checkbox" id="edit-char-show-note" tabindex="-1"><div class="count-toggle-lbl">커스텀 노트<small>체크 해제 시 숨김</small></div></label>
+    </div>
+  </div>
   <input type="hidden" id="edit-char-id">
   <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-edit-char')">취소</button><button class="btn btn-gold" onclick="updateChar()">저장</button></div>
 </div></div>
@@ -1394,6 +1402,9 @@ create table if not exists characters(
   name text not null,
   class_name text default '',
   item_level numeric default 0,
+  show_raid_tasks boolean default true,
+  show_currencies boolean default true,
+  show_custom_notes boolean default true,
   sort_order int default 0,
   created_at timestamptz default now()
 );
@@ -1624,6 +1635,9 @@ alter table raid_parties add column if not exists color text;
 
 -- 아이콘 URL 컬럼
 ALTER TABLE characters ADD COLUMN IF NOT EXISTS icon_url TEXT;
+ALTER TABLE characters ADD COLUMN IF NOT EXISTS show_raid_tasks BOOLEAN DEFAULT TRUE;
+ALTER TABLE characters ADD COLUMN IF NOT EXISTS show_currencies BOOLEAN DEFAULT TRUE;
+ALTER TABLE characters ADD COLUMN IF NOT EXISTS show_custom_notes BOOLEAN DEFAULT TRUE;
 ALTER TABLE raid_presets ADD COLUMN IF NOT EXISTS icon_url TEXT;
 ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS icon_url TEXT;
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS icon_url TEXT;
@@ -2009,18 +2023,21 @@ function openEditCharModal(charId){
   _editCharIconUrl=c.icon_url||null;
   const prev=document.getElementById('edit-char-icon-preview');
   if(prev)prev.innerHTML=c.icon_url?iconImg(c.icon_url,'entity-icon'):'<span style="color:var(--dim);font-size:.7rem;">없음</span>';
+  document.getElementById('edit-char-show-raid').checked=c.show_raid_tasks!==false;
+  document.getElementById('edit-char-show-curr').checked=c.show_currencies!==false;
+  document.getElementById('edit-char-show-note').checked=c.show_custom_notes!==false;
   openModal('modal-edit-char');setTimeout(()=>document.getElementById('edit-char-name').focus(),80);
 }
 async function updateChar(){
   const id=document.getElementById('edit-char-id').value,name=document.getElementById('edit-char-name').value.trim(),cls=document.getElementById('edit-char-class').value.trim(),ilvl=parseFloat(document.getElementById('edit-char-ilvl').value)||0;
   if(!name){toast('❗ 캐릭터명을 입력하세요');return;}
   const iconUrl=typeof _editCharIconUrl!=='undefined'?_editCharIconUrl:undefined;
-  const upd={name,class_name:cls,item_level:ilvl};
+  const upd={name,class_name:cls,item_level:ilvl,show_raid_tasks:document.getElementById('edit-char-show-raid').checked,show_currencies:document.getElementById('edit-char-show-curr').checked,show_custom_notes:document.getElementById('edit-char-show-note').checked};
   if(typeof _editCharIconUrl!=='undefined')upd.icon_url=_editCharIconUrl;
   const{error}=await sb.from('characters').update(upd).eq('id',id);
   if(error){toast('❗ '+error.message);return;}
   const c=(S.characters[S.selAcc]||[]).find(x=>x.id===id);
-  if(c){c.name=name;c.class_name=cls;c.item_level=ilvl;if(typeof _editCharIconUrl!=='undefined')c.icon_url=_editCharIconUrl;}
+  if(c){Object.assign(c,upd);if(typeof _editCharIconUrl!=='undefined')c.icon_url=_editCharIconUrl;}
   closeModal('modal-edit-char');renderTabs();if(S.selChar===id)renderTaskArea();toast('✅ 캐릭터 수정됨');
 }
 async function deleteChar(id){if(!confirm('캐릭터와 모든 데이터가 삭제됩니다. 계속하시겠습니까?'))return;await sb.from('characters').delete().eq('id',id);S.characters[S.selAcc]=(S.characters[S.selAcc]||[]).filter(c=>c.id!==id);delete S.tasks[id];delete S.raidTasks[id];delete S.currencies[id];delete S.customPopups[id];if(S.selChar===id)S.selChar=null;renderMain();const chars=S.characters[S.selAcc]||[];if(chars.length)await selectChar(chars[0].id);toast('🗑️ 캐릭터 삭제됨');}
@@ -2169,6 +2186,7 @@ function currencyQuickHTML(c,idx){
 function renderTaskArea(){
   const el=document.getElementById('task-area');if(!el||!S.selChar)return;
   const char=(S.characters[S.selAcc]||[]).find(c=>c.id===S.selChar);
+  const showRaid=char?.show_raid_tasks!==false,showCurr=char?.show_currencies!==false,showNote=char?.show_custom_notes!==false;
   const allTasks=S.tasks[S.selChar]||[];
   const{roots:taskRoots,childrenOf:taskChildren}=buildTaskTree(allTasks);
   const visibleRoots=taskRoots.filter(t=>S.showInactive||isTaskActive(t));
@@ -2214,7 +2232,7 @@ function renderTaskArea(){
     ${!S.expCollapsed?`<div class="coll-body">${etot===0?'<div style="color:var(--muted);font-size:.82rem;padding:4px 0;">원정대 숙제가 없습니다</div>':`<div class="tasks-list">${visibleExpRoots.map((t,i)=>rootTaskHTML(t,expChildren[t.id]||[],true,expRoots.indexOf(t),S.hideExpCompleted)).join('')}</div>`}</div>`:''}
   </div>
 
-  <!-- Raid Tasks -->
+  ${showRaid?`<!-- Raid Tasks -->
   <div class="coll-section raid-s">
     <div class="coll-header ${!S.raidCollapsed?'open':''}" onclick="toggleSection('raidCollapsed','la_raid_col')">
       <span class="coll-toggle">${S.raidCollapsed?'▶':'▼'}</span>
@@ -2227,9 +2245,9 @@ function renderTaskArea(){
       <button class="btn btn-orange" style="margin-left:auto;font-size:.72rem;padding:3px 9px;" onclick="event.stopPropagation();openAddRaidTask()">+ 추가</button>
     </div>
     ${!S.raidCollapsed?`<div class="coll-body">${raidList.length===0?'<div style="color:var(--muted);font-size:.82rem;padding:4px 0;">레이드 숙제가 없습니다</div>':`<div class="tasks-list">${raidList.map((t,i)=>raidItemHTML(t,i)).join('')}</div>`}</div>`:''}
-  </div>
+  </div>`:''}
 
-  <!-- Currency -->
+  ${showCurr?`<!-- Currency -->
   <div class="coll-section curr-s">
     <div class="coll-header ${!S.currCollapsed?'open':''}" onclick="toggleSection('currCollapsed','la_curr_col')">
       <span class="coll-toggle">${S.currCollapsed?'▶':'▼'}</span>
@@ -2242,9 +2260,9 @@ function renderTaskArea(){
       </div>
     </div>
     ${!S.currCollapsed?`<div class="coll-body">${currencies.length===0?'<div class="curr-empty">재화를 추가하면 여기에 표시됩니다</div>':`<div class="currency-chips">${currencies.map((c,idx)=>currencyQuickHTML(c,idx)).join('')}</div>`}</div>`:''}
-  </div>
+  </div>`:''}
 
-  <!-- Custom Popup -->
+  ${showNote?`<!-- Custom Popup -->
   <div class="coll-section popup-s">
     <div class="coll-header ${!S.popupCollapsed?'open':''}" onclick="toggleSection('popupCollapsed','la_popup_col')">
       <span class="coll-toggle">${S.popupCollapsed?'▶':'▼'}</span>
@@ -2252,7 +2270,7 @@ function renderTaskArea(){
       <button class="btn btn-orange" style="margin-left:auto;font-size:.72rem;padding:3px 9px;" onclick="event.stopPropagation();openAddPopupModal()">+ 생성</button>
     </div>
     ${!S.popupCollapsed?`<div class="coll-body">${popups.length===0?'<div class="no-popup-btns">팝업을 만들어 스펙업 계획 등을 기록하세요</div>':`<div class="popup-buttons-row">${popups.map((p,idx)=>`<div class="popup-btn-item" draggable="true" ondragstart="dndStart(event,'popup',${idx})" ondragend="dndEnd(event)" ondragover="dndOver(event,'popup',true)" ondragleave="dndLeave(event,true)" ondrop="dndDrop(event,'popup',${idx})" onclick="openPopupViewer('${p.id}')">${p.icon} <span style="font-size:.81rem">${esc(p.title)}</span></div>`).join('')}</div>`}</div>`:''}
-  </div>
+  </div>`:''}
 
   <!-- Character Tasks -->
   <div>

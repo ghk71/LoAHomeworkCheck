@@ -20,6 +20,9 @@ create table if not exists characters(
   name text not null,
   class_name text default '',
   item_level numeric default 0,
+  show_raid_tasks boolean default true,
+  show_currencies boolean default true,
+  show_custom_notes boolean default true,
   sort_order int default 0,
   created_at timestamptz default now()
 );
@@ -260,6 +263,9 @@ alter table raid_tasks add column if not exists receive_bonus boolean default tr
 
 -- 이미지 아이콘 URL
 alter table characters add column if not exists icon_url text;
+alter table characters add column if not exists show_raid_tasks boolean default true;
+alter table characters add column if not exists show_currencies boolean default true;
+alter table characters add column if not exists show_custom_notes boolean default true;
 alter table raid_presets add column if not exists icon_url text;
 alter table expedition_tasks add column if not exists icon_url text;
 alter table tasks add column if not exists icon_url text;
