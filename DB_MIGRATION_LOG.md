@@ -129,3 +129,36 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_last_processed_at TIM
 
 - 휴식 게이지 기반 숙제 활성화/비활성화
 - 리셋 시 미완료 충전, 완료 시 충분한 게이지에 한해 소모
+
+## 2026-04-29 - raid_notice_comments 추가
+
+### 변경
+
+주차별 공지 아래 댓글을 저장하기 위한 `raid_notice_comments` 테이블과 주차/작성일 인덱스 추가.
+
+### SQL
+
+```sql
+CREATE TABLE IF NOT EXISTS raid_notice_comments(
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  week_start_date TEXT NOT NULL,
+  author_name TEXT DEFAULT '익명',
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE raid_notice_comments DISABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS idx_raid_notice_comments_week_created
+ON raid_notice_comments(week_start_date, created_at);
+```
+
+### 적용 여부
+
+수동 확인 필요.
+
+### 관련 기능
+
+- `raid.html` 주간 공지 아래 주차별 댓글 표시
+- 공유 링크 뷰어에서도 댓글 작성 가능
+- 미래 주차 공지/일정으로 이동해 미리 댓글 작성 가능

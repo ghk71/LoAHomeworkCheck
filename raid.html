@@ -844,6 +844,21 @@ button,input,select,textarea{ font:inherit; }
 .notice-input{color:var(--text)!important;font-weight:700;background:rgba(0,0,0,.10)!important;border:1px solid rgba(255,255,255,.06)!important;border-radius:10px!important;padding:8px 10px!important;}
 #notice-display{display:block;padding:8px 10px!important;border-radius:10px;background:rgba(0,0,0,.12);border:1px solid rgba(255,255,255,.06);font-weight:700;color:var(--text)!important;}
 .notice-save-hint{color:var(--gold-text)!important;font-weight:700;}
+.notice-comment-box{margin:0 14px 10px;padding:10px 12px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.025);}
+.notice-comment-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:.76rem;font-weight:900;color:var(--text-2);}
+.notice-comment-list{display:flex;flex-direction:column;gap:6px;margin-bottom:8px;}
+.notice-comment-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:7px 9px;border:1px solid rgba(255,255,255,.065);border-radius:10px;background:rgba(0,0,0,.12);}
+.notice-comment-meta{display:flex;align-items:center;gap:6px;min-width:0;margin-bottom:2px;font-size:.68rem;color:var(--text-3);}
+.notice-comment-author{font-weight:900;color:var(--gold-text);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.notice-comment-time{white-space:nowrap;}
+.notice-comment-content{font-size:.8rem;font-weight:700;color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere;}
+.notice-comment-empty{font-size:.75rem;color:var(--text-3);padding:4px 0;}
+.notice-comment-form{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:7px;align-items:center;}
+.notice-comment-input{height:32px;padding:6px 9px;border-radius:9px;border:1px solid rgba(255,255,255,.08);background:rgba(7,11,20,.85);color:var(--text);font-size:.78rem;font-family:'Noto Sans KR',sans-serif;min-width:0;}
+.notice-comment-input::placeholder{color:var(--text-3);}
+.notice-comment-del{align-self:start;border:0;background:transparent;color:var(--text-3);font-size:.72rem;cursor:pointer;padding:2px 4px;border-radius:6px;}
+.notice-comment-del:hover{color:var(--red);background:var(--red-glow);}
+@media(max-width:680px){.notice-comment-form{grid-template-columns:1fr}.notice-comment-form .btn{justify-content:center;}}
 .vo-filter-box{margin-bottom:14px;padding:12px;border:1px solid rgba(255,255,255,.08);border-radius:16px;background:rgba(255,255,255,.025);}
 .vo-filter-title{font-size:.78rem;color:var(--text-2);font-weight:800;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
 .vo-filter-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:6px 0;}
@@ -964,6 +979,15 @@ button,input,select,textarea{ font:inherit; }
       </div>
       <span class="notice-save-hint" id="notice-hint"></span>
       <button class="btn btn-sec btn-sm edit-only" style="flex-shrink:0;" onclick="openAdvanceNotice()">📅 미리 쓰기</button>
+    </div>
+    <div class="notice-comment-box">
+      <div class="notice-comment-head">💬 댓글 <span id="notice-comment-count" style="color:var(--gold-text);"></span><span id="notice-comment-status" style="margin-left:auto;font-size:.7rem;color:var(--text-3);"></span></div>
+      <div class="notice-comment-list" id="notice-comment-list"></div>
+      <div class="notice-comment-form">
+        <input class="notice-comment-input" id="notice-comment-author" lang="ko" inputmode="text" maxlength="20" placeholder="닉네임">
+        <input class="notice-comment-input" id="notice-comment-content" lang="ko" inputmode="text" maxlength="300" placeholder="댓글을 입력하세요" onkeydown="if(event.key==='Enter')submitNoticeComment()">
+        <button class="btn btn-teal btn-sm" onclick="submitNoticeComment()">등록</button>
+      </div>
     </div>
     <div class="week-nav">
       <button class="btn btn-sec btn-sm" onclick="moveWeek(-1)">◀ 이전</button>
@@ -1321,7 +1345,7 @@ async function loadViewerOverview(el){
 }
 
 // ─── State ───
-let sb,accounts=[],allChars=[],raids=[],parties=[],schedules=[],overrides={},notices={},raidTasksAll={};
+let sb,accounts=[],allChars=[],raids=[],parties=[],schedules=[],overrides={},notices={},noticeComments={},noticeCommentsAvailable=true,raidTasksAll={};
 let selPartyId=null,selGroupName=null,weekOffset=0,partySize=4,selPresetId=null;
 let pickCtx={mode:'party',partyId:null,slotIndex:null,scheduleId:null};
 let ovrEditSchId=null;
@@ -1363,6 +1387,7 @@ async function init(){
     (r8.data||[]).forEach(n=>{notices[n.week_start_date]=n;});
     raidTasksData=r9.data||[];
     raidTasksData.forEach(t=>{if(!raidTasksAll[t.character_id])raidTasksAll[t.character_id]=[];raidTasksAll[t.character_id].push(t);});
+    await loadNoticeCommentsData();
   }catch(err){toast('❗ 로딩 오류: '+err.message);console.error(err);return;}
   await autoResetNonFixed();
   updateWeekLabel();renderPresetList();initSchFilter();renderSchedule();loadNotice();
@@ -2547,15 +2572,31 @@ async function deleteScheduleFromModal(){const id=document.getElementById('sch-e
 async function deleteScheduleFromOvrModal(id){if(!confirm('일정을 삭제하시겠습니까?'))return;await sb.from('raid_schedules').delete().eq('id',id);schedules=schedules.filter(s=>s.id!==id);closeModal('modal-sch-edit');renderSchedule();toast('🗑️ 삭제됨');}
 
 // ─── Notice ───
+async function loadNoticeCommentsData(){
+  noticeComments={};noticeCommentsAvailable=true;
+  const {data,error}=await sb.from('raid_notice_comments').select('*').order('created_at',{ascending:true});
+  if(error){
+    noticeCommentsAvailable=false;
+    console.warn('raid_notice_comments unavailable:',error.message);
+    return;
+  }
+  (data||[]).forEach(c=>{
+    if(!noticeComments[c.week_start_date])noticeComments[c.week_start_date]=[];
+    noticeComments[c.week_start_date].push(c);
+  });
+}
 async function loadNotice(){
   const wk=getWeekKey(weekOffset),n=notices[wk];
   const inp=document.getElementById('notice-input');
   if(inp)inp.value=n?.content||'';
+  const author=document.getElementById('notice-comment-author');
+  if(author&&!author.value)author.value=localStorage.getItem('la_notice_comment_author')||'';
   const disp=document.getElementById('notice-display');
   if(disp)disp.textContent=n?.content||'(공지 없음)';
   const lbl=document.getElementById('notice-week-label');
   if(lbl){const days=getWeekDays(weekOffset);const f=d=>`${d.getUTCMonth()+1}/${d.getUTCDate()}`;lbl.textContent=weekOffset===0?'이번 주 공지':`${f(days[0])}(수) ~ ${f(days[6])}(화) 공지`;}
   document.getElementById('notice-hint').textContent='';
+  renderNoticeComments();
 }
 async function saveNotice(){
   const wk=getWeekKey(weekOffset),content=document.getElementById('notice-input').value;
@@ -2594,6 +2635,59 @@ async function saveAdvanceNotice(){
   closeModal('modal-advance-notice');toast('✅ 공지 저장됨');
   // 현재 주 뷰이면 notice bar 업데이트
   if(off===weekOffset)loadNotice();
+}
+function fmtCommentTime(v){
+  if(!v)return'';
+  const d=new Date(v);
+  if(Number.isNaN(d.getTime()))return'';
+  const k=new Date(d.getTime()+9*3600000);
+  return`${k.getUTCMonth()+1}/${k.getUTCDate()} ${String(k.getUTCHours()).padStart(2,'0')}:${String(k.getUTCMinutes()).padStart(2,'0')}`;
+}
+function renderNoticeComments(){
+  const wk=getWeekKey(weekOffset);
+  const list=document.getElementById('notice-comment-list');
+  const cnt=document.getElementById('notice-comment-count');
+  const status=document.getElementById('notice-comment-status');
+  if(!list)return;
+  const rows=noticeComments[wk]||[];
+  if(cnt)cnt.textContent=rows.length?`${rows.length}`:'';
+  if(status)status.textContent=noticeCommentsAvailable?'':'댓글 테이블 미적용';
+  if(!noticeCommentsAvailable){
+    list.innerHTML='<div class="notice-comment-empty">댓글 기능을 사용하려면 Supabase에 raid_notice_comments 테이블을 적용해야 합니다.</div>';
+    return;
+  }
+  list.innerHTML=rows.length?rows.map(c=>`<div class="notice-comment-item">
+    <div>
+      <div class="notice-comment-meta"><span class="notice-comment-author">${esc(c.author_name||'익명')}</span><span class="notice-comment-time">${fmtCommentTime(c.created_at)}</span></div>
+      <div class="notice-comment-content">${esc(c.content||'')}</div>
+    </div>
+    <button class="notice-comment-del edit-only" onclick="deleteNoticeComment('${c.id}')">삭제</button>
+  </div>`).join(''):'<div class="notice-comment-empty">아직 댓글이 없습니다</div>';
+  if(isViewer)document.querySelectorAll('.notice-comment-del').forEach(el=>el.style.display='none');
+}
+async function submitNoticeComment(){
+  if(!noticeCommentsAvailable){toast('❗ 댓글 테이블을 먼저 적용하세요');return;}
+  const authorEl=document.getElementById('notice-comment-author');
+  const contentEl=document.getElementById('notice-comment-content');
+  const author=(authorEl.value||'').trim()||'익명';
+  const content=(contentEl.value||'').trim();
+  if(!content){toast('❗ 댓글을 입력하세요');return;}
+  localStorage.setItem('la_notice_comment_author',author);
+  const wk=getWeekKey(weekOffset);
+  const {data,error}=await sb.from('raid_notice_comments').insert({week_start_date:wk,author_name:author,content}).select().single();
+  if(error){toast('❗ '+error.message);console.error(error);return;}
+  if(!noticeComments[wk])noticeComments[wk]=[];
+  noticeComments[wk].push(data);
+  contentEl.value='';
+  renderNoticeComments();
+}
+async function deleteNoticeComment(id){
+  if(isViewer)return;
+  if(!confirm('댓글을 삭제하시겠습니까?'))return;
+  const {error}=await sb.from('raid_notice_comments').delete().eq('id',id);
+  if(error){toast('❗ '+error.message);console.error(error);return;}
+  Object.keys(noticeComments).forEach(wk=>{noticeComments[wk]=noticeComments[wk].filter(c=>c.id!==id);});
+  renderNoticeComments();
 }
 
 // ─── Share ───

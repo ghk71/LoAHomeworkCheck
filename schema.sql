@@ -181,6 +181,15 @@ create table if not exists raid_notices(
   updated_at timestamptz default now()
 );
 
+-- 주차별 공지 댓글
+create table if not exists raid_notice_comments(
+  id uuid default uuid_generate_v4() primary key,
+  week_start_date text not null,
+  author_name text default '익명',
+  content text not null,
+  created_at timestamptz default now()
+);
+
 alter table accounts          disable row level security;
 alter table characters        disable row level security;
 alter table tasks             disable row level security;
@@ -195,6 +204,7 @@ alter table raid_party_members disable row level security;
 alter table raid_schedules    disable row level security;
 alter table raid_schedule_overrides disable row level security;
 alter table raid_notices      disable row level security;
+alter table raid_notice_comments disable row level security;
 
 -- ★ 기존 설치 업데이트용 (이미 있는 DB에서 실행 시)
 alter table accounts         add column if not exists sort_order int default 0;
@@ -277,3 +287,4 @@ create index if not exists idx_raid_parties_preset_sort on raid_parties(preset_i
 create index if not exists idx_raid_party_members_party_slot on raid_party_members(party_id, slot_index);
 create index if not exists idx_raid_schedules_party_day_sort on raid_schedules(party_id, day_of_week, sort_order, created_at);
 create index if not exists idx_raid_schedule_overrides_week on raid_schedule_overrides(week_start_date);
+create index if not exists idx_raid_notice_comments_week_created on raid_notice_comments(week_start_date, created_at);
