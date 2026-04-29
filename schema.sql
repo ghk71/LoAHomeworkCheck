@@ -37,6 +37,14 @@ create table if not exists tasks(
   last_completed_at timestamptz,
   count_current int default 0,
   count_max int default null,
+  rest_enabled boolean default false,
+  rest_current int default 0,
+  rest_max int default 200,
+  rest_charge int default 20,
+  rest_consume int default 40,
+  rest_threshold int default 40,
+  rest_daily_limit int default 1,
+  rest_last_processed_at timestamptz,
   sort_order int default 0,
   created_at timestamptz default now()
 );
@@ -54,6 +62,14 @@ create table if not exists expedition_tasks(
   last_completed_at timestamptz,
   count_current int default 0,
   count_max int default null,
+  rest_enabled boolean default false,
+  rest_current int default 0,
+  rest_max int default 200,
+  rest_charge int default 20,
+  rest_consume int default 40,
+  rest_threshold int default 40,
+  rest_daily_limit int default 1,
+  rest_last_processed_at timestamptz,
   sort_order int default 0,
   created_at timestamptz default now()
 );
@@ -187,9 +203,25 @@ alter table tasks            add column if not exists count_max int default null
 alter table tasks            add column if not exists parent_id uuid references tasks(id) on delete cascade;
 alter table tasks            add column if not exists activate_day int default null;
 alter table tasks            add column if not exists clone_group_id uuid;
+alter table tasks            add column if not exists rest_enabled boolean default false;
+alter table tasks            add column if not exists rest_current int default 0;
+alter table tasks            add column if not exists rest_max int default 200;
+alter table tasks            add column if not exists rest_charge int default 20;
+alter table tasks            add column if not exists rest_consume int default 40;
+alter table tasks            add column if not exists rest_threshold int default 40;
+alter table tasks            add column if not exists rest_daily_limit int default 1;
+alter table tasks            add column if not exists rest_last_processed_at timestamptz;
 alter table expedition_tasks add column if not exists parent_id uuid references expedition_tasks(id) on delete cascade;
 alter table expedition_tasks add column if not exists activate_day int default null;
 alter table expedition_tasks add column if not exists clone_group_id uuid;
+alter table expedition_tasks add column if not exists rest_enabled boolean default false;
+alter table expedition_tasks add column if not exists rest_current int default 0;
+alter table expedition_tasks add column if not exists rest_max int default 200;
+alter table expedition_tasks add column if not exists rest_charge int default 20;
+alter table expedition_tasks add column if not exists rest_consume int default 40;
+alter table expedition_tasks add column if not exists rest_threshold int default 40;
+alter table expedition_tasks add column if not exists rest_daily_limit int default 1;
+alter table expedition_tasks add column if not exists rest_last_processed_at timestamptz;
 -- raid_parties 기존 설치 업데이트
 alter table raid_parties     add column if not exists preset_id uuid references raid_presets(id) on delete cascade;
 -- raid_schedule_overrides 기존 설치 업데이트

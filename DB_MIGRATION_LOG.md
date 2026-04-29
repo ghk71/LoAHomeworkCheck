@@ -93,3 +93,39 @@ CREATE INDEX IF NOT EXISTS idx_expedition_tasks_clone_group ON expedition_tasks(
 
 - 일일/주간 숙제 복제본 일괄 삭제 대상 조회
 - 원정대 숙제 복제본 일괄 삭제 대상 조회
+
+## 2026-04-29 - tasks / expedition_tasks 휴식 게이지 컬럼 추가
+
+### 변경
+일반 숙제와 원정대 숙제에 휴식 게이지 설정과 현재 상태를 저장하는 컬럼을 추가.
+
+### SQL
+
+```sql
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS rest_enabled BOOLEAN DEFAULT FALSE;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS rest_current INT DEFAULT 0;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS rest_max INT DEFAULT 200;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS rest_charge INT DEFAULT 20;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS rest_consume INT DEFAULT 40;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS rest_threshold INT DEFAULT 40;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS rest_daily_limit INT DEFAULT 1;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS rest_last_processed_at TIMESTAMPTZ;
+
+ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_enabled BOOLEAN DEFAULT FALSE;
+ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_current INT DEFAULT 0;
+ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_max INT DEFAULT 200;
+ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_charge INT DEFAULT 20;
+ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consume INT DEFAULT 40;
+ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_threshold INT DEFAULT 40;
+ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_daily_limit INT DEFAULT 1;
+ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_last_processed_at TIMESTAMPTZ;
+```
+
+### 적용 여부
+
+수동 확인 필요.
+
+### 관련 기능
+
+- 휴식 게이지 기반 숙제 활성화/비활성화
+- 리셋 시 미완료 충전, 완료 시 충분한 게이지에 한해 소모

@@ -676,12 +676,12 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
 
 /* Tasks */
 .tasks-list { display:flex; flex-direction:column; gap:6px; }
-.task-split-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; align-items:start; }
+.task-split-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; align-items:start; }
 .task-lane { min-width:0; border:1px solid rgba(255,255,255,.06); border-radius:var(--r); background:rgba(255,255,255,.018); padding:10px; }
 .task-lane-hd { display:flex; align-items:center; gap:8px; margin-bottom:9px; font-size:.78rem; font-weight:800; color:var(--text-2); }
 .task-lane-hd .lane-count { margin-left:auto; color:var(--muted); font-size:.7rem; }
 .task-lane-empty { text-align:center; padding:16px 8px; color:var(--muted); font-size:.8rem; border:1px dashed rgba(255,255,255,.08); border-radius:var(--r-sm); }
-.task-group-select{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.task-group-select{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
 .task-group-opt{border:1px solid var(--border);background:var(--surface-3);color:var(--text-2);border-radius:var(--r);padding:10px 12px;text-align:left;cursor:pointer;transition:all var(--t);}
 .task-group-opt:hover{border-color:rgba(255,184,77,.32);background:var(--surface-4);}
 .task-group-opt.active{border-color:rgba(255,184,77,.55);background:rgba(255,184,77,.10);color:var(--gold-text);}
@@ -728,6 +728,16 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
 .badge-monthly { background:rgba(168,85,247,.12); color:#d8b4fe; border:1px solid rgba(168,85,247,.25); }
 .badge-inactive { background:rgba(100,100,100,.1); color:var(--text-3); border:1px solid rgba(100,100,100,.15); }
 .reset-info { font-size:.65rem; color:var(--text-3); }
+.rest-config-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+.rest-config-grid .form-group{margin-bottom:0;}
+.rest-card{margin-top:7px;padding:7px 9px;border:1px solid rgba(99,102,241,.18);border-radius:10px;background:rgba(99,102,241,.055);}
+.rest-card-head{display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:.7rem;color:var(--text-2);font-weight:800;}
+.rest-card-head b{color:#c7d2fe;}
+.rest-card-head span{margin-left:auto;color:var(--muted);font-weight:700;}
+.rest-bar{height:7px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;}
+.rest-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#6366f1,#22d3ee);transition:width .25s;}
+.rest-card.ready .rest-bar-fill{background:linear-gradient(90deg,var(--green),#22d3ee);}
+.rest-card.waiting{opacity:.72;}
 .task-actions { display:flex; gap:3px; opacity:0; transition:opacity var(--t); flex-shrink:0; }
 .task-item:hover .task-actions { opacity:1; }
 .subtask-list {
@@ -1197,12 +1207,28 @@ button,input,select,textarea{ font:inherit; }
       <span class="count-max-unit">최대:</span><input class="form-input" id="task-count-max" type="number" min="1" max="9999" placeholder="10"><span class="count-max-unit">개</span>
     </div>
   </div>
+  <div class="form-group" id="rest-toggle-wrap">
+    <div class="count-toggle-box" onclick="toggleHasRest()">
+      <input type="checkbox" id="has-rest" tabindex="-1">
+      <div class="count-toggle-lbl">휴식 게이지 사용<small>강조 포인트에 도달한 숙제만 기본 표시됩니다</small></div>
+    </div>
+    <div id="rest-config-row" style="display:none;margin-top:10px;">
+      <div class="rest-config-grid">
+        <div class="form-group"><label class="form-label">최대 휴식 게이지</label><input class="form-input" id="task-rest-max" type="number" min="1" max="9999" value="200"></div>
+        <div class="form-group"><label class="form-label">현재 휴식 게이지</label><input class="form-input" id="task-rest-current" type="number" min="0" max="9999" value="0"></div>
+        <div class="form-group"><label class="form-label">1회 충전 게이지</label><input class="form-input" id="task-rest-charge" type="number" min="0" max="9999" value="20"></div>
+        <div class="form-group"><label class="form-label">1회 소모 휴식 게이지</label><input class="form-input" id="task-rest-consume" type="number" min="0" max="9999" value="40"></div>
+        <div class="form-group"><label class="form-label">일일 최대 클리어 가능 횟수</label><input class="form-input" id="task-rest-daily-limit" type="number" min="1" max="99" value="1"></div>
+        <div class="form-group"><label class="form-label">강조 포인트</label><input class="form-input" id="task-rest-threshold" type="number" min="0" max="9999" value="40"></div>
+      </div>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:8px;">현재 휴식 게이지가 강조 포인트에 도달한 경우 잘 보이도록 해줘요!</div>
+    </div>
+  </div>
   <div class="form-row" id="task-reset-row">
     <div class="form-group" style="width:100%;"><label class="form-label">그룹 선택</label>
       <div class="task-group-select" id="task-group-select">
         <button type="button" class="task-group-opt active" id="task-group-daily" onclick="selectTaskGroup('daily')"><b>일일 숙제</b><span>하단 왼쪽 영역에 표시</span></button>
-        <button type="button" class="task-group-opt" id="task-group-weekly" onclick="selectTaskGroup('weekly')"><b>주간 숙제</b><span>하단 오른쪽 영역에 표시</span></button>
-        <button type="button" class="task-group-opt" id="task-group-monthly" onclick="selectTaskGroup('monthly')"><b>월간 숙제</b><span>매월 1일 06:00 초기화</span></button>
+        <button type="button" class="task-group-opt" id="task-group-weekly" onclick="selectTaskGroup('weekly')"><b>주간/월간 숙제</b><span>하단 오른쪽 영역에 표시</span></button>
       </div>
     </div>
   </div>
@@ -1385,6 +1411,14 @@ create table if not exists tasks(
   last_completed_at timestamptz,
   count_current int default 0,
   count_max int default null,
+  rest_enabled boolean default false,
+  rest_current int default 0,
+  rest_max int default 200,
+  rest_charge int default 20,
+  rest_consume int default 40,
+  rest_threshold int default 40,
+  rest_daily_limit int default 1,
+  rest_last_processed_at timestamptz,
   sort_order int default 0,
   created_at timestamptz default now()
 );
@@ -1402,6 +1436,14 @@ create table if not exists expedition_tasks(
   last_completed_at timestamptz,
   count_current int default 0,
   count_max int default null,
+  rest_enabled boolean default false,
+  rest_current int default 0,
+  rest_max int default 200,
+  rest_charge int default 20,
+  rest_consume int default 40,
+  rest_threshold int default 40,
+  rest_daily_limit int default 1,
+  rest_last_processed_at timestamptz,
   sort_order int default 0,
   created_at timestamptz default now()
 );
@@ -1534,8 +1576,26 @@ alter table tasks            add column if not exists count_current int default 
 alter table tasks            add column if not exists count_max int default null;
 alter table tasks            add column if not exists parent_id uuid references tasks(id) on delete cascade;
 alter table tasks            add column if not exists activate_day int default null;
+alter table tasks            add column if not exists clone_group_id uuid;
+alter table tasks            add column if not exists rest_enabled boolean default false;
+alter table tasks            add column if not exists rest_current int default 0;
+alter table tasks            add column if not exists rest_max int default 200;
+alter table tasks            add column if not exists rest_charge int default 20;
+alter table tasks            add column if not exists rest_consume int default 40;
+alter table tasks            add column if not exists rest_threshold int default 40;
+alter table tasks            add column if not exists rest_daily_limit int default 1;
+alter table tasks            add column if not exists rest_last_processed_at timestamptz;
 alter table expedition_tasks add column if not exists parent_id uuid references expedition_tasks(id) on delete cascade;
 alter table expedition_tasks add column if not exists activate_day int default null;
+alter table expedition_tasks add column if not exists clone_group_id uuid;
+alter table expedition_tasks add column if not exists rest_enabled boolean default false;
+alter table expedition_tasks add column if not exists rest_current int default 0;
+alter table expedition_tasks add column if not exists rest_max int default 200;
+alter table expedition_tasks add column if not exists rest_charge int default 20;
+alter table expedition_tasks add column if not exists rest_consume int default 40;
+alter table expedition_tasks add column if not exists rest_threshold int default 40;
+alter table expedition_tasks add column if not exists rest_daily_limit int default 1;
+alter table expedition_tasks add column if not exists rest_last_processed_at timestamptz;
 -- raid_parties 기존 설치 업데이트
 alter table raid_parties     add column if not exists preset_id uuid references raid_presets(id) on delete cascade;
 -- raid_schedule_overrides 기존 설치 업데이트
@@ -1702,8 +1762,8 @@ function getLastResetUTC(type,day){
   if(type==='daily'){const r=new Date(now);r.setUTCHours(21,0,0,0);if(now<r)r.setUTCDate(r.getUTCDate()-1);return r;}
   if(type==='monthly'){
     const kst=new Date(now.getTime()+9*3600000);
-    const r=new Date(Date.UTC(kst.getUTCFullYear(),kst.getUTCMonth(),0,21,0,0,0));
-    if(now<r)r.setUTCMonth(r.getUTCMonth()-1);
+    let r=new Date(Date.UTC(kst.getUTCFullYear(),kst.getUTCMonth(),0,21,0,0,0));
+    if(now<r)r=new Date(Date.UTC(kst.getUTCFullYear(),kst.getUTCMonth()-1,0,21,0,0,0));
     return r;
   }
   const rDay=(day+6)%7,r=new Date(now);r.setUTCHours(21,0,0,0);let back=(now.getUTCDay()-rDay+7)%7;if(back===0&&now<r)back=7;r.setUTCDate(r.getUTCDate()-back);return r;
@@ -1712,11 +1772,43 @@ function getRaidWeekKey(){const now=new Date(),kst=new Date(now.getTime()+9*3600
 function isEffDone(t){if(!t.is_completed||!t.last_completed_at)return false;return new Date(t.last_completed_at)>getLastResetUTC(t.reset_type||'weekly',t.reset_day);}
 // ★ Activation date check
 function isTaskActive(t){
+  if(t.rest_enabled&&Number(t.rest_current||0)<Number(t.rest_threshold||0))return false;
   if(t.activate_day==null||t.reset_type==='daily'||t.reset_type==='monthly')return true;
   if(t.activate_day===t.reset_day)return true;
   const lastActivate=getLastResetUTC('weekly',t.activate_day);
   const lastReset=getLastResetUTC('weekly',t.reset_day);
   return lastActivate>=lastReset;
+}
+function restInfo(t){
+  const max=Math.max(1,Number(t.rest_max)||200);
+  const cur=Math.max(0,Math.min(Number(t.rest_current)||0,max));
+  const threshold=Math.max(0,Number(t.rest_threshold)||0);
+  const pct=Math.max(0,Math.min(100,Math.round(cur/max*100)));
+  return{max,cur,threshold,pct,ready:cur>=threshold};
+}
+function restCardHTML(t){
+  if(!t.rest_enabled)return'';
+  const r=restInfo(t);
+  return`<div class="rest-card ${r.ready?'ready':'waiting'}">
+    <div class="rest-card-head"><b>휴식 게이지</b><em>${r.cur}/${r.max}</em><span>강조 ${r.threshold}</span></div>
+    <div class="rest-bar"><div class="rest-bar-fill" style="width:${r.pct}%"></div></div>
+  </div>`;
+}
+function advanceResetBoundary(type,day,base){
+  const n=new Date(base);
+  if(type==='daily')n.setUTCDate(n.getUTCDate()+1);
+  else if(type==='monthly')n.setUTCMonth(n.getUTCMonth()+1);
+  else n.setUTCDate(n.getUTCDate()+7);
+  return n;
+}
+function getResetBoundariesSince(t,latest){
+  const type=t.reset_type||'weekly';
+  const created=t.created_at?new Date(t.created_at):latest;
+  let cursor=t.rest_last_processed_at?new Date(t.rest_last_processed_at):new Date(created.getTime()-1000);
+  let b=getLastResetUTC(type,t.reset_day);
+  const stack=[];
+  while(b>cursor&&stack.length<62){stack.unshift(new Date(b));b=new Date(b);if(type==='daily')b.setUTCDate(b.getUTCDate()-1);else if(type==='monthly')b.setUTCMonth(b.getUTCMonth()-1);else b.setUTCDate(b.getUTCDate()-7);}
+  return stack.filter(x=>x>cursor&&x<=latest);
 }
 const DAYS=['일','월','화','수','목','금','토'];
 function resetLabel(t){return t.reset_type==='daily'?'매일':t.reset_type==='monthly'?'매월 1일':'매주 '+DAYS[t.reset_day]+'요일';}
@@ -1960,6 +2052,15 @@ async function loadRaidTasks(charId){
     const missing=pids.filter(id=>!S.presetsCache[id]);
     if(missing.length){const{data:ps}=await sb.from('raid_presets').select('id,name,icon_url,color').in('id',missing);(ps||[]).forEach(p=>{S.presetsCache[p.id]=p;});}
     tasks.forEach(t=>{if(t.preset_id&&S.presetsCache[t.preset_id]){t.preset_name=S.presetsCache[t.preset_id].name;t.preset_icon_url=S.presetsCache[t.preset_id].icon_url||'';t.preset_color=S.presetsCache[t.preset_id].color||'';}});
+    const{data:partyRows}=await sb.from('raid_parties').select('id,preset_id').in('preset_id',pids);
+    const partyPreset={};(partyRows||[]).forEach(p=>{partyPreset[p.id]=p.preset_id;});
+    const partyIds=Object.keys(partyPreset);
+    let linkedPresets=new Set();
+    if(partyIds.length){
+      const{data:memberRows}=await sb.from('raid_party_members').select('party_id,character_id').in('party_id',partyIds).eq('character_id',charId);
+      linkedPresets=new Set((memberRows||[]).map(m=>partyPreset[m.party_id]).filter(Boolean));
+    }
+    tasks.forEach(t=>{t.has_party_link=!!(t.preset_id&&linkedPresets.has(t.preset_id));});
   }
   S.raidTasks[charId]=tasks;await autoResetRaid(S.raidTasks[charId]);
 }
@@ -1976,7 +2077,46 @@ async function loadTempRaidTaskIds(){
 }
 async function loadCurrencies(charId){const res=await sb.from('currencies').select('*').eq('character_id',charId).order('sort_order').order('created_at');if(supaErr(res,'재화 로딩 실패')){S.currencies[charId]=[];return;}S.currencies[charId]=res.data||[];}
 async function loadCustomPopups(charId){const res=await sb.from('custom_popups').select('*').eq('character_id',charId).order('sort_order').order('created_at');if(supaErr(res,'커스텀 팝업 로딩 실패')){S.customPopups[charId]=[];return;}S.customPopups[charId]=res.data||[];}
-async function autoReset(list,table){const r=list.filter(t=>t.is_completed&&!isEffDone(t));if(!r.length)return;await sb.from(table).update({is_completed:false,last_completed_at:null,count_current:0}).in('id',r.map(t=>t.id));r.forEach(t=>{t.is_completed=false;t.last_completed_at=null;t.count_current=0;});}
+async function autoReset(list,table){
+  const updates=[];
+  const latestByType=new Map();
+  for(const t of list){
+    const latest=getLastResetUTC(t.reset_type||'weekly',t.reset_day);
+    const up={};
+    if(t.rest_enabled){
+      let cur=Math.max(0,Number(t.rest_current)||0);
+      const max=Math.max(1,Number(t.rest_max)||200);
+      const charge=Math.max(0,Number(t.rest_charge)||0);
+      const consume=Math.max(0,Number(t.rest_consume)||0);
+      const boundaries=getResetBoundariesSince(t,latest);
+      let completed=!!(t.is_completed&&t.last_completed_at&&new Date(t.last_completed_at)>latest);
+      let staleCompleted=!!(t.is_completed&&t.last_completed_at&&new Date(t.last_completed_at)<=latest);
+      boundaries.forEach(()=>{
+        if(staleCompleted){
+          if(cur>=consume)cur=Math.max(0,cur-consume);
+          staleCompleted=false;
+        }else if(!completed){
+          cur=Math.min(max,cur+charge);
+        }
+      });
+      if(boundaries.length){
+        up.rest_current=cur;
+        up.rest_last_processed_at=latest.toISOString();
+      }
+    }
+    if(t.is_completed&&!isEffDone(t)){
+      up.is_completed=false;
+      up.last_completed_at=null;
+      up.count_current=0;
+    }
+    if(Object.keys(up).length)updates.push({t,up});
+  }
+  if(!updates.length)return;
+  for(const x of updates){
+    await sb.from(table).update(x.up).eq('id',x.t.id);
+    Object.assign(x.t,x.up);
+  }
+}
 async function autoResetRaid(list){const now=new Date();const r=list.filter(t=>{if(!t.is_completed||!t.last_completed_at)return false;return new Date(t.last_completed_at)<=getLastResetUTC('weekly',t.reset_day);});if(!r.length)return;await sb.from('raid_tasks').update({is_completed:false,last_completed_at:null}).in('id',r.map(t=>t.id));r.forEach(t=>{t.is_completed=false;t.last_completed_at=null;});}
 
 // ─── Task Tree ───
@@ -2033,8 +2173,7 @@ function renderTaskArea(){
   const{roots:taskRoots,childrenOf:taskChildren}=buildTaskTree(allTasks);
   const visibleRoots=taskRoots.filter(t=>S.showInactive||isTaskActive(t));
   const dailyRoots=visibleRoots.filter(t=>(t.reset_type||'daily')==='daily');
-  const weeklyRoots=visibleRoots.filter(t=>(t.reset_type||'daily')==='weekly');
-  const monthlyRoots=visibleRoots.filter(t=>(t.reset_type||'daily')==='monthly');
+  const weeklyRoots=visibleRoots.filter(t=>(t.reset_type||'daily')!=='daily');
   const done=dailyRoots.filter(t=>isEffDone(t)).length,tot=dailyRoots.length,pct=tot?Math.round(done/tot*100):0;
   const et=S.expTasks[S.selAcc]||[];
   const{roots:expRoots,childrenOf:expChildren}=buildTaskTree(et);
@@ -2133,12 +2272,8 @@ function renderTaskArea(){
           <div class="tasks-list">${dailyRoots.map(t=>rootTaskHTML(t,taskChildren[t.id]||[],false,taskRoots.indexOf(t))).join('')||'<div class="task-lane-empty">표시할 일일 숙제가 없습니다</div>'}</div>
         </div>
         <div class="task-lane">
-          <div class="task-lane-hd">📅 주간 숙제 <span class="lane-count">${weeklyRoots.filter(t=>isEffDone(t)).length}/${weeklyRoots.length}</span></div>
-          <div class="tasks-list">${weeklyRoots.map(t=>rootTaskHTML(t,taskChildren[t.id]||[],false,taskRoots.indexOf(t))).join('')||'<div class="task-lane-empty">표시할 주간 숙제가 없습니다</div>'}</div>
-        </div>
-        <div class="task-lane">
-          <div class="task-lane-hd">🗓️ 월간 숙제 <span class="lane-count">${monthlyRoots.filter(t=>isEffDone(t)).length}/${monthlyRoots.length}</span></div>
-          <div class="tasks-list">${monthlyRoots.map(t=>rootTaskHTML(t,taskChildren[t.id]||[],false,taskRoots.indexOf(t))).join('')||'<div class="task-lane-empty">표시할 월간 숙제가 없습니다</div>'}</div>
+          <div class="task-lane-hd">📅 주간/월간 숙제 <span class="lane-count">${weeklyRoots.filter(t=>isEffDone(t)).length}/${weeklyRoots.length}</span></div>
+          <div class="tasks-list">${weeklyRoots.map(t=>rootTaskHTML(t,taskChildren[t.id]||[],false,taskRoots.indexOf(t))).join('')||'<div class="task-lane-empty">표시할 주간/월간 숙제가 없습니다</div>'}</div>
         </div>
       </div>`}
   </div>`;
@@ -2209,6 +2344,7 @@ function rootTaskHTML(t,children,isExp,rootIdx,hideDone=S.hideCompleted){
         <button class="btn btn-danger" onclick="deleteTask('${t.id}',${iE})">🗑</button>
       </div>
     </div>
+    ${restCardHTML(t)}
     ${hasChildren&&!collapsed&&visChildren.length>0?`<div class="subtask-list">${visChildren.map((c,si)=>subTaskHTML(c,isExp,si)).join('')}</div>`:''}</div>`;
 }
 
@@ -2236,7 +2372,7 @@ function raidItemHTML(t,idx){
         ${fl?`<span class="raid-gold raid-gold-flow ${rg?'':'muted-gold'}" title="${rg?'클릭해서 유통골드 제외':'클릭해서 유통골드 수령'}" style="cursor:pointer;" onclick="event.stopPropagation();toggleReceiveGold('${t.id}')">💰 유통 ${fl.toLocaleString()}G</span>`:''}
         ${bg?`<span class="raid-gold raid-gold-bound ${rbd?'':'muted-gold'}" title="${rbd?'클릭해서 귀속골드 제외':'클릭해서 귀속골드 수령'}" style="cursor:pointer;" onclick="event.stopPropagation();toggleReceiveBound('${t.id}')">🔒 귀속 ${bg.toLocaleString()}G</span>`:''}
         ${bo?`<span class="raid-gold raid-gold-bonus ${rb?'':'muted-gold'}" style="cursor:pointer;" title="${rb?'클릭해서 더보기 제외':'클릭해서 더보기 수령'}" onclick="event.stopPropagation();toggleReceiveBonus('${t.id}')">➕ 더보기 ${bo.toLocaleString()}G</span>`:''}
-        ${t.preset_id?`<span class="party-link-chip ${isTemp?'temp-link':''}" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id}','${t.id}')">🔗 ${isTemp?'임시파티연동':'파티연동'}</span>`:''}
+        ${(t.has_party_link||isTemp)?`<span class="party-link-chip ${isTemp?'temp-link':''}" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id}','${t.id}')">🔗 ${isTemp?'임시파티연동':'파티연동'}</span>`:''}
         <span class="raid-reset-chip">📅 ${DAYS[t.reset_day]}요일 · ${nextResetLabel({...t,reset_type:'weekly'})}</span>
       </div>
     </div>
@@ -2333,10 +2469,8 @@ async function toggleRaidTask(id){
 function syncTaskGroupUI(v){
   const daily=document.getElementById('task-group-daily');
   const weekly=document.getElementById('task-group-weekly');
-  const monthly=document.getElementById('task-group-monthly');
   if(daily)daily.classList.toggle('active',v==='daily');
-  if(weekly)weekly.classList.toggle('active',v==='weekly');
-  if(monthly)monthly.classList.toggle('active',v==='monthly');
+  if(weekly)weekly.classList.toggle('active',v!=='daily');
 }
 function selectTaskGroup(v){
   document.getElementById('task-reset').value=v;
@@ -2361,10 +2495,12 @@ function openAddTask(isExp=false,parentId=''){
   document.getElementById('has-count').checked=false;
   document.getElementById('count-max-row').style.display='none';
   document.getElementById('task-count-max').value='';
+  resetRestForm(false);
   document.getElementById('has-activate').checked=false;
   document.getElementById('activate-day-row').style.display='none';
   if(hasP){
     document.getElementById('count-toggle-wrap').style.display='none';
+    document.getElementById('rest-toggle-wrap').style.display='none';
     document.getElementById('task-reset-row').style.display='none';
     document.getElementById('task-reset-detail-row').style.display='none';
     document.getElementById('activate-group').style.display='none';
@@ -2372,6 +2508,7 @@ function openAddTask(isExp=false,parentId=''){
     if(parent){document.getElementById('task-reset').value=parent.reset_type;syncTaskGroupUI(parent.reset_type);document.getElementById('task-day').value=String(parent.reset_day);}
   } else {
     document.getElementById('count-toggle-wrap').style.display='block';
+    document.getElementById('rest-toggle-wrap').style.display='block';
     document.getElementById('task-reset-row').style.display='flex';
     document.getElementById('task-reset-detail-row').style.display='flex';
     document.getElementById('activate-group').style.display='none';
@@ -2396,6 +2533,7 @@ function openEditTask(taskId,isExp){
   document.getElementById('task-is-exp').value=isE?'1':'0';
   document.getElementById('task-parent-id').value=t.parent_id||'';
   document.getElementById('count-toggle-wrap').style.display='block';
+  document.getElementById('rest-toggle-wrap').style.display=t.parent_id?'none':'block';
   document.getElementById('task-reset-row').style.display='flex';
   document.getElementById('task-reset-detail-row').style.display='flex';
   document.getElementById('activate-group').style.display=t.reset_type==='weekly'?'block':'none';
@@ -2403,6 +2541,7 @@ function openEditTask(taskId,isExp){
   document.getElementById('has-count').checked=hc;
   document.getElementById('count-max-row').style.display=hc?'flex':'none';
   document.getElementById('task-count-max').value=hc?t.count_max:'';
+  fillRestForm(t);
   const ha=t.activate_day!=null;
   document.getElementById('has-activate').checked=ha;
   document.getElementById('activate-day-row').style.display=ha?'block':'none';
@@ -2410,6 +2549,19 @@ function openEditTask(taskId,isExp){
   openModal('modal-task');
 }
 function toggleHasCount(){const cb=document.getElementById('has-count');cb.checked=!cb.checked;document.getElementById('count-max-row').style.display=cb.checked?'flex':'none';if(cb.checked)setTimeout(()=>document.getElementById('task-count-max').focus(),50);}
+function resetRestForm(on=false){
+  const cb=document.getElementById('has-rest');if(cb)cb.checked=on;
+  const row=document.getElementById('rest-config-row');if(row)row.style.display=on?'block':'none';
+  const vals={max:200,current:0,charge:20,consume:40,threshold:40,dailyLimit:1};
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
+  set('task-rest-max',vals.max);set('task-rest-current',vals.current);set('task-rest-charge',vals.charge);set('task-rest-consume',vals.consume);set('task-rest-threshold',vals.threshold);set('task-rest-daily-limit',vals.dailyLimit);
+}
+function fillRestForm(t){
+  const on=!!t.rest_enabled;resetRestForm(on);
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
+  set('task-rest-max',t.rest_max||200);set('task-rest-current',t.rest_current||0);set('task-rest-charge',t.rest_charge||20);set('task-rest-consume',t.rest_consume||40);set('task-rest-threshold',t.rest_threshold||40);set('task-rest-daily-limit',t.rest_daily_limit||1);
+}
+function toggleHasRest(){const cb=document.getElementById('has-rest');cb.checked=!cb.checked;document.getElementById('rest-config-row').style.display=cb.checked?'block':'none';}
 function toggleHasActivate(){const cb=document.getElementById('has-activate');cb.checked=!cb.checked;document.getElementById('activate-day-row').style.display=cb.checked?'block':'none';}
 function onResetTypeChange(){const v=document.getElementById('task-reset').value;syncTaskGroupUI(v);document.getElementById('day-group').style.display=v==='weekly'?'block':'none';document.getElementById('activate-group').style.display=v==='weekly'?'block':'none';}
 async function submitTask(){
@@ -2417,11 +2569,25 @@ async function submitTask(){
   const resetType=document.getElementById('task-reset').value,resetDay=parseInt(document.getElementById('task-day').value);
   const editId=document.getElementById('task-edit-id').value,isExp=document.getElementById('task-is-exp').value==='1',parentId=document.getElementById('task-parent-id').value||null;
   const hc=document.getElementById('has-count').checked,countMax=hc?(parseInt(document.getElementById('task-count-max').value)||null):null;
+  const restOn=document.getElementById('has-rest').checked&&!parentId;
+  const restMax=Math.max(1,parseInt(document.getElementById('task-rest-max').value)||200);
+  const restCurrent=Math.max(0,Math.min(parseInt(document.getElementById('task-rest-current').value)||0,restMax));
+  const restCharge=Math.max(0,parseInt(document.getElementById('task-rest-charge').value)||0);
+  const restConsume=Math.max(0,parseInt(document.getElementById('task-rest-consume').value)||0);
+  const restThreshold=Math.max(0,parseInt(document.getElementById('task-rest-threshold').value)||0);
+  const restDailyLimit=Math.max(1,parseInt(document.getElementById('task-rest-daily-limit').value)||1);
   const ha=document.getElementById('has-activate').checked;
   const activateDay=ha?(parseInt(document.getElementById('task-activate-day').value)):null;
   if(!name){toast('❗ 숙제명을 입력하세요');return;}
   if(hc&&!countMax){toast('❗ 최대 수량을 입력하세요');return;}
-  const rec={name,reset_type:resetType,reset_day:resetDay,count_max:countMax,activate_day:activateDay,icon_url:_taskIconUrl};
+  const rec={name,reset_type:resetType,reset_day:resetDay,count_max:countMax,activate_day:activateDay,icon_url:_taskIconUrl,
+    rest_enabled:restOn,rest_current:restCurrent,rest_max:restMax,rest_charge:restCharge,rest_consume:restConsume,rest_threshold:restThreshold,rest_daily_limit:restDailyLimit};
+  if(restOn){
+    const existing=editId?getList(isExp).find(x=>x.id===editId):null;
+    if(!existing?.rest_enabled||!existing.rest_last_processed_at)rec.rest_last_processed_at=getLastResetUTC(resetType,resetDay).toISOString();
+  }else{
+    rec.rest_last_processed_at=null;
+  }
   const table=isExp?'expedition_tasks':'tasks';
   if(editId){const{error}=await sb.from(table).update(rec).eq('id',editId);if(error){toast('❗ '+error.message);return;}const t=getList(isExp).find(x=>x.id===editId);if(t)Object.assign(t,rec);toast('✅ 수정됨');}
   else{
@@ -2618,7 +2784,7 @@ async function confirmCloneExp(){
   const groupId=await ensureTaskCloneGroup(task,true);
   for(const cb of checks){
     const accId=cb.dataset.cloneAcc;
-    const{data:newTask}=await sb.from('expedition_tasks').insert({account_id:accId,name:task.name,reset_type:task.reset_type,reset_day:task.reset_day,activate_day:task.activate_day,count_max:task.count_max,icon_url:task.icon_url||null,sort_order:99}).select().single();
+    const{data:newTask}=await sb.from('expedition_tasks').insert({account_id:accId,name:task.name,reset_type:task.reset_type,reset_day:task.reset_day,activate_day:task.activate_day,count_max:task.count_max,icon_url:task.icon_url||null,rest_enabled:task.rest_enabled||false,rest_current:task.rest_current||0,rest_max:task.rest_max||200,rest_charge:task.rest_charge||20,rest_consume:task.rest_consume||40,rest_threshold:task.rest_threshold||40,rest_daily_limit:task.rest_daily_limit||1,sort_order:99}).select().single();
     if(newTask&&groupId){await sb.from('expedition_tasks').update({clone_group_id:groupId}).eq('id',newTask.id);newTask.clone_group_id=groupId;}
     if(newTask&&children.length){for(const c of children)await sb.from('expedition_tasks').insert({account_id:accId,parent_id:newTask.id,name:c.name,reset_type:c.reset_type,reset_day:c.reset_day,activate_day:c.activate_day,count_max:c.count_max,icon_url:c.icon_url||null,sort_order:c.sort_order});}
     if(!S.expTasks[accId])S.expTasks[accId]=[];
@@ -2802,7 +2968,7 @@ async function executeCopy(){
   let cnt=0;
   for(const cb of checked){
     const charId=cb.value;if(!S.tasks[charId])S.tasks[charId]=[];
-    const{data:pd,error}=await sb.from('tasks').insert({character_id:charId,name:src.name,reset_type:src.reset_type,reset_day:src.reset_day,activate_day:src.activate_day,count_max:src.count_max,icon_url:src.icon_url||null,sort_order:(S.tasks[charId].filter(t=>!t.parent_id)).length}).select().single();
+    const{data:pd,error}=await sb.from('tasks').insert({character_id:charId,name:src.name,reset_type:src.reset_type,reset_day:src.reset_day,activate_day:src.activate_day,count_max:src.count_max,icon_url:src.icon_url||null,rest_enabled:src.rest_enabled||false,rest_current:src.rest_current||0,rest_max:src.rest_max||200,rest_charge:src.rest_charge||20,rest_consume:src.rest_consume||40,rest_threshold:src.rest_threshold||40,rest_daily_limit:src.rest_daily_limit||1,sort_order:(S.tasks[charId].filter(t=>!t.parent_id)).length}).select().single();
     if(error)continue;S.tasks[charId].push(pd);
     if(pd&&groupId){await sb.from('tasks').update({clone_group_id:groupId}).eq('id',pd.id);pd.clone_group_id=groupId;}
     if(srcChildren.length&&pd){const ins=srcChildren.map((c,i)=>({character_id:charId,parent_id:pd.id,name:c.name,reset_type:c.reset_type,reset_day:c.reset_day,activate_day:c.activate_day,count_max:c.count_max,icon_url:c.icon_url||null,sort_order:i}));const{data:cd}=await sb.from('tasks').insert(ins).select();if(cd)S.tasks[charId].push(...cd);}

@@ -652,6 +652,7 @@ async function loadAll(){
       if(icon)t.preset_icon=icon;
     }
   });
+  await markPartyLinkedRaidTasks();
   // Init filter: all chars with raids selected by default
   const charsWithRaids=characters.filter(c=>raidTasks.some(t=>t.character_id===c.id));
   const saved=localStorage.getItem('la_ov_sel_chars');
@@ -708,6 +709,19 @@ async function loadTempRaidTaskIds(){
     Object.values(added).forEach(v=>{if(v&&v.taskId)ids.push(v.taskId);});
   });
   tempRaidTaskIds=new Set(ids);
+}
+async function markPartyLinkedRaidTasks(){
+  const pids=[...new Set(raidTasks.filter(t=>t.preset_id).map(t=>t.preset_id))];
+  if(!pids.length){raidTasks.forEach(t=>t.has_party_link=false);return;}
+  const{data:partyRows}=await sb.from('raid_parties').select('id,preset_id').in('preset_id',pids);
+  const partyPreset={};(partyRows||[]).forEach(p=>{partyPreset[p.id]=p.preset_id;});
+  const partyIds=Object.keys(partyPreset);
+  const linked=new Set();
+  if(partyIds.length){
+    const{data:memberRows}=await sb.from('raid_party_members').select('party_id,character_id').in('party_id',partyIds);
+    (memberRows||[]).forEach(m=>{const pid=partyPreset[m.party_id];if(pid&&m.character_id)linked.add(m.character_id+'_'+pid);});
+  }
+  raidTasks.forEach(t=>{t.has_party_link=!!(t.preset_id&&linked.has(t.character_id+'_'+t.preset_id));});
 }
 
 // ─── Filter ───
@@ -859,7 +873,7 @@ function raidTaskRowHTML(t){
     <div class="rt-check"><span class="rt-check-icon">✓</span></div>
     <div class="rt-info">
       <div class="rt-name" style="display:flex;align-items:center;gap:4px;">${iconImg(localStorage.getItem('la_gicon_'+raidName)||'','entity-icon-sm')}<span style="color:${gc};">${esc(raidName)}</span>${t.difficulty?` <span class="${dc}" style="font-size:.72rem;margin-left:2px;">${esc(t.difficulty)}</span>`:''}</div>
-      ${t.preset_id?`<div style="margin-top:2px;"><span class="ov-party-chip ${isTemp?'temp':''}" onclick="event.stopPropagation();showOvPartyPopup('${t.preset_id}','${t.character_id}','${t.id}')">🔗 ${isTemp?'임시파티연동':'파티연동'}</span></div>`:''}
+      ${(t.has_party_link||isTemp)?`<div style="margin-top:2px;"><span class="ov-party-chip ${isTemp?'temp':''}" onclick="event.stopPropagation();showOvPartyPopup('${t.preset_id}','${t.character_id}','${t.id}')">🔗 ${isTemp?'임시파티연동':'파티연동'}</span></div>`:''}
     </div>
   </div>`;
 }
