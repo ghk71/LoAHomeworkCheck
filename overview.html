@@ -490,11 +490,11 @@ body { overflow:hidden; }
 .ov-party-chip{font-size:.63rem;color:var(--teal);padding:2px 6px;border:1px solid rgba(42,184,160,.3);border-radius:6px;cursor:pointer;background:rgba(42,184,160,.06);}
 .ov-party-chip.temp{color:var(--gold-text);border-color:rgba(200,168,75,.38);background:rgba(200,168,75,.10);}
 .ov-gold-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;}
-.ov-gold-chip{font-size:.63rem;padding:2px 6px;border-radius:999px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);color:var(--text-2);}
+.ov-gold-chip{font-size:.63rem;padding:2px 6px;border-radius:999px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);color:var(--text-2);white-space:nowrap;}
 .ov-gold-chip.flow{color:var(--gold-text);border-color:rgba(255,184,77,.24);}
 .ov-gold-chip.bound{color:var(--orange);border-color:rgba(249,115,22,.24);}
 .ov-gold-chip.bonus{color:#c4b5fd;border-color:rgba(196,181,253,.24);}
-.ov-gold-chip.off{opacity:.45;text-decoration:line-through;}
+.ov-gold-chip.off{opacity:.62;color:var(--text-3);border-color:rgba(255,255,255,.07);background:rgba(255,255,255,.02);}
 
 /* Week nav */
 .week-nav-bar {
@@ -622,7 +622,7 @@ button,input,select,textarea{ font:inherit; }
 const{createClient}=supabase;
 function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
 
-let sb,accounts=[],characters=[],raidTasks=[],tempRaidTaskIds=new Set(),tempRemovedRaidTaskIds=new Set(),raidGroupSettings={},raidGroupSettingsAvailable=true;
+let sb,accounts=[],characters=[],raidTasks=[],tempRaidTaskIds=new Set(),tempRemovedRaidTaskIds=new Set(),tempRemovedPresetByTask={},raidGroupSettings={},raidGroupSettingsAvailable=true;
 let weekOffset=0;
 let collapsedAccs=new Set(JSON.parse(localStorage.getItem('la_ov_collapsed')||'[]'));
 let selectedChars=new Set(); // selected character ids for filter
@@ -643,7 +643,7 @@ async function loadAll(){
     sb.from('accounts').select('*').order('sort_order').order('created_at'),
     sb.from('characters').select('*').order('sort_order').order('created_at'),
     sb.from('raid_tasks').select('*').order('sort_order').order('created_at'),
-    sb.from('raid_presets').select('id,name')
+    sb.from('raid_presets').select('id,name,difficulty')
   ]);
   const firstError=results.find(r=>r.error)?.error;
   if(firstError){toast('❗ 로딩 오류: '+firstError.message);console.error(firstError);return;}
@@ -651,10 +651,15 @@ async function loadAll(){
   accounts=r1.data||[];characters=r2.data||[];raidTasks=r3.data||[];
   await loadRaidGroupSettings();
   await loadTempRaidTaskIds();
-  const presetsMap={};(r4.data||[]).forEach(p=>{presetsMap[p.id]=p.name;});
+  const presetsMap={};(r4.data||[]).forEach(p=>{presetsMap[p.id]=p;});
   raidTasks.forEach(t=>{
-    if(t.preset_id&&presetsMap[t.preset_id]){
-      t.preset_name=presetsMap[t.preset_id];
+    const removedPreset=tempRemovedPresetByTask[t.id];
+    if(removedPreset){
+      t.preset_name=removedPreset.name;
+      t.difficulty=t.difficulty||removedPreset.difficulty||'';
+      t.preset_icon=getGroupIcon(t.preset_name);
+    } else if(t.preset_id&&presetsMap[t.preset_id]){
+      t.preset_name=presetsMap[t.preset_id].name;
       t.preset_icon=getGroupIcon(t.preset_name);
     }
   });
@@ -674,7 +679,7 @@ async function loadAll(){
 
 // ─── Week ───
 function getWeekStart(off=0){
-  const now=new Date(),kst=new Date(now.getTime()+9*3600000);
+  const now=appNow(),kst=new Date(now.getTime()+9*3600000);
   let b=(kst.getUTCDay()-3+7)%7;if(b===0&&kst.getUTCHours()<6)b=7;
   const ws=new Date(kst);ws.setUTCDate(ws.getUTCDate()-b+off*7);ws.setUTCHours(6,0,0,0);return ws;
 }
@@ -686,7 +691,7 @@ function isEffDone(t){
 }
 function nextResetLabel(){
   const next=new Date(getWeekStart(0));next.setUTCDate(next.getUTCDate()+7);
-  const diff=next-Date.now();if(diff<=0)return'곧';
+  const diff=next-appNowMs();if(diff<=0)return'곧';
   const h=Math.floor(diff/3600000),m=Math.floor((diff%3600000)/60000);
   return h>0?`${h}시간 후`:`${m}분 후`;
 }
@@ -707,17 +712,33 @@ async function autoReset(){
   toReset.forEach(t=>{t.is_completed=false;t.last_completed_at=null;});
 }
 async function loadTempRaidTaskIds(){
-  const{data,error}=await sb.from('raid_schedule_overrides').select('temp_changes').eq('week_start_date',getWeekKey(0));
-  if(error){tempRaidTaskIds=new Set();tempRemovedRaidTaskIds=new Set();return;}
+  const{data,error}=await sb.from('raid_schedule_overrides').select('schedule_id,temp_changes').eq('week_start_date',getWeekKey(0));
+  if(error){tempRaidTaskIds=new Set();tempRemovedRaidTaskIds=new Set();tempRemovedPresetByTask={};return;}
   const ids=[],removedIds=[];
+  const removedBySchedule=[];
   (data||[]).forEach(o=>{
     const added=(o.temp_changes&&o.temp_changes.added)||{};
     const removed=(o.temp_changes&&o.temp_changes.removed)||{};
     Object.values(added).forEach(v=>{if(v&&v.taskId)ids.push(v.taskId);});
-    Object.values(removed).forEach(v=>{if(v&&v.taskId)removedIds.push(v.taskId);});
+    Object.values(removed).forEach(v=>{if(v&&v.taskId){removedIds.push(v.taskId);removedBySchedule.push({taskId:v.taskId,scheduleId:o.schedule_id});}});
   });
   tempRaidTaskIds=new Set(ids);
   tempRemovedRaidTaskIds=new Set(removedIds);
+  tempRemovedPresetByTask={};
+  const scheduleIds=[...new Set(removedBySchedule.map(x=>x.scheduleId).filter(Boolean))];
+  if(scheduleIds.length){
+    const{data:schRows}=await sb.from('raid_schedules').select('id,party_id').in('id',scheduleIds);
+    const partyIds=[...new Set((schRows||[]).map(s=>s.party_id).filter(Boolean))];
+    if(partyIds.length){
+      const{data:partyRows}=await sb.from('raid_parties').select('id,preset_id').in('id',partyIds);
+      const presetIds=[...new Set((partyRows||[]).map(p=>p.preset_id).filter(Boolean))];
+      const{data:presetRows}=presetIds.length?await sb.from('raid_presets').select('id,name,difficulty').in('id',presetIds):{data:[]};
+      const partyPreset={};(partyRows||[]).forEach(p=>{partyPreset[p.id]=p.preset_id;});
+      const presetMap={};(presetRows||[]).forEach(p=>{presetMap[p.id]=p;});
+      const schedulePreset={};(schRows||[]).forEach(s=>{schedulePreset[s.id]=presetMap[partyPreset[s.party_id]];});
+      removedBySchedule.forEach(x=>{if(schedulePreset[x.scheduleId])tempRemovedPresetByTask[x.taskId]=schedulePreset[x.scheduleId];});
+    }
+  }
 }
 async function loadRaidGroupSettings(){
   raidGroupSettings={};raidGroupSettingsAvailable=true;
@@ -883,15 +904,21 @@ function raidTaskRowHTML(t){
   const isTemp=tempRaidTaskIds&&tempRaidTaskIds.has(t.id);
   const isRemoved=tempRemovedRaidTaskIds&&tempRemovedRaidTaskIds.has(t.id);
   const raidName=t.preset_name||t.name;
+  const popupPresetId=t.preset_id||(tempRemovedPresetByTask[t.id]?.id)||'';
   const gc=getGroupColor(raidName);
   const dc=diffClass(t.difficulty||'');
   const flow=Math.max(0,(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0)),bound=Number(t.bound_gold)||0,bonus=Number(t.bonus_gold)||0;
+  const flagChips=[
+    flow?`<span class="ov-gold-chip flow ${t.receive_gold===false?'off':''}">유통 ${t.receive_gold===false?'안받음':'받음'}</span>`:'',
+    bound?`<span class="ov-gold-chip bound ${t.receive_bound===false?'off':''}">귀속 ${t.receive_bound===false?'안받음':'받음'}</span>`:'',
+    bonus?`<span class="ov-gold-chip bonus ${t.receive_bonus===false?'off':''}">더보기 ${t.receive_bonus===false?'안함':'함'}</span>`:''
+  ].join('');
   return`<div class="rt-row ${done?'done':''}" id="ov-rti-${t.id}" onclick="toggleRaidTask('${t.id}')">
     <div class="rt-check"><span class="rt-check-icon">✓</span></div>
     <div class="rt-info">
       <div class="rt-name" style="display:flex;align-items:center;gap:4px;">${iconImg(getGroupIcon(raidName),'entity-icon-sm')}<span style="color:${gc};">${esc(raidName)}</span>${t.difficulty?` <span class="${dc}" style="font-size:.72rem;margin-left:2px;">${esc(t.difficulty)}</span>`:''}</div>
-      <div class="ov-gold-row">${flow?`<span class="ov-gold-chip flow ${t.receive_gold===false?'off':''}">유통 ${flow.toLocaleString()}G</span>`:''}${bound?`<span class="ov-gold-chip bound ${t.receive_bound===false?'off':''}">귀속 ${bound.toLocaleString()}G</span>`:''}${bonus?`<span class="ov-gold-chip bonus ${t.receive_bonus===false?'off':''}">더보기 ${bonus.toLocaleString()}G</span>`:''}</div>
-      ${(t.has_party_link||isTemp||isRemoved)?`<div style="margin-top:2px;"><span class="ov-party-chip ${(isTemp||isRemoved)?'temp':''}" onclick="event.stopPropagation();showOvPartyPopup('${t.preset_id}','${t.character_id}','${t.id}')">🔗 ${isRemoved?'임시파티해제':isTemp?'임시파티연동':'파티연동'}</span></div>`:''}
+      <div class="ov-gold-row">${flagChips}</div>
+      ${(t.has_party_link||isTemp||isRemoved)?`<div style="margin-top:2px;"><span class="ov-party-chip ${(isTemp||isRemoved)?'temp':''}" onclick="event.stopPropagation();showOvPartyPopup('${popupPresetId}','${t.character_id}','${t.id}')">🔗 ${isRemoved?'임시파티해제':isTemp?'임시파티연동':'파티연동'}</span></div>`:''}
     </div>
   </div>`;
 }
@@ -966,7 +993,7 @@ async function showOvPartyPopup(presetId,charId,taskId=''){
 async function toggleRaidTask(taskId){
   const t=raidTasks.find(x=>x.id===taskId);if(!t)return;
   const nowDone=!isEffDone(t);
-  const ts=nowDone?new Date().toISOString():null;
+  const ts=nowDone?appNowIso():null;
   const up={is_completed:nowDone,last_completed_at:ts};
   // DOM update immediately
   const el=document.getElementById('ov-rti-'+taskId);
@@ -1048,6 +1075,9 @@ function diffClass(d){if(!d)return'';const dl=d.toLowerCase();if(dl.includes('�
 function openModal(id){document.getElementById(id)?.classList.add('open');}
 function closeModal(id){document.getElementById(id)?.classList.remove('open');}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function appNowMs(){const t=Number(localStorage.getItem('la_test_now')||0);return Number.isFinite(t)&&t>0?t:Date.now();}
+function appNow(){return new Date(appNowMs());}
+function appNowIso(){return new Date(appNowMs()).toISOString();}
 init();
 </script>
 

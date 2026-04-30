@@ -401,11 +401,11 @@ body { overflow:hidden; }
 }
 .pc-raid-name { font-size:.9rem; font-weight:700; }
 .pc-raid-name .diff-nightmare,.pc-raid-name .diff-hard,.pc-raid-name .diff-normal { font-size:inherit!important; }
-.pc-party-name { font-size:.72rem; color:var(--text-3); margin-top:2px; }
+.pc-party-name { font-size:.72rem; color:var(--text-3); margin-top:2px; line-height:1.45; overflow-wrap:anywhere; }
 .pc-body { padding:8px 12px; }
 .slot-list { display:flex; flex-direction:column; gap:4px; }
 .slot-row {
-  display:flex; align-items:center; gap:7px;
+  display:grid; grid-template-columns:auto auto minmax(72px,auto) minmax(0,1fr); align-items:center; gap:7px;
   padding: 5px 7px; border-radius:5px;
   font-size:.78rem;
 }
@@ -414,10 +414,10 @@ body { overflow:hidden; }
   border: 1px solid rgba(245,158,11,.2);
 }
 .slot-num { font-size:.62rem; color:var(--text-3); width:14px; flex-shrink:0; }
-.slot-char-name { flex:1; font-size:.79rem; }
+.slot-char-name { font-size:.79rem; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .slot-char-name.me { color:var(--gold-text); font-weight:700; }
-.slot-char-class { font-size:.66rem; color:var(--text-3); }
-.slot-empty-txt { color:var(--text-3); font-size:.74rem; flex:1; }
+.slot-char-class { font-size:.66rem; color:var(--text-3); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.slot-empty-txt { color:var(--text-3); font-size:.74rem; grid-column:3/-1; }
 .pc-footer {
   padding: 8px 12px;
   border-top: 1px solid rgba(255,255,255,.06);
@@ -558,7 +558,9 @@ let sb,accounts=[],characters=[],raids=[],parties=[],members=[],raidTasks=[],sch
 let selectedChars=new Set();
 let filterOpen=localStorage.getItem('la_pt_filter_open')==='1';
 let partyOrderMode=localStorage.getItem('la_pt_order_mode')||'partyless_last';
-function getWeekStart(){const now=new Date(),kst=new Date(now.getTime()+9*3600000);let b=(kst.getUTCDay()-3+7)%7;if(b===0&&kst.getUTCHours()<6)b=7;const ws=new Date(kst);ws.setUTCDate(ws.getUTCDate()-b);ws.setUTCHours(6,0,0,0);return ws;}
+function appNowMs(){const t=Number(localStorage.getItem('la_test_now')||0);return Number.isFinite(t)&&t>0?t:Date.now();}
+function appNow(){return new Date(appNowMs());}
+function getWeekStart(){const now=appNow(),kst=new Date(now.getTime()+9*3600000);let b=(kst.getUTCDay()-3+7)%7;if(b===0&&kst.getUTCHours()<6)b=7;const ws=new Date(kst);ws.setUTCDate(ws.getUTCDate()-b);ws.setUTCHours(6,0,0,0);return ws;}
 function getWeekKey(){const ws=getWeekStart();return`${ws.getUTCFullYear()}-${String(ws.getUTCMonth()+1).padStart(2,'0')}-${String(ws.getUTCDate()).padStart(2,'0')}`;}
 
 async function init(){
@@ -689,13 +691,17 @@ function render(){
       const removedParties=getTempRemovedPartiesForChar(c.id);
       const removedPartyIds=new Set(removedParties.map(x=>x.party.id));
       const removedPresetIds=new Set(removedParties.map(x=>x.party.preset_id));
+      const removedTaskIds=new Set(removedParties.map(x=>{
+        const removed=(x.override.temp_changes&&x.override.temp_changes.removed)||{};
+        return removed[c.id]?.taskId||removed[c.id]?.task_id||null;
+      }).filter(Boolean));
       const charMembers=members.filter(m=>m.character_id===c.id&&!removedPartyIds.has(m.party_id));
       const charRaidTasks=raidTasks.filter(t=>t.character_id===c.id);
       const charParties=charMembers.map(m=>{const p=parties.find(x=>x.id===m.party_id);return p?{party:p,member:m}:null;}).filter(Boolean);
       const tempParties=getTempPartiesForChar(c.id);
       const tempPresetIds=new Set(tempParties.map(x=>x.party.preset_id));
       if(!charMembers.length&&!charRaidTasks.length&&!tempParties.length&&!removedParties.length)return;
-      const partylessTasks=charRaidTasks.filter(t=>!t.preset_id||(!charParties.some(({party:p})=>p.preset_id===t.preset_id)&&!tempPresetIds.has(t.preset_id)&&!removedPresetIds.has(t.preset_id)));
+      const partylessTasks=charRaidTasks.filter(t=>!removedTaskIds.has(t.id)&&!removedPresetIds.has(t.preset_id)&&(!t.preset_id||(!charParties.some(({party:p})=>p.preset_id===t.preset_id)&&!tempPresetIds.has(t.preset_id))));
       const cards=[
         ...charParties.map(x=>({type:'party',key:raidSortKeyByPresetId(x.party.preset_id),html:partyCardHTML(x.party,c,x.member,false)})),
         ...tempParties.map(x=>({type:'temp',key:raidSortKeyByPresetId(x.party.preset_id),html:partyCardHTML(x.party,c,{slot_index:x.slotIndex,character_id:c.id,id:''},true)})),

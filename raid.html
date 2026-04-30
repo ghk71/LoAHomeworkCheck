@@ -919,6 +919,9 @@ button,input,select,textarea{ font:inherit; }
 .viewer-topbar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
 .viewer-topbar-title{font-weight:900;color:var(--gold-text);}
 .viewer-topbar-spacer{flex:1;}
+.viewer-card-footer{padding:8px 11px;border-top:1px solid rgba(255,255,255,.07);display:flex;justify-content:flex-end;background:rgba(255,255,255,.018);}
+.viewer-sch-topbar{display:none;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.025);font-size:.8rem;color:var(--muted);}
+.viewer-sch-topbar.show{display:flex;}
 .viewer-add-modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 @media(max-width:680px){.viewer-add-modal-grid{grid-template-columns:1fr;}}
 .sch-party-list{max-height:300px;overflow:auto;border:1px solid var(--border);border-radius:14px;background:rgba(8,13,25,.52);padding:8px;display:flex;flex-direction:column;gap:8px;}
@@ -1011,6 +1014,11 @@ button,input,select,textarea{ font:inherit; }
       <span class="week-label" id="week-label"></span>
       <button class="btn btn-sec btn-sm" onclick="moveWeek(1)">다음 ▶</button>
       <button class="btn btn-ghost btn-sm" onclick="goToCurrentWeek()">오늘</button>
+    </div>
+    <div class="viewer-sch-topbar" id="viewer-sch-topbar">
+      <span id="viewer-sch-account-label">선택 계정</span>
+      <span style="flex:1;"></span>
+      <button class="btn btn-sec btn-sm" onclick="changeViewerAccount()">⚙ 계정 변경</button>
     </div>
     <!-- Schedule character filter -->
     <div id="sch-filter-bar" style="background:var(--s2);border-bottom:1px solid var(--border);flex-shrink:0;">
@@ -1180,6 +1188,13 @@ function setViewerAccount(id){
   renderSchedule();
   switchViewerTab('sch');
 }
+function changeViewerAccount(){
+  localStorage.removeItem(VIEWER_ACC_KEY);
+  localStorage.removeItem('la_viewer_ov_chars');
+  localStorage.removeItem(SCH_HL_KEY);
+  schHighlightChars=new Set();
+  switchViewerTab('ov');
+}
 function renderViewerAccountSelect(el,accs){
   const main=(accs||[]).filter(a=>!a.parent_account_id);
   el.innerHTML=`<div class="viewer-account-select">
@@ -1212,17 +1227,25 @@ async function switchViewerTab(tab){
   const appBody=document.querySelector('.app-body');
   const hdr=document.querySelector('.header');
   const tabs=document.querySelector('.tab-bar');
+  const viewerSchTop=document.getElementById('viewer-sch-topbar');
   if(tab==='sch'){
     if(hdr)hdr.style.display='flex';
     if(tabs)tabs.style.display='none';
     if(appBody)appBody.style.display='block';
     if(schArea)schArea.style.display='flex';
     if(ovArea){ovArea.style.display='none';ovArea.classList.remove('viewer-only-overview');}
+    const acc=viewerSelectedAccount(accounts);
+    if(viewerSchTop){
+      viewerSchTop.classList.toggle('show',!!acc);
+      const label=document.getElementById('viewer-sch-account-label');
+      if(label&&acc)label.textContent=`${acc.name} 레이드`;
+    }
   } else {
     if(hdr)hdr.style.display='none';
     if(tabs)tabs.style.display='none';
     if(appBody)appBody.style.display='none';
     if(schArea)schArea.style.display='none';
+    if(viewerSchTop)viewerSchTop.classList.remove('show');
     if(ovArea){ovArea.style.display='block';ovArea.classList.add('viewer-only-overview');await loadViewerOverview(ovArea);}
   }
 }
@@ -1352,7 +1375,7 @@ async function loadViewerOverview(el){
       <div class="vo-gold-split">${goldMiniHTML('유통 골드',st.earnedFlow,st.flow,'flow')}${goldMiniHTML('귀속 골드',st.earnedBound,st.bound,'bound')}${goldMiniHTML('더보기 골드',st.earnedBonus,st.bonus,'bonus')}</div>
     </div>`;
   };
-  let html=`<div class="viewer-topbar"><span class="viewer-topbar-title">${esc(selectedAcc.name)}</span><span style="font-size:.76rem;color:var(--muted);">선택 계정 레이드 현황</span><span class="viewer-topbar-spacer"></span><button class="btn btn-orange btn-sm" onclick="openViewerAddRaidModal()">＋ 레이드 추가</button><button class="btn btn-sec btn-sm" onclick="localStorage.removeItem('${VIEWER_ACC_KEY}');localStorage.removeItem('la_viewer_ov_chars');loadViewerOverview(document.getElementById('viewer-overview-area'))">⚙ 계정 변경</button></div>
+  let html=`<div class="viewer-topbar"><span class="viewer-topbar-title">${esc(selectedAcc.name)}</span><span style="font-size:.76rem;color:var(--muted);">선택 계정 레이드 현황</span><span class="viewer-topbar-spacer"></span><button class="btn btn-orange btn-sm" onclick="openViewerAddCharModal()">＋ 캐릭터 추가</button><button class="btn btn-sec btn-sm" onclick="changeViewerAccount()">⚙ 계정 변경</button></div>
   <div class="vo-sort-toggle"><button class="vo-sort-btn ${sortMode==='raid'?'active':''}" onclick="${setSortMode('raid')}">레이드 순</button><button class="vo-sort-btn ${sortMode==='day'?'active':''}" onclick="${setSortMode('day')}">요일 순</button></div>
   ${renderViewerFilter()}`;
   const renderViewerGroup=(label,withRaids)=>{
@@ -1376,6 +1399,7 @@ async function loadViewerOverview(el){
             ${raidGoldChips(t)}
           </div>`;}).join(''):'<div class="vo-empty">레이드가 없습니다</div>'}
         </div>
+        <div class="viewer-card-footer"><button class="btn btn-orange btn-sm" onclick="event.stopPropagation();openViewerAddRaidModal('${c.id}')">＋ 레이드 추가</button></div>
       </div>`;
     });
     html+='</div></div>';
@@ -1396,13 +1420,53 @@ async function viewerToggleRaidTask(taskId){
   if(!allowed.has(t.character_id)){toast('❗ 선택 계정의 캐릭터만 완료 처리할 수 있습니다');return;}
   const ws=new Date(getWeekStart(0).getTime()-9*3600000);
   const done=!!(t.is_completed&&t.last_completed_at&&new Date(t.last_completed_at)>ws);
-  const nowDone=!done,ts=nowDone?new Date().toISOString():null;
+  const nowDone=!done,ts=nowDone?appNowIso():null;
   Object.assign(t,{is_completed:nowDone,last_completed_at:ts});
   const{error}=await sb.from('raid_tasks').update({is_completed:nowDone,last_completed_at:ts}).eq('id',taskId);
   if(error){toast('❗ 저장 실패: '+error.message);return;}
   await loadViewerOverview(document.getElementById('viewer-overview-area'));
 }
-function openViewerAddRaidModal(){
+function openViewerAddCharModal(){
+  let modal=document.getElementById('modal-viewer-add-char');
+  if(!modal){
+    modal=document.createElement('div');modal.className='overlay';modal.id='modal-viewer-add-char';
+    modal.innerHTML=`<div class="modal">
+      <div class="modal-title">캐릭터 추가</div>
+      <div class="form-group"><label class="form-label">캐릭터명</label><input class="form-input" id="viewer-char-name" lang="ko" inputmode="text"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">직업</label><input class="form-input" id="viewer-char-class" lang="ko" inputmode="text"></div>
+        <div class="form-group"><label class="form-label">레벨</label><input class="form-input" id="viewer-char-ilvl" type="number" min="0"></div>
+      </div>
+      <div class="form-group"><label class="form-label">전투력</label><input class="form-input" id="viewer-char-combat" type="number" min="0"></div>
+      <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-viewer-add-char')">취소</button><button class="btn btn-gold" onclick="submitViewerAddChar()">추가</button></div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('open');});
+  }
+  ['viewer-char-name','viewer-char-class','viewer-char-ilvl','viewer-char-combat'].forEach(id=>document.getElementById(id).value='');
+  openModal('modal-viewer-add-char');
+}
+async function submitViewerAddChar(){
+  const acc=viewerSelectedAccount(accounts);if(!acc){toast('계정을 먼저 선택하세요');return;}
+  const name=document.getElementById('viewer-char-name').value.trim();
+  if(!name){toast('❗ 캐릭터명을 입력하세요');return;}
+  const rec={
+    account_id:acc.id,
+    name,
+    class_name:document.getElementById('viewer-char-class').value.trim(),
+    item_level:parseFloat(document.getElementById('viewer-char-ilvl').value)||0,
+    combat_power:parseFloat(document.getElementById('viewer-char-combat').value)||0,
+    sort_order:allChars.filter(c=>c.account_id===acc.id).length
+  };
+  const{data,error}=await sb.from('characters').insert(rec).select().single();
+  if(error){toast('❗ '+error.message);return;}
+  allChars.push(data);
+  localStorage.removeItem('la_viewer_ov_chars');
+  closeModal('modal-viewer-add-char');
+  toast('✅ 캐릭터 추가됨');
+  await loadViewerOverview(document.getElementById('viewer-overview-area'));
+}
+function openViewerAddRaidModal(charId=''){
   let modal=document.getElementById('modal-viewer-add-raid');
   if(!modal){
     modal=document.createElement('div');modal.className='overlay';modal.id='modal-viewer-add-raid';
@@ -1421,10 +1485,12 @@ function openViewerAddRaidModal(){
       <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-viewer-add-raid')">취소</button><button class="btn btn-orange" onclick="submitViewerAddRaid()">추가</button></div>
     </div>`;
     document.body.appendChild(modal);
+    modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('open');});
   }
   const acc=viewerSelectedAccount(accounts);if(!acc){toast('계정을 먼저 선택하세요');return;}
   const allowed=new Set(viewerScopeCharIds(accounts,allChars,acc.id));
   document.getElementById('viewer-add-char').innerHTML=allChars.filter(c=>allowed.has(c.id)).map(c=>`<option value="${c.id}">${esc(c.name)}${c.item_level?' Lv.'+c.item_level:''}${c.combat_power?' · 전투력 '+Number(c.combat_power).toLocaleString():''}</option>`).join('');
+  if(charId&&allowed.has(charId))document.getElementById('viewer-add-char').value=charId;
   document.getElementById('viewer-add-preset').innerHTML='<option value="">직접 입력</option>'+raids.map(r=>`<option value="${r.id}">${esc(r.name)} ${esc(r.difficulty||'')}</option>`).join('');
   ['viewer-add-name','viewer-add-diff','viewer-add-entry','viewer-add-clear','viewer-add-bound','viewer-add-bonus'].forEach(id=>document.getElementById(id).value='');
   openModal('modal-viewer-add-raid');
@@ -1469,6 +1535,9 @@ function normalizeTempChanges(tc={}){
 }
 function normalizeOverride(o){o=o||{};o.slot_overrides=o.slot_overrides||{};o.temp_changes=normalizeTempChanges(o.temp_changes||{});return o;}
 function supaErr(res,msg='작업 실패'){if(res?.error){toast('❗ '+(res.error.message||msg));console.error(res.error);return true;}return false;}
+function appNowMs(){const t=Number(localStorage.getItem('la_test_now')||0);return Number.isFinite(t)&&t>0?t:Date.now();}
+function appNow(){return new Date(appNowMs());}
+function appNowIso(){return new Date(appNowMs()).toISOString();}
 
 // ─── Init ───
 async function init(){
@@ -1512,8 +1581,8 @@ async function init(){
 }
 
 // ─── Week helpers ───
-function getGameNowKST(){const d=new Date(Date.now()+9*3600000);if(d.getUTCHours()<6)d.setUTCDate(d.getUTCDate()-1);return d;}
-function getWeekStart(off=0){const now=new Date(),kst=new Date(now.getTime()+9*3600000);let b=(kst.getUTCDay()-3+7)%7;if(b===0&&kst.getUTCHours()<6)b=7;const ws=new Date(kst);ws.setUTCDate(ws.getUTCDate()-b+off*7);ws.setUTCHours(6,0,0,0);return ws;}
+function getGameNowKST(){const d=new Date(appNowMs()+9*3600000);if(d.getUTCHours()<6)d.setUTCDate(d.getUTCDate()-1);return d;}
+function getWeekStart(off=0){const now=appNow(),kst=new Date(now.getTime()+9*3600000);let b=(kst.getUTCDay()-3+7)%7;if(b===0&&kst.getUTCHours()<6)b=7;const ws=new Date(kst);ws.setUTCDate(ws.getUTCDate()-b+off*7);ws.setUTCHours(6,0,0,0);return ws;}
 function getWeekKey(off=0){const ws=getWeekStart(off);return`${ws.getUTCFullYear()}-${String(ws.getUTCMonth()+1).padStart(2,'0')}-${String(ws.getUTCDate()).padStart(2,'0')}`;}
 function getWeekDays(off=0){const s=getWeekStart(off);return WEEK_DAY_NUMS.map((_,i)=>{const d=new Date(s);d.setUTCDate(d.getUTCDate()+i);return d;});}
 function updateWeekLabel(){const d=getWeekDays(weekOffset),f=x=>`${x.getUTCMonth()+1}/${x.getUTCDate()}`,l=`${f(d[0])} (수) ~ ${f(d[6])} (화)`;document.getElementById('week-label').textContent=l;document.getElementById('header-week').textContent=l;}
@@ -1796,8 +1865,10 @@ function renderPresetList(){
   applyViewer();
 }
 function toggleGroup(name){
-  if(openRaidGroups.has(name))openRaidGroups.delete(name);
-  else openRaidGroups.add(name);
+  if(openRaidGroups.has(name)){
+    openRaidGroups.delete(name);
+    raids.filter(r=>r.name===name).forEach(r=>openRaidPresets.delete(r.id));
+  } else openRaidGroups.add(name);
   saveRaidOpenState();
   renderPresetList();
 }
@@ -1809,7 +1880,15 @@ function togglePreset(id){
   saveRaidOpenState();
   renderPresetList();
 }
-function selectParty(id){const p=parties.find(x=>x.id===id),r=p?raids.find(x=>x.id===p.preset_id):null;if(r){openRaidGroups.add(r.name);openRaidPresets.add(r.id);saveRaidOpenState();}selPartyId=id;renderPresetList();renderPartyDetail();}
+function openOnlyPartyBranch(partyId){
+  const p=parties.find(x=>x.id===partyId),r=p?raids.find(x=>x.id===p.preset_id):null;
+  if(!r)return null;
+  openRaidGroups=new Set([r.name]);
+  openRaidPresets=new Set([r.id]);
+  saveRaidOpenState();
+  return {party:p,preset:r};
+}
+function selectParty(id){const branch=openOnlyPartyBranch(id);if(!branch)return;selPartyId=id;renderPresetList();renderPartyDetail();}
 
 function getMembersForParty(p){const r=[];for(let i=0;i<p.party_size;i++){const m=p.members.find(x=>x.slot_index===i);r.push(m||{slot_index:i,character_id:null,id:null});}return r;}
 
@@ -1912,27 +1991,48 @@ async function assignChar(charId){
   closeModal('modal-char-pick');renderPresetList();renderPartyDetail();toast('✅ 배치됨');
 }
 
+function normalizeRaidText(v){return String(v||'').trim().replace(/\s+/g,' ').toLowerCase();}
+function isSamePresetTask(t,preset){
+  if(!t||!preset)return false;
+  if(t.preset_id===preset.id)return true;
+  if(t.preset_id)return false;
+  const name=normalizeRaidText(t.name);
+  const raidName=normalizeRaidText(preset.name);
+  const diff=normalizeRaidText(preset.difficulty);
+  const taskDiff=normalizeRaidText(t.difficulty);
+  return name===raidName||name===normalizeRaidText(`${preset.name} ${preset.difficulty||''}`)||(name===raidName&&(!diff||!taskDiff||taskDiff===diff));
+}
+async function ensureRaidTaskForPreset(charId,preset,{silent=false}={}){
+  if(!preset||!charId)return null;
+  const{data:byPreset,error:presetErr}=await sb.from('raid_tasks').select('*').eq('character_id',charId).eq('preset_id',preset.id);
+  if(presetErr){if(!silent)toast('❗ '+presetErr.message);return null;}
+  if(byPreset&&byPreset.length>0)return byPreset[0];
+  const{data:allTasks,error:allErr}=await sb.from('raid_tasks').select('*').eq('character_id',charId);
+  if(allErr){if(!silent)toast('❗ '+allErr.message);return null;}
+  const existing=(allTasks||[]).find(t=>isSamePresetTask(t,preset));
+  if(existing){
+    const{error}=await sb.from('raid_tasks').update({preset_id:preset.id}).eq('id',existing.id);
+    if(error){if(!silent)toast('❗ '+error.message);return null;}
+    existing.preset_id=preset.id;
+    if(!silent)toast('🔗 기존 레이드 숙제와 연동됨');
+    return existing;
+  }
+  const taskName=preset.name+(preset.difficulty?' '+preset.difficulty:'');
+  const{data:newTask,error}=await sb.from('raid_tasks').insert({
+    character_id:charId,preset_id:preset.id,name:taskName,difficulty:preset.difficulty||'',
+    entry_level:preset.entry_level||0,clear_gold:preset.clear_gold||0,
+    bound_gold:preset.bound_gold||0,bonus_gold:preset.bonus_gold||0,
+    reset_day:3,sort_order:99,receive_gold:true,receive_bound:true,receive_bonus:true
+  }).select().single();
+  if(error){if(!silent)toast('❗ '+error.message);return null;}
+  if(!silent)toast('✅ 레이드 숙제 자동 추가됨');
+  if(newTask)newTask.__created=true;
+  return newTask||null;
+}
 // ★ 레이드 숙제 연동: 캐릭터가 파티에 들어갈 때 raid_tasks 생성/연동
 async function syncRaidTask(charId,partyId){
   const p=parties.find(x=>x.id===partyId),preset=p?raids.find(x=>x.id===p.preset_id):null;
-  if(!preset||!charId)return;
-  // 같은 preset_id로 이미 있는지 확인
-  const{data:byPreset}=await sb.from('raid_tasks').select('*').eq('character_id',charId).eq('preset_id',preset.id);
-  if(byPreset&&byPreset.length>0)return; // 이미 연동됨
-  // 이름으로 기존 숙제 찾기 (대소문자 무관)
-  const{data:allTasks}=await sb.from('raid_tasks').select('*').eq('character_id',charId);
-  const presetNameLower=preset.name.toLowerCase();
-  const existing=(allTasks||[]).find(t=>t.name&&t.name.toLowerCase().includes(presetNameLower));
-  if(existing){
-    // 기존 숙제에 preset_id 연동
-    await sb.from('raid_tasks').update({preset_id:preset.id}).eq('id',existing.id);
-    toast(`🔗 기존 레이드 숙제와 연동됨`);
-  } else {
-    // 새 숙제 생성
-    const taskName=preset.name+(preset.difficulty?' '+preset.difficulty:'');
-    const{error}=await sb.from('raid_tasks').insert({character_id:charId,preset_id:preset.id,name:taskName,difficulty:preset.difficulty||'',entry_level:preset.entry_level||0,clear_gold:preset.clear_gold||0,bound_gold:preset.bound_gold||0,bonus_gold:preset.bonus_gold||0,reset_day:3,sort_order:99,receive_gold:true,receive_bound:true,receive_bonus:true});
-    if(!error)toast(`✅ 레이드 숙제 자동 추가됨`);
-  }
+  await ensureRaidTaskForPreset(charId,preset);
 }
 async function removePartyMember(partyId,slotIndex,memberId){
   const p=parties.find(x=>x.id===partyId);if(!p)return;
@@ -1944,12 +2044,6 @@ async function removePartyMember(partyId,slotIndex,memberId){
 }
 
 // ─── Raid Group (이름 레벨) CRUD ───
-function openAddPreset(){
-  document.getElementById('raid-name-modal-title').textContent='레이드 추가';
-  document.getElementById('rn-submit-btn').textContent='추가';
-  document.getElementById('rn-name').value='';document.getElementById('rn-old-name').value='';
-  openModal('modal-raid-name');setTimeout(()=>document.getElementById('rn-name').focus(),80);
-}
 function resetRnColor(){document.getElementById('rn-color').value='#4caf50';document.getElementById('rn-color-preview').textContent='● 기본(초록)';document.getElementById('rn-color-preview').style.color='#4caf50';}
 function openEditRaidGroup(groupName){
   document.getElementById('raid-name-modal-title').textContent='레이드 이름 수정';
@@ -2139,8 +2233,14 @@ function initSchFilter(){
   else schFilterChars=null;
   // 하이라이트 상태 로드
   const hl=localStorage.getItem(SCH_HL_KEY);
-  if(hl){try{schHighlightChars=new Set(JSON.parse(hl).filter(id=>allChars.some(c=>c.id===id)));}catch{schHighlightChars=new Set();}}
-  else if(isViewer&&viewerSelectedAccount(accounts)){schHighlightChars=new Set(viewerScopeCharIds(accounts,allChars,viewerSelectedAccount(accounts).id));}
+  const viewerAcc=isViewer?viewerSelectedAccount(accounts):null;
+  if(viewerAcc){
+    const allowed=viewerScopeCharIds(accounts,allChars,viewerAcc.id);
+    if(hl){try{schHighlightChars=new Set(JSON.parse(hl).filter(id=>allowed.includes(id)));}catch{schHighlightChars=new Set();}}
+    else schHighlightChars=new Set(allowed);
+    if(!schHighlightChars.size)schHighlightChars=new Set(allowed);
+    localStorage.setItem(SCH_HL_KEY,JSON.stringify([...schHighlightChars]));
+  } else if(hl){try{schHighlightChars=new Set(JSON.parse(hl).filter(id=>allChars.some(c=>c.id===id)));}catch{schHighlightChars=new Set();}}
   else schHighlightChars=new Set();
   renderSchFilter();
 }
@@ -2154,10 +2254,15 @@ function toggleSchFilter(){
 function renderSchFilter(){
   const body=document.getElementById('sch-fb-body');if(!body)return;
   // 이번 주 일정에 있는 캐릭터만 표시
-  const weekChars=getCharsInWeekSchedules();
+  let weekChars=getCharsInWeekSchedules();
+  const viewerAcc=isViewer?viewerSelectedAccount(accounts):null;
+  if(viewerAcc){
+    const allowed=new Set(viewerScopeCharIds(accounts,allChars,viewerAcc.id));
+    weekChars=weekChars.filter(c=>allowed.has(c.id));
+  }
   if(!weekChars.length){body.innerHTML='<span style="font-size:.78rem;color:var(--muted);">이번 주 일정에 캐릭터가 없습니다</span>';body.style.display=schFilterOpen?'flex':'none';return;}
   let html='';
-  const mainAccounts=accounts.filter(a=>!a.parent_account_id);
+  const mainAccounts=viewerAcc?[viewerAcc]:accounts.filter(a=>!a.parent_account_id);
   const renderAccBtn=(label,chars,sub=false)=>{
     if(!chars.length)return'';
     const allOn=chars.every(c=>schHighlightChars.has(c.id));
@@ -2178,12 +2283,14 @@ function renderSchFilter(){
     if(mainChars.length){html+=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${renderAccBtn(acc.name,mainChars)}<div style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0;"></div>${renderCharBtns(mainChars)}</div>`;}
     if(subChars.length){html+=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:16px;">${renderAccBtn(acc.name+'-부계정',subChars,true)}<div style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0;"></div>${renderCharBtns(subChars)}</div>`;}
   });
-  // orphan subs
-  accounts.filter(a=>a.parent_account_id&&!accounts.some(m=>m.id===a.parent_account_id)).forEach(acc=>{
-    const chars=weekChars.filter(c=>c.account_id===acc.id);if(!chars.length)return;
-    const allOn=chars.every(c=>schHighlightChars.has(c.id)),anyOn=chars.some(c=>schHighlightChars.has(c.id));
-    html+=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><button style="padding:3px 11px;border-radius:12px;border:1px solid ${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.4)':'var(--border-lit)'};background:${allOn?'rgba(200,168,75,.12)':anyOn?'rgba(200,168,75,.06)':'var(--s1)'};color:${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.7)':'var(--muted)'};cursor:pointer;font-size:.78rem;font-weight:700;font-family:'Noto Sans KR',sans-serif;" onclick="toggleHLGroup([${chars.map(c=>"'"+c.id+"'").join(',')}])">${esc(acc.name)}</button><div style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0;"></div>${renderCharBtns(chars)}</div>`;
-  });
+  if(!viewerAcc){
+    // orphan subs
+    accounts.filter(a=>a.parent_account_id&&!accounts.some(m=>m.id===a.parent_account_id)).forEach(acc=>{
+      const chars=weekChars.filter(c=>c.account_id===acc.id);if(!chars.length)return;
+      const allOn=chars.every(c=>schHighlightChars.has(c.id)),anyOn=chars.some(c=>schHighlightChars.has(c.id));
+      html+=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><button style="padding:3px 11px;border-radius:12px;border:1px solid ${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.4)':'var(--border-lit)'};background:${allOn?'rgba(200,168,75,.12)':anyOn?'rgba(200,168,75,.06)':'var(--s1)'};color:${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.7)':'var(--muted)'};cursor:pointer;font-size:.78rem;font-weight:700;font-family:'Noto Sans KR',sans-serif;" onclick="toggleHLGroup([${chars.map(c=>"'"+c.id+"'").join(',')}])">${esc(acc.name)}</button><div style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0;"></div>${renderCharBtns(chars)}</div>`;
+    });
+  }
   body.innerHTML=html;
   body.style.display=schFilterOpen?'flex':'none';
   const hlCount=schHighlightChars.size;
@@ -2317,13 +2424,9 @@ function autoOpenParty(partyId){
   const targetTab=localStorage.getItem('la_open_party_tab')||'party';
   localStorage.removeItem('la_open_party_tab');
   switchTab(targetTab==='schedule'?'schedule':'party');
-  // 그룹 열기
+  openOnlyPartyBranch(partyId);
   selGroupName=preset.name;
-  openRaidGroups.add(preset.name);
-  // 난이도 열기
   selPresetId=preset.id;
-  openRaidPresets.add(preset.id);
-  saveRaidOpenState();
   // 파티 선택
   selPartyId=partyId;
   renderPresetList();
@@ -2420,7 +2523,7 @@ function schedCardHTML(s,wk){
       }).join('')}
     </div>
     <div class="sc-footer">
-      <button class="sc-edit-btn" onclick="openPartyFromSchedule('${s.party_id}')">파티</button>
+      ${!isViewer?`<button class="sc-edit-btn" onclick="openPartyFromSchedule('${s.party_id}')">파티</button>`:''}
       ${!isViewer?`<button class="sc-complete-btn" onclick="toggleCompletion('${s.id}','${wk}')">${isCompleted?'✓ 완료':'○ 완료'}</button>`:''}
       ${!isViewer?`<button class="sc-edit-btn edit-only" onclick="openSchEdit('${s.id}','${wk}')">✏️</button>`:''}
     </div>
@@ -2429,7 +2532,10 @@ function schedCardHTML(s,wk){
 function openPartyFromSchedule(partyId){
   if(isViewer)return;
   switchTab('party');
-  selectParty(partyId);
+  openOnlyPartyBranch(partyId);
+  selPartyId=partyId;
+  renderPresetList();
+  renderPartyDetail();
   setTimeout(()=>document.getElementById('party-detail')?.scrollIntoView({behavior:'smooth',block:'start'}),80);
 }
 
@@ -2444,7 +2550,7 @@ function toggleCompletion(schId,wk){
   const ovr=overrides[ovrKey];
   const nowDone=!ovr.is_completed;
   ovr.is_completed=nowDone;
-  const ts=nowDone?new Date().toISOString():null;
+  const ts=nowDone?appNowIso():null;
   ovr.completed_at=ts;
   // DOM update immediately
   const cardEl=document.getElementById('sc-'+schId);
@@ -2473,22 +2579,13 @@ function toggleCompletion(schId,wk){
     const eff=getEffectiveMembers(schId,s.party_id,wk);
     const charIds=[...new Set(eff.filter(sl=>sl.character_id).map(sl=>sl.character_id))];
     if(!charIds.length)return;
-    // Query raid_tasks linked to this preset for these characters
-    const{data:tasks}=await sb.from('raid_tasks')
-      .select('id,character_id,name')
-      .in('character_id',charIds)
-      .eq('preset_id',preset.id);
-    if(tasks?.length){
-      await sb.from('raid_tasks').update({is_completed:nowDone,last_completed_at:ts}).in('id',tasks.map(t=>t.id));
-    } else {
-      // Fallback: find by name match if preset_id not set
-      const{data:tasksByName}=await sb.from('raid_tasks')
-        .select('id')
-        .in('character_id',charIds)
-        .ilike('name','%'+preset.name+'%');
-      if(tasksByName?.length){
-        await sb.from('raid_tasks').update({is_completed:nowDone,last_completed_at:ts,preset_id:preset.id}).in('id',tasksByName.map(t=>t.id));
-      }
+    const syncedTasks=[];
+    for(const charId of charIds){
+      const task=await ensureRaidTaskForPreset(charId,preset,{silent:true});
+      if(task?.id)syncedTasks.push(task);
+    }
+    if(syncedTasks.length){
+      await sb.from('raid_tasks').update({is_completed:nowDone,last_completed_at:ts}).in('id',syncedTasks.map(t=>t.id));
     }
   })();
 }
@@ -2573,22 +2670,9 @@ async function assignOverrideChar(charId){
     }
     // 해당 캐릭터에 이 preset 레이드가 있는지 확인
     if(!taskId){
-      const{data:existTasks,error:existErr}=await sb.from('raid_tasks').select('id,preset_id,name').eq('character_id',charId).or(`preset_id.eq.${preset.id},name.ilike.%${preset.name}%`);
-      if(existErr){toast('❗ '+existErr.message);return;}
-      const existTask=existTasks?.find(t=>t.preset_id===preset.id)||(existTasks?.find(t=>!t.preset_id&&(t.name||'').includes(preset.name)));
+      const existTask=await ensureRaidTaskForPreset(charId,preset,{silent:true});
       if(existTask){
-        // 있으면 파티 연동만 설정
-        await sb.from('raid_tasks').update({preset_id:preset.id}).eq('id',existTask.id);
-        taskId=existTask.id;wasNew=false;
-      } else {
-        // 없으면 새로 생성
-        const{data:newTask}=await sb.from('raid_tasks').insert({
-          character_id:charId,name:preset.name,difficulty:preset.difficulty||'',
-          entry_level:preset.entry_level||0,clear_gold:preset.clear_gold||0,
-          bound_gold:preset.bound_gold||0,bonus_gold:preset.bonus_gold||0,
-          reset_day:3,preset_id:preset.id,sort_order:99,receive_gold:true,receive_bound:true,receive_bonus:true
-        }).select().single();
-        taskId=newTask?.id||null;wasNew=true;
+        taskId=existTask.id;wasNew=!!existTask.__created;
       }
     }
     if(taskId&&!restoredRemoved)ovr.temp_changes.added[charId]={wasNew,taskId};
