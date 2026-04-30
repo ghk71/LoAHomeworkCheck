@@ -401,11 +401,11 @@ body { overflow:hidden; }
 }
 .pc-raid-name { font-size:.9rem; font-weight:700; }
 .pc-raid-name .diff-nightmare,.pc-raid-name .diff-hard,.pc-raid-name .diff-normal { font-size:inherit!important; }
-.pc-party-name { font-size:.72rem; color:var(--text-3); margin-top:2px; line-height:1.45; overflow-wrap:anywhere; }
+.pc-party-name { font-size:.72rem; color:var(--text-3); margin-top:2px; }
 .pc-body { padding:8px 12px; }
 .slot-list { display:flex; flex-direction:column; gap:4px; }
 .slot-row {
-  display:grid; grid-template-columns:auto auto minmax(72px,auto) minmax(0,1fr); align-items:center; gap:7px;
+  display:flex; align-items:center; gap:7px;
   padding: 5px 7px; border-radius:5px;
   font-size:.78rem;
 }
@@ -414,10 +414,10 @@ body { overflow:hidden; }
   border: 1px solid rgba(245,158,11,.2);
 }
 .slot-num { font-size:.62rem; color:var(--text-3); width:14px; flex-shrink:0; }
-.slot-char-name { font-size:.79rem; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.slot-char-name { font-size:.79rem; }
 .slot-char-name.me { color:var(--gold-text); font-weight:700; }
 .slot-char-class { font-size:.66rem; color:var(--text-3); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.slot-empty-txt { color:var(--text-3); font-size:.74rem; grid-column:3/-1; }
+.slot-empty-txt { color:var(--text-3); font-size:.74rem; }
 .pc-footer {
   padding: 8px 12px;
   border-top: 1px solid rgba(255,255,255,.06);

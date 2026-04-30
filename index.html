@@ -1745,7 +1745,7 @@ let S={
   hideExpCompleted:LS('la_hide_exp')==='1',
   showInactive:LS('la_show_inactive')==='1',
   showExpInactive:LS('la_show_exp_inactive')==='1',
-tempRaidTaskIds:new Set(),tempRemovedRaidTaskIds:new Set(),
+  tempRaidTaskIds:new Set(),tempRemovedRaidTaskIds:new Set(),tempRemovedPresetByTask:{},
   collapsedTasks:new Set(),
   currPopupId:null,currencyMode:'normal',viewPopupId:null,editPopupId:null,editBlocks:[],
   selCurrIcon:'💰',selPopupIcon:'📋',editorIcon:'📋',
@@ -2134,7 +2134,7 @@ async function loadRaidTasks(charId){
   if(pids.length){
     // 캐시에 없는 preset만 fetch
     const missing=pids.filter(id=>!S.presetsCache[id]);
-    if(missing.length){const{data:ps}=await sb.from('raid_presets').select('id,name,icon_url,color').in('id',missing);(ps||[]).forEach(p=>{S.presetsCache[p.id]=p;});}
+    if(missing.length){const{data:ps}=await sb.from('raid_presets').select('id,name,difficulty,icon_url,color').in('id',missing);(ps||[]).forEach(p=>{S.presetsCache[p.id]=p;});}
     tasks.forEach(t=>{if(t.preset_id&&S.presetsCache[t.preset_id]){t.preset_name=S.presetsCache[t.preset_id].name;t.preset_icon_url=S.presetsCache[t.preset_id].icon_url||'';t.preset_color=S.presetsCache[t.preset_id].color||'';}});
     const{data:partyRows}=await sb.from('raid_parties').select('id,preset_id').in('preset_id',pids);
     const partyPreset={};(partyRows||[]).forEach(p=>{partyPreset[p.id]=p.preset_id;});
@@ -2146,21 +2146,48 @@ async function loadRaidTasks(charId){
     }
     tasks.forEach(t=>{t.has_party_link=!!(t.preset_id&&linkedPresets.has(t.preset_id));});
   }
+  tasks.forEach(t=>{
+    const removedPreset=S.tempRemovedPresetByTask[t.id];
+    if(!removedPreset)return;
+    t.preset_name=removedPreset.name||t.preset_name||t.name;
+    t.difficulty=t.difficulty||removedPreset.difficulty||'';
+    t.preset_icon_url=removedPreset.icon_url||getGroupIcon(t.preset_name)||'';
+    t.preset_color=removedPreset.color||getGroupColor(t.preset_name);
+    t._popup_preset_id=removedPreset.id||t.preset_id||'';
+  });
   S.raidTasks[charId]=tasks;await autoResetRaid(S.raidTasks[charId]);
 }
 async function loadTempRaidTaskIds(){
   const wk=getRaidWeekKey();
-  const res=await sb.from('raid_schedule_overrides').select('temp_changes').eq('week_start_date',wk);
-  if(res.error){S.tempRaidTaskIds=new Set();S.tempRemovedRaidTaskIds=new Set();return;}
+  const res=await sb.from('raid_schedule_overrides').select('schedule_id,temp_changes').eq('week_start_date',wk);
+  if(res.error){S.tempRaidTaskIds=new Set();S.tempRemovedRaidTaskIds=new Set();S.tempRemovedPresetByTask={};return;}
   const ids=[],removedIds=[];
+  const removedBySchedule=[];
   (res.data||[]).forEach(o=>{
     const added=(o.temp_changes&&o.temp_changes.added)||{};
     const removed=(o.temp_changes&&o.temp_changes.removed)||{};
     Object.values(added).forEach(v=>{if(v&&v.taskId)ids.push(v.taskId);});
-    Object.values(removed).forEach(v=>{if(v&&v.taskId)removedIds.push(v.taskId);});
+    Object.values(removed).forEach(v=>{if(v&&v.taskId){removedIds.push(v.taskId);removedBySchedule.push({taskId:v.taskId,scheduleId:o.schedule_id});}});
   });
   S.tempRaidTaskIds=new Set(ids);
   S.tempRemovedRaidTaskIds=new Set(removedIds);
+  S.tempRemovedPresetByTask={};
+  const scheduleIds=[...new Set(removedBySchedule.map(x=>x.scheduleId).filter(Boolean))];
+  if(!scheduleIds.length)return;
+  const{data:schRows,error:schErr}=await sb.from('raid_schedules').select('id,party_id').in('id',scheduleIds);
+  if(schErr||!schRows?.length)return;
+  const partyIds=[...new Set(schRows.map(s=>s.party_id).filter(Boolean))];
+  if(!partyIds.length)return;
+  const{data:partyRows,error:partyErr}=await sb.from('raid_parties').select('id,preset_id').in('id',partyIds);
+  if(partyErr||!partyRows?.length)return;
+  const presetIds=[...new Set(partyRows.map(p=>p.preset_id).filter(Boolean))];
+  if(!presetIds.length)return;
+  const{data:presetRows,error:presetErr}=await sb.from('raid_presets').select('id,name,difficulty,icon_url,color').in('id',presetIds);
+  if(presetErr)return;
+  const partyPreset={};partyRows.forEach(p=>{partyPreset[p.id]=p.preset_id;});
+  const presetMap={};(presetRows||[]).forEach(p=>{presetMap[p.id]=p;S.presetsCache[p.id]=p;});
+  const schedulePreset={};schRows.forEach(s=>{schedulePreset[s.id]=presetMap[partyPreset[s.party_id]];});
+  removedBySchedule.forEach(x=>{if(schedulePreset[x.scheduleId])S.tempRemovedPresetByTask[x.taskId]=schedulePreset[x.scheduleId];});
 }
 async function loadCurrencies(charId){const res=await sb.from('currencies').select('*').eq('character_id',charId).order('sort_order').order('created_at');if(supaErr(res,'재화 로딩 실패')){S.currencies[charId]=[];return;}S.currencies[charId]=res.data||[];}
 async function loadCustomPopups(charId){const res=await sb.from('custom_popups').select('*').eq('character_id',charId).order('sort_order').order('created_at');if(supaErr(res,'커스텀 팝업 로딩 실패')){S.customPopups[charId]=[];return;}S.customPopups[charId]=res.data||[];}
@@ -2461,7 +2488,7 @@ function raidItemHTML(t,idx){
         ${fl?`<span class="raid-gold raid-gold-flow ${rg?'':'muted-gold'}" title="${rg?'클릭해서 유통골드 제외':'클릭해서 유통골드 수령'}" style="cursor:pointer;" onclick="event.stopPropagation();toggleReceiveGold('${t.id}')">💰 유통 ${fl.toLocaleString()}G</span>`:''}
         ${bg?`<span class="raid-gold raid-gold-bound ${rbd?'':'muted-gold'}" title="${rbd?'클릭해서 귀속골드 제외':'클릭해서 귀속골드 수령'}" style="cursor:pointer;" onclick="event.stopPropagation();toggleReceiveBound('${t.id}')">🔒 귀속 ${bg.toLocaleString()}G</span>`:''}
         ${bo?`<span class="raid-gold raid-gold-bonus ${rb?'':'muted-gold'}" style="cursor:pointer;" title="${rb?'클릭해서 더보기 제외':'클릭해서 더보기 수령'}" onclick="event.stopPropagation();toggleReceiveBonus('${t.id}')">➕ 더보기 ${bo.toLocaleString()}G</span>`:''}
-        ${(t.has_party_link||isTemp||isRemoved)?`<span class="party-link-chip ${(isTemp||isRemoved)?'temp-link':''}" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id}','${t.id}')">🔗 ${isRemoved?'임시파티해제':isTemp?'임시파티연동':'파티연동'}</span>`:''}
+        ${(t.has_party_link||isTemp||isRemoved)?`<span class="party-link-chip ${(isTemp||isRemoved)?'temp-link':''}" onclick="event.stopPropagation();showPartyLinkPopup('${t._popup_preset_id||t.preset_id||''}','${t.id}')">🔗 ${isRemoved?'임시파티해제':isTemp?'임시파티연동':'파티연동'}</span>`:''}
         <span class="raid-reset-chip">📅 ${DAYS[t.reset_day]}요일 · ${nextResetLabel({...t,reset_type:'weekly'})}</span>
       </div>
     </div>

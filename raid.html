@@ -1223,6 +1223,7 @@ async function switchViewerTab(tab){
   document.querySelectorAll('.viewer-tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('vtab-'+tab)?.classList.add('active');
   const schArea=document.getElementById('view-schedule');
+  const partyArea=document.getElementById('view-party');
   const ovArea=document.getElementById('viewer-overview-area');
   const appBody=document.querySelector('.app-body');
   const hdr=document.querySelector('.header');
@@ -1232,7 +1233,9 @@ async function switchViewerTab(tab){
     if(hdr)hdr.style.display='flex';
     if(tabs)tabs.style.display='none';
     if(appBody)appBody.style.display='block';
+    if(partyArea)partyArea.style.display='none';
     if(schArea)schArea.style.display='flex';
+    if(schArea)schArea.style.flexDirection='column';
     if(ovArea){ovArea.style.display='none';ovArea.classList.remove('viewer-only-overview');}
     const acc=viewerSelectedAccount(accounts);
     if(viewerSchTop){
@@ -1244,6 +1247,7 @@ async function switchViewerTab(tab){
     if(hdr)hdr.style.display='none';
     if(tabs)tabs.style.display='none';
     if(appBody)appBody.style.display='none';
+    if(partyArea)partyArea.style.display='none';
     if(schArea)schArea.style.display='none';
     if(viewerSchTop)viewerSchTop.classList.remove('show');
     if(ovArea){ovArea.style.display='block';ovArea.classList.add('viewer-only-overview');await loadViewerOverview(ovArea);}
@@ -1353,9 +1357,9 @@ async function loadViewerOverview(el){
   const raidGoldChips=t=>{
     const flow=flowOf(t),bound=boundOf(t),bonus=bonusOf(t);
     const chips=[];
-    if(flow)chips.push(`<span class="vo-raid-gold flow ${t.receive_gold===false?'off':''}">유통 ${flow.toLocaleString()}G</span>`);
-    if(bound)chips.push(`<span class="vo-raid-gold bound ${t.receive_bound===false?'off':''}">귀속 ${bound.toLocaleString()}G</span>`);
-    if(bonus)chips.push(`<span class="vo-raid-gold bonus ${t.receive_bonus===false?'off':''}">더보기 ${bonus.toLocaleString()}G</span>`);
+    if(flow)chips.push(`<span class="vo-raid-gold flow ${t.receive_gold===false?'off':''}">유통 ${t.receive_gold===false?'X':'O'}</span>`);
+    if(bound)chips.push(`<span class="vo-raid-gold bound ${t.receive_bound===false?'off':''}">귀속 ${t.receive_bound===false?'X':'O'}</span>`);
+    if(bonus)chips.push(`<span class="vo-raid-gold bonus ${t.receive_bonus===false?'off':''}">더보기 ${t.receive_bonus===false?'X':'O'}</span>`);
     return chips.length?`<div class="vo-raid-gold-row">${chips.join('')}</div>`:'';
   };
   const sortTasksForViewer=tasks=>tasks.slice().sort((a,b)=>{
