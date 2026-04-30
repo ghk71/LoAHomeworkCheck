@@ -1,177 +1,114 @@
 # HANDOFF
 
-이 파일은 연구실/집 컴퓨터 사이에서 작업을 넘길 때 사용하는 고정 인수인계 문서입니다.
-다음 작업자는 긴 프롬프트 대신 아래 한 줄로 시작하면 됩니다.
+다음 컴퓨터에서 이어받을 때는 아래 프롬프트로 시작하면 됩니다.
 
 ```text
 AGENTS.md를 따르고, HANDOFF.md와 CODEX_SESSION_LOG.md 마지막 섹션을 읽은 뒤 이어서 작업해주세요.
 ```
 
-코드를 바로 고치지 않고 먼저 분석만 받고 싶으면 아래처럼 시작합니다.
+먼저 분석만 원하면 아래처럼 시작합니다.
 
 ```text
 AGENTS.md를 따르고, HANDOFF.md와 CODEX_SESSION_LOG.md 마지막 섹션을 읽은 뒤 이어서 작업해주세요. 다만, 코드를 수정하지는 말고 우선 변경사항을 분석하세요.
 ```
 
-## Always Read First
+## 반드시 읽을 파일
 
-- AGENTS.md
-- CODEX_INSTRUCTIONS.md
-- PROJECT_CONTEXT.md
-- ARCHITECTURE.md
-- FEATURE_SPEC.md
-- BUG_HISTORY.md
-- TEST_SCENARIO.md
-- DB_MIGRATION_LOG.md
-- CODEX_SESSION_LOG.md 마지막 섹션
-- schema.sql
+- `AGENTS.md`
+- `CODEX_INSTRUCTIONS.md`
+- `PROJECT_CONTEXT.md`
+- `ARCHITECTURE.md`
+- `FEATURE_SPEC.md`
+- `BUG_HISTORY.md`
+- `TEST_SCENARIO.md`
+- `DB_MIGRATION_LOG.md`
+- `CODEX_SESSION_LOG.md` 마지막 섹션
+- `schema.sql`
 
-## Project Rules
+## 프로젝트 고정 규칙
 
 - GitHub Pages + Supabase 기반 정적 HTML/CSS/JavaScript 프로젝트입니다.
-- React/Vite/Next.js로 전환하지 않습니다.
-- 기존 기능을 삭제하지 않습니다.
+- React/Vite/Next.js로 바꾸지 않습니다.
 - JavaScript는 HTML 내부 `<script>` 안에만 둡니다.
-- `</html>` 뒤에 어떤 코드도 남기지 않습니다.
-- Supabase 컬럼명은 `schema.sql`과 일치시킵니다.
-- 사용한 CSS `var(--...)`는 반드시 정의되어 있어야 합니다.
+- `</html>` 뒤에 코드를 남기지 않습니다.
+- Supabase 컬럼명은 `schema.sql`과 맞춥니다.
+- CSS `var(--...)`는 반드시 정의되어 있어야 합니다.
+- 기존 기능을 삭제하지 않습니다.
 - 수정은 버그 단위로 작게 진행합니다.
-- 의미 있는 수정 후 `CODEX_SESSION_LOG.md`에 날짜와 함께 기록합니다.
-- 수정 후 `node tools/check-project.js`를 실행합니다.
-- 가능하면 `index.html`, `core.html`, `raid.html`, `overview.html`, `parties.html` 5개 HTML의 `</html>` 뒤 코드 여부도 확인합니다.
+- 의미 있는 변경 뒤에는 `CODEX_SESSION_LOG.md`를 갱신합니다.
+- 변경 뒤에는 `node tools/check-project.js`를 실행합니다.
 
-## Current Work State
+## 오늘 작업 요약
 
-- 오늘 작업 종료 시점의 주요 수정 파일은 `index.html`, `raid.html`, `overview.html`, `schema.sql`, `FEATURE_SPEC.md`, `BUG_HISTORY.md`, `DB_MIGRATION_LOG.md`, `CODEX_SESSION_LOG.md`, `HANDOFF.md`입니다.
-- `index.html`에는 일일숙제 복제/삭제 선택 범위 확장, 복제 그룹 ID 기반 삭제, 월간 초기화 옵션, 휴식 게이지 기능, 파티연동 배지 표시 조건 보정이 들어갔습니다.
-- `index.html`에는 캐릭터별 레이드 숙제 / 재화 현황 / 커스텀 노트 섹션 표시 설정이 추가되었습니다.
-- `raid.html`에는 파티구성 긴 레이드명 말줄임, 파티 슬롯 제거 시 레이드 숙제 삭제 방지, 공유 링크 레이드 현황 골드 표시/정렬 토글/요일순 기본값이 들어갔습니다.
-- `raid.html`에는 공지 아래 주차별 댓글 기능과 댓글 접기/펼치기가 추가되었고, 공유 링크 뷰어에서도 댓글 작성이 가능해야 합니다.
-- `raid.html` 파티 구성 왼쪽 목록은 여러 레이드 그룹/난이도를 동시에 펼칠 수 있도록 변경되었습니다.
-- `raid.html` 레이드 그룹 아이콘/색상은 `raid_group_settings` DB 테이블 기반으로 변경되었습니다. 기존 `la_gicon_*` localStorage 값은 가능한 경우 DB로 이전 후 제거됩니다.
-- `overview.html`에는 실제 파티 배치가 있는 레이드에만 파티연동 표시가 나오도록 보정이 들어갔습니다.
-- `schema.sql`과 `DB_MIGRATION_LOG.md`에는 `clone_group_id`, 휴식 게이지 컬럼, `raid_notice_comments`, `raid_group_settings`, 캐릭터 섹션 표시 설정 컬럼이 반영되어 있습니다.
-- 현재 작업 트리에는 `images/*.png` 신규 이미지 파일들이 untracked 상태로 있습니다. 다음 컴퓨터에서 필요한 아이콘 파일인지 확인 후 유지/추가/정리해야 합니다.
+오늘 작업은 주로 공유링크 `raid.html`의 레이드현황 탭과 골드 수령 표시 기준을 정리했습니다.
 
-## Recent User Requests Reflected
+- 공유링크 상단 배너에 `계정 변경` 버튼을 추가해 `레이드` 탭과 `레이드 현황` 탭 어디서든 계정 변경이 가능하게 했습니다.
+- `index.html`, `overview.html`, 공유링크 `raid.html` 레이드현황에서 유통/귀속 수령 여부를 별도 `유통 O/X`, `귀속 O/X`로 보지 않고 `골드체크 O/X` 하나로 통합했습니다.
+- DB 컬럼은 기존 `receive_gold`, `receive_bound`를 유지합니다. UI/집계에서는 두 값이 모두 true인 경우만 `골드체크 O`로 판단합니다.
+- `더보기 O/X`는 기존처럼 별도 상태로 유지합니다.
+- 공유링크 `raid.html` 레이드현황 탭에서 레이드 추가뿐 아니라 수정/삭제도 가능하게 했습니다.
+- 공유링크 레이드현황의 수정/삭제는 선택 계정 범위 내 캐릭터의 레이드만 허용합니다.
+- 공유링크에서 새 캐릭터 추가 후 레이드가 없어서 보이지 않는 문제를 처리했습니다.
+- 단, 기존에 레이드가 없던 캐릭터까지 모두 보이는 부작용이 생기지 않도록 표시 범위를 다시 좁혔습니다.
+- 현재 기준: 기본적으로 레이드 숙제가 있는 캐릭터만 보이고, 공유링크에서 방금 추가한 캐릭터만 `viewerPendingCharId` 메모리 상태로 임시 표시됩니다.
+- 새 캐릭터에 첫 레이드 추가가 성공하면 임시 표시 상태가 해제됩니다.
+- 계정 변경/계정 선택 시 임시 표시 상태가 초기화됩니다.
+- 임시 상태는 localStorage에 저장하지 않아 새로고침하면 자동으로 사라집니다.
 
-- 다른 컴퓨터에서 이어받기 쉽도록 `HANDOFF.md`를 최신화하는 흐름을 도입했습니다.
-- 일일숙제 복제 모달에 전체 선택과 계정별 선택을 추가했습니다.
-- 숙제 삭제 모달이 전체 계정/전체 캐릭터의 복제본을 보여주도록 수정했습니다.
-- 숙제 삭제 기준을 이름이 아니라 `clone_group_id`로 바꿨습니다.
-- 일일/원정대 숙제 초기화 주기에 `매월 1일 06:00 KST`를 추가했습니다.
-- 월간 숙제는 별도 월간 칸이 아니라 주간/월간 숙제 칸에 함께 표시하도록 조정했습니다.
-- 휴식 게이지 사용 여부, 현재 게이지, 충전량, 소모량, 강조 포인트, 일일 최대 클리어 가능 횟수 UI와 로직을 추가했습니다.
-- `raid.html` 파티 슬롯에서 캐릭터를 제거해도 `index.html` 레이드 숙제가 삭제되지 않게 수정했습니다.
-- 파티연동 배지는 실제 파티 배치 또는 임시 파티 추가가 있을 때만 표시되도록 보정했습니다.
-- 공유 링크 레이드 현황에 유통/귀속/더보기 골드 표시와 레이드순/요일순 토글을 추가했습니다.
-- 공유 링크 레이드 현황 기본 정렬은 요일순이며, 요일 순서는 수요일부터 화요일까지입니다.
-- 공지 아래 댓글 기능을 추가했고, 댓글은 주차별로 분리되며 공유 링크 뷰어에서도 작성 가능합니다.
-- 댓글 영역은 접기/펼치기 가능하며 접힘 상태는 localStorage에 유지됩니다.
-- 파티 구성 왼쪽 목록에서 다른 레이드/난이도를 열어도 기존에 열린 항목이 닫히지 않도록 펼침 상태를 별도 저장합니다.
-- 캐릭터 수정 모달에서 레이드 숙제 / 재화 현황 / 커스텀 노트 섹션을 캐릭터별로 숨기거나 다시 표시할 수 있습니다.
-- 레이드 그룹명 앞 아이콘은 더 이상 localStorage를 정식 저장소로 쓰지 않고 DB에서 읽습니다.
-
-## Recent Implemented Items
+## 오늘 변경 파일
 
 - `index.html`
-  - 일일숙제 복제 대상 선택에 전체/계정별 체크박스 추가.
-  - 숙제 삭제 대상 조회를 전체 계정/전체 캐릭터의 같은 복제 그룹으로 확장.
-  - 신규/복제 숙제에 `clone_group_id`를 부여하고 같은 복제본끼리 공유.
-  - 일일/주간/월간 초기화 계산 지원.
-  - 월간 숙제 표시 위치를 주간/월간 숙제 칸으로 정리.
-  - 숙제 추가/수정 모달에 휴식 게이지 설정 UI 추가.
-  - 휴식 게이지가 강조 포인트 미만인 숙제는 기본 비활성 숨김 처리.
-  - 리셋 시 미완료는 휴식 게이지 충전, 완료는 충분한 게이지가 있을 때만 소모.
-  - 실제 파티 배치가 없는 레이드 숙제에는 파티연동 배지를 표시하지 않도록 보정.
-
-- `raid.html`
-  - 파티구성 탭의 긴 레이드명/파티명이 줄바꿈으로 깨지지 않게 말줄임 처리.
-  - 파티 슬롯 제거는 `raid_party_members`만 삭제하도록 변경.
-  - 같은 레이드 프리셋 안에서 동일 캐릭터를 다시 배치하면 기존 중복 슬롯을 먼저 제거.
-  - 공유 링크 레이드 현황 캐릭터 카드에 유통/귀속/더보기 골드 칩 추가.
-  - 공유 링크 레이드 현황에 레이드순/요일순 정렬 토글 추가.
-  - 공유 링크 레이드 현황 기본값을 요일순으로 변경.
-  - 요일순 정렬은 수 -> 목 -> 금 -> 토 -> 일 -> 월 -> 화 순서.
-  - 주간 공지 아래 댓글 영역 추가.
-  - 댓글은 선택된 `week_start_date` 기준으로 표시되며 공유 링크에서도 등록 가능.
-  - 댓글 영역 접기/펼치기 상태 저장 추가.
-  - 파티 구성 왼쪽 목록의 열린 레이드 그룹/난이도를 Set + localStorage로 관리.
-  - 요일이 없는 레이드는 맨 뒤에서 레이드 목록 순서로 정렬.
-
 - `overview.html`
-  - 파티연동 배지를 `preset_id` 존재 여부가 아니라 실제 파티 멤버 배치 기준으로 표시하도록 수정.
+- `raid.html`
+- `CODEX_SESSION_LOG.md`
+- `HANDOFF.md`
 
-- `schema.sql` / `DB_MIGRATION_LOG.md`
-  - `tasks.clone_group_id`, `expedition_tasks.clone_group_id`와 인덱스 추가.
-  - `tasks`, `expedition_tasks` 휴식 게이지 관련 컬럼 추가.
+## 현재 중요한 동작 기준
 
-## Supabase Migration Reminder
+- `index.html` 레이드 숙제 아이템의 `골드체크`를 클릭하면 `receive_gold`, `receive_bound`가 함께 토글됩니다.
+- `overview.html`과 공유링크 레이드현황의 개별 레이드 칩은 `골드체크 O/X`, `더보기 O/X` 형태입니다.
+- 공유링크 레이드현황에서 캐릭터 추가 후에는 해당 캐릭터의 빈 카드가 임시로 보이고, 레이드 추가 모달이 이어서 열립니다.
+- 첫 레이드 추가를 완료하면 해당 캐릭터는 정상 레이드 보유 캐릭터가 되어 계속 보입니다.
+- 레이드 추가를 취소하거나 새로고침하면 임시 빈 카드는 사라집니다.
+- 기존에 레이드가 없던 캐릭터는 공유링크 레이드현황에 표시되지 않아야 합니다.
 
-다음 컬럼은 실제 Supabase SQL Editor에 적용되어야 최신 코드가 정상 동작합니다.
+## 검증 결과
 
-- `tasks.clone_group_id`
-- `expedition_tasks.clone_group_id`
-- `tasks.rest_enabled`
-- `tasks.rest_current`
-- `tasks.rest_max`
-- `tasks.rest_charge`
-- `tasks.rest_consume`
-- `tasks.rest_threshold`
-- `tasks.rest_daily_limit`
-- `tasks.rest_last_processed_at`
-- `expedition_tasks.rest_enabled`
-- `expedition_tasks.rest_current`
-- `expedition_tasks.rest_max`
-- `expedition_tasks.rest_charge`
-- `expedition_tasks.rest_consume`
-- `expedition_tasks.rest_threshold`
-- `expedition_tasks.rest_daily_limit`
-- `expedition_tasks.rest_last_processed_at`
-- `raid_notice_comments` 테이블
+마지막 검증:
+
+- 일반 권한 `node tools/check-project.js`는 이 PC의 Windows 경로 권한 문제로 `EPERM: operation not permitted, lstat 'C:\Users\vfgtr554'` 실패.
+- 권한 상승 실행 `node tools/check-project.js`는 통과.
+- `index.html`, `core.html`, `raid.html`, `overview.html`, `parties.html` 모두 `</html>` 뒤 코드 없음 확인.
+- `git diff --check` 통과. 단, 일부 파일에 LF -> CRLF 경고가 출력될 수 있습니다.
+
+## 다음 수동 확인 우선순위
+
+1. 공유링크에서 `레이드` 탭과 `레이드 현황` 탭 모두 상단 `계정 변경` 버튼이 보이고 동작하는지 확인.
+2. 공유링크 레이드현황에서 기존 레이드 없는 캐릭터가 표시되지 않는지 확인.
+3. 공유링크에서 새 캐릭터 추가 직후 그 캐릭터만 빈 카드로 보이고 레이드 추가 모달이 바로 열리는지 확인.
+4. 첫 레이드 추가 후 새 캐릭터가 정상 레이드 카드로 유지되는지 확인.
+5. 공유링크 레이드현황에서 레이드 수정/삭제 후 카드와 집계가 즉시 갱신되는지 확인.
+6. `index.html`에서 `골드체크` 토글 시 유통/귀속 골드 집계가 함께 바뀌는지 확인.
+7. `overview.html`과 공유링크 레이드현황에서 `골드체크 O/X`, `더보기 O/X` 표시가 의도대로 보이는지 확인.
+
+## Supabase 확인 필요
+
+다음 컬럼/테이블이 실제 Supabase SQL Editor에 적용되어 있어야 최신 기능이 안정적으로 동작합니다.
+
+- `raid_notice_comments`
+- `raid_group_settings`
 - `characters.show_raid_tasks`
 - `characters.show_currencies`
 - `characters.show_custom_notes`
-- `raid_group_settings` 테이블
-- `images/*.png` 신규 파일들은 git status에서 untracked로 보일 수 있음
+- `characters.combat_power`
+- `tasks.clone_group_id`
+- `expedition_tasks.clone_group_id`
+- 휴식 게이지 관련 컬럼들
 
-SQL은 `schema.sql` 또는 `DB_MIGRATION_LOG.md`의 2026-04-29 항목을 기준으로 적용합니다.
+최신 기준은 `schema.sql`과 `DB_MIGRATION_LOG.md`를 확인하세요.
 
-## Next Manual Checks
+## Git 상태 메모
 
-- Supabase SQL Editor에 최신 `schema.sql` 또는 `DB_MIGRATION_LOG.md`의 ALTER SQL을 적용합니다.
-- 브라우저에서 일일숙제 복제 모달의 전체 선택/계정별 선택/개별 선택 조합을 확인합니다.
-- 새로 복제한 숙제를 삭제할 때 이름만 같은 숙제가 아니라 같은 `clone_group_id` 복제본만 후보로 뜨는지 확인합니다.
-- 휴식 게이지 숙제가 강조 포인트 미만일 때 기본 숨김되고, 활성화 보이기에서 보이는지 확인합니다.
-- 휴식 게이지가 리셋 시 미완료 충전/완료 소모 규칙대로 움직이는지 확인합니다.
-- `raid.html` 파티구성에서 긴 레이드명이 한 줄 말줄임으로 보이는지 확인합니다.
-- 파티 슬롯에서 캐릭터를 제거해도 `index.html` 레이드 숙제가 삭제되지 않는지 확인합니다.
-- 파티 배치가 없는 레이드 숙제에 파티연동 배지가 나오지 않는지 `index.html`, `overview.html`, 공유 링크에서 확인합니다.
-- 공유 링크 레이드 현황의 기본 탭이 요일순인지 확인합니다.
-- 공유 링크 레이드 현황 요일순이 수요일부터 화요일까지 정렬되는지 확인합니다.
-- 공유 링크 레이드 현황의 골드 칩과 레이드순/요일순 토글이 정상 동작하는지 확인합니다.
-- `raid.html` 공지 아래 댓글이 현재 주차/다음 주차별로 분리되어 표시되는지 확인합니다.
-- 댓글 영역 접기/펼치기와 새로고침 후 접힘 상태 유지 여부를 확인합니다.
-- 공유 링크 뷰어에서 댓글 등록이 가능하고 삭제 버튼은 보이지 않는지 확인합니다.
-- 파티 구성에서 여러 레이드 그룹/난이도를 열어둔 뒤 다른 항목을 눌러도 기존 항목이 닫히지 않는지 확인합니다.
-- 캐릭터 수정에서 레이드 숙제 / 재화 현황 / 커스텀 노트를 끄면 해당 섹션만 숨겨지고, 다시 켜면 기존 데이터가 보이는지 확인합니다.
-- Supabase SQL Editor에 `raid_group_settings` 테이블을 적용한 뒤, 레이드 그룹 아이콘이 다른 컴퓨터에서도 동일하게 보이는지 확인합니다.
-- untracked `images/*.png` 파일들이 실제로 필요한 아이콘인지 확인하고, 필요하면 Git에 포함합니다.
+오늘 종료 시점에는 작업 파일이 아직 commit되지 않았습니다. 다음 작업자가 먼저 `git status`를 확인해야 합니다.
 
-## Known Local Validation Issue
-
-- 현재 PC에서는 일반 권한과 권한 상승 실행 모두 `node tools/check-project.js`가 `node.exe Access is denied`로 실패합니다.
-- 앱 내 Node REPL도 같은 OS 권한 문제로 실패할 수 있습니다.
-- PowerShell 보조 검증으로 5개 주요 HTML의 `</html>` 뒤 코드 없음과 CSS 변수 누락 없음은 확인했습니다.
-- `git diff --check`는 통과했으나, 일부 파일에서 LF -> CRLF 변환 경고가 출력될 수 있습니다.
-- 다른 컴퓨터에서는 `node tools/check-project.js`를 반드시 다시 실행해야 합니다.
-
-## End Of Day Routine
-
-작업 종료 전에 다음 순서로 정리합니다.
-
-1. 변경 내용을 작게 요약합니다.
-2. `CODEX_SESSION_LOG.md`에 날짜와 함께 기록합니다.
-3. `HANDOFF.md`의 `Current Work State`, `Recent User Requests Reflected`, `Recent Implemented Items`, `Supabase Migration Reminder`, `Next Manual Checks`, `Known Local Validation Issue`를 최신화합니다.
-4. `node tools/check-project.js`를 실행하고 결과를 기록합니다.
-5. 가능하면 5개 주요 HTML의 `</html>` 뒤 코드 없음과 CSS 변수 정의 여부를 확인합니다.
+최근 주요 수정 파일은 `index.html`, `overview.html`, `raid.html`, `CODEX_SESSION_LOG.md`, `HANDOFF.md`입니다.
