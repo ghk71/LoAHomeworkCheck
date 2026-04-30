@@ -2302,11 +2302,12 @@ function renderTaskArea(){
   const flowOf=t=>Math.max(0,(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0));
   const boundOf=t=>Number(t.bound_gold)||0;
   const bonusOf=t=>Number(t.bonus_gold)||0;
-  const totalFlow=raidList.filter(t=>t.receive_gold!==false).reduce((s,t)=>s+flowOf(t),0);
-  const totalBound=raidList.filter(t=>t.receive_bound!==false).reduce((s,t)=>s+boundOf(t),0);
+  const isGoldChecked=t=>t.receive_gold!==false&&t.receive_bound!==false;
+  const totalFlow=raidList.filter(isGoldChecked).reduce((s,t)=>s+flowOf(t),0);
+  const totalBound=raidList.filter(isGoldChecked).reduce((s,t)=>s+boundOf(t),0);
   const totalBonus=raidList.filter(t=>t.receive_bonus!==false).reduce((s,t)=>s+bonusOf(t),0);
-  const earnedFlow=raidList.filter(t=>isEffDone(t)&&t.receive_gold!==false).reduce((s,t)=>s+flowOf(t),0);
-  const earnedBound=raidList.filter(t=>isEffDone(t)&&t.receive_bound!==false).reduce((s,t)=>s+boundOf(t),0);
+  const earnedFlow=raidList.filter(t=>isEffDone(t)&&isGoldChecked(t)).reduce((s,t)=>s+flowOf(t),0);
+  const earnedBound=raidList.filter(t=>isEffDone(t)&&isGoldChecked(t)).reduce((s,t)=>s+boundOf(t),0);
   const earnedBonus=raidList.filter(t=>isEffDone(t)&&t.receive_bonus!==false).reduce((s,t)=>s+bonusOf(t),0);
   const remainFlow=totalFlow-earnedFlow;
   const remainBound=totalBound-earnedBound;
@@ -2467,7 +2468,7 @@ function raidItemHTML(t,idx){
   const done=isEffDone(t);
   const isTemp=S.tempRaidTaskIds&&S.tempRaidTaskIds.has(t.id);
   const isRemoved=S.tempRemovedRaidTaskIds&&S.tempRemovedRaidTaskIds.has(t.id);
-  const rg=t.receive_gold!==false, rbd=t.receive_bound!==false, rb=t.receive_bonus!==false;
+  const rg=t.receive_gold!==false&&t.receive_bound!==false, rb=t.receive_bonus!==false;
   const cg=Number(t.clear_gold)||0,bg=Number(t.bound_gold)||0,bo=Number(t.bonus_gold)||0,fl=Math.max(0,cg-bg);
   const rn=t.preset_name||t.name;
   const gc=t.preset_color||getGroupColor(rn);
@@ -2485,8 +2486,7 @@ function raidItemHTML(t,idx){
       <div class="task-name raid-title-line">${iconImg(t.preset_icon_url||getGroupIcon(rn),'entity-icon-sm')}<span style="color:${gc};">${esc(rn)}</span>${t.difficulty?` <span class="raid-difficulty ${dc}">${esc(t.difficulty)}</span>`:''}</div>
       <div class="raid-meta" style="margin-top:4px;">
         ${t.entry_level?`<span class="raid-badge">입장 ${t.entry_level}</span>`:''}
-        ${fl?`<span class="raid-gold raid-gold-flow ${rg?'':'muted-gold'}" title="${rg?'클릭해서 유통골드 제외':'클릭해서 유통골드 수령'}" style="cursor:pointer;" onclick="event.stopPropagation();toggleReceiveGold('${t.id}')">💰 유통 ${fl.toLocaleString()}G</span>`:''}
-        ${bg?`<span class="raid-gold raid-gold-bound ${rbd?'':'muted-gold'}" title="${rbd?'클릭해서 귀속골드 제외':'클릭해서 귀속골드 수령'}" style="cursor:pointer;" onclick="event.stopPropagation();toggleReceiveBound('${t.id}')">🔒 귀속 ${bg.toLocaleString()}G</span>`:''}
+        ${(fl||bg)?`<span class="raid-gold raid-gold-flow ${rg?'':'muted-gold'}" title="${rg?'클릭해서 골드체크 제외':'클릭해서 골드체크 포함'}" style="cursor:pointer;" onclick="event.stopPropagation();toggleReceiveGoldCheck('${t.id}')">💰 골드체크 ${rg?'O':'X'}${fl?` · 유통 ${fl.toLocaleString()}G`:''}${bg?` · 귀속 ${bg.toLocaleString()}G`:''}</span>`:''}
         ${bo?`<span class="raid-gold raid-gold-bonus ${rb?'':'muted-gold'}" style="cursor:pointer;" title="${rb?'클릭해서 더보기 제외':'클릭해서 더보기 수령'}" onclick="event.stopPropagation();toggleReceiveBonus('${t.id}')">➕ 더보기 ${bo.toLocaleString()}G</span>`:''}
         ${(t.has_party_link||isTemp||isRemoved)?`<span class="party-link-chip ${(isTemp||isRemoved)?'temp-link':''}" onclick="event.stopPropagation();showPartyLinkPopup('${t._popup_preset_id||t.preset_id||''}','${t.id}')">🔗 ${isRemoved?'임시파티해제':isTemp?'임시파티연동':'파티연동'}</span>`:''}
         <span class="raid-reset-chip">📅 ${DAYS[t.reset_day]}요일 · ${nextResetLabel({...t,reset_type:'weekly'})}</span>
@@ -3027,6 +3027,14 @@ async function toggleReceiveGold(taskId){
   const t=(S.raidTasks[S.selChar]||[]).find(x=>x.id===taskId);if(!t)return;
   t.receive_gold=(t.receive_gold===false)?true:false;
   const{error}=await sb.from('raid_tasks').update({receive_gold:t.receive_gold}).eq('id',taskId);
+  if(error)toast('❗ 저장 오류: '+error.message);
+  scheduleRenderArea();
+}
+async function toggleReceiveGoldCheck(taskId){
+  const t=(S.raidTasks[S.selChar]||[]).find(x=>x.id===taskId);if(!t)return;
+  const next=!(t.receive_gold!==false&&t.receive_bound!==false);
+  t.receive_gold=next;t.receive_bound=next;
+  const{error}=await sb.from('raid_tasks').update({receive_gold:next,receive_bound:next}).eq('id',taskId);
   if(error)toast('❗ 저장 오류: '+error.message);
   scheduleRenderArea();
 }

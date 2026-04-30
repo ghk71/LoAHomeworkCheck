@@ -902,6 +902,8 @@ button,input,select,textarea{ font:inherit; }
 .vo-diff{font-size:.78rem!important;margin-left:4px;font-weight:900;}
 .vo-raid-line.done .vo-raid-title{color:var(--muted)!important;text-decoration:line-through;}
 .vo-raid-date{font-size:.68rem;font-weight:900;color:var(--gold-text);border:1px solid rgba(255,184,77,.22);background:rgba(255,184,77,.08);border-radius:999px;padding:2px 7px;white-space:nowrap;}
+.vo-raid-actions{display:flex;align-items:center;gap:4px;justify-content:flex-end;flex-wrap:wrap;}
+.vo-raid-actions .btn{font-size:.66rem;padding:2px 6px;}
 .vo-raid-gold-row{grid-column:2/-1;display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:-2px;}
 .vo-raid-gold{font-size:.64rem;font-weight:800;border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:2px 6px;background:rgba(255,255,255,.035);color:var(--text-2);}
 .vo-raid-gold.flow{color:var(--gold-text);border-color:rgba(255,184,77,.22);}
@@ -1296,18 +1298,17 @@ async function loadViewerOverview(el){
       if(charScheduleDayByPreset[key]==null)charScheduleDayByPreset[key]=Number(s.day_of_week);
     });
   });
-  const charsWithRaids=(chars||[]).filter(c=>(rtasks||[]).some(t=>t.character_id===c.id));
   window._viewerRaidTasks=rtasks||[];
   const selectedAcc=viewerSelectedAccount(accs);
   if(!selectedAcc){renderViewerAccountSelect(el,accs);return;}
   const allowedCharIds=new Set(viewerScopeCharIds(accs,chars,selectedAcc.id));
-  const scopedCharsWithRaids=charsWithRaids.filter(c=>allowedCharIds.has(c.id));
+  const scopedViewerChars=(chars||[]).filter(c=>allowedCharIds.has(c.id));
   let selectedViewerChars;
   const savedViewerChars=localStorage.getItem('la_viewer_ov_chars');
-  try{selectedViewerChars=savedViewerChars?new Set(JSON.parse(savedViewerChars).filter(id=>scopedCharsWithRaids.some(c=>c.id===id))):new Set(scopedCharsWithRaids.map(c=>c.id));}catch{selectedViewerChars=new Set(scopedCharsWithRaids.map(c=>c.id));}
+  try{selectedViewerChars=savedViewerChars?new Set(JSON.parse(savedViewerChars).filter(id=>scopedViewerChars.some(c=>c.id===id))):new Set(scopedViewerChars.map(c=>c.id));}catch{selectedViewerChars=new Set(scopedViewerChars.map(c=>c.id));}
   if(savedViewerChars===null)localStorage.setItem('la_viewer_ov_chars',JSON.stringify([...selectedViewerChars]));
   const renderViewerFilter=()=>{
-    const allIds=scopedCharsWithRaids.map(c=>c.id);
+    const allIds=scopedViewerChars.map(c=>c.id);
     const filterOpen=localStorage.getItem('la_viewer_ov_filter_open')==='1';
     const chipToggle=id=>`(()=>{const cur=new Set(JSON.parse(localStorage.getItem('la_viewer_ov_chars')||'[]'));if(cur.has('${id}'))cur.delete('${id}');else cur.add('${id}');localStorage.setItem('la_viewer_ov_chars',JSON.stringify([...cur]));loadViewerOverview(document.getElementById('viewer-overview-area'));})()`;
     const groupToggle=ids=>`(()=>{const ids=[${ids.map(id=>`'${id}'`).join(',')}];const cur=new Set(JSON.parse(localStorage.getItem('la_viewer_ov_chars')||'[]'));if(ids.every(id=>cur.has(id)))ids.forEach(id=>cur.delete(id));else ids.forEach(id=>cur.add(id));localStorage.setItem('la_viewer_ov_chars',JSON.stringify([...cur]));loadViewerOverview(document.getElementById('viewer-overview-area'));})()`;
@@ -1320,9 +1321,9 @@ async function loadViewerOverview(el){
     };
     let accRows='';
     [selectedAcc].forEach(acc=>{
-      const mainChars=scopedCharsWithRaids.filter(c=>c.account_id===acc.id);
+      const mainChars=scopedViewerChars.filter(c=>c.account_id===acc.id);
       const subAccs=(accs||[]).filter(a=>a.parent_account_id===acc.id);
-      const subChars=subAccs.flatMap(sa=>scopedCharsWithRaids.filter(c=>c.account_id===sa.id));
+      const subChars=subAccs.flatMap(sa=>scopedViewerChars.filter(c=>c.account_id===sa.id));
       accRows+=row(acc.name,mainChars);
       accRows+=row(acc.name+'-부계정',subChars,true);
     });
@@ -1341,10 +1342,10 @@ async function loadViewerOverview(el){
     const done=tasks.filter(t=>isDone(t));
     return{
       total:tasks.length,done:done.length,
-      flow:tasks.filter(t=>t.receive_gold!==false).reduce((s,t)=>s+flowOf(t),0),
-      earnedFlow:done.filter(t=>t.receive_gold!==false).reduce((s,t)=>s+flowOf(t),0),
-      bound:tasks.filter(t=>t.receive_bound!==false).reduce((s,t)=>s+boundOf(t),0),
-      earnedBound:done.filter(t=>t.receive_bound!==false).reduce((s,t)=>s+boundOf(t),0),
+      flow:tasks.filter(t=>t.receive_gold!==false&&t.receive_bound!==false).reduce((s,t)=>s+flowOf(t),0),
+      earnedFlow:done.filter(t=>t.receive_gold!==false&&t.receive_bound!==false).reduce((s,t)=>s+flowOf(t),0),
+      bound:tasks.filter(t=>t.receive_gold!==false&&t.receive_bound!==false).reduce((s,t)=>s+boundOf(t),0),
+      earnedBound:done.filter(t=>t.receive_gold!==false&&t.receive_bound!==false).reduce((s,t)=>s+boundOf(t),0),
       bonus:tasks.filter(t=>t.receive_bonus!==false).reduce((s,t)=>s+bonusOf(t),0),
       earnedBonus:done.filter(t=>t.receive_bonus!==false).reduce((s,t)=>s+bonusOf(t),0)
     };
@@ -1357,9 +1358,9 @@ async function loadViewerOverview(el){
   };
   const raidGoldChips=t=>{
     const flow=flowOf(t),bound=boundOf(t),bonus=bonusOf(t);
+    const goldChecked=t.receive_gold!==false&&t.receive_bound!==false;
     const chips=[];
-    if(flow)chips.push(`<span class="vo-raid-gold flow ${t.receive_gold===false?'off':''}">유통 ${t.receive_gold===false?'X':'O'}</span>`);
-    if(bound)chips.push(`<span class="vo-raid-gold bound ${t.receive_bound===false?'off':''}">귀속 ${t.receive_bound===false?'X':'O'}</span>`);
+    if(flow||bound)chips.push(`<span class="vo-raid-gold flow ${goldChecked?'':'off'}">골드체크 ${goldChecked?'O':'X'}</span>`);
     if(bonus)chips.push(`<span class="vo-raid-gold bonus ${t.receive_bonus===false?'off':''}">더보기 ${t.receive_bonus===false?'X':'O'}</span>`);
     return chips.length?`<div class="vo-raid-gold-row">${chips.join('')}</div>`:'';
   };
@@ -1400,7 +1401,7 @@ async function loadViewerOverview(el){
           ${tasks.length?tasks.map(t=>{const d=isDone(t),p=t.preset_id?presetMap[t.preset_id]:null,rn=p?.name||t.preset_name||t.name,gc2=getGroupColor(rn),linkKey=t.character_id+'_'+t.preset_id,date=linkedByCharPreset.has(linkKey)?charScheduleByPreset[linkKey]:'';return`<div class="vo-raid-line ${d?'done':''}" onclick="viewerToggleRaidTask('${t.id}')">
             <span class="vo-raid-check">${d?'✓':''}</span>
             <span class="vo-raid-title" style="color:${gc2};">${esc(rn)}${(t.difficulty||p?.difficulty)?` <span class="vo-diff ${diffClass(t.difficulty||p?.difficulty)}">${esc(t.difficulty||p?.difficulty)}</span>`:''}</span>
-            ${date?`<span class="vo-raid-date">${date}</span>`:''}
+            <span class="vo-raid-actions">${date?`<span class="vo-raid-date">${date}</span>`:''}<button class="btn btn-sec btn-sm" onclick="event.stopPropagation();openViewerEditRaidModal('${t.id}')">수정</button><button class="btn btn-sec btn-sm" onclick="event.stopPropagation();deleteViewerRaidTask('${t.id}')">삭제</button></span>
             ${raidGoldChips(t)}
           </div>`;}).join(''):'<div class="vo-empty">레이드가 없습니다</div>'}
         </div>
@@ -1410,9 +1411,9 @@ async function loadViewerOverview(el){
     html+='</div></div>';
   };
   [selectedAcc].forEach(acc=>{
-    const mainChars=(chars||[]).filter(c=>c.account_id===acc.id&&selectedViewerChars.has(c.id)&&(rtasks||[]).some(t=>t.character_id===c.id));
+    const mainChars=(chars||[]).filter(c=>c.account_id===acc.id&&selectedViewerChars.has(c.id)&&allowedCharIds.has(c.id));
     const subAccs=(accs||[]).filter(a=>a.parent_account_id===acc.id);
-    const subChars=subAccs.flatMap(sa=>(chars||[]).filter(c=>c.account_id===sa.id&&selectedViewerChars.has(c.id)&&(rtasks||[]).some(t=>t.character_id===c.id)));
+    const subChars=subAccs.flatMap(sa=>(chars||[]).filter(c=>c.account_id===sa.id&&selectedViewerChars.has(c.id)&&allowedCharIds.has(c.id)));
     renderViewerGroup(acc.name,mainChars);
     renderViewerGroup(acc.name+' - 부계정',subChars);
   });
@@ -1470,13 +1471,14 @@ async function submitViewerAddChar(){
   closeModal('modal-viewer-add-char');
   toast('✅ 캐릭터 추가됨');
   await loadViewerOverview(document.getElementById('viewer-overview-area'));
+  setTimeout(()=>openViewerAddRaidModal(data.id),80);
 }
 function openViewerAddRaidModal(charId=''){
   let modal=document.getElementById('modal-viewer-add-raid');
   if(!modal){
     modal=document.createElement('div');modal.className='overlay';modal.id='modal-viewer-add-raid';
     modal.innerHTML=`<div class="modal modal-orange">
-      <div class="modal-title orange">레이드 숙제 추가</div>
+      <div class="modal-title orange" id="viewer-raid-modal-title">레이드 숙제 추가</div>
       <div class="form-group"><label class="form-label">캐릭터</label><select class="form-select" id="viewer-add-char"></select></div>
       <div class="form-group"><label class="form-label">레이드 프리셋</label><select class="form-select" id="viewer-add-preset" onchange="fillViewerAddPreset()"></select></div>
       <div class="viewer-add-modal-grid">
@@ -1487,18 +1489,41 @@ function openViewerAddRaidModal(charId=''){
         <div class="form-group"><label class="form-label">귀속 골드</label><input class="form-input" id="viewer-add-bound" type="number" min="0"></div>
         <div class="form-group"><label class="form-label">더보기 골드</label><input class="form-input" id="viewer-add-bonus" type="number" min="0"></div>
       </div>
-      <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-viewer-add-raid')">취소</button><button class="btn btn-orange" onclick="submitViewerAddRaid()">추가</button></div>
+      <input type="hidden" id="viewer-edit-raid-id">
+      <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-viewer-add-raid')">취소</button><button class="btn btn-orange" id="viewer-raid-submit-btn" onclick="submitViewerAddRaid()">추가</button></div>
     </div>`;
     document.body.appendChild(modal);
     modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('open');});
   }
   const acc=viewerSelectedAccount(accounts);if(!acc){toast('계정을 먼저 선택하세요');return;}
   const allowed=new Set(viewerScopeCharIds(accounts,allChars,acc.id));
+  document.getElementById('viewer-raid-modal-title').textContent='레이드 숙제 추가';
+  document.getElementById('viewer-raid-submit-btn').textContent='추가';
+  document.getElementById('viewer-edit-raid-id').value='';
+  document.getElementById('viewer-add-char').disabled=false;
   document.getElementById('viewer-add-char').innerHTML=allChars.filter(c=>allowed.has(c.id)).map(c=>`<option value="${c.id}">${esc(c.name)}${c.item_level?' Lv.'+c.item_level:''}${c.combat_power?' · 전투력 '+Number(c.combat_power).toLocaleString():''}</option>`).join('');
   if(charId&&allowed.has(charId))document.getElementById('viewer-add-char').value=charId;
   document.getElementById('viewer-add-preset').innerHTML='<option value="">직접 입력</option>'+raids.map(r=>`<option value="${r.id}">${esc(r.name)} ${esc(r.difficulty||'')}</option>`).join('');
   ['viewer-add-name','viewer-add-diff','viewer-add-entry','viewer-add-clear','viewer-add-bound','viewer-add-bonus'].forEach(id=>document.getElementById(id).value='');
   openModal('modal-viewer-add-raid');
+}
+function openViewerEditRaidModal(taskId){
+  const t=(window._viewerRaidTasks||[]).find(x=>x.id===taskId);if(!t)return;
+  const acc=viewerSelectedAccount(accounts);if(!acc)return;
+  const allowed=new Set(viewerScopeCharIds(accounts,allChars,acc.id));
+  if(!allowed.has(t.character_id)){toast('선택 계정의 레이드만 수정할 수 있습니다');return;}
+  openViewerAddRaidModal(t.character_id);
+  document.getElementById('viewer-raid-modal-title').textContent='레이드 숙제 수정';
+  document.getElementById('viewer-raid-submit-btn').textContent='저장';
+  document.getElementById('viewer-edit-raid-id').value=t.id;
+  document.getElementById('viewer-add-char').disabled=true;
+  document.getElementById('viewer-add-preset').value=t.preset_id||'';
+  document.getElementById('viewer-add-name').value=t.name||t.preset_name||'';
+  document.getElementById('viewer-add-diff').value=t.difficulty||'';
+  document.getElementById('viewer-add-entry').value=t.entry_level||'';
+  document.getElementById('viewer-add-clear').value=t.clear_gold||0;
+  document.getElementById('viewer-add-bound').value=t.bound_gold||0;
+  document.getElementById('viewer-add-bonus').value=t.bonus_gold||0;
 }
 function fillViewerAddPreset(){
   const id=document.getElementById('viewer-add-preset').value;
@@ -1512,13 +1537,26 @@ function fillViewerAddPreset(){
 }
 async function submitViewerAddRaid(){
   const character_id=document.getElementById('viewer-add-char').value,preset_id=document.getElementById('viewer-add-preset').value||null;
+  const editId=document.getElementById('viewer-edit-raid-id')?.value||'';
   const name=document.getElementById('viewer-add-name').value.trim(),difficulty=document.getElementById('viewer-add-diff').value.trim();
   if(!character_id||!name){toast('❗ 캐릭터와 레이드명을 입력하세요');return;}
   const rec={character_id,preset_id,name,difficulty,entry_level:parseFloat(document.getElementById('viewer-add-entry').value)||0,clear_gold:parseFloat(document.getElementById('viewer-add-clear').value)||0,bound_gold:parseFloat(document.getElementById('viewer-add-bound').value)||0,bonus_gold:parseFloat(document.getElementById('viewer-add-bonus').value)||0,reset_day:3,sort_order:99};
-  const{error}=await sb.from('raid_tasks').insert(rec);
+  const q=editId?sb.from('raid_tasks').update(rec).eq('id',editId):sb.from('raid_tasks').insert({...rec,receive_gold:true,receive_bound:true,receive_bonus:true});
+  const{error}=await q;
   if(error){toast('❗ '+error.message);return;}
   closeModal('modal-viewer-add-raid');
-  toast('✅ 레이드 추가됨');
+  toast(editId?'✅ 레이드 수정됨':'✅ 레이드 추가됨');
+  await loadViewerOverview(document.getElementById('viewer-overview-area'));
+}
+async function deleteViewerRaidTask(taskId){
+  const t=(window._viewerRaidTasks||[]).find(x=>x.id===taskId);if(!t)return;
+  const acc=viewerSelectedAccount(accounts);if(!acc)return;
+  const allowed=new Set(viewerScopeCharIds(accounts,allChars,acc.id));
+  if(!allowed.has(t.character_id)){toast('선택 계정의 레이드만 삭제할 수 있습니다');return;}
+  if(!confirm('레이드 숙제를 삭제하시겠습니까?'))return;
+  const{error}=await sb.from('raid_tasks').delete().eq('id',taskId);
+  if(error){toast('❗ '+error.message);return;}
+  toast('삭제되었습니다');
   await loadViewerOverview(document.getElementById('viewer-overview-area'));
 }
 

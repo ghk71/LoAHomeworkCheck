@@ -807,8 +807,9 @@ function goldBreakdownFor(charsOrIds){
     const flow=Math.max(0,(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0));
     const bound=Number(t.bound_gold)||0;
     const bonus=Number(t.bonus_gold)||0;
-    if(t.receive_gold!==false){out.flow+=flow;if(isEffDone(t))out.earnedFlow+=flow;}
-    if(t.receive_bound!==false){out.bound+=bound;if(isEffDone(t))out.earnedBound+=bound;}
+    const goldChecked=t.receive_gold!==false&&t.receive_bound!==false;
+    if(goldChecked){out.flow+=flow;if(isEffDone(t))out.earnedFlow+=flow;}
+    if(goldChecked){out.bound+=bound;if(isEffDone(t))out.earnedBound+=bound;}
     if(t.receive_bonus!==false){out.bonus+=bonus;if(isEffDone(t))out.earnedBonus+=bonus;}
   }));
   return out;
@@ -908,9 +909,9 @@ function raidTaskRowHTML(t){
   const gc=getGroupColor(raidName);
   const dc=diffClass(t.difficulty||'');
   const flow=Math.max(0,(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0)),bound=Number(t.bound_gold)||0,bonus=Number(t.bonus_gold)||0;
+  const goldChecked=t.receive_gold!==false&&t.receive_bound!==false;
   const flagChips=[
-    flow?`<span class="ov-gold-chip flow ${t.receive_gold===false?'off':''}">유통 ${t.receive_gold===false?'X':'O'}</span>`:'',
-    bound?`<span class="ov-gold-chip bound ${t.receive_bound===false?'off':''}">귀속 ${t.receive_bound===false?'X':'O'}</span>`:'',
+    (flow||bound)?`<span class="ov-gold-chip flow ${goldChecked?'':'off'}">골드체크 ${goldChecked?'O':'X'}</span>`:'',
     bonus?`<span class="ov-gold-chip bonus ${t.receive_bonus===false?'off':''}">더보기 ${t.receive_bonus===false?'X':'O'}</span>`:''
   ].join('');
   return`<div class="rt-row ${done?'done':''}" id="ov-rti-${t.id}" onclick="toggleRaidTask('${t.id}')">
