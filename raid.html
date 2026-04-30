@@ -1171,6 +1171,7 @@ function parseViewer(){try{const p=new URLSearchParams(location.search).get('vie
 const viewerCreds=parseViewer(),isViewer=!!viewerCreds;
 if(isViewer)document.getElementById('viewer-banner').classList.add('show');
 const VIEWER_ACC_KEY='la_viewer_account_id';
+let viewerPendingCharId=null;
 function getConfig(){if(isViewer)return viewerCreds;const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
 function viewerScopeCharIds(accs,chars,accId){
   const subIds=(accs||[]).filter(a=>a.parent_account_id===accId).map(a=>a.id);
@@ -1184,6 +1185,7 @@ function viewerSelectedAccount(accs){
 function setViewerAccount(id){
   localStorage.setItem(VIEWER_ACC_KEY,id);
   localStorage.removeItem('la_viewer_ov_chars');
+  viewerPendingCharId=null;
   const ids=viewerScopeCharIds(accounts,allChars,id);
   if(ids.length)localStorage.setItem(SCH_HL_KEY,JSON.stringify(ids));
   schHighlightChars=new Set(ids);
@@ -1194,6 +1196,7 @@ function setViewerAccount(id){
 function changeViewerAccount(){
   localStorage.removeItem(VIEWER_ACC_KEY);
   localStorage.removeItem('la_viewer_ov_chars');
+  viewerPendingCharId=null;
   localStorage.removeItem(SCH_HL_KEY);
   schHighlightChars=new Set();
   switchViewerTab('ov');
@@ -1302,7 +1305,8 @@ async function loadViewerOverview(el){
   const selectedAcc=viewerSelectedAccount(accs);
   if(!selectedAcc){renderViewerAccountSelect(el,accs);return;}
   const allowedCharIds=new Set(viewerScopeCharIds(accs,chars,selectedAcc.id));
-  const scopedViewerChars=(chars||[]).filter(c=>allowedCharIds.has(c.id));
+  const raidCharIds=new Set((rtasks||[]).map(t=>t.character_id));
+  const scopedViewerChars=(chars||[]).filter(c=>allowedCharIds.has(c.id)&&(raidCharIds.has(c.id)||c.id===viewerPendingCharId));
   let selectedViewerChars;
   const savedViewerChars=localStorage.getItem('la_viewer_ov_chars');
   try{selectedViewerChars=savedViewerChars?new Set(JSON.parse(savedViewerChars).filter(id=>scopedViewerChars.some(c=>c.id===id))):new Set(scopedViewerChars.map(c=>c.id));}catch{selectedViewerChars=new Set(scopedViewerChars.map(c=>c.id));}
@@ -1411,9 +1415,9 @@ async function loadViewerOverview(el){
     html+='</div></div>';
   };
   [selectedAcc].forEach(acc=>{
-    const mainChars=(chars||[]).filter(c=>c.account_id===acc.id&&selectedViewerChars.has(c.id)&&allowedCharIds.has(c.id));
+    const mainChars=scopedViewerChars.filter(c=>c.account_id===acc.id&&selectedViewerChars.has(c.id));
     const subAccs=(accs||[]).filter(a=>a.parent_account_id===acc.id);
-    const subChars=subAccs.flatMap(sa=>(chars||[]).filter(c=>c.account_id===sa.id&&selectedViewerChars.has(c.id)&&allowedCharIds.has(c.id)));
+    const subChars=subAccs.flatMap(sa=>scopedViewerChars.filter(c=>c.account_id===sa.id&&selectedViewerChars.has(c.id)));
     renderViewerGroup(acc.name,mainChars);
     renderViewerGroup(acc.name+' - 부계정',subChars);
   });
@@ -1467,6 +1471,7 @@ async function submitViewerAddChar(){
   const{data,error}=await sb.from('characters').insert(rec).select().single();
   if(error){toast('❗ '+error.message);return;}
   allChars.push(data);
+  viewerPendingCharId=data.id;
   localStorage.removeItem('la_viewer_ov_chars');
   closeModal('modal-viewer-add-char');
   toast('✅ 캐릭터 추가됨');
@@ -1544,6 +1549,7 @@ async function submitViewerAddRaid(){
   const q=editId?sb.from('raid_tasks').update(rec).eq('id',editId):sb.from('raid_tasks').insert({...rec,receive_gold:true,receive_bound:true,receive_bonus:true});
   const{error}=await q;
   if(error){toast('❗ '+error.message);return;}
+  if(!editId&&viewerPendingCharId===character_id)viewerPendingCharId=null;
   closeModal('modal-viewer-add-raid');
   toast(editId?'✅ 레이드 수정됨':'✅ 레이드 추가됨');
   await loadViewerOverview(document.getElementById('viewer-overview-area'));
