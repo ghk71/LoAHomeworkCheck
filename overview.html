@@ -400,14 +400,15 @@ body { overflow:hidden; }
 .sum-item.done b { color:var(--green); }
 .sum-prog { height:5px; flex:1; min-width:120px; background:rgba(255,255,255,.07); border-radius:4px; overflow:hidden; }
 .sum-prog-bar { height:100%; background:linear-gradient(90deg,var(--green),#34d399); border-radius:4px; transition:width .4s; }
-.gold-split { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:7px; width:100%; grid-column:1/-1; }
+.gold-split { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:7px; width:100%; grid-column:1/-1; min-width:0; }
 .acc-gold-split { grid-column:auto; flex:1 1 360px; min-width:260px; }
-.gold-mini { display:grid; grid-template-columns:auto auto minmax(52px,1fr); align-items:center; gap:6px; font-size:.72rem; color:var(--text-2); padding:5px 8px; border:1px solid rgba(255,255,255,.07); border-radius:8px; background:rgba(255,255,255,.025); }
+.gold-mini { display:grid; grid-template-columns:auto max-content minmax(110px,1fr); align-items:center; gap:8px; font-size:.72rem; color:var(--text-2); padding:5px 8px; border:1px solid rgba(255,255,255,.07); border-radius:8px; background:rgba(255,255,255,.025); min-width:0; }
+.gold-mini b { white-space:nowrap; text-align:right; }
 .gold-mini b { color:var(--text); }
 .gold-mini.flow b { color:var(--gold-text); }
 .gold-mini.bound b { color:var(--orange); }
 .gold-mini.bonus b { color:#c4b5fd; }
-.gold-mini-bar { width:100%; height:4px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,.08); }
+.gold-mini-bar { width:100%; min-width:110px; height:4px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,.08); }
 .gold-mini-fill { height:100%; border-radius:4px; transition:width .3s; }
 
 /* Account sections */
@@ -488,6 +489,12 @@ body { overflow:hidden; }
 .rt-name { font-size:.8rem; font-weight:500; }
 .ov-party-chip{font-size:.63rem;color:var(--teal);padding:2px 6px;border:1px solid rgba(42,184,160,.3);border-radius:6px;cursor:pointer;background:rgba(42,184,160,.06);}
 .ov-party-chip.temp{color:var(--gold-text);border-color:rgba(200,168,75,.38);background:rgba(200,168,75,.10);}
+.ov-gold-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;}
+.ov-gold-chip{font-size:.63rem;padding:2px 6px;border-radius:999px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);color:var(--text-2);}
+.ov-gold-chip.flow{color:var(--gold-text);border-color:rgba(255,184,77,.24);}
+.ov-gold-chip.bound{color:var(--orange);border-color:rgba(249,115,22,.24);}
+.ov-gold-chip.bonus{color:#c4b5fd;border-color:rgba(196,181,253,.24);}
+.ov-gold-chip.off{opacity:.45;text-decoration:line-through;}
 
 /* Week nav */
 .week-nav-bar {
@@ -615,7 +622,7 @@ button,input,select,textarea{ font:inherit; }
 const{createClient}=supabase;
 function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
 
-let sb,accounts=[],characters=[],raidTasks=[],tempRaidTaskIds=new Set(),raidGroupSettings={},raidGroupSettingsAvailable=true;
+let sb,accounts=[],characters=[],raidTasks=[],tempRaidTaskIds=new Set(),tempRemovedRaidTaskIds=new Set(),raidGroupSettings={},raidGroupSettingsAvailable=true;
 let weekOffset=0;
 let collapsedAccs=new Set(JSON.parse(localStorage.getItem('la_ov_collapsed')||'[]'));
 let selectedChars=new Set(); // selected character ids for filter
@@ -701,13 +708,16 @@ async function autoReset(){
 }
 async function loadTempRaidTaskIds(){
   const{data,error}=await sb.from('raid_schedule_overrides').select('temp_changes').eq('week_start_date',getWeekKey(0));
-  if(error){tempRaidTaskIds=new Set();return;}
-  const ids=[];
+  if(error){tempRaidTaskIds=new Set();tempRemovedRaidTaskIds=new Set();return;}
+  const ids=[],removedIds=[];
   (data||[]).forEach(o=>{
     const added=(o.temp_changes&&o.temp_changes.added)||{};
+    const removed=(o.temp_changes&&o.temp_changes.removed)||{};
     Object.values(added).forEach(v=>{if(v&&v.taskId)ids.push(v.taskId);});
+    Object.values(removed).forEach(v=>{if(v&&v.taskId)removedIds.push(v.taskId);});
   });
   tempRaidTaskIds=new Set(ids);
+  tempRemovedRaidTaskIds=new Set(removedIds);
 }
 async function loadRaidGroupSettings(){
   raidGroupSettings={};raidGroupSettingsAvailable=true;
@@ -857,7 +867,7 @@ function charCardHTML(c){
   const allDone=done===tot;
   return`<div class="char-card ${allDone?'all-done':''}">
     <div class="cc-header">
-      <div class="cc-name ${allDone?'done':''}"><span style="display:flex;align-items:center;gap:4px;">${iconImg(c.icon_url||'','entity-icon-sm')}${esc(c.name)}</span></div>
+          <div class="cc-name ${allDone?'done':''}"><span style="display:flex;align-items:center;gap:4px;">${iconImg(c.icon_url||'','entity-icon-sm')}${esc(c.name)}</span>${c.combat_power?`<span style="font-size:.64rem;color:var(--text-3);margin-left:6px;">전투력 ${Number(c.combat_power).toLocaleString()}</span>`:''}</div>
       ${c.class_name?`<div class="cc-meta">${esc(c.class_name)}</div>`:''}
       ${c.item_level?`<div class="cc-meta">Lv.${c.item_level}</div>`:''}
       <div class="cc-prog ${allDone?'done':''}">${done}/${tot}${allDone?' ✓':''}</div>
@@ -871,14 +881,17 @@ function charCardHTML(c){
 function raidTaskRowHTML(t){
   const done=isEffDone(t);
   const isTemp=tempRaidTaskIds&&tempRaidTaskIds.has(t.id);
+  const isRemoved=tempRemovedRaidTaskIds&&tempRemovedRaidTaskIds.has(t.id);
   const raidName=t.preset_name||t.name;
   const gc=getGroupColor(raidName);
   const dc=diffClass(t.difficulty||'');
+  const flow=Math.max(0,(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0)),bound=Number(t.bound_gold)||0,bonus=Number(t.bonus_gold)||0;
   return`<div class="rt-row ${done?'done':''}" id="ov-rti-${t.id}" onclick="toggleRaidTask('${t.id}')">
     <div class="rt-check"><span class="rt-check-icon">✓</span></div>
     <div class="rt-info">
       <div class="rt-name" style="display:flex;align-items:center;gap:4px;">${iconImg(getGroupIcon(raidName),'entity-icon-sm')}<span style="color:${gc};">${esc(raidName)}</span>${t.difficulty?` <span class="${dc}" style="font-size:.72rem;margin-left:2px;">${esc(t.difficulty)}</span>`:''}</div>
-      ${(t.has_party_link||isTemp)?`<div style="margin-top:2px;"><span class="ov-party-chip ${isTemp?'temp':''}" onclick="event.stopPropagation();showOvPartyPopup('${t.preset_id}','${t.character_id}','${t.id}')">🔗 ${isTemp?'임시파티연동':'파티연동'}</span></div>`:''}
+      <div class="ov-gold-row">${flow?`<span class="ov-gold-chip flow ${t.receive_gold===false?'off':''}">유통 ${flow.toLocaleString()}G</span>`:''}${bound?`<span class="ov-gold-chip bound ${t.receive_bound===false?'off':''}">귀속 ${bound.toLocaleString()}G</span>`:''}${bonus?`<span class="ov-gold-chip bonus ${t.receive_bonus===false?'off':''}">더보기 ${bonus.toLocaleString()}G</span>`:''}</div>
+      ${(t.has_party_link||isTemp||isRemoved)?`<div style="margin-top:2px;"><span class="ov-party-chip ${(isTemp||isRemoved)?'temp':''}" onclick="event.stopPropagation();showOvPartyPopup('${t.preset_id}','${t.character_id}','${t.id}')">🔗 ${isRemoved?'임시파티해제':isTemp?'임시파티연동':'파티연동'}</span></div>`:''}
     </div>
   </div>`;
 }
@@ -901,7 +914,7 @@ async function showOvPartyPopup(presetId,charId,taskId=''){
     if(!preset){el.innerHTML='<span style="color:var(--muted);">정보 없음</span>';return;}
     const pIds=(partiesData||[]).map(p=>p.id);
     const[{data:members,error:mErr},{data:schData,error:sErr}]=await Promise.all([
-      pIds.length?sb.from('raid_party_members').select('*,characters(id,name,class_name,item_level,icon_url)').in('party_id',pIds):{data:[]},
+      pIds.length?sb.from('raid_party_members').select('*,characters(id,name,class_name,item_level,combat_power,icon_url)').in('party_id',pIds):{data:[]},
       pIds.length?sb.from('raid_schedules').select('id,party_id,day_of_week').in('party_id',pIds):{data:[]}
     ]);
     if(mErr)throw mErr;if(sErr)throw sErr;
@@ -939,7 +952,7 @@ async function showOvPartyPopup(presetId,charId,taskId=''){
             <span style="color:var(--dim);width:14px;">${i+1}</span>
             ${ch?`${ch.icon_url?`<img class="entity-icon-sm" src="${ch.icon_url}" onerror="this.style.display='none'">`:''}
             <span style="${isMe?'color:var(--gold);font-weight:700;':''}">${esc(ch.name)}</span>
-            <span style="color:var(--muted);font-size:.67rem;">${esc(ch.class_name||'')}${ch.item_level?' Lv.'+ch.item_level:''}</span>`
+            <span style="color:var(--muted);font-size:.67rem;">${esc(ch.class_name||'')}${ch.item_level?' Lv.'+ch.item_level:''}${ch.combat_power?' · 전투력 '+Number(ch.combat_power).toLocaleString():''}</span>`
             :'<span style="color:var(--dim);">빈 슬롯</span>'}
           </div>`;
         }).join('')}</div>

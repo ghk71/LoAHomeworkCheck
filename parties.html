@@ -663,6 +663,17 @@ function getTempPartiesForChar(charId){
   });
   return out;
 }
+function getTempRemovedPartiesForChar(charId){
+  const out=[];
+  scheduleOverrides.forEach(ovr=>{
+    const removed=(ovr.temp_changes&&ovr.temp_changes.removed)||{};
+    if(!removed[charId])return;
+    const sch=schedules.find(s=>s.id===ovr.schedule_id);
+    const p=sch?parties.find(x=>x.id===sch.party_id):null;
+    if(p&&!out.some(x=>x.party.id===p.id))out.push({party:p,override:ovr});
+  });
+  return out;
+}
 
 // ─── Render ───
 function render(){
@@ -675,15 +686,20 @@ function render(){
     const chars=visChars.filter(c=>c.account_id===acc.id);
     if(!chars.length)return;
     chars.forEach(c=>{
-      const charMembers=members.filter(m=>m.character_id===c.id);
+      const removedParties=getTempRemovedPartiesForChar(c.id);
+      const removedPartyIds=new Set(removedParties.map(x=>x.party.id));
+      const removedPresetIds=new Set(removedParties.map(x=>x.party.preset_id));
+      const charMembers=members.filter(m=>m.character_id===c.id&&!removedPartyIds.has(m.party_id));
       const charRaidTasks=raidTasks.filter(t=>t.character_id===c.id);
       const charParties=charMembers.map(m=>{const p=parties.find(x=>x.id===m.party_id);return p?{party:p,member:m}:null;}).filter(Boolean);
       const tempParties=getTempPartiesForChar(c.id);
-      if(!charMembers.length&&!charRaidTasks.length&&!tempParties.length)return;
-      const partylessTasks=charRaidTasks.filter(t=>!t.preset_id||!charParties.some(({party:p})=>p.preset_id===t.preset_id));
+      const tempPresetIds=new Set(tempParties.map(x=>x.party.preset_id));
+      if(!charMembers.length&&!charRaidTasks.length&&!tempParties.length&&!removedParties.length)return;
+      const partylessTasks=charRaidTasks.filter(t=>!t.preset_id||(!charParties.some(({party:p})=>p.preset_id===t.preset_id)&&!tempPresetIds.has(t.preset_id)&&!removedPresetIds.has(t.preset_id)));
       const cards=[
         ...charParties.map(x=>({type:'party',key:raidSortKeyByPresetId(x.party.preset_id),html:partyCardHTML(x.party,c,x.member,false)})),
         ...tempParties.map(x=>({type:'temp',key:raidSortKeyByPresetId(x.party.preset_id),html:partyCardHTML(x.party,c,{slot_index:x.slotIndex,character_id:c.id,id:''},true)})),
+        ...removedParties.map(x=>({type:'removed',key:raidSortKeyByPresetId(x.party.preset_id),html:partyCardHTML(x.party,c,{slot_index:-1,character_id:c.id,id:''},false,true)})),
         ...partylessTasks.map(t=>({type:'none',key:raidSortKeyByPresetId(t.preset_id),html:noPartyCardHTML(t,c)}))
       ];
       if(partyOrderMode==='raid_order')cards.sort((a,b)=>a.key-b.key||(a.type==='none')-(b.type==='none'));
@@ -692,8 +708,9 @@ function render(){
           <div class="cs-name">${esc(c.name)}</div>
           ${c.class_name?`<div class="cs-class">${esc(c.class_name)}</div>`:''}
           ${c.item_level?`<div class="cs-ilvl">Lv.${c.item_level}</div>`:''}
+          ${c.combat_power?`<div class="cs-ilvl">전투력 ${Number(c.combat_power).toLocaleString()}</div>`:''}
           <button class="btn btn-sec btn-sm" onclick="togglePartyOrderMode()" title="파티 없음 위치/레이드 순서 정렬">${partyOrderMode==='raid_order'?'레이드 순서':'파티 없음 뒤'}</button>
-          <div class="cs-count">${charParties.length+tempParties.length}개 파티${tempParties.length?` · 임시 ${tempParties.length}`:''}${partylessTasks.length?` · 파티 없음 ${partylessTasks.length}`:''}</div>
+          <div class="cs-count">${charParties.length+tempParties.length}개 파티${tempParties.length?` · 임시 ${tempParties.length}`:''}${removedParties.length?` · 임시해제 ${removedParties.length}`:''}${partylessTasks.length?` · 파티 없음 ${partylessTasks.length}`:''}</div>
         </div>
         <div class="party-cards">${cards.map(x=>x.html).join('')}</div>
       </div>`;
@@ -717,14 +734,14 @@ function noPartyCardHTML(t,myChar){
   </div>`;
 }
 
-function partyCardHTML(p,myChar,myMember,isTemp=false){
+function partyCardHTML(p,myChar,myMember,isTemp=false,isRemoved=false){
   const preset=raids.find(x=>x.id===p.preset_id);
   const slots=[];for(let i=0;i<p.party_size;i++){const m=p.members.find(x=>x.slot_index===i);slots.push(m||{slot_index:i,character_id:null});}
-  return`<div class="party-card ${isTemp?'temp-party':''}">
+  return`<div class="party-card ${(isTemp||isRemoved)?'temp-party':''}">
     <div class="pc-header">
       <div style="flex:1;min-width:0;">
         <div class="pc-raid-name" style="color:${getGroupColor(preset?.name||'')};display:flex;align-items:center;gap:5px;">${iconImg(getGroupIcon(preset?.name||''),'entity-icon-sm')}${esc(preset?.name||'?')}${preset?.difficulty?` <span class="${diffClass(preset.difficulty)}" style="font-size:.72rem;">${esc(preset.difficulty)}</span>`:''}</div>
-        <div class="pc-party-name"><span style="color:${getPartyColor(p)};font-weight:600;">${esc(p.name||'파티')}</span> · ${p.party_size}인${isTemp?' · <span class="temp-party-badge">임시파티연동</span>':''}${preset?.entry_level?` · 입장 ${preset.entry_level}`:''}${p._sched_days?` · <span class="party-day-link" onclick="event.stopPropagation();goToPartySchedule('${p.id}')">📅 ${p._sched_days}</span>`:''}</div>
+        <div class="pc-party-name"><span style="color:${getPartyColor(p)};font-weight:600;">${esc(p.name||'파티')}</span> · ${p.party_size}인${isTemp?' · <span class="temp-party-badge">임시파티연동</span>':''}${isRemoved?' · <span class="temp-party-badge">임시파티해제</span>':''}${preset?.entry_level?` · 입장 ${preset.entry_level}`:''}${p._sched_days?` · <span class="party-day-link" onclick="event.stopPropagation();goToPartySchedule('${p.id}')">📅 ${p._sched_days}</span>`:''}</div>
       </div>
     </div>
     <div class="pc-body">
@@ -736,7 +753,7 @@ function partyCardHTML(p,myChar,myMember,isTemp=false){
             <span class="slot-num">${i+1}</span>
             ${ch.icon_url?`<img class="entity-icon-sm" src="${ch.icon_url}" onerror="this.style.display='none'">`:''}
             <span class="slot-char-name ${isMe?'me':''}">${esc(ch.name)}</span>
-            <span class="slot-char-class">${esc(ch.class_name||'')}${ch.item_level?' Lv.'+ch.item_level:''}</span>
+            <span class="slot-char-class">${esc(ch.class_name||'')}${ch.item_level?' Lv.'+ch.item_level:''}${ch.combat_power?' · 전투력 '+Number(ch.combat_power).toLocaleString():''}</span>
           </div>`;
           return`<div class="slot-row"><span class="slot-num">${i+1}</span><span class="slot-empty-txt">빈 슬롯</span></div>`;
         }).join('')}
@@ -745,7 +762,7 @@ function partyCardHTML(p,myChar,myMember,isTemp=false){
     <div class="pc-footer">
       <button class="btn btn-sec btn-sm" onclick="goToParty('${p.id}')" title="raid.html에서 이 파티 열기">🗡️ 파티로 이동</button>
       <button class="btn btn-sec btn-sm" onclick="goToPartySchedule('${p.id}')" title="raid.html 주간 일정에서 보기">📅 일정</button>
-      ${isTemp?'':`<button class="leave-btn" onclick="leaveParty('${p.id}','${myChar.id}','${myMember.id}','${preset?.id||''}','${esc(preset?.name||'')}')">탈퇴</button>`}
+      ${(isTemp||isRemoved)?'':`<button class="leave-btn" onclick="leaveParty('${p.id}','${myChar.id}','${myMember.id}','${preset?.id||''}','${esc(preset?.name||'')}')">탈퇴</button>`}
     </div>
   </div>`;
 }
@@ -761,16 +778,12 @@ function goToPartySchedule(partyId){
   window.location.href='raid.html';
 }
 async function leaveParty(partyId,charId,memberId,presetId,presetName){
-  if(!confirm(`"${presetName}" 파티에서 탈퇴합니다.\n연동된 레이드 숙제도 삭제됩니다. 계속?`))return;
+  if(!confirm(`"${presetName}" 파티에서 탈퇴합니다.\n레이드 숙제는 삭제하지 않습니다. 계속?`))return;
   // 1. Remove from party slot
   await sb.from('raid_party_members').delete().eq('id',memberId);
   members=members.filter(m=>m.id!==memberId);
   const p=parties.find(x=>x.id===partyId);
   if(p)p.members=p.members.filter(m=>m.id!==memberId);
-  // 2. Delete linked raid_task (index.html + overview.html source)
-  if(presetId&&charId){
-    await sb.from('raid_tasks').delete().eq('character_id',charId).eq('preset_id',presetId);
-  }
   toast('✅ 파티 탈퇴 완료');
   renderFilter();render();
 }

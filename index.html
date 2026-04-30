@@ -1166,6 +1166,7 @@ button,input,select,textarea{ font:inherit; }
     <div class="form-group"><label class="form-label">직업</label><input class="form-input" id="char-class" lang="ko" inputmode="text" placeholder="워로드, 바드..."></div>
     <div class="form-group"><label class="form-label">아이템 레벨</label><input class="form-input" id="char-ilvl" type="number" placeholder="1620" min="0" max="9999"></div>
   </div>
+  <div class="form-group"><label class="form-label">전투력</label><input class="form-input" id="char-combat" type="number" placeholder="0" min="0"></div>
   <div class="modal-footer"><button class="btn btn-sec" onclick="closeModal('modal-char')">취소</button><button class="btn btn-gold" onclick="createChar()">추가</button></div>
 </div></div>
 
@@ -1176,6 +1177,7 @@ button,input,select,textarea{ font:inherit; }
     <div class="form-group"><label class="form-label">직업</label><input class="form-input" id="edit-char-class" lang="ko" inputmode="text"></div>
     <div class="form-group"><label class="form-label">아이템 레벨</label><input class="form-input" id="edit-char-ilvl" type="number" min="0" max="9999"></div>
   </div>
+  <div class="form-group"><label class="form-label">전투력</label><input class="form-input" id="edit-char-combat" type="number" min="0"></div>
   <div class="form-group">
     <label class="form-label">아이콘</label>
     <div style="display:flex;align-items:center;gap:10px;">
@@ -1402,6 +1404,7 @@ create table if not exists characters(
   name text not null,
   class_name text default '',
   item_level numeric default 0,
+  combat_power numeric default 0,
   show_raid_tasks boolean default true,
   show_currencies boolean default true,
   show_custom_notes boolean default true,
@@ -1654,6 +1657,7 @@ alter table raid_parties add column if not exists color text;
 
 -- 아이콘 URL 컬럼
 ALTER TABLE characters ADD COLUMN IF NOT EXISTS icon_url TEXT;
+ALTER TABLE characters ADD COLUMN IF NOT EXISTS combat_power NUMERIC DEFAULT 0;
 ALTER TABLE characters ADD COLUMN IF NOT EXISTS show_raid_tasks BOOLEAN DEFAULT TRUE;
 ALTER TABLE characters ADD COLUMN IF NOT EXISTS show_currencies BOOLEAN DEFAULT TRUE;
 ALTER TABLE characters ADD COLUMN IF NOT EXISTS show_custom_notes BOOLEAN DEFAULT TRUE;
@@ -1728,7 +1732,7 @@ let S={
   hideExpCompleted:LS('la_hide_exp')==='1',
   showInactive:LS('la_show_inactive')==='1',
   showExpInactive:LS('la_show_exp_inactive')==='1',
-  tempRaidTaskIds:new Set(),
+tempRaidTaskIds:new Set(),tempRemovedRaidTaskIds:new Set(),
   collapsedTasks:new Set(),
   currPopupId:null,currencyMode:'normal',viewPopupId:null,editPopupId:null,editBlocks:[],
   selCurrIcon:'💰',selPopupIcon:'📋',editorIcon:'📋',
@@ -2046,6 +2050,7 @@ function renderTabs(){
       <div>
         <div class="char-tab-name">${esc(c.name)}</div>
         ${c.item_level?`<div class="char-tab-ilvl">Lv.${c.item_level}</div>`:''}
+        ${c.combat_power?`<div class="char-tab-ilvl">전투력 ${Number(c.combat_power).toLocaleString()}</div>`:''}
         ${tot?`<div class="char-tab-prog"><div class="char-tab-prog-bar" style="width:${pct}%"></div></div>`:''}
       </div>
       <div class="char-tab-btns">
@@ -2061,13 +2066,14 @@ async function selectChar(charId){
   renderTaskArea();
   renderTabs();
 }
-async function createChar(){const name=document.getElementById('char-name').value.trim(),cls=document.getElementById('char-class').value.trim(),ilvl=parseFloat(document.getElementById('char-ilvl').value)||0;if(!name){toast('❗ 캐릭터명을 입력하세요');return;}const{data,error}=await sb.from('characters').insert({account_id:S.selAcc,name,class_name:cls,item_level:ilvl,sort_order:(S.characters[S.selAcc]||[]).length}).select().single();if(error){toast('❗ '+error.message);return;}if(!S.characters[S.selAcc])S.characters[S.selAcc]=[];S.characters[S.selAcc].push(data);closeModal('modal-char');renderMain();await selectChar(data.id);toast('✅ 캐릭터 추가됨');}
+async function createChar(){const name=document.getElementById('char-name').value.trim(),cls=document.getElementById('char-class').value.trim(),ilvl=parseFloat(document.getElementById('char-ilvl').value)||0,combat=parseFloat(document.getElementById('char-combat').value)||0;if(!name){toast('❗ 캐릭터명을 입력하세요');return;}const{data,error}=await sb.from('characters').insert({account_id:S.selAcc,name,class_name:cls,item_level:ilvl,combat_power:combat,sort_order:(S.characters[S.selAcc]||[]).length}).select().single();if(error){toast('❗ '+error.message);return;}if(!S.characters[S.selAcc])S.characters[S.selAcc]=[];S.characters[S.selAcc].push(data);closeModal('modal-char');renderMain();await selectChar(data.id);toast('✅ 캐릭터 추가됨');}
 function openEditCharModal(charId){
   const c=(S.characters[S.selAcc]||[]).find(x=>x.id===charId);if(!c)return;
   document.getElementById('edit-char-id').value=charId;
   document.getElementById('edit-char-name').value=c.name;
   document.getElementById('edit-char-class').value=c.class_name||'';
   document.getElementById('edit-char-ilvl').value=c.item_level||'';
+  document.getElementById('edit-char-combat').value=c.combat_power||'';
   _editCharIconUrl=c.icon_url||null;
   const prev=document.getElementById('edit-char-icon-preview');
   if(prev)prev.innerHTML=c.icon_url?iconImg(c.icon_url,'entity-icon'):'<span style="color:var(--dim);font-size:.7rem;">없음</span>';
@@ -2077,10 +2083,10 @@ function openEditCharModal(charId){
   openModal('modal-edit-char');setTimeout(()=>document.getElementById('edit-char-name').focus(),80);
 }
 async function updateChar(){
-  const id=document.getElementById('edit-char-id').value,name=document.getElementById('edit-char-name').value.trim(),cls=document.getElementById('edit-char-class').value.trim(),ilvl=parseFloat(document.getElementById('edit-char-ilvl').value)||0;
+  const id=document.getElementById('edit-char-id').value,name=document.getElementById('edit-char-name').value.trim(),cls=document.getElementById('edit-char-class').value.trim(),ilvl=parseFloat(document.getElementById('edit-char-ilvl').value)||0,combat=parseFloat(document.getElementById('edit-char-combat').value)||0;
   if(!name){toast('❗ 캐릭터명을 입력하세요');return;}
   const iconUrl=typeof _editCharIconUrl!=='undefined'?_editCharIconUrl:undefined;
-  const upd={name,class_name:cls,item_level:ilvl,show_raid_tasks:document.getElementById('edit-char-show-raid').checked,show_currencies:document.getElementById('edit-char-show-curr').checked,show_custom_notes:document.getElementById('edit-char-show-note').checked};
+  const upd={name,class_name:cls,item_level:ilvl,combat_power:combat,show_raid_tasks:document.getElementById('edit-char-show-raid').checked,show_currencies:document.getElementById('edit-char-show-curr').checked,show_custom_notes:document.getElementById('edit-char-show-note').checked};
   if(typeof _editCharIconUrl!=='undefined')upd.icon_url=_editCharIconUrl;
   const{error}=await sb.from('characters').update(upd).eq('id',id);
   if(error){toast('❗ '+error.message);return;}
@@ -2132,13 +2138,16 @@ async function loadRaidTasks(charId){
 async function loadTempRaidTaskIds(){
   const wk=getRaidWeekKey();
   const res=await sb.from('raid_schedule_overrides').select('temp_changes').eq('week_start_date',wk);
-  if(res.error){S.tempRaidTaskIds=new Set();return;}
-  const ids=[];
+  if(res.error){S.tempRaidTaskIds=new Set();S.tempRemovedRaidTaskIds=new Set();return;}
+  const ids=[],removedIds=[];
   (res.data||[]).forEach(o=>{
     const added=(o.temp_changes&&o.temp_changes.added)||{};
+    const removed=(o.temp_changes&&o.temp_changes.removed)||{};
     Object.values(added).forEach(v=>{if(v&&v.taskId)ids.push(v.taskId);});
+    Object.values(removed).forEach(v=>{if(v&&v.taskId)removedIds.push(v.taskId);});
   });
   S.tempRaidTaskIds=new Set(ids);
+  S.tempRemovedRaidTaskIds=new Set(removedIds);
 }
 async function loadCurrencies(charId){const res=await sb.from('currencies').select('*').eq('character_id',charId).order('sort_order').order('created_at');if(supaErr(res,'재화 로딩 실패')){S.currencies[charId]=[];return;}S.currencies[charId]=res.data||[];}
 async function loadCustomPopups(charId){const res=await sb.from('custom_popups').select('*').eq('character_id',charId).order('sort_order').order('created_at');if(supaErr(res,'커스텀 팝업 로딩 실패')){S.customPopups[charId]=[];return;}S.customPopups[charId]=res.data||[];}
@@ -2417,6 +2426,7 @@ function rootTaskHTML(t,children,isExp,rootIdx,hideDone=S.hideCompleted){
 function raidItemHTML(t,idx){
   const done=isEffDone(t);
   const isTemp=S.tempRaidTaskIds&&S.tempRaidTaskIds.has(t.id);
+  const isRemoved=S.tempRemovedRaidTaskIds&&S.tempRemovedRaidTaskIds.has(t.id);
   const rg=t.receive_gold!==false, rbd=t.receive_bound!==false, rb=t.receive_bonus!==false;
   const cg=Number(t.clear_gold)||0,bg=Number(t.bound_gold)||0,bo=Number(t.bonus_gold)||0,fl=Math.max(0,cg-bg);
   const rn=t.preset_name||t.name;
@@ -2432,13 +2442,13 @@ function raidItemHTML(t,idx){
     <span class="dnd-handle">⠿</span>
     <div class="checkbox" onclick="toggleRaidTask('${t.id}')"><span class="checkbox-icon">✓</span></div>
     <div class="task-body">
-      <div class="task-name raid-title-line">${iconImg(t.preset_icon_url||'','entity-icon-sm')}<span style="color:${gc};">${esc(rn)}</span>${t.difficulty?` <span class="raid-difficulty ${dc}">${esc(t.difficulty)}</span>`:''}</div>
+      <div class="task-name raid-title-line">${iconImg(t.preset_icon_url||getGroupIcon(rn),'entity-icon-sm')}<span style="color:${gc};">${esc(rn)}</span>${t.difficulty?` <span class="raid-difficulty ${dc}">${esc(t.difficulty)}</span>`:''}</div>
       <div class="raid-meta" style="margin-top:4px;">
         ${t.entry_level?`<span class="raid-badge">입장 ${t.entry_level}</span>`:''}
         ${fl?`<span class="raid-gold raid-gold-flow ${rg?'':'muted-gold'}" title="${rg?'클릭해서 유통골드 제외':'클릭해서 유통골드 수령'}" style="cursor:pointer;" onclick="event.stopPropagation();toggleReceiveGold('${t.id}')">💰 유통 ${fl.toLocaleString()}G</span>`:''}
         ${bg?`<span class="raid-gold raid-gold-bound ${rbd?'':'muted-gold'}" title="${rbd?'클릭해서 귀속골드 제외':'클릭해서 귀속골드 수령'}" style="cursor:pointer;" onclick="event.stopPropagation();toggleReceiveBound('${t.id}')">🔒 귀속 ${bg.toLocaleString()}G</span>`:''}
         ${bo?`<span class="raid-gold raid-gold-bonus ${rb?'':'muted-gold'}" style="cursor:pointer;" title="${rb?'클릭해서 더보기 제외':'클릭해서 더보기 수령'}" onclick="event.stopPropagation();toggleReceiveBonus('${t.id}')">➕ 더보기 ${bo.toLocaleString()}G</span>`:''}
-        ${(t.has_party_link||isTemp)?`<span class="party-link-chip ${isTemp?'temp-link':''}" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id}','${t.id}')">🔗 ${isTemp?'임시파티연동':'파티연동'}</span>`:''}
+        ${(t.has_party_link||isTemp||isRemoved)?`<span class="party-link-chip ${(isTemp||isRemoved)?'temp-link':''}" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id}','${t.id}')">🔗 ${isRemoved?'임시파티해제':isTemp?'임시파티연동':'파티연동'}</span>`:''}
         <span class="raid-reset-chip">📅 ${DAYS[t.reset_day]}요일 · ${nextResetLabel({...t,reset_type:'weekly'})}</span>
       </div>
     </div>
@@ -2764,7 +2774,7 @@ async function openBulkDeleteModal(taskId,taskName,others,mode){
           </label>
         </div>
         <div style="padding-left:22px;">
-          ${items.map(({o,i})=>`<label style="display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer;font-size:.84rem;"><input type="checkbox" data-bulk-idx="${i}" class="bulk-item-cb" data-bulk-acc-id="${accId}" style="width:15px;height:15px;accent-color:var(--gold);" onchange="updateBulkSelectAll()"> ${esc(o.ch.name)}<span style="font-size:.71rem;color:var(--muted);margin-left:4px;">${esc(o.ch.class_name||'')}${o.ch.item_level?' Lv.'+o.ch.item_level:''}</span></label>`).join('')}
+      ${items.map(({o,i})=>`<label style="display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer;font-size:.84rem;"><input type="checkbox" data-bulk-idx="${i}" class="bulk-item-cb" data-bulk-acc-id="${accId}" style="width:15px;height:15px;accent-color:var(--gold);" onchange="updateBulkSelectAll()"> ${esc(o.ch.name)}<span style="font-size:.71rem;color:var(--muted);margin-left:4px;">${charMeta(o.ch)}</span></label>`).join('')}
         </div>
       </div>`;
     });
@@ -3262,6 +3272,7 @@ async function showPartyLinkPopup(presetId,taskId=''){
 
 function getGroupColor(name){return S.raidGroupSettings[name]?.color||(!S.raidGroupSettingsAvailable?localStorage.getItem('la_gc_'+name):null)||'#4caf50';}
 function getGroupIcon(name){return S.raidGroupSettings[name]?.icon_url||(!S.raidGroupSettingsAvailable?localStorage.getItem('la_gicon_'+name):null)||'';}
+function charMeta(c){if(!c)return'';const bits=[];if(c.class_name)bits.push(esc(c.class_name));if(c.item_level)bits.push('Lv.'+Number(c.item_level).toLocaleString());if(c.combat_power)bits.push('전투력 '+Number(c.combat_power).toLocaleString());return bits.join(' · ');}
 function getPartyColor(p){return(p&&p.color)||'#e0ddd5';}
 function diffClass(d){if(!d)return'';const dl=d.toLowerCase();if(dl.includes('나이트메어')||dl.includes('3단계'))return'diff-nightmare';if(dl.includes('하드')||dl.includes('2단계'))return'diff-hard';if(dl.includes('노말')||dl.includes('1단계'))return'diff-normal';return'';}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}

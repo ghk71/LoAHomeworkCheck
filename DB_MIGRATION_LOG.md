@@ -215,3 +215,16 @@ ALTER TABLE raid_group_settings DISABLE ROW LEVEL SECURITY;
 - 레이드 그룹명 앞 아이콘을 모든 컴퓨터에서 동일하게 표시
 - 레이드 그룹 색상 DB 저장
 - 기존 `la_gicon_*`, `la_gc_*`, `la_raid_groups` localStorage 값의 DB 이전
+## 2026-04-30 - characters 전투력 컬럼 추가
+
+### 목적
+- 캐릭터 정보에 아이템 레벨/직업/캐릭터명 외 전투력 값을 저장하고, 파티 구성/주간 일정/현황 화면에서 함께 표시하기 위함.
+
+### SQL
+```sql
+alter table characters add column if not exists combat_power numeric default 0;
+```
+
+### 적용 파일
+- `schema.sql`
+- `index.html` 내부 초기 SQL
