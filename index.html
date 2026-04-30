@@ -1574,6 +1574,15 @@ create table if not exists raid_notices(
   updated_at timestamptz default now()
 );
 
+-- 주차별 공지 댓글
+create table if not exists raid_notice_comments(
+  id uuid default uuid_generate_v4() primary key,
+  week_start_date text not null,
+  author_name text default '익명',
+  content text not null,
+  created_at timestamptz default now()
+);
+
 alter table accounts          disable row level security;
 alter table characters        disable row level security;
 alter table tasks             disable row level security;
@@ -1589,6 +1598,7 @@ alter table raid_party_members disable row level security;
 alter table raid_schedules    disable row level security;
 alter table raid_schedule_overrides disable row level security;
 alter table raid_notices      disable row level security;
+alter table raid_notice_comments disable row level security;
 
 -- ★ 기존 설치 업데이트용 (이미 있는 DB에서 실행 시)
 alter table accounts         add column if not exists sort_order int default 0;
@@ -1661,6 +1671,16 @@ create table if not exists raid_group_settings(
 );
 alter table raid_group_settings disable row level security;
 
+-- 주차별 공지 댓글
+create table if not exists raid_notice_comments(
+  id uuid default uuid_generate_v4() primary key,
+  week_start_date text not null,
+  author_name text default '익명',
+  content text not null,
+  created_at timestamptz default now()
+);
+alter table raid_notice_comments disable row level security;
+
 -- 임시 파티 변경사항 추적 (주 초기화 시 복원용)
 ALTER TABLE raid_schedule_overrides ADD COLUMN IF NOT EXISTS temp_changes JSONB DEFAULT '{}';
 -- 형식: {"added": {"charId": {"wasNew": true, "taskId": "uuid"}}, "removed": {"charId": {"taskId": "uuid", "hadPreset": true}}}
@@ -1679,6 +1699,7 @@ create index if not exists idx_raid_parties_preset_sort on raid_parties(preset_i
 create index if not exists idx_raid_party_members_party_slot on raid_party_members(party_id, slot_index);
 create index if not exists idx_raid_schedules_party_day_sort on raid_schedules(party_id, day_of_week, sort_order, created_at);
 create index if not exists idx_raid_schedule_overrides_week on raid_schedule_overrides(week_start_date);
+create index if not exists idx_raid_notice_comments_week_created on raid_notice_comments(week_start_date, created_at);
 `;
 document.getElementById('sql-display').textContent=SCHEMA;
 function copySql(){navigator.clipboard.writeText(SCHEMA).then(()=>toast('📋 SQL 복사됨!'));}
@@ -1711,6 +1732,7 @@ let S={
   collapsedTasks:new Set(),
   currPopupId:null,currencyMode:'normal',viewPopupId:null,editPopupId:null,editBlocks:[],
   selCurrIcon:'💰',selPopupIcon:'📋',editorIcon:'📋',
+  raidGroupSettings:{},raidGroupSettingsAvailable:true,
 };
 
 // ─── DnD ───
@@ -1741,7 +1763,8 @@ async function dndDrop(e,type,destIdx){
   if(type==='account')renderSidebar();
   else if(type==='char')renderTabs();
   else renderTaskArea();
-  Promise.all(list.map((item,i)=>sb.from(table).update({sort_order:i}).eq('id',item.id)));
+  const res=await Promise.all(list.map((item,i)=>sb.from(table).update({sort_order:i}).eq('id',item.id)));
+  const err=res.find(r=>r.error)?.error;if(err){toast('❗ 정렬 저장 실패: '+err.message);console.error(err);}
 }
 async function dndSubDrop(e,parentId,destIdx,isExp){
   e.preventDefault();e.stopPropagation();
@@ -1760,7 +1783,8 @@ async function dndSubDrop(e,parentId,destIdx,isExp){
   const[moved]=list.splice(srcIdx,1);list.splice(destIdx,0,moved);
   list.forEach((item,i)=>{item.sort_order=i;});
   renderTaskArea();
-  Promise.all(list.map((t,i)=>sb.from(table).update({sort_order:i}).eq('id',t.id)));
+  const res=await Promise.all(list.map((t,i)=>sb.from(table).update({sort_order:i}).eq('id',t.id)));
+  const err=res.find(r=>r.error)?.error;if(err){toast('❗ 정렬 저장 실패: '+err.message);console.error(err);}
 }
 
 // ─── Init ───
@@ -1772,7 +1796,7 @@ async function initApp(){
   document.getElementById('page-nav').style.display='flex';
   sb=createClient(cfg.url,cfg.key);
   keepAlive();updateClock();setInterval(updateClock,30000);
-  buildIconPickers();await loadAccounts();
+  buildIconPickers();await loadRaidGroupSettings();await loadAccounts();
   // Wheel scroll for tabs
   // char-tabs horizontal wheel scroll (char-tabs IS the wrap element)
   document.addEventListener('wheel',e=>{const tw=document.getElementById('char-tabs');if(tw&&tw.contains(e.target)){e.preventDefault();tw.scrollLeft+=e.deltaY;}},{passive:false});
@@ -1780,6 +1804,12 @@ async function initApp(){
 async function keepAlive(){const l=parseInt(LS('la_ping')||'0');if(Date.now()-l>6*86400000){try{await sb.from('accounts').select('id').limit(1);LSS('la_ping',Date.now().toString());}catch(e){}}}
 function updateClock(){const k=new Date(Date.now()+9*3600000),p=n=>String(n).padStart(2,'0'),d=['일','월','화','수','목','금','토'];document.getElementById('header-time').textContent=`KST ${p(k.getUTCHours())}:${p(k.getUTCMinutes())} (${d[k.getUTCDay()]})`;}
 function supaErr(res,msg='작업 실패'){if(res?.error){toast('❗ '+(res.error.message||msg));console.error(res.error);return true;}return false;}
+async function loadRaidGroupSettings(){
+  S.raidGroupSettings={};S.raidGroupSettingsAvailable=true;
+  const {data,error}=await sb.from('raid_group_settings').select('*');
+  if(error){S.raidGroupSettingsAvailable=false;console.warn('raid_group_settings unavailable:',error.message);return;}
+  (data||[]).forEach(r=>{S.raidGroupSettings[r.name]=r;});
+}
 
 const CURR_ICONS=['💰','💎','🔮','🪙','⭐','🌟','💵','📦','🔑','💍','⚗️','🏺','🎁','🧿','🔶'];
 const POPUP_ICONS=['📋','📊','📈','📝','🗒️','🎯','🔧','⚙️','🏆','📌','🗺️','💡','🎮','📜','🛡️','⚔️','🌙','🔥','🌊','🌿'];
@@ -3230,7 +3260,8 @@ async function showPartyLinkPopup(presetId,taskId=''){
   }catch(err){console.error(err);el.innerHTML='<div style="color:#fca5a5;font-size:.82rem;line-height:1.6;">파티 정보를 불러오지 못했습니다.<br>잠시 후 다시 시도해주세요.</div>';}
 }
 
-function getGroupColor(name){return localStorage.getItem('la_gc_'+name)||'#4caf50';}
+function getGroupColor(name){return S.raidGroupSettings[name]?.color||(!S.raidGroupSettingsAvailable?localStorage.getItem('la_gc_'+name):null)||'#4caf50';}
+function getGroupIcon(name){return S.raidGroupSettings[name]?.icon_url||(!S.raidGroupSettingsAvailable?localStorage.getItem('la_gicon_'+name):null)||'';}
 function getPartyColor(p){return(p&&p.color)||'#e0ddd5';}
 function diffClass(d){if(!d)return'';const dl=d.toLowerCase();if(dl.includes('나이트메어')||dl.includes('3단계'))return'diff-nightmare';if(dl.includes('하드')||dl.includes('2단계'))return'diff-hard';if(dl.includes('노말')||dl.includes('1단계'))return'diff-normal';return'';}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}

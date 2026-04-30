@@ -554,7 +554,7 @@ button,input,select,textarea{ font:inherit; }
 const{createClient}=supabase;
 function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
 
-let sb,accounts=[],characters=[],raids=[],parties=[],members=[],raidTasks=[],schedules=[],scheduleOverrides=[];
+let sb,accounts=[],characters=[],raids=[],parties=[],members=[],raidTasks=[],schedules=[],scheduleOverrides=[],raidGroupSettings={},raidGroupSettingsAvailable=true;
 let selectedChars=new Set();
 let filterOpen=localStorage.getItem('la_pt_filter_open')==='1';
 let partyOrderMode=localStorage.getItem('la_pt_order_mode')||'partyless_last';
@@ -582,6 +582,7 @@ async function loadAll(){
   if(firstError){toast('❗ 로딩 오류: '+firstError.message);console.error(firstError);return;}
   const[r1,r2,r3,r4,r5,r6,r7]=results;
   accounts=r1.data||[];characters=r2.data||[];raids=r3.data||[];parties=r4.data||[];members=r5.data||[];schedules=r6.data||[];raidTasks=r7.data||[];
+  await loadRaidGroupSettings();
   const{data:ovrData}=await sb.from('raid_schedule_overrides').select('*').eq('week_start_date',getWeekKey());
   scheduleOverrides=ovrData||[];
   const DAYS_KO=['일','월','화','수','목','금','토'];
@@ -605,6 +606,12 @@ async function loadAll(){
 function saveFilter(){localStorage.setItem('la_pt_sel_chars',JSON.stringify([...selectedChars]));}
 function toggleFilter(){filterOpen=!filterOpen;localStorage.setItem('la_pt_filter_open',filterOpen?'1':'0');applyFilterOpen();}
 function applyFilterOpen(){document.getElementById('fb-body').style.display=filterOpen?'flex':'none';document.getElementById('fb-toggle').textContent=filterOpen?'▼':'▶';}
+async function loadRaidGroupSettings(){
+  raidGroupSettings={};raidGroupSettingsAvailable=true;
+  const{data,error}=await sb.from('raid_group_settings').select('*');
+  if(error){raidGroupSettingsAvailable=false;console.warn('raid_group_settings unavailable:',error.message);return;}
+  (data||[]).forEach(r=>{raidGroupSettings[r.name]=r;});
+}
 function renderFilter(){
   const charsInParties=characters.filter(c=>members.some(m=>m.character_id===c.id)||raidTasks.some(t=>t.character_id===c.id));
   let html='';
@@ -614,7 +621,7 @@ function renderFilter(){
     const allOn=chars.every(c=>selectedChars.has(c.id)),anyOn=chars.some(c=>selectedChars.has(c.id));
     const ids=chars.map(c=>c.id);
     let row=`<div class="fb-acc-row" ${sub?'style="margin-left:14px;"':''}>`;
-    row+=`<button class="fb-acc-btn ${allOn?'all-on':anyOn?'partial':''}" onclick="toggleGroup([${ids.map(id=>`'${id}'`).join(',')}])" ${sub?'style="font-size:.72rem;"':''}}>${esc(label)}</button>`;
+    row+=`<button class="fb-acc-btn ${allOn?'all-on':anyOn?'partial':''}" onclick="toggleGroup([${ids.map(id=>`'${id}'`).join(',')}])" ${sub?'style="font-size:.72rem;"':''}>${esc(label)}</button>`;
     row+=`<div class="fb-acc-sep"></div>`;
     chars.forEach(c=>{row+=`<button class="fb-char-btn ${selectedChars.has(c.id)?'on':''}" onclick="toggleCharFilter('${c.id}')">${esc(c.name)}${c.item_level?` <span style="font-size:.67rem;opacity:.6">Lv.${c.item_level}</span>`:''}</button>`;});
     row+=`</div>`;return row;
@@ -701,7 +708,7 @@ function noPartyCardHTML(t,myChar){
   return`<div class="party-card no-party">
     <div class="pc-header">
       <div style="flex:1;min-width:0;">
-        <div class="pc-raid-name" style="color:${getGroupColor(raidName||'')};display:flex;align-items:center;gap:5px;">${iconImg(localStorage.getItem('la_gicon_'+(raidName||'')),'entity-icon-sm')}${esc(raidName||'?')}${(t.difficulty||preset?.difficulty)?` <span class="${diffClass(t.difficulty||preset?.difficulty)}" style="font-size:.72rem;">${esc(t.difficulty||preset?.difficulty)}</span>`:''}</div>
+        <div class="pc-raid-name" style="color:${getGroupColor(raidName||'')};display:flex;align-items:center;gap:5px;">${iconImg(getGroupIcon(raidName||''),'entity-icon-sm')}${esc(raidName||'?')}${(t.difficulty||preset?.difficulty)?` <span class="${diffClass(t.difficulty||preset?.difficulty)}" style="font-size:.72rem;">${esc(t.difficulty||preset?.difficulty)}</span>`:''}</div>
         <div class="pc-party-name">레이드 숙제 있음 · 파티 없음</div>
       </div>
     </div>
@@ -716,7 +723,7 @@ function partyCardHTML(p,myChar,myMember,isTemp=false){
   return`<div class="party-card ${isTemp?'temp-party':''}">
     <div class="pc-header">
       <div style="flex:1;min-width:0;">
-        <div class="pc-raid-name" style="color:${getGroupColor(preset?.name||'')};display:flex;align-items:center;gap:5px;">${iconImg(localStorage.getItem('la_gicon_'+(preset?.name||'')),'entity-icon-sm')}${esc(preset?.name||'?')}${preset?.difficulty?` <span class="${diffClass(preset.difficulty)}" style="font-size:.72rem;">${esc(preset.difficulty)}</span>`:''}</div>
+        <div class="pc-raid-name" style="color:${getGroupColor(preset?.name||'')};display:flex;align-items:center;gap:5px;">${iconImg(getGroupIcon(preset?.name||''),'entity-icon-sm')}${esc(preset?.name||'?')}${preset?.difficulty?` <span class="${diffClass(preset.difficulty)}" style="font-size:.72rem;">${esc(preset.difficulty)}</span>`:''}</div>
         <div class="pc-party-name"><span style="color:${getPartyColor(p)};font-weight:600;">${esc(p.name||'파티')}</span> · ${p.party_size}인${isTemp?' · <span class="temp-party-badge">임시파티연동</span>':''}${preset?.entry_level?` · 입장 ${preset.entry_level}`:''}${p._sched_days?` · <span class="party-day-link" onclick="event.stopPropagation();goToPartySchedule('${p.id}')">📅 ${p._sched_days}</span>`:''}</div>
       </div>
     </div>
@@ -810,7 +817,8 @@ async function loadPickerDir(path){
 function selectPickerImg(url){if(_pickerCb)_pickerCb(url);closeModal('modal-img-picker');}
 function pickerRemoveIcon(){if(_pickerCb)_pickerCb(null);closeModal('modal-img-picker');}
 
-function getGroupColor(name){return localStorage.getItem('la_gc_'+name)||'#4caf50';}
+function getGroupColor(name){return raidGroupSettings[name]?.color||(!raidGroupSettingsAvailable?localStorage.getItem('la_gc_'+name):null)||'#4caf50';}
+function getGroupIcon(name){return raidGroupSettings[name]?.icon_url||(!raidGroupSettingsAvailable?localStorage.getItem('la_gicon_'+name):null)||'';}
 function getPartyColor(p){return(p&&p.color)||'#e0ddd5';}
 function diffClass(d){if(!d)return'';const dl=d.toLowerCase();if(dl.includes('나이트메어')||dl.includes('3단계'))return'diff-nightmare';if(dl.includes('하드')||dl.includes('2단계'))return'diff-hard';if(dl.includes('노말')||dl.includes('1단계'))return'diff-normal';return'';}
 

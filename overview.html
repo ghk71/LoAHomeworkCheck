@@ -615,7 +615,7 @@ button,input,select,textarea{ font:inherit; }
 const{createClient}=supabase;
 function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
 
-let sb,accounts=[],characters=[],raidTasks=[],tempRaidTaskIds=new Set();
+let sb,accounts=[],characters=[],raidTasks=[],tempRaidTaskIds=new Set(),raidGroupSettings={},raidGroupSettingsAvailable=true;
 let weekOffset=0;
 let collapsedAccs=new Set(JSON.parse(localStorage.getItem('la_ov_collapsed')||'[]'));
 let selectedChars=new Set(); // selected character ids for filter
@@ -642,14 +642,13 @@ async function loadAll(){
   if(firstError){toast('❗ 로딩 오류: '+firstError.message);console.error(firstError);return;}
   const[r1,r2,r3,r4]=results;
   accounts=r1.data||[];characters=r2.data||[];raidTasks=r3.data||[];
+  await loadRaidGroupSettings();
   await loadTempRaidTaskIds();
   const presetsMap={};(r4.data||[]).forEach(p=>{presetsMap[p.id]=p.name;});
   raidTasks.forEach(t=>{
     if(t.preset_id&&presetsMap[t.preset_id]){
       t.preset_name=presetsMap[t.preset_id];
-      // 아이콘 동기화
-      const icon=localStorage.getItem('la_gicon_'+t.preset_name);
-      if(icon)t.preset_icon=icon;
+      t.preset_icon=getGroupIcon(t.preset_name);
     }
   });
   await markPartyLinkedRaidTasks();
@@ -709,6 +708,12 @@ async function loadTempRaidTaskIds(){
     Object.values(added).forEach(v=>{if(v&&v.taskId)ids.push(v.taskId);});
   });
   tempRaidTaskIds=new Set(ids);
+}
+async function loadRaidGroupSettings(){
+  raidGroupSettings={};raidGroupSettingsAvailable=true;
+  const{data,error}=await sb.from('raid_group_settings').select('*');
+  if(error){raidGroupSettingsAvailable=false;console.warn('raid_group_settings unavailable:',error.message);return;}
+  (data||[]).forEach(r=>{raidGroupSettings[r.name]=r;});
 }
 async function markPartyLinkedRaidTasks(){
   const pids=[...new Set(raidTasks.filter(t=>t.preset_id).map(t=>t.preset_id))];
@@ -872,7 +877,7 @@ function raidTaskRowHTML(t){
   return`<div class="rt-row ${done?'done':''}" id="ov-rti-${t.id}" onclick="toggleRaidTask('${t.id}')">
     <div class="rt-check"><span class="rt-check-icon">✓</span></div>
     <div class="rt-info">
-      <div class="rt-name" style="display:flex;align-items:center;gap:4px;">${iconImg(localStorage.getItem('la_gicon_'+raidName)||'','entity-icon-sm')}<span style="color:${gc};">${esc(raidName)}</span>${t.difficulty?` <span class="${dc}" style="font-size:.72rem;margin-left:2px;">${esc(t.difficulty)}</span>`:''}</div>
+      <div class="rt-name" style="display:flex;align-items:center;gap:4px;">${iconImg(getGroupIcon(raidName),'entity-icon-sm')}<span style="color:${gc};">${esc(raidName)}</span>${t.difficulty?` <span class="${dc}" style="font-size:.72rem;margin-left:2px;">${esc(t.difficulty)}</span>`:''}</div>
       ${(t.has_party_link||isTemp)?`<div style="margin-top:2px;"><span class="ov-party-chip ${isTemp?'temp':''}" onclick="event.stopPropagation();showOvPartyPopup('${t.preset_id}','${t.character_id}','${t.id}')">🔗 ${isTemp?'임시파티연동':'파티연동'}</span></div>`:''}
     </div>
   </div>`;
@@ -1023,7 +1028,8 @@ async function loadPickerDir(path){
 function selectPickerImg(url){if(_pickerCb)_pickerCb(url);closeModal('modal-img-picker');}
 function pickerRemoveIcon(){if(_pickerCb)_pickerCb(null);closeModal('modal-img-picker');}
 
-function getGroupColor(name){return localStorage.getItem('la_gc_'+name)||'#4caf50';}
+function getGroupColor(name){return raidGroupSettings[name]?.color||(!raidGroupSettingsAvailable?localStorage.getItem('la_gc_'+name):null)||'#4caf50';}
+function getGroupIcon(name){return raidGroupSettings[name]?.icon_url||(!raidGroupSettingsAvailable?localStorage.getItem('la_gicon_'+name):null)||'';}
 function diffClass(d){if(!d)return'';const dl=d.toLowerCase();if(dl.includes('나이트메어')||dl.includes('3단계'))return'diff-nightmare';if(dl.includes('하드')||dl.includes('2단계'))return'diff-hard';if(dl.includes('노말')||dl.includes('1단계'))return'diff-normal';return'';}
 
 function openModal(id){document.getElementById(id)?.classList.add('open');}
