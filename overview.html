@@ -399,7 +399,7 @@ body { overflow:hidden; }
 .sum-item.gold b { color:var(--gold-text); }
 .sum-item.done b { color:var(--green); }
 .sum-prog { height:5px; flex:1; min-width:120px; background:rgba(255,255,255,.07); border-radius:4px; overflow:hidden; }
-.sum-prog-bar { height:100%; background:linear-gradient(90deg,var(--green),#34d399); border-radius:4px; transition:width .4s; }
+.sum-prog-bar { display:block; height:100%; background:linear-gradient(90deg,var(--green),#34d399); border-radius:4px; transition:width .4s; }
 .gold-split { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:7px; width:100%; grid-column:1/-1; min-width:0; }
 .acc-gold-split { grid-column:auto; flex:1 1 360px; min-width:260px; }
 .gold-mini { display:grid; grid-template-columns:auto max-content minmax(110px,1fr); align-items:center; gap:8px; font-size:.72rem; color:var(--text-2); padding:5px 8px; border:1px solid rgba(255,255,255,.07); border-radius:8px; background:rgba(255,255,255,.025); min-width:0; }
@@ -409,7 +409,7 @@ body { overflow:hidden; }
 .gold-mini.bound b { color:var(--orange); }
 .gold-mini.bonus b { color:#c4b5fd; }
 .gold-mini-bar { width:100%; min-width:110px; height:4px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,.08); }
-.gold-mini-fill { height:100%; border-radius:4px; transition:width .3s; }
+.gold-mini-fill { display:block; height:100%; border-radius:4px; transition:width .3s; }
 
 /* Account sections */
 .acc-section { margin-bottom:20px; }
@@ -432,7 +432,7 @@ body { overflow:hidden; }
   border:1px solid rgba(16,185,129,.2); border-radius:10px;
 }
 .acc-prog-wrap { flex:1; min-width:60px; max-width:160px; height:4px; background:rgba(255,255,255,.07); border-radius:3px; overflow:hidden; }
-.acc-prog-bar { height:100%; border-radius:3px; transition:width .3s; }
+.acc-prog-bar { display:block; height:100%; border-radius:3px; transition:width .3s; }
 
 /* Character cards */
 .char-grid { display:flex; flex-wrap:wrap; gap:12px; }
@@ -491,12 +491,12 @@ body { overflow:hidden; }
 .ov-status-chip{display:inline-flex;align-items:center;gap:3px;font-size:.62rem;font-weight:700;line-height:1;padding:3px 7px;border-radius:999px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);color:var(--text-2);white-space:nowrap;}
 .ov-status-chip.clickable{cursor:pointer;transition:all var(--t);}
 .ov-status-chip.clickable:hover{transform:translateY(-1px);filter:brightness(1.12);}
-.ov-status-chip.gold.on{color:var(--gold-text);border-color:rgba(255,184,77,.34);background:rgba(255,184,77,.10);}
-.ov-status-chip.gold.off{color:var(--text-3);border-color:rgba(255,255,255,.08);background:rgba(255,255,255,.025);}
-.ov-status-chip.bonus.on{color:#c4b5fd;border-color:rgba(196,181,253,.34);background:rgba(124,92,255,.13);}
-.ov-status-chip.bonus.off{color:var(--text-3);border-color:rgba(255,255,255,.08);background:rgba(255,255,255,.025);}
-.ov-status-chip.party.on{color:var(--teal);border-color:rgba(42,184,160,.36);background:rgba(42,184,160,.09);}
-.ov-status-chip.party.off{color:var(--text-3);border-color:rgba(255,255,255,.07);background:rgba(255,255,255,.02);}
+.ov-status-chip.gold.on{color:#bbf7d0;border-color:rgba(34,197,94,.48);background:rgba(34,197,94,.14);}
+.ov-status-chip.gold.off{color:#fecaca;border-color:rgba(239,68,68,.42);background:rgba(239,68,68,.12);}
+.ov-status-chip.bonus.on{color:#ddd6fe;border-color:rgba(167,139,250,.46);background:rgba(124,92,255,.16);}
+.ov-status-chip.bonus.off{color:#fecaca;border-color:rgba(239,68,68,.42);background:rgba(239,68,68,.12);}
+.ov-status-chip.party.on{color:#99f6e4;border-color:rgba(20,184,166,.46);background:rgba(20,184,166,.13);}
+.ov-status-chip.party.off{color:#fecaca;border-color:rgba(239,68,68,.36);background:rgba(239,68,68,.10);}
 .ov-status-chip.party.temp-add{color:var(--gold-text);border-color:rgba(200,168,75,.42);background:rgba(200,168,75,.12);}
 .ov-status-chip.party.temp-remove{color:#fca5a5;border-color:rgba(239,68,68,.36);background:rgba(239,68,68,.10);}
 .ov-party-chip{display:inline-flex;align-items:center;gap:3px;font-size:.62rem;font-weight:700;line-height:1;padding:3px 7px;border:1px solid rgba(42,184,160,.36);border-radius:999px;cursor:pointer;background:rgba(42,184,160,.09);color:var(--teal);}
@@ -919,10 +919,10 @@ function raidTaskRowHTML(t){
   const partyLinked=t.has_party_link||isTemp||isRemoved;
   const partyClick=partyLinked?` onclick="event.stopPropagation();showOvPartyPopup('${popupPresetId}','${t.character_id}','${t.id}')"`:'';
   const partyClass=isRemoved?'temp-remove':isTemp?'temp-add':t.has_party_link?'on':'off';
-  const partyText=isRemoved?'↩ 임시해제':isTemp?'✨ 임시연동':t.has_party_link?'🔗 연동':'🔗 없음';
+  const partyText=isRemoved?'↩ 임시해제':isTemp?'✨ 임시연동':t.has_party_link?'✅ 파티O':'❌ 파티X';
   const flagChips=[
-    (flow||bound)?`<span class="ov-status-chip gold ${goldChecked?'on':'off'}" title="${goldChecked?'골드체크 포함':'골드체크 제외'}">🪙 ${goldChecked?'수령':'제외'}</span>`:'',
-    bonus?`<span class="ov-status-chip bonus ${t.receive_bonus===false?'off':'on'}" title="${t.receive_bonus===false?'더보기 제외':'더보기 포함'}">🎁 ${t.receive_bonus===false?'제외':'적용'}</span>`:'',
+    (flow||bound)?`<span class="ov-status-chip gold ${goldChecked?'on':'off'}" title="${goldChecked?'골드체크 포함':'골드체크 제외'}">${goldChecked?'✅':'❌'} 골드${goldChecked?'O':'X'}</span>`:'',
+    bonus?`<span class="ov-status-chip bonus ${t.receive_bonus===false?'off':'on'}" title="${t.receive_bonus===false?'더보기 제외':'더보기 포함'}">${t.receive_bonus===false?'❌':'✅'} 더보기${t.receive_bonus===false?'X':'O'}</span>`:'',
     `<span class="ov-status-chip party ${partyClass}${partyLinked?' clickable':''}" title="${isRemoved?'임시파티해제':isTemp?'임시파티연동':t.has_party_link?'파티연동 있음':'파티연동 없음'}"${partyClick}>${partyText}</span>`
   ].join('');
   return`<div class="rt-row ${done?'done':''}" id="ov-rti-${t.id}" onclick="toggleRaidTask('${t.id}')">

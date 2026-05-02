@@ -905,11 +905,13 @@ button,input,select,textarea{ font:inherit; }
 .vo-raid-actions{display:flex;align-items:center;gap:4px;justify-content:flex-end;flex-wrap:wrap;}
 .vo-raid-actions .btn{font-size:.66rem;padding:2px 6px;}
 .vo-raid-gold-row{grid-column:2/-1;display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:-2px;}
-.vo-raid-gold{font-size:.64rem;font-weight:800;border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:2px 6px;background:rgba(255,255,255,.035);color:var(--text-2);}
-.vo-raid-gold.flow{color:var(--gold-text);border-color:rgba(255,184,77,.22);}
-.vo-raid-gold.bound{color:var(--orange);border-color:rgba(251,146,60,.20);}
-.vo-raid-gold.bonus{color:#c4b5fd;border-color:rgba(167,139,250,.22);}
-.vo-raid-gold.off{opacity:.42;text-decoration:line-through;}
+.vo-raid-status{display:inline-flex;align-items:center;gap:3px;font-size:.64rem;font-weight:900;line-height:1;border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:3px 7px;background:rgba(255,255,255,.035);color:var(--text-2);white-space:nowrap;}
+.vo-raid-status.gold.on{color:#bbf7d0;border-color:rgba(34,197,94,.48);background:rgba(34,197,94,.14);}
+.vo-raid-status.gold.off{color:#fecaca;border-color:rgba(239,68,68,.42);background:rgba(239,68,68,.12);}
+.vo-raid-status.bonus.on{color:#ddd6fe;border-color:rgba(167,139,250,.46);background:rgba(124,92,255,.16);}
+.vo-raid-status.bonus.off{color:#fecaca;border-color:rgba(239,68,68,.42);background:rgba(239,68,68,.12);}
+.vo-raid-status.party.on{color:#99f6e4;border-color:rgba(20,184,166,.46);background:rgba(20,184,166,.13);}
+.vo-raid-status.party.off{color:#fecaca;border-color:rgba(239,68,68,.36);background:rgba(239,68,68,.10);}
 .vo-empty{font-size:.76rem;color:var(--muted);padding:8px 10px;}
 .sch-party-select{display:none;}
 .sch-modal-layout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:14px;align-items:start;}
@@ -1360,12 +1362,13 @@ async function loadViewerOverview(el){
     const color=cls==='flow'?'var(--gold)':cls==='bound'?'var(--orange)':'#a78bfa';
     return`<span class="vo-gold-mini ${cls}">${label} <b>${earned.toLocaleString()} / ${total.toLocaleString()}G</b><span class="vo-progress-track"><span class="vo-progress-fill" style="width:${pct}%;background:${color};"></span></span></span>`;
   };
-  const raidGoldChips=t=>{
+  const raidGoldChips=(t,hasPartyLink=false)=>{
     const flow=flowOf(t),bound=boundOf(t),bonus=bonusOf(t);
     const goldChecked=t.receive_gold!==false&&t.receive_bound!==false;
     const chips=[];
-    if(flow||bound)chips.push(`<span class="vo-raid-gold flow ${goldChecked?'':'off'}">골드체크 ${goldChecked?'O':'X'}</span>`);
-    if(bonus)chips.push(`<span class="vo-raid-gold bonus ${t.receive_bonus===false?'off':''}">더보기 ${t.receive_bonus===false?'X':'O'}</span>`);
+    if(flow||bound)chips.push(`<span class="vo-raid-status gold ${goldChecked?'on':'off'}" title="${goldChecked?'골드체크 포함':'골드체크 제외'}">${goldChecked?'✅':'❌'} 골드${goldChecked?'O':'X'}</span>`);
+    if(bonus)chips.push(`<span class="vo-raid-status bonus ${t.receive_bonus===false?'off':'on'}" title="${t.receive_bonus===false?'더보기 제외':'더보기 포함'}">${t.receive_bonus===false?'❌':'✅'} 더보기${t.receive_bonus===false?'X':'O'}</span>`);
+    chips.push(`<span class="vo-raid-status party ${hasPartyLink?'on':'off'}" title="${hasPartyLink?'파티연동 있음':'파티연동 없음'}">${hasPartyLink?'✅':'❌'} 파티${hasPartyLink?'O':'X'}</span>`);
     return chips.length?`<div class="vo-raid-gold-row">${chips.join('')}</div>`:'';
   };
   const sortTasksForViewer=tasks=>tasks.slice().sort((a,b)=>{
@@ -1406,7 +1409,7 @@ async function loadViewerOverview(el){
             <span class="vo-raid-check">${d?'✓':''}</span>
             <span class="vo-raid-title" style="color:${gc2};">${esc(rn)}${(t.difficulty||p?.difficulty)?` <span class="vo-diff ${diffClass(t.difficulty||p?.difficulty)}">${esc(t.difficulty||p?.difficulty)}</span>`:''}</span>
             <span class="vo-raid-actions">${date?`<span class="vo-raid-date">${date}</span>`:''}<button class="btn btn-sec btn-sm" onclick="event.stopPropagation();openViewerEditRaidModal('${t.id}')">수정</button><button class="btn btn-sec btn-sm" onclick="event.stopPropagation();deleteViewerRaidTask('${t.id}')">삭제</button></span>
-            ${raidGoldChips(t)}
+            ${raidGoldChips(t,linkedByCharPreset.has(linkKey))}
           </div>`;}).join(''):'<div class="vo-empty">레이드가 없습니다</div>'}
         </div>
         <div class="viewer-card-footer"><button class="btn btn-orange btn-sm" onclick="event.stopPropagation();openViewerAddRaidModal('${c.id}')">＋ 레이드 추가</button></div>
