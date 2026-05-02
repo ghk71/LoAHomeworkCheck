@@ -888,11 +888,15 @@ button,input,select,textarea{ font:inherit; }
 .vo-sort-btn.active{background:rgba(255,184,77,.12);color:var(--gold-text);}
 .vo-raid-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;}
 .vo-char-card{background:linear-gradient(180deg,rgba(16,25,43,.96),rgba(11,18,32,.98));border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;box-shadow:0 12px 28px rgba(0,0,0,.18);}
+.vo-char-card.all-done{border-color:rgba(16,185,129,.62);background:linear-gradient(180deg,rgba(16,185,129,.13),rgba(11,18,32,.98));box-shadow:0 0 0 1px rgba(16,185,129,.18),0 0 22px rgba(16,185,129,.14);}
 .vo-char-head{padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.07);display:grid;grid-template-columns:minmax(0,1fr) 58px auto;align-items:center;gap:8px;background:rgba(255,255,255,.025);}
+.vo-char-card.all-done .vo-char-head{background:rgba(16,185,129,.14);border-bottom-color:rgba(16,185,129,.26);}
 .vo-char-name{min-width:0;display:flex;align-items:center;gap:5px;font-size:.86rem;font-weight:900;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .vo-card-progress{display:block;height:5px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.08);}
 .vo-card-progress-fill{display:block;height:100%;border-radius:999px;background:var(--teal);}
 .vo-card-count{font-size:.72rem;font-weight:900;color:var(--text-2);white-space:nowrap;}
+.vo-char-card.all-done .vo-card-count{color:#dcfce7;}
+.vo-complete-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:999px;border:1px solid rgba(16,185,129,.42);background:rgba(16,185,129,.18);color:#bbf7d0;font-size:.62rem;font-weight:900;white-space:nowrap;}
 .vo-raid-list{padding:7px 9px 9px;display:flex;flex-direction:column;gap:5px;}
 .vo-raid-line{display:grid;grid-template-columns:18px minmax(0,1fr) auto;align-items:center;gap:7px;padding:6px 4px;border-bottom:1px solid rgba(255,255,255,.035);}
 .vo-raid-line:last-child{border-bottom:none;}
@@ -906,11 +910,8 @@ button,input,select,textarea{ font:inherit; }
 .vo-raid-actions .btn{font-size:.66rem;padding:2px 6px;}
 .vo-raid-gold-row{grid-column:2/-1;display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:-2px;}
 .vo-raid-status{display:inline-flex;align-items:center;gap:3px;font-size:.64rem;font-weight:900;line-height:1;border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:3px 7px;background:rgba(255,255,255,.035);color:var(--text-2);white-space:nowrap;}
-.vo-raid-status.gold.on{color:#bbf7d0;border-color:rgba(34,197,94,.48);background:rgba(34,197,94,.14);}
 .vo-raid-status.gold.off{color:#fecaca;border-color:rgba(239,68,68,.42);background:rgba(239,68,68,.12);}
-.vo-raid-status.bonus.on{color:#ddd6fe;border-color:rgba(167,139,250,.46);background:rgba(124,92,255,.16);}
 .vo-raid-status.bonus.off{color:#fecaca;border-color:rgba(239,68,68,.42);background:rgba(239,68,68,.12);}
-.vo-raid-status.party.on{color:#99f6e4;border-color:rgba(20,184,166,.46);background:rgba(20,184,166,.13);}
 .vo-raid-status.party.off{color:#fecaca;border-color:rgba(239,68,68,.36);background:rgba(239,68,68,.10);}
 .vo-empty{font-size:.76rem;color:var(--muted);padding:8px 10px;}
 .sch-party-select{display:none;}
@@ -1366,9 +1367,9 @@ async function loadViewerOverview(el){
     const flow=flowOf(t),bound=boundOf(t),bonus=bonusOf(t);
     const goldChecked=t.receive_gold!==false&&t.receive_bound!==false;
     const chips=[];
-    if(flow||bound)chips.push(`<span class="vo-raid-status gold ${goldChecked?'on':'off'}" title="${goldChecked?'골드체크 포함':'골드체크 제외'}">${goldChecked?'✅':'❌'} 골드${goldChecked?'O':'X'}</span>`);
-    if(bonus)chips.push(`<span class="vo-raid-status bonus ${t.receive_bonus===false?'off':'on'}" title="${t.receive_bonus===false?'더보기 제외':'더보기 포함'}">${t.receive_bonus===false?'❌':'✅'} 더보기${t.receive_bonus===false?'X':'O'}</span>`);
-    chips.push(`<span class="vo-raid-status party ${hasPartyLink?'on':'off'}" title="${hasPartyLink?'파티연동 있음':'파티연동 없음'}">${hasPartyLink?'✅':'❌'} 파티${hasPartyLink?'O':'X'}</span>`);
+    if((flow||bound)&&!goldChecked)chips.push(`<span class="vo-raid-status gold off" title="골드체크 제외">골드X</span>`);
+    if(bonus&&t.receive_bonus===false)chips.push(`<span class="vo-raid-status bonus off" title="더보기 제외">더보기X</span>`);
+    if(!hasPartyLink)chips.push(`<span class="vo-raid-status party off" title="파티연동 없음">파티X</span>`);
     return chips.length?`<div class="vo-raid-gold-row">${chips.join('')}</div>`:'';
   };
   const sortTasksForViewer=tasks=>tasks.slice().sort((a,b)=>{
@@ -1398,9 +1399,10 @@ async function loadViewerOverview(el){
       const tasks=sortTasksForViewer((rtasks||[]).filter(t=>t.character_id===c.id&&pass(t)));
       const done=tasks.filter(t=>isDone(t)).length;
       const cpct=tasks.length?Math.round(done/tasks.length*100):0;
-      html+=`<div class="vo-char-card">
+      const allDone=tasks.length>0&&done===tasks.length;
+      html+=`<div class="vo-char-card ${allDone?'all-done':''}">
         <div class="vo-char-head">
-          <span class="vo-char-name">${c.icon_url?`<img class="entity-icon-sm" src="${c.icon_url}" onerror="this.style.display='none'">`:''}${esc(c.name)}</span>
+          <span class="vo-char-name">${c.icon_url?`<img class="entity-icon-sm" src="${c.icon_url}" onerror="this.style.display='none'">`:''}${esc(c.name)}${allDone?'<span class="vo-complete-badge">완료</span>':''}</span>
           <span class="vo-card-progress" title="${done}/${tasks.length}"><span class="vo-card-progress-fill" style="width:${cpct}%;background:${tasks.length&&done===tasks.length?'var(--green)':'var(--teal)'};"></span></span>
           <span class="vo-card-count">${done}/${tasks.length}</span>
         </div>
