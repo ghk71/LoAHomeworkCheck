@@ -34,14 +34,18 @@
 - Keep Supabase column names aligned with `schema.sql`.
 - Define every CSS variable used by `var(--...)`.
 - Make small, scoped changes.
-- Run `node tools/check-project.js` after changes.
+- Do not run `node tools/check-project.js` unless the user explicitly asks again. The user requested skipping this command because `node.exe Access is denied` repeatedly blocks it on this workflow. Use the fallback validation checks documented in `CODEX_INSTRUCTIONS.md` and `HANDOFF.md`.
 - Update `BUG_HISTORY.md` or `CODEX_SESSION_LOG.md` after meaningful changes.
 
-## Validation Command
+## Validation
 
-```bash
-node tools/check-project.js
-```
+Current user instruction: skip `node tools/check-project.js`.
+
+Fallback checks:
+
+- Confirm no code exists after `</html>` in `index.html`, `core.html`, `raid.html`, `overview.html`, and `parties.html`.
+- Confirm every CSS `var(--...)` used in those files is defined.
+- Run `git diff --check`.
 
 ## Review Guidelines
 

@@ -730,14 +730,25 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
 .reset-info { font-size:.65rem; color:var(--text-3); }
 .rest-config-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
 .rest-config-grid .form-group{margin-bottom:0;}
-.rest-card{margin-top:7px;padding:7px 9px;border:1px solid rgba(99,102,241,.18);border-radius:10px;background:rgba(99,102,241,.055);}
-.rest-card-head{display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:.7rem;color:var(--text-2);font-weight:800;}
+.rest-card{margin-top:7px;padding:8px 9px;border:1px solid rgba(99,102,241,.2);border-radius:10px;background:rgba(99,102,241,.055);}
+.rest-card-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:.7rem;color:var(--text-2);font-weight:800;}
 .rest-card-head b{color:#c7d2fe;}
+.rest-card-head em{font-style:normal;color:var(--text);font-weight:900;}
 .rest-card-head span{margin-left:auto;color:var(--muted);font-weight:700;}
-.rest-bar{height:7px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;}
-.rest-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#6366f1,#22d3ee);transition:width .25s;}
-.rest-card.ready .rest-bar-fill{background:linear-gradient(90deg,var(--green),#22d3ee);}
-.rest-card.waiting{opacity:.72;}
+.rest-segments{display:flex;gap:5px;align-items:stretch;}
+.rest-seg-group{display:flex;gap:2px;min-width:0;flex:1;}
+.rest-seg{
+  flex:1;min-width:8px;height:14px;border:1px solid rgba(148,163,184,.18);
+  padding:0;appearance:none;line-height:0;
+  background:rgba(15,23,42,.9);cursor:pointer;transition:all .15s;
+}
+.rest-seg:first-child{border-radius:5px 0 0 5px;}
+.rest-seg:last-child{border-radius:0 5px 5px 0;}
+.rest-seg.filled{background:linear-gradient(180deg,#6366f1,#22d3ee);border-color:rgba(34,211,238,.45);box-shadow:0 0 7px rgba(34,211,238,.16);}
+.rest-card.ready .rest-seg.filled{background:linear-gradient(180deg,var(--green),#22d3ee);border-color:rgba(16,185,129,.55);}
+.rest-seg:hover,.rest-seg.hovered{transform:translateY(-1px);border-color:var(--gold);box-shadow:0 0 0 1px rgba(245,158,11,.25),0 0 8px rgba(245,158,11,.16);}
+.rest-card.waiting{opacity:.76;}
+.rest-card-foot{display:flex;justify-content:space-between;gap:8px;margin-top:5px;font-size:.64rem;color:var(--muted);font-weight:700;}
 .task-actions { display:flex; gap:3px; opacity:0; transition:opacity var(--t); flex-shrink:0; }
 .task-item:hover .task-actions { opacity:1; }
 .subtask-list {
@@ -1862,16 +1873,51 @@ function restInfo(t){
   const max=Math.max(1,Number(t.rest_max)||200);
   const cur=Math.max(0,Math.min(Number(t.rest_current)||0,max));
   const threshold=Math.max(0,Number(t.rest_threshold)||0);
-  const pct=Math.max(0,Math.min(100,Math.round(cur/max*100)));
-  return{max,cur,threshold,pct,ready:cur>=threshold};
+  const charge=Math.max(1,Number(t.rest_charge)||20);
+  const consume=Math.max(0,Number(t.rest_consume)||0);
+  const totalCells=Math.max(1,Math.ceil(max/charge));
+  const cellsPerUse=Math.max(1,consume?Math.round(consume/charge):1);
+  return{max,cur,threshold,charge,consume,totalCells,cellsPerUse,ready:cur>=threshold};
 }
-function restCardHTML(t){
+function restCardHTML(t,isExp=false){
   if(!t.rest_enabled)return'';
   const r=restInfo(t);
+  const groups=[];
+  for(let i=0;i<r.totalCells;i+=r.cellsPerUse){
+    const cells=[];
+    for(let j=i;j<Math.min(i+r.cellsPerUse,r.totalCells);j++){
+      const value=Math.min(r.max,(j+1)*r.charge);
+      const from=Math.min(r.max,j*r.charge);
+      cells.push(`<button type="button" class="rest-seg ${r.cur>=value?'filled':''}" title="${from}-${value}" onclick="setRestGauge('${t.id}',${isExp?1:0},${value},event)" onmouseenter="previewRestGauge(this)" onmouseleave="clearRestGaugePreview(this)" aria-label="휴식 게이지 ${value}로 설정"></button>`);
+    }
+    groups.push(`<div class="rest-seg-group">${cells.join('')}</div>`);
+  }
   return`<div class="rest-card ${r.ready?'ready':'waiting'}">
     <div class="rest-card-head"><b>휴식 게이지</b><em>${r.cur}/${r.max}</em><span>강조 ${r.threshold}</span></div>
-    <div class="rest-bar"><div class="rest-bar-fill" style="width:${r.pct}%"></div></div>
+    <div class="rest-segments">${groups.join('')}</div>
+    <div class="rest-card-foot"><span>충전 ${r.charge}</span><span>소모 ${r.consume||'-'}</span></div>
   </div>`;
+}
+function previewRestGauge(el){
+  const group=el.closest('.rest-segments');if(!group)return;
+  const cells=[...group.querySelectorAll('.rest-seg')];
+  const idx=cells.indexOf(el);
+  cells.forEach((c,i)=>c.classList.toggle('hovered',i<=idx));
+}
+function clearRestGaugePreview(el){
+  const group=el.closest('.rest-segments');if(!group)return;
+  group.querySelectorAll('.rest-seg.hovered').forEach(c=>c.classList.remove('hovered'));
+}
+async function setRestGauge(taskId,isExp,value,event){
+  if(event)event.stopPropagation();
+  const list=getList(!!isExp),t=list.find(x=>x.id===taskId);if(!t||!t.rest_enabled)return;
+  const max=Math.max(1,Number(t.rest_max)||200);
+  const cur=Math.max(0,Math.min(Number(value)||0,max));
+  const up={rest_current:cur};
+  const{error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',taskId);
+  if(error){toast('휴식 게이지 저장 실패');return;}
+  Object.assign(t,up);
+  scheduleRenderArea();
 }
 function advanceResetBoundary(type,day,base){
   const n=new Date(base);
@@ -2460,7 +2506,7 @@ function rootTaskHTML(t,children,isExp,rootIdx,hideDone=S.hideCompleted){
         <button class="btn btn-danger" onclick="deleteTask('${t.id}',${iE})">🗑</button>
       </div>
     </div>
-    ${restCardHTML(t)}
+    ${restCardHTML(t,isExp)}
     ${hasChildren&&!collapsed&&visChildren.length>0?`<div class="subtask-list">${visChildren.map((c,si)=>subTaskHTML(c,isExp,si)).join('')}</div>`:''}</div>`;
 }
 
@@ -2675,7 +2721,7 @@ function resetRestForm(on=false){
 function fillRestForm(t){
   const on=!!t.rest_enabled;resetRestForm(on);
   const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
-  set('task-rest-max',t.rest_max||200);set('task-rest-current',t.rest_current||0);set('task-rest-charge',t.rest_charge||20);set('task-rest-consume',t.rest_consume||40);set('task-rest-threshold',t.rest_threshold||40);set('task-rest-daily-limit',t.rest_daily_limit||1);
+  set('task-rest-max',t.rest_max??200);set('task-rest-current',t.rest_current??0);set('task-rest-charge',t.rest_charge??20);set('task-rest-consume',t.rest_consume??40);set('task-rest-threshold',t.rest_threshold??40);set('task-rest-daily-limit',t.rest_daily_limit??1);
 }
 function toggleHasRest(){const cb=document.getElementById('has-rest');cb.checked=!cb.checked;document.getElementById('rest-config-row').style.display=cb.checked?'block':'none';}
 function toggleHasActivate(){const cb=document.getElementById('has-activate');cb.checked=!cb.checked;document.getElementById('activate-day-row').style.display=cb.checked?'block':'none';}
@@ -2892,6 +2938,24 @@ async function openExpTaskClone(taskId){
   openModal('modal-clone-exp');
 }
 let _cloneCtx={};
+function taskCopyFields(t){
+  return{
+    name:t.name,
+    reset_type:t.reset_type,
+    reset_day:t.reset_day,
+    activate_day:t.activate_day,
+    count_max:t.count_max,
+    icon_url:t.icon_url||null,
+    rest_enabled:t.rest_enabled??false,
+    rest_current:t.rest_current??0,
+    rest_max:t.rest_max??200,
+    rest_charge:t.rest_charge??20,
+    rest_consume:t.rest_consume??40,
+    rest_threshold:t.rest_threshold??40,
+    rest_daily_limit:t.rest_daily_limit??1,
+    rest_last_processed_at:t.rest_last_processed_at??null
+  };
+}
 async function confirmCloneExp(){
   const{task,children}=_cloneCtx;
   const checks=document.querySelectorAll('[data-clone-acc]:checked');
@@ -2900,7 +2964,7 @@ async function confirmCloneExp(){
   const groupId=await ensureTaskCloneGroup(task,true);
   for(const cb of checks){
     const accId=cb.dataset.cloneAcc;
-    const{data:newTask}=await sb.from('expedition_tasks').insert({account_id:accId,name:task.name,reset_type:task.reset_type,reset_day:task.reset_day,activate_day:task.activate_day,count_max:task.count_max,icon_url:task.icon_url||null,rest_enabled:task.rest_enabled||false,rest_current:task.rest_current||0,rest_max:task.rest_max||200,rest_charge:task.rest_charge||20,rest_consume:task.rest_consume||40,rest_threshold:task.rest_threshold||40,rest_daily_limit:task.rest_daily_limit||1,sort_order:99}).select().single();
+    const{data:newTask}=await sb.from('expedition_tasks').insert({...taskCopyFields(task),account_id:accId,sort_order:99}).select().single();
     if(newTask&&groupId){await sb.from('expedition_tasks').update({clone_group_id:groupId}).eq('id',newTask.id);newTask.clone_group_id=groupId;}
     if(newTask&&children.length){for(const c of children)await sb.from('expedition_tasks').insert({account_id:accId,parent_id:newTask.id,name:c.name,reset_type:c.reset_type,reset_day:c.reset_day,activate_day:c.activate_day,count_max:c.count_max,icon_url:c.icon_url||null,sort_order:c.sort_order});}
     if(!S.expTasks[accId])S.expTasks[accId]=[];
@@ -3092,7 +3156,7 @@ async function executeCopy(){
   let cnt=0;
   for(const cb of checked){
     const charId=cb.value;if(!S.tasks[charId])S.tasks[charId]=[];
-    const{data:pd,error}=await sb.from('tasks').insert({character_id:charId,name:src.name,reset_type:src.reset_type,reset_day:src.reset_day,activate_day:src.activate_day,count_max:src.count_max,icon_url:src.icon_url||null,rest_enabled:src.rest_enabled||false,rest_current:src.rest_current||0,rest_max:src.rest_max||200,rest_charge:src.rest_charge||20,rest_consume:src.rest_consume||40,rest_threshold:src.rest_threshold||40,rest_daily_limit:src.rest_daily_limit||1,sort_order:(S.tasks[charId].filter(t=>!t.parent_id)).length}).select().single();
+    const{data:pd,error}=await sb.from('tasks').insert({...taskCopyFields(src),character_id:charId,sort_order:(S.tasks[charId].filter(t=>!t.parent_id)).length}).select().single();
     if(error)continue;S.tasks[charId].push(pd);
     if(pd&&groupId){await sb.from('tasks').update({clone_group_id:groupId}).eq('id',pd.id);pd.clone_group_id=groupId;}
     if(srcChildren.length&&pd){const ins=srcChildren.map((c,i)=>({character_id:charId,parent_id:pd.id,name:c.name,reset_type:c.reset_type,reset_day:c.reset_day,activate_day:c.activate_day,count_max:c.count_max,icon_url:c.icon_url||null,sort_order:i}));const{data:cd}=await sb.from('tasks').insert(ins).select();if(cd)S.tasks[charId].push(...cd);}
