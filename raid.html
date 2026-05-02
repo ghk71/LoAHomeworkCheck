@@ -526,7 +526,21 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
   flex-shrink:0;
 }
 .week-label { font-size:.9rem; font-weight:600; flex:1; text-align:center; color:var(--gold-text); }
-.sch-body { flex:1; overflow-y:auto; }
+.sch-main{display:flex;flex:1;min-height:0;overflow:hidden;}
+.sch-body { flex:1; overflow-y:auto; min-width:0; }
+.unplaced-panel{width:292px;flex-shrink:0;border-left:1px solid var(--border);background:rgba(13,21,38,.72);display:flex;flex-direction:column;min-height:0;}
+.unplaced-panel.collapsed{width:42px;}
+.unplaced-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);}
+.unplaced-title{font-size:.78rem;font-weight:900;color:var(--gold-text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.unplaced-count{font-size:.68rem;color:var(--text-3);white-space:nowrap;}
+.unplaced-toggle{border:1px solid var(--border);background:var(--surface-3);color:var(--text-2);border-radius:8px;padding:3px 7px;cursor:pointer;font-size:.72rem;}
+.unplaced-panel.collapsed .unplaced-title,.unplaced-panel.collapsed .unplaced-count,.unplaced-panel.collapsed .unplaced-list{display:none;}
+.unplaced-list{padding:10px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;}
+.unplaced-card{border:1px solid rgba(255,255,255,.08);border-radius:12px;background:rgba(255,255,255,.035);padding:9px 10px;cursor:grab;transition:all var(--t);}
+.unplaced-card:hover{border-color:rgba(255,184,77,.38);background:rgba(255,184,77,.075);transform:translateY(-1px);}
+.unplaced-raid{display:flex;align-items:center;gap:5px;font-size:.8rem;font-weight:900;margin-bottom:3px;}
+.unplaced-meta{font-size:.7rem;color:var(--text-3);}
+.unplaced-empty{font-size:.76rem;color:var(--text-3);padding:12px 4px;line-height:1.5;}
 .day-row {
   display:flex; align-items:flex-start;
   border-bottom: 1px solid rgba(255,255,255,.04);
@@ -558,6 +572,7 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
   padding: 10px 12px;
   overflow-x:auto; align-items:flex-start;
 }
+.day-parties-scroll.r-dnd-day{background:rgba(255,184,77,.07);box-shadow:inset 0 0 0 1px rgba(255,184,77,.32);border-radius:10px;}
 
 /* Schedule cards */
 .sched-card {
@@ -1036,7 +1051,17 @@ button,input,select,textarea{ font:inherit; }
       </div>
       <div id="sch-fb-body" style="padding:8px 14px 10px;display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--border);"></div>
     </div>
-    <div class="sch-body" id="sch-body"></div>
+    <div class="sch-main">
+      <div class="sch-body" id="sch-body"></div>
+      <aside class="unplaced-panel edit-only" id="unplaced-panel">
+        <div class="unplaced-head">
+          <button class="unplaced-toggle" id="unplaced-toggle" onclick="toggleUnplacedPanel()">◀</button>
+          <span class="unplaced-title">미배치 파티</span>
+          <span class="unplaced-count" id="unplaced-count"></span>
+        </div>
+        <div class="unplaced-list" id="unplaced-list"></div>
+      </aside>
+    </div>
   </div>
 </div>
 
@@ -1572,7 +1597,7 @@ async function deleteViewerRaidTask(taskId){
 }
 
 // ─── State ───
-let sb,accounts=[],allChars=[],raids=[],parties=[],schedules=[],overrides={},notices={},noticeComments={},noticeCommentsAvailable=true,noticeCommentsCollapsed=localStorage.getItem('la_notice_comments_collapsed')!=='0',raidTasksAll={},raidGroupSettings={},raidGroupSettingsAvailable=true;
+let sb,accounts=[],allChars=[],raids=[],parties=[],schedules=[],overrides={},notices={},noticeComments={},noticeCommentsAvailable=true,noticeCommentsCollapsed=localStorage.getItem('la_notice_comments_collapsed')!=='0',unplacedPanelCollapsed=localStorage.getItem('la_unplaced_panel_collapsed')==='1',raidTasksAll={},raidGroupSettings={},raidGroupSettingsAvailable=true;
 let selPartyId=null,selGroupName=null,weekOffset=0,partySize=4,selPresetId=null;
 let pickCtx={mode:'party',partyId:null,slotIndex:null,scheduleId:null};
 let ovrEditSchId=null;
@@ -1667,7 +1692,16 @@ async function autoResetNonFixed(){
       overrides[ovr.schedule_id+'_'+ovr.week_start_date].temp_changes={added:{},removed:{}};
     }
   }
-  const del=schedules.filter(s=>!s.is_fixed&&new Date(s.created_at).getTime()<ws.getTime()-9*3600000);
+  const keepStart=new Date(ws);keepStart.setUTCDate(keepStart.getUTCDate()-14);
+  const keepMs=keepStart.getTime()-9*3600000;
+  const keepWk=getWeekKey(-2);
+  const oldOverrideIds=(oldOverrides||[]).filter(o=>o.week_start_date<keepWk).map(o=>o.id).filter(Boolean);
+  if(oldOverrideIds.length){
+    const res=await sb.from('raid_schedule_overrides').delete().in('id',oldOverrideIds);
+    if(!res.error)oldOverrideIds.forEach(id=>{Object.keys(overrides).forEach(k=>{if(overrides[k]?.id===id)delete overrides[k];});});
+    else console.warn('old schedule override cleanup failed',res.error);
+  }
+  const del=schedules.filter(s=>!s.is_fixed&&new Date(s.created_at).getTime()<keepMs);
   if(del.length){const res=await sb.from('raid_schedules').delete().in('id',del.map(s=>s.id));if(!supaErr(res,'일정 초기화 실패'))schedules=schedules.filter(s=>!del.some(d=>d.id===s.id));}
 }
 
@@ -1683,15 +1717,20 @@ function rdStartSch(e,schId,srcDn,srcIdx){
   e.stopPropagation();
   _rd.type='sched';_rd.src={schId,srcDn,srcIdx};e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text',schId);setTimeout(()=>e.target.classList.add('r-drag'),0);
 }
+function rdStartUnplacedParty(e,partyId){
+  if(isViewer){e.preventDefault();return;}
+  e.stopPropagation();
+  _rd.type='unplaced-party';_rd.src={partyId};e.dataTransfer.effectAllowed='copy';e.dataTransfer.setData('text',partyId);setTimeout(()=>e.currentTarget.classList.add('r-drag'),0);
+}
 function rdOverSch(e){
   e.preventDefault();e.stopPropagation();
-  if(_rd.type!=='sched')return;
+  if(_rd.type!=='sched'&&_rd.type!=='unplaced-party')return;
   document.querySelectorAll('.r-dnd-h').forEach(x=>x.classList.remove('r-dnd-h'));
   e.currentTarget.classList.add('r-dnd-h');
 }
 function rdOverDay(e){
   e.preventDefault();e.stopPropagation();
-  if(_rd.type!=='sched')return;
+  if(_rd.type!=='sched'&&_rd.type!=='unplaced-party')return;
   document.querySelectorAll('.r-dnd-day').forEach(x=>x.classList.remove('r-dnd-day'));
   e.currentTarget.classList.add('r-dnd-day');
 }
@@ -1790,6 +1829,11 @@ async function rdDropParty(e,presetId,destIdx){
 }
 async function rdDropSch(e,destDn,destIdx){
   e.preventDefault();e.stopPropagation();rdClean();
+  if(_rd.type==='unplaced-party'){
+    const partyId=_rd.src?.partyId;_rd.type=null;
+    if(partyId)await addScheduleFromUnplacedParty(partyId,destDn,destIdx);
+    return;
+  }
   if(_rd.type!=='sched'){_rd.type=null;return;}
   const{schId,srcDn,srcIdx}=_rd.src;_rd.type=null;
   const wsMs=getWeekStart(weekOffset).getTime()-9*3600000,weMs=wsMs+7*24*3600000;
@@ -1827,10 +1871,15 @@ async function rdDropSch(e,destDn,destIdx){
 // 날짜 행 자체에 드롭 — 해당 날짜 맨 뒤에 추가
 async function rdDropOnDay(e,destDn){
   e.preventDefault();e.stopPropagation();rdClean();
+  if(_rd.type==='unplaced-party'){
+    const partyId=_rd.src?.partyId;_rd.type=null;
+    if(partyId)await addScheduleFromUnplacedParty(partyId,destDn);
+    return;
+  }
   if(_rd.type!=='sched'){_rd.type=null;return;}
   const{srcDn}=_rd.src;
   if(srcDn===destDn){_rd.type=null;return;} // 같은 날 → 카드 드롭으로 처리됨
-  const wsMs=getWeekStart(weekOffset).getTime()-9*3600000,weMs=wsMs+7*24*3600000;
+  const {wsMs,weMs}=weekScheduleWindow(weekOffset);
   const destList=getDaySchs(destDn,wsMs,weMs);
   await rdDropSch(e,destDn,destList.length);
 }
@@ -2493,9 +2542,9 @@ function autoOpenParty(partyId){
 function renderSchedule(){
   const el=document.getElementById('sch-body');if(!el)return;
   populateDaySelect();populatePartySelect('');
+  renderUnplacedPanel();
   const days=getWeekDays(weekOffset),todayKST=getGameNowKST().getUTCDay(),wk=getWeekKey(weekOffset);
-  const wsMs=getWeekStart(weekOffset).getTime()-9*3600000;
-  const weMs=wsMs+7*24*3600000;
+  const {wsMs,weMs}=weekScheduleWindow(weekOffset);
   const daySlots=buildDaySlots();
   el.innerHTML=daySlots.map(slot=>{
     const {indices,grouped}=slot;
@@ -2591,6 +2640,63 @@ function openPartyFromSchedule(partyId){
   renderPresetList();
   renderPartyDetail();
   setTimeout(()=>document.getElementById('party-detail')?.scrollIntoView({behavior:'smooth',block:'start'}),80);
+}
+function weekScheduleWindow(off=weekOffset){
+  const wsMs=getWeekStart(off).getTime()-9*3600000;
+  return{wsMs,weMs:wsMs+7*24*3600000};
+}
+function scheduledPartyIdsForWeek(off=weekOffset){
+  const {wsMs,weMs}=weekScheduleWindow(off);
+  const ids=new Set();
+  WEEK_DAY_NUMS.forEach(dn=>getDaySchs(dn,wsMs,weMs).forEach(s=>ids.add(s.party_id)));
+  return ids;
+}
+function unplacedPartiesForWeek(){
+  const scheduled=scheduledPartyIdsForWeek(weekOffset);
+  const groupOrder=getAllGroupNames();
+  return parties.filter(p=>!scheduled.has(p.id)).sort((a,b)=>{
+    const ra=raids.find(r=>r.id===a.preset_id),rb=raids.find(r=>r.id===b.preset_id);
+    const ga=groupOrder.indexOf(ra?.name||''),gb=groupOrder.indexOf(rb?.name||'');
+    if(ga!==gb)return (ga<0?999:ga)-(gb<0?999:gb);
+    if((ra?.sort_order??999)!==(rb?.sort_order??999))return (ra?.sort_order??999)-(rb?.sort_order??999);
+    return (a.sort_order??999)-(b.sort_order??999);
+  });
+}
+function toggleUnplacedPanel(){
+  unplacedPanelCollapsed=!unplacedPanelCollapsed;
+  localStorage.setItem('la_unplaced_panel_collapsed',unplacedPanelCollapsed?'1':'0');
+  renderUnplacedPanel();
+}
+function renderUnplacedPanel(){
+  const panel=document.getElementById('unplaced-panel');if(!panel||isViewer)return;
+  const list=document.getElementById('unplaced-list'),cnt=document.getElementById('unplaced-count'),btn=document.getElementById('unplaced-toggle');
+  panel.classList.toggle('collapsed',unplacedPanelCollapsed);
+  if(btn)btn.textContent=unplacedPanelCollapsed?'▶':'◀';
+  const items=unplacedPartiesForWeek();
+  if(cnt)cnt.textContent=`${items.length}개`;
+  if(!list)return;
+  list.innerHTML=items.length?items.map(p=>{
+    const r=raids.find(x=>x.id===p.preset_id);
+    const color=getGroupColor(r?.name||'');
+    return`<div class="unplaced-card" draggable="true" ondragstart="rdStartUnplacedParty(event,'${p.id}')" ondragend="rdEnd(event)" title="요일 칸으로 드래그해 일정에 배치">
+      <div class="unplaced-raid" style="color:${color};">${iconImg(getGroupIcon(r?.name||''),'entity-icon-sm')}${esc(r?.name||'레이드')} <span class="${diffClass(r?.difficulty||'')}">${esc(r?.difficulty||'')}</span></div>
+      <div class="unplaced-meta">${esc(p.name||'파티')} · ${p.party_size||4}인${r?.entry_level?` · 입장 ${r.entry_level}`:''}</div>
+    </div>`;
+  }).join(''):'<div class="unplaced-empty">이번 주 모든 파티가 일정에 배치되어 있습니다.</div>';
+}
+async function addScheduleFromUnplacedParty(partyId,dn,insertIdx=null){
+  const {wsMs,weMs}=weekScheduleWindow(weekOffset);
+  const destList=getDaySchs(dn,wsMs,weMs);
+  const targetIdx=insertIdx==null?destList.length:Math.max(0,Math.min(insertIdx,destList.length));
+  destList.forEach((s,i)=>{if(i>=targetIdx)s.sort_order=i+1;});
+  const createdAt=new Date(wsMs).toISOString();
+  const rec={party_id:partyId,day_of_week:dn,time_str:'',is_fixed:false,sort_order:targetIdx,created_at:createdAt};
+  const{data,error}=await sb.from('raid_schedules').insert(rec).select().single();
+  if(error){toast('❗ 일정 배치 실패: '+error.message);console.error(error);return;}
+  schedules.push(data||rec);
+  const res=await Promise.all(destList.map(s=>sb.from('raid_schedules').update({sort_order:s.sort_order}).eq('id',s.id)));
+  const err=res.find(x=>x.error)?.error;if(err)console.warn('unplaced schedule sort update failed',err);
+  renderSchFilter();renderSchedule();toast('📅 미배치 파티를 일정에 배치했습니다');
 }
 
 // ─── Render scheduler for raid (batch rAF) ───
