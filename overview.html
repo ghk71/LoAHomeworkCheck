@@ -487,14 +487,20 @@ body { overflow:hidden; }
 .rt-row.done .rt-check-icon { opacity:1; }
 .rt-info { flex:1; min-width:0; }
 .rt-name { font-size:.8rem; font-weight:500; }
-.ov-party-chip{font-size:.63rem;color:var(--teal);padding:2px 6px;border:1px solid rgba(42,184,160,.3);border-radius:6px;cursor:pointer;background:rgba(42,184,160,.06);}
-.ov-party-chip.temp{color:var(--gold-text);border-color:rgba(200,168,75,.38);background:rgba(200,168,75,.10);}
 .ov-gold-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;}
-.ov-gold-chip{font-size:.63rem;padding:2px 6px;border-radius:999px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);color:var(--text-2);white-space:nowrap;}
-.ov-gold-chip.flow{color:var(--gold-text);border-color:rgba(255,184,77,.24);}
-.ov-gold-chip.bound{color:var(--orange);border-color:rgba(249,115,22,.24);}
-.ov-gold-chip.bonus{color:#c4b5fd;border-color:rgba(196,181,253,.24);}
-.ov-gold-chip.off{opacity:.62;color:var(--text-3);border-color:rgba(255,255,255,.07);background:rgba(255,255,255,.02);}
+.ov-status-chip{display:inline-flex;align-items:center;gap:3px;font-size:.62rem;font-weight:700;line-height:1;padding:3px 7px;border-radius:999px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);color:var(--text-2);white-space:nowrap;}
+.ov-status-chip.clickable{cursor:pointer;transition:all var(--t);}
+.ov-status-chip.clickable:hover{transform:translateY(-1px);filter:brightness(1.12);}
+.ov-status-chip.gold.on{color:var(--gold-text);border-color:rgba(255,184,77,.34);background:rgba(255,184,77,.10);}
+.ov-status-chip.gold.off{color:var(--text-3);border-color:rgba(255,255,255,.08);background:rgba(255,255,255,.025);}
+.ov-status-chip.bonus.on{color:#c4b5fd;border-color:rgba(196,181,253,.34);background:rgba(124,92,255,.13);}
+.ov-status-chip.bonus.off{color:var(--text-3);border-color:rgba(255,255,255,.08);background:rgba(255,255,255,.025);}
+.ov-status-chip.party.on{color:var(--teal);border-color:rgba(42,184,160,.36);background:rgba(42,184,160,.09);}
+.ov-status-chip.party.off{color:var(--text-3);border-color:rgba(255,255,255,.07);background:rgba(255,255,255,.02);}
+.ov-status-chip.party.temp-add{color:var(--gold-text);border-color:rgba(200,168,75,.42);background:rgba(200,168,75,.12);}
+.ov-status-chip.party.temp-remove{color:#fca5a5;border-color:rgba(239,68,68,.36);background:rgba(239,68,68,.10);}
+.ov-party-chip{display:inline-flex;align-items:center;gap:3px;font-size:.62rem;font-weight:700;line-height:1;padding:3px 7px;border:1px solid rgba(42,184,160,.36);border-radius:999px;cursor:pointer;background:rgba(42,184,160,.09);color:var(--teal);}
+.ov-party-chip.temp{color:var(--gold-text);border-color:rgba(200,168,75,.42);background:rgba(200,168,75,.12);}
 
 /* Week nav */
 .week-nav-bar {
@@ -910,16 +916,20 @@ function raidTaskRowHTML(t){
   const dc=diffClass(t.difficulty||'');
   const flow=Math.max(0,(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0)),bound=Number(t.bound_gold)||0,bonus=Number(t.bonus_gold)||0;
   const goldChecked=t.receive_gold!==false&&t.receive_bound!==false;
+  const partyLinked=t.has_party_link||isTemp||isRemoved;
+  const partyClick=partyLinked?` onclick="event.stopPropagation();showOvPartyPopup('${popupPresetId}','${t.character_id}','${t.id}')"`:'';
+  const partyClass=isRemoved?'temp-remove':isTemp?'temp-add':t.has_party_link?'on':'off';
+  const partyText=isRemoved?'↩ 임시해제':isTemp?'✨ 임시연동':t.has_party_link?'🔗 연동':'🔗 없음';
   const flagChips=[
-    (flow||bound)?`<span class="ov-gold-chip flow ${goldChecked?'':'off'}">골드체크 ${goldChecked?'O':'X'}</span>`:'',
-    bonus?`<span class="ov-gold-chip bonus ${t.receive_bonus===false?'off':''}">더보기 ${t.receive_bonus===false?'X':'O'}</span>`:''
+    (flow||bound)?`<span class="ov-status-chip gold ${goldChecked?'on':'off'}" title="${goldChecked?'골드체크 포함':'골드체크 제외'}">🪙 ${goldChecked?'수령':'제외'}</span>`:'',
+    bonus?`<span class="ov-status-chip bonus ${t.receive_bonus===false?'off':'on'}" title="${t.receive_bonus===false?'더보기 제외':'더보기 포함'}">🎁 ${t.receive_bonus===false?'제외':'적용'}</span>`:'',
+    `<span class="ov-status-chip party ${partyClass}${partyLinked?' clickable':''}" title="${isRemoved?'임시파티해제':isTemp?'임시파티연동':t.has_party_link?'파티연동 있음':'파티연동 없음'}"${partyClick}>${partyText}</span>`
   ].join('');
   return`<div class="rt-row ${done?'done':''}" id="ov-rti-${t.id}" onclick="toggleRaidTask('${t.id}')">
     <div class="rt-check"><span class="rt-check-icon">✓</span></div>
     <div class="rt-info">
       <div class="rt-name" style="display:flex;align-items:center;gap:4px;">${iconImg(getGroupIcon(raidName),'entity-icon-sm')}<span style="color:${gc};">${esc(raidName)}</span>${t.difficulty?` <span class="${dc}" style="font-size:.72rem;margin-left:2px;">${esc(t.difficulty)}</span>`:''}</div>
       <div class="ov-gold-row">${flagChips}</div>
-      ${(t.has_party_link||isTemp||isRemoved)?`<div style="margin-top:2px;"><span class="ov-party-chip ${(isTemp||isRemoved)?'temp':''}" onclick="event.stopPropagation();showOvPartyPopup('${popupPresetId}','${t.character_id}','${t.id}')">🔗 ${isRemoved?'임시파티해제':isTemp?'임시파티연동':'파티연동'}</span></div>`:''}
     </div>
   </div>`;
 }
