@@ -4,111 +4,127 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>숙제 UI 테스트 - 로스트아크 숙제</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 :root{
-  --bg:#111315;
-  --panel:#1a1c20;
-  --panel-2:#202329;
-  --panel-3:#262a31;
-  --line:rgba(255,255,255,.08);
-  --line-2:rgba(255,255,255,.14);
-  --text:#f2f5f8;
-  --muted:#9aa3ae;
-  --dim:#6f7884;
-  --accent:#e11d1d;
-  --green:#18d66b;
-  --green-soft:rgba(24,214,107,.12);
-  --gold:#f3b43f;
-  --purple:#a78bfa;
-  --blue:#60a5fa;
-  --red:#ef4444;
-  --shadow:0 18px 40px rgba(0,0,0,.35);
+  --bg:#080b10;
+  --bg-soft:#0d121a;
+  --panel:#111821;
+  --panel-2:#151e2a;
+  --panel-3:#1b2634;
+  --panel-hover:#202d3d;
+  --line:rgba(159,180,205,.13);
+  --line-2:rgba(184,202,225,.2);
+  --text:#eef4fb;
+  --muted:#9cacc0;
+  --dim:#657386;
+  --accent:#22d3ee;
+  --accent-2:#8b5cf6;
+  --green:#28e59a;
+  --green-2:#12b981;
+  --gold:#f4c76b;
+  --orange:#f59e0b;
+  --purple:#b89cff;
+  --blue:#68a8ff;
+  --red:#ff5d6c;
+  --shadow:0 18px 40px rgba(0,0,0,.34);
   --r:8px;
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans KR","Segoe UI",sans-serif;font-size:14px;line-height:1.45}
+body{margin:0;background:radial-gradient(circle at 15% 0%,rgba(34,211,238,.08),transparent 32%),radial-gradient(circle at 85% 0%,rgba(139,92,246,.1),transparent 28%),var(--bg);color:var(--text);font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;line-height:1.42;font-weight:560}
 button,input,select,textarea{font:inherit}
 button{cursor:pointer}
 input[type=number]{appearance:textfield;-moz-appearance:textfield}
 input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{appearance:none;margin:0}
-.page-nav{height:36px;background:#0e1014;border-bottom:1px solid var(--line);display:flex;align-items:stretch}
-.pnav-item{padding:0 18px;display:flex;align-items:center;color:var(--muted);text-decoration:none;border-right:1px solid var(--line);font-size:.82rem;font-weight:700}
-.pnav-item:hover,.pnav-item.active{color:var(--text);background:rgba(255,255,255,.04)}
-.pnav-item.active{box-shadow:inset 0 -2px 0 var(--gold)}
+.page-nav{height:38px;background:rgba(8,11,16,.88);border-bottom:1px solid var(--line);display:flex;align-items:stretch;backdrop-filter:blur(16px)}
+.pnav-item{padding:0 18px;display:flex;align-items:center;color:var(--muted);text-decoration:none;border-right:1px solid var(--line);font-size:.78rem;font-weight:820}
+.pnav-item:hover,.pnav-item.active{color:var(--text);background:rgba(255,255,255,.045)}
+.pnav-item.active{box-shadow:inset 0 -2px 0 var(--accent)}
 .setup{min-height:calc(100vh - 36px);display:flex;align-items:center;justify-content:center;padding:24px}
 .setup-card{width:min(560px,100%);background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:28px;box-shadow:var(--shadow)}
 .setup-card h1{margin:0 0 8px;font-size:1.2rem}
 .setup-card p{margin:0 0 18px;color:var(--muted)}
 .setup-grid{display:grid;gap:10px}
 .field{display:grid;gap:6px}
-.field label{color:var(--muted);font-size:.78rem;font-weight:700}
-.input,.select,.textarea{width:100%;background:#121419;border:1px solid var(--line-2);color:var(--text);border-radius:6px;padding:9px 10px;outline:none}
+.field label{color:var(--muted);font-size:.75rem;font-weight:760}
+.input,.select,.textarea{width:100%;background:#0d131c;border:1px solid var(--line-2);color:var(--text);border-radius:7px;padding:9px 10px;outline:none}
+.input:focus,.select:focus,.textarea:focus{border-color:rgba(34,211,238,.55);box-shadow:0 0 0 3px rgba(34,211,238,.1)}
 .textarea{resize:vertical;min-height:88px}
-.btn{border:1px solid var(--line-2);background:var(--panel-2);color:var(--text);border-radius:6px;padding:8px 11px;font-weight:800;line-height:1;display:inline-flex;align-items:center;justify-content:center;gap:6px}
-.btn:hover{background:var(--panel-3)}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:white}
+.btn{border:1px solid var(--line-2);background:linear-gradient(180deg,#1a2330,#131b26);color:var(--text);border-radius:7px;padding:8px 11px;font-weight:820;line-height:1;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:hover{background:var(--panel-hover);border-color:rgba(34,211,238,.32)}
+.btn.primary{background:linear-gradient(135deg,#06b6d4,#7c3aed);border-color:rgba(34,211,238,.55);color:white}
 .btn.green{background:rgba(24,214,107,.14);border-color:rgba(24,214,107,.32);color:#8df8b8}
 .btn.gold{background:rgba(243,180,63,.12);border-color:rgba(243,180,63,.36);color:#ffd985}
 .btn.danger{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);color:#ff9a9a}
-.btn.icon{width:26px;height:26px;padding:0;border-radius:50%}
+.btn.icon{width:27px;height:27px;padding:0;border-radius:50%}
+.btn.active{border-color:rgba(34,211,238,.55);color:#bff6ff;background:rgba(34,211,238,.12)}
 .app{display:none;min-height:calc(100vh - 36px)}
 .app.active{display:block}
-.topbar{position:sticky;top:0;z-index:10;background:rgba(17,19,21,.96);border-bottom:1px solid var(--line);backdrop-filter:blur(10px);padding:10px 14px 8px}
+.topbar{position:sticky;top:0;z-index:10;background:rgba(8,11,16,.82);border-bottom:1px solid var(--line);backdrop-filter:blur(18px);padding:11px 14px 10px}
 .mode-tabs,.account-tabs,.filter-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
 .mode-tabs{margin-bottom:9px}
-.mode-tab,.pill{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:999px;padding:7px 12px;font-weight:900;font-size:.83rem}
-.mode-tab.active,.pill.active{background:var(--text);color:#111315;border-color:var(--text)}
-.pill.all{background:#16191d}
+.mode-tab,.pill{border:1px solid var(--line);background:rgba(17,24,33,.76);color:var(--muted);border-radius:999px;padding:7px 12px;font-weight:850;font-size:.8rem}
+.mode-tab.active,.pill.active{background:linear-gradient(135deg,#e8fbff,#dcd6ff);color:#081018;border-color:transparent}
+.pill.hidden-account{opacity:.5;border-style:dashed}
+.account-chip{display:inline-flex;align-items:center;gap:7px}
+.account-eye{height:22px;min-width:36px;padding:0 7px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted);font-size:.68rem;font-weight:820}
 .tool-row{display:flex;align-items:center;gap:8px;justify-content:space-between;margin-top:8px}
 .tiny{color:var(--dim);font-size:.76rem}
 .content{padding:14px;max-width:1920px;margin:0 auto}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(288px,1fr));gap:10px}
-.char-card,.account-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;min-height:245px}
-.char-card.done{border-color:rgba(24,214,107,.35);box-shadow:inset 0 0 0 1px rgba(24,214,107,.14)}
-.char-head{height:64px;padding:12px 14px;background:var(--panel-2);display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
-.char-card.hot .char-head{background:var(--accent)}
-.avatar{width:34px;height:34px;border-radius:8px;background:#101216;border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(312px,1fr));gap:12px}
+.char-card,.account-card{background:linear-gradient(180deg,rgba(21,30,42,.98),rgba(13,18,26,.98));border:1px solid var(--line);border-radius:8px;overflow:hidden;min-height:245px;box-shadow:0 1px 0 rgba(255,255,255,.03) inset}
+.char-card.done{border-color:rgba(40,229,154,.42);box-shadow:inset 0 0 0 1px rgba(40,229,154,.12),0 0 0 1px rgba(40,229,154,.04)}
+.char-head{height:58px;padding:10px 12px;background:linear-gradient(135deg,rgba(34,211,238,.1),rgba(139,92,246,.08));display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
+.char-card.hot .char-head{background:linear-gradient(135deg,rgba(34,211,238,.18),rgba(139,92,246,.12))}
+.avatar{width:34px;height:34px;border-radius:8px;background:#0b1119;border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none;color:var(--muted)}
 .avatar img,.task-icon img{width:100%;height:100%;object-fit:cover}
 .char-meta{min-width:0;flex:1}
-.char-name{font-weight:1000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.char-name{font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .char-sub{color:var(--muted);font-size:.75rem}
 .char-card.hot .char-sub{color:rgba(255,255,255,.72)}
 .card-tools{display:flex;gap:5px;align-items:center}
-.card-body{padding:10px 14px 14px}
-.section-label{display:flex;align-items:center;justify-content:space-between;margin:10px 0 7px;color:var(--muted);font-size:.76rem;font-weight:1000}
-.task-row,.raid-row,.currency-row,.note-row{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)}
+.card-body{padding:10px 12px 12px}
+.section-label{display:flex;align-items:center;justify-content:space-between;margin:10px 0 6px;color:#a9c7e8;font-size:.74rem;font-weight:880}
+.task-row,.raid-row,.currency-row,.note-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px dashed rgba(255,255,255,.06)}
 .task-row:last-child,.raid-row:last-child,.currency-row:last-child,.note-row:last-child{border-bottom:0}
 .task-row.done,.raid-row.done{opacity:.48}
 .task-row.done .task-title,.raid-row.done .task-title{text-decoration:line-through}
-.check{width:18px;height:18px;border-radius:5px;border:2px solid #3c424d;background:#14171c;display:flex;align-items:center;justify-content:center;color:#111315;font-weight:1000;font-size:.72rem}
-.done .check,.check.on{background:var(--green);border-color:var(--green);color:#07130b}
+.task-control{display:flex;align-items:center;gap:6px}
+.check{min-width:44px;height:28px;border-radius:999px;border:1px solid rgba(159,180,205,.22);background:#0b1119;color:#91a3b7;font-weight:860;font-size:.72rem;display:flex;align-items:center;justify-content:center}
+.check:hover{border-color:rgba(34,211,238,.45);color:#c8f8ff}
+.done .check,.check.on{background:rgba(40,229,154,.16);border-color:rgba(40,229,154,.45);color:#8df8c2}
 .task-main{min-width:0}
-.task-title{font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:7px}
+.task-title{font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:7px}
 .task-icon{width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;overflow:hidden;flex:none}
-.task-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px;color:var(--dim);font-size:.72rem}
+.task-meta{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;color:var(--dim);font-size:.69rem}
 .tag{border:1px solid var(--line);border-radius:999px;padding:2px 6px;color:var(--muted);background:#151820;font-weight:800}
 .tag.gold{border-color:rgba(243,180,63,.35);color:#ffd985}
 .tag.green{border-color:rgba(24,214,107,.3);color:#8df8b8}
 .tag.purple{border-color:rgba(167,139,250,.35);color:#c9b9ff}
-.step-wrap{display:flex;gap:4px}
-.step-dot{width:18px;height:18px;border-radius:50%;border:1px solid var(--line-2);background:#111419;color:var(--muted);font-size:.67rem;font-weight:900}
+.row-actions{display:flex;gap:4px;justify-content:flex-end;margin-top:5px;opacity:.72}
+.task-row:hover .row-actions,.raid-row:hover .row-actions,.account-card:hover .row-actions{opacity:1}
+.mini-btn{height:22px;min-width:34px;padding:0 6px;border-radius:6px;border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--muted);font-size:.7rem;font-weight:850}
+.mini-btn:hover{color:var(--text);border-color:rgba(34,211,238,.36)}
+.mini-btn.danger:hover{color:#ff9a9a;border-color:rgba(255,93,108,.42)}
+.step-wrap{display:flex;gap:5px}
+.step-dot{width:22px;height:22px;border-radius:50%;border:1px solid var(--line-2);background:#0b1119;color:var(--muted);font-size:.68rem;font-weight:850}
 .step-dot.on{background:var(--green);border-color:var(--green);color:#07130b}
-.rest-box{margin-top:7px}
-.rest-line{display:flex;justify-content:space-between;color:var(--muted);font-size:.72rem;margin-bottom:4px}
+.rest-box{margin-top:5px}
+.rest-line{display:flex;justify-content:space-between;color:var(--muted);font-size:.68rem;margin-bottom:4px}
 .rest-segments{display:flex;gap:4px}
-.rest-group{display:flex;gap:2px;flex:1}
-.rest-seg{height:7px;flex:1;border:0;background:#262a31;border-radius:2px}
-.rest-seg.filled{background:var(--green)}
-.rest-seg:hover,.rest-seg.preview{background:#8df8b8}
+.rest-group{position:relative;height:8px;flex:1;background:#243040;border-radius:999px;overflow:hidden}
+.rest-group::before{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--fill,0%);background:linear-gradient(90deg,var(--green),#6ee7f9)}
+.rest-hit{position:absolute;top:0;bottom:0;border:0;background:transparent;padding:0}
+.rest-hit:hover{background:rgba(255,255,255,.16)}
 .currency-row{grid-template-columns:1fr auto}
 .curr-main{display:flex;align-items:center;gap:7px;min-width:0}
-.curr-name{font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.curr-name{font-weight:820;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .curr-edit{display:flex;align-items:center;gap:5px}
 .curr-input{width:78px;text-align:right;background:#111419;border:1px solid var(--line-2);color:var(--text);border-radius:6px;padding:5px 7px;font-weight:900}
-.raid-title{display:flex;gap:6px;align-items:center;font-weight:1000;min-width:0}
+.raid-title{display:flex;gap:6px;align-items:center;font-weight:850;min-width:0}
 .raid-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.diff{font-weight:1000}
+.diff{font-weight:850}
 .diff.hard{color:#ffb020}.diff.nightmare{color:#b794ff}.diff.normal{color:#a8b1bc}
 .empty{padding:14px;border:1px dashed var(--line-2);border-radius:8px;color:var(--dim);text-align:center;font-size:.82rem}
 .account-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:10px}
@@ -122,20 +138,34 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .modal{width:min(980px,100%);max-height:90vh;overflow:auto;background:#15171b;border:1px solid var(--line-2);border-radius:12px;box-shadow:var(--shadow)}
 .modal-head{padding:17px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center}
 .modal-title{font-size:1.05rem;font-weight:1000}
-.modal-body{padding:18px 20px}
-.modal-foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
-.create-grid{display:grid;grid-template-columns:250px 1fr;gap:24px}
+.modal-body{padding:16px 20px}
+.modal-foot{padding:13px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+.create-grid{display:grid;grid-template-columns:230px 1fr;gap:20px}
 .type-list{display:grid;gap:8px}
-.type-card{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:12px;text-align:left;color:var(--text)}
-.type-card.active{border-color:var(--green);box-shadow:inset 0 0 0 1px rgba(24,214,107,.28)}
+.type-card{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:10px;text-align:left;color:var(--text)}
+.type-card.active{border-color:rgba(34,211,238,.65);box-shadow:inset 0 0 0 1px rgba(34,211,238,.18)}
 .type-card strong{display:block;margin-bottom:7px}
 .type-card span{color:var(--muted);font-size:.78rem}
 .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .form-grid .full{grid-column:1/-1}
-.preview-card{margin-top:16px;border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:12px}
+.form-grid.compact{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.preview-card{margin-top:12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:10px}
+.icon-control{display:flex;align-items:center;gap:9px;background:#0d131c;border:1px solid var(--line-2);border-radius:8px;padding:8px}
+.icon-preview{width:34px;height:34px;border-radius:7px;background:#111925;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--dim);font-size:.7rem;flex:none}
+.icon-preview img{width:100%;height:100%;object-fit:cover}
+.pick-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.pick-breadcrumb{color:var(--muted);font-size:.8rem}
+.pick-bc{color:#bff6ff;cursor:pointer;font-weight:850}
+.pick-folder{padding:9px 10px;border:1px solid var(--line);background:var(--panel);border-radius:7px;margin-bottom:7px;cursor:pointer}
+.pick-imgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:8px}
+.pick-img-wrap{height:58px;border:1px solid var(--line);background:#0b1119;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden}
+.pick-img-wrap:hover{border-color:rgba(34,211,238,.55)}
+.pick-img-wrap img{max-width:100%;max-height:100%;object-fit:contain}
+.pick-empty{padding:24px;text-align:center;color:var(--muted)}
 .hidden{display:none!important}
 @media(max-width:760px){
   .create-grid{grid-template-columns:1fr}
+  .form-grid.compact{grid-template-columns:1fr 1fr}
   .grid{grid-template-columns:1fr}
   .tool-row{align-items:flex-start;flex-direction:column}
 }
@@ -144,7 +174,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 <body>
 <nav class="page-nav">
   <a href="index.html" class="pnav-item">기존 숙제</a>
-  <a href="index-redesign.html" class="pnav-item active">새 숙제 UI 테스트</a>
+  <a href="index_redesign.html" class="pnav-item active">새 숙제 UI 테스트</a>
   <a href="core.html" class="pnav-item">코어현황</a>
   <a href="raid.html" class="pnav-item">레이드</a>
   <a href="overview.html" class="pnav-item">레이드 현황</a>
@@ -176,8 +206,10 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     <div class="tool-row">
       <div class="tiny" id="mode-help"></div>
       <div style="display:flex;gap:7px;flex-wrap:wrap">
+        <button class="btn" id="hide-done-btn" onclick="toggleHideCompleted()">완료 숨기기</button>
+        <button class="btn" id="show-inactive-btn" onclick="toggleShowInactive()">활성화 보이기</button>
+        <button class="btn" id="show-hidden-btn" onclick="toggleShowHiddenAccounts()">숨긴 계정 보기</button>
         <button class="btn" onclick="reloadAll()">새로고침</button>
-        <button class="btn gold" onclick="openCreateForCurrent()">+ 숙제 생성</button>
       </div>
     </div>
   </div>
@@ -206,7 +238,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
         <div>
           <div class="section-label" style="margin-top:0">숙제 기본 정보</div>
           <div class="form-grid">
-            <div class="field"><label>숙제 아이콘 URL</label><input id="task-icon-url" class="input" placeholder="없으면 표시하지 않음"></div>
+            <div class="field"><label>숙제 아이콘</label><div class="icon-control"><div class="icon-preview" id="task-icon-preview">없음</div><button class="btn" type="button" onclick="openTaskIconPicker()">선택</button><button class="btn" type="button" onclick="setTaskIcon(null)">제거</button></div></div>
             <div class="field"><label>숙제 명</label><input id="task-name" class="input" placeholder="예: 쿠르잔 전선"></div>
             <div class="field"><label>초기화 주기</label><select id="task-reset" class="select" onchange="syncCreateReset()"><option value="daily">매일</option><option value="weekly">매주</option><option value="monthly">매월</option></select></div>
             <div class="field" id="task-reset-day-wrap"><label>초기화 요일</label><select id="task-reset-day" class="select"><option value="0">일요일</option><option value="1">월요일</option><option value="2">화요일</option><option value="3" selected>수요일</option><option value="4">목요일</option><option value="5">금요일</option><option value="6">토요일</option></select></div>
@@ -216,7 +248,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 
           <div id="config-rest">
             <div class="section-label">휴식 게이지 관련 설정</div>
-            <div class="form-grid">
+            <div class="form-grid compact">
               <div class="field"><label>최대 휴식 게이지</label><input id="rest-max" class="input" type="number" value="100"></div>
               <div class="field"><label>현재 휴식 게이지</label><input id="rest-current" class="input" type="number" value="0"></div>
               <div class="field"><label>1회 충전 게이지</label><input id="rest-charge" class="input" type="number" value="10"></div>
@@ -229,7 +261,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 
           <div id="config-check" class="hidden">
             <div class="section-label">체크박스 관련 구성</div>
-            <div class="empty">체크박스 타입은 초기화 주기와 기본 정보만 사용합니다.</div>
+            <div class="preview-card"><div class="task-title">체크박스 타입은 기본 정보와 초기화 주기만 사용합니다.</div></div>
           </div>
 
           <div id="config-step" class="hidden">
@@ -243,7 +275,26 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     </div>
     <div class="modal-foot">
       <button class="btn" onclick="closeModal('modal-create')">취소</button>
-      <button class="btn primary" onclick="submitCreatedTask()">추가</button>
+      <button class="btn primary" id="task-submit-btn" onclick="submitCreatedTask()">추가</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="modal-img-picker">
+  <div class="modal" style="width:min(720px,100%)">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">아이콘 선택</div>
+        <div class="tiny">기존 index.html 이미지 피커와 같은 GitHub images 폴더를 사용합니다.</div>
+      </div>
+      <button class="btn" onclick="closeModal('modal-img-picker')">닫기</button>
+    </div>
+    <div class="modal-body">
+      <div class="pick-head">
+        <div class="pick-breadcrumb" id="picker-breadcrumb"></div>
+        <button class="btn danger" onclick="pickerRemoveIcon()">아이콘 제거</button>
+      </div>
+      <div id="picker-content"></div>
     </div>
   </div>
 </div>
@@ -265,8 +316,17 @@ const state={
   raidTasks:{},
   currencies:{},
   notes:{},
+  presets:{},
+  raidGroupSettings:{},
+  hiddenAccounts:new Set(JSON.parse(localStorage.getItem('la_hidden_accs')||'[]')),
+  showHiddenAccounts:false,
+  hideCompleted:localStorage.getItem('la_redesign_hide_done')==='1',
+  showInactive:localStorage.getItem('la_redesign_show_inactive')==='1',
+  busy:new Set(),
   createType:'rest',
-  createTarget:null
+  createTarget:null,
+  editTarget:null,
+  taskIconUrl:null
 };
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
@@ -279,6 +339,8 @@ function appNowIso(){return appNow().toISOString();}
 function updateClock(){const k=new Date(appNow().getTime()+9*3600000),p=n=>String(n).padStart(2,'0');document.getElementById('clock').textContent=`KST ${p(k.getUTCHours())}:${p(k.getUTCMinutes())} (${DAYS[k.getUTCDay()]})`;}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
+function withBusy(key){if(state.busy.has(key))return false;state.busy.add(key);return true;}
+function clearBusy(key){state.busy.delete(key);}
 
 async function init(){
   const cfg=getConfig();
@@ -304,7 +366,8 @@ async function reloadAll(){
   if(accRes.error||charRes.error){toast('데이터 로딩 실패');console.error(accRes.error||charRes.error);return;}
   state.accounts=accRes.data||[];
   state.chars=charRes.data||[];
-  if(!state.selectedAccount||!state.accounts.some(a=>a.id===state.selectedAccount))state.selectedAccount=state.accounts[0]?.id||null;
+  const firstVisible=visibleAccounts()[0]||state.accounts[0]||null;
+  if(!state.selectedAccount||!state.accounts.some(a=>a.id===state.selectedAccount)||(!state.showHiddenAccounts&&state.hiddenAccounts.has(state.selectedAccount)))state.selectedAccount=firstVisible?.id||null;
   await loadAccountData();
   render();
   toast('불러왔습니다');
@@ -312,7 +375,7 @@ async function reloadAll(){
 
 async function loadAccountData(){
   const chars=selectedCharsForAccount();
-  const accIds=state.accounts.map(a=>a.id);
+  const accIds=visibleAccounts().map(a=>a.id);
   const charJobs=chars.flatMap(ch=>[
     sb.from('tasks').select('*').eq('character_id',ch.id).order('sort_order').order('created_at').then(r=>{state.tasks[ch.id]=r.data||[];if(r.error)console.warn(r.error);}),
     sb.from('raid_tasks').select('*').eq('character_id',ch.id).order('sort_order').order('created_at').then(r=>{state.raidTasks[ch.id]=r.data||[];if(r.error)console.warn(r.error);}),
@@ -321,14 +384,45 @@ async function loadAccountData(){
   ]);
   const expJobs=accIds.map(id=>sb.from('expedition_tasks').select('*').eq('account_id',id).order('sort_order').order('created_at').then(r=>{state.expTasks[id]=r.data||[];if(r.error)console.warn(r.error);}));
   await Promise.all([...charJobs,...expJobs]);
+  await loadRaidMetaForCurrent();
 }
 
 function selectedAccount(){return state.accounts.find(a=>a.id===state.selectedAccount)||null;}
+function isAccountHidden(id){return state.hiddenAccounts.has(id);}
+function visibleAccounts(){return state.accounts.filter(a=>state.showHiddenAccounts||!isAccountHidden(a.id));}
 function selectedCharsForAccount(){return state.chars.filter(c=>c.account_id===state.selectedAccount);}
-function visibleChars(){const chars=selectedCharsForAccount();return state.selectedChar==='all'?chars:chars.filter(c=>c.id===state.selectedChar);}
+function visibleChars(){return selectedCharsForAccount();}
 function setMode(mode){state.mode=mode;state.selectedChar='all';render();}
 async function selectAccount(id){state.selectedAccount=id;state.selectedChar='all';await loadAccountData();render();}
 function selectChar(id){state.selectedChar=id;render();}
+async function loadRaidMetaForCurrent(){
+  const ids=[...new Set(visibleChars().flatMap(ch=>(state.raidTasks[ch.id]||[]).map(t=>t.preset_id).filter(Boolean)))];
+  state.presets={};
+  state.raidGroupSettings={};
+  if(ids.length){
+    const {data,error}=await sb.from('raid_presets').select('*').in('id',ids);
+    if(!error)(data||[]).forEach(p=>{state.presets[p.id]=p;});
+  }
+  const {data:groups,error:gErr}=await sb.from('raid_group_settings').select('*');
+  if(!gErr)(groups||[]).forEach(g=>{state.raidGroupSettings[g.name]=g;});
+}
+function toggleHideCompleted(){state.hideCompleted=!state.hideCompleted;localStorage.setItem('la_redesign_hide_done',state.hideCompleted?'1':'0');render();}
+function toggleShowInactive(){state.showInactive=!state.showInactive;localStorage.setItem('la_redesign_show_inactive',state.showInactive?'1':'0');render();}
+async function toggleShowHiddenAccounts(){
+  state.showHiddenAccounts=!state.showHiddenAccounts;
+  const first=visibleAccounts()[0]||state.accounts[0]||null;
+  if(!state.selectedAccount||(!state.showHiddenAccounts&&state.hiddenAccounts.has(state.selectedAccount)))state.selectedAccount=first?.id||null;
+  await loadAccountData();
+  render();
+}
+async function toggleHideAccount(event,id){
+  if(event)event.stopPropagation();
+  if(state.hiddenAccounts.has(id))state.hiddenAccounts.delete(id);else state.hiddenAccounts.add(id);
+  localStorage.setItem('la_hidden_accs',JSON.stringify([...state.hiddenAccounts]));
+  if(!state.showHiddenAccounts&&state.selectedAccount===id)state.selectedAccount=(visibleAccounts()[0]||state.accounts[0]||{}).id||null;
+  await loadAccountData();
+  render();
+}
 
 function getLastResetUTC(type,day){
   const now=appNow();
@@ -345,6 +439,8 @@ function isActive(t){
 function isDaily(t){return (t.reset_type||'daily')==='daily';}
 function isWeeklyMonthly(t){return (t.reset_type||'daily')!=='daily';}
 function resetText(t){const type=t.reset_type||'daily';if(type==='daily')return'매일 06시';if(type==='monthly')return'매월 1일 06시';return`매주 ${DAYS[t.reset_day||3]}요일`;}
+function applyTaskFilters(list){return (list||[]).filter(t=>(state.showInactive||isActive(t))&&(!state.hideCompleted||!isDone(t)));}
+function applyDoneFilter(list){return (list||[]).filter(t=>!state.hideCompleted||!isDone(t));}
 function restInfo(t){
   const max=Math.max(1,Number(t.rest_max)||100);
   const cur=Math.max(0,Math.min(Number(t.rest_current)||0,max));
@@ -357,6 +453,9 @@ function restInfo(t){
 
 function render(){
   document.querySelectorAll('.mode-tab').forEach(b=>b.classList.toggle('active',b.dataset.mode===state.mode));
+  const hd=document.getElementById('hide-done-btn');if(hd){hd.textContent=state.hideCompleted?'완료 보이기':'완료 숨기기';hd.classList.toggle('active',state.hideCompleted);}
+  const ia=document.getElementById('show-inactive-btn');if(ia){ia.textContent=state.showInactive?'활성화 숨기기':'활성화 보이기';ia.classList.toggle('active',state.showInactive);}
+  const sh=document.getElementById('show-hidden-btn');if(sh){const n=state.hiddenAccounts.size;sh.textContent=state.showHiddenAccounts?'숨긴 계정 접기':`숨긴 계정 보기${n?` ${n}`:''}`;sh.classList.toggle('active',state.showHiddenAccounts);sh.style.display=n?'inline-flex':'none';}
   renderAccountTabs();
   renderCharTabs();
   const content=document.getElementById('content');
@@ -369,15 +468,13 @@ function renderAccountTabs(){
   const el=document.getElementById('account-tabs');
   if(state.mode==='account'){el.classList.add('hidden');return;}
   el.classList.remove('hidden');
-  el.innerHTML=state.accounts.map(a=>`<button class="pill ${a.id===state.selectedAccount?'active':''}" onclick="selectAccount('${a.id}')">${esc(a.name)}</button>`).join('');
+  const accounts=visibleAccounts();
+  el.innerHTML=accounts.map(a=>`<span class="account-chip"><button class="pill ${a.id===state.selectedAccount?'active':''} ${isAccountHidden(a.id)?'hidden-account':''}" onclick="selectAccount('${a.id}')">${esc(a.name)}</button><button class="account-eye" title="${isAccountHidden(a.id)?'계정 표시':'계정 숨김'}" onclick="toggleHideAccount(event,'${a.id}')">${isAccountHidden(a.id)?'보기':'숨김'}</button></span>`).join('');
 }
 function renderCharTabs(){
   const el=document.getElementById('character-tabs');
-  if(state.mode==='account'){el.classList.add('hidden');return;}
-  el.classList.remove('hidden');
-  const chars=selectedCharsForAccount();
-  el.innerHTML=`<button class="pill all ${state.selectedChar==='all'?'active':''}" onclick="selectChar('all')">전체 서버</button>`+
-    chars.map(c=>`<button class="pill ${state.selectedChar===c.id?'active':''}" onclick="selectChar('${c.id}')">${esc(c.name)}</button>`).join('');
+  el.classList.add('hidden');
+  el.innerHTML='';
 }
 function renderDaily(content){
   document.getElementById('mode-help').textContent='선택한 계정의 모든 캐릭터 일일 숙제와 재화를 한 화면에서 체크합니다.';
@@ -391,7 +488,8 @@ function renderWeekly(content){
 }
 function renderAccountTasks(content){
   document.getElementById('mode-help').textContent='원정대 숙제를 계정별로 모아 봅니다.';
-  content.innerHTML=`<div class="account-grid">${state.accounts.map(renderAccountCard).join('')||'<div class="empty">계정이 없습니다</div>'}</div>`;
+  const accounts=visibleAccounts();
+  content.innerHTML=`<div class="account-grid">${accounts.map(renderAccountCard).join('')||'<div class="empty">계정이 없습니다</div>'}</div>`;
 }
 
 function charHeader(ch,tasks,hot=false){
@@ -403,7 +501,7 @@ function charHeader(ch,tasks,hot=false){
   </div>`;
 }
 function renderDailyCard(ch){
-  const tasks=(state.tasks[ch.id]||[]).filter(t=>!t.parent_id&&isDaily(t)&&isActive(t));
+  const tasks=applyTaskFilters((state.tasks[ch.id]||[]).filter(t=>!t.parent_id&&isDaily(t)));
   const curr=state.currencies[ch.id]||[];
   const hot=tasks.length&&tasks.some(t=>!isDone(t));
   return`<section class="char-card ${hot?'hot':''} ${tasks.length&&tasks.every(isDone)?'done':''}">
@@ -417,8 +515,8 @@ function renderDailyCard(ch){
   </section>`;
 }
 function renderWeeklyCard(ch){
-  const tasks=(state.tasks[ch.id]||[]).filter(t=>!t.parent_id&&isWeeklyMonthly(t)&&isActive(t));
-  const raids=(state.raidTasks[ch.id]||[]);
+  const tasks=applyTaskFilters((state.tasks[ch.id]||[]).filter(t=>!t.parent_id&&isWeeklyMonthly(t)));
+  const raids=applyDoneFilter(state.raidTasks[ch.id]||[]);
   const notes=(state.notes[ch.id]||[]);
   const checkables=[...tasks,...raids];
   return`<section class="char-card ${checkables.length&&checkables.every(isDone)?'done':''}">
@@ -434,52 +532,58 @@ function renderWeeklyCard(ch){
   </section>`;
 }
 function renderAccountCard(acc){
-  const tasks=(state.expTasks[acc.id]||[]).filter(t=>!t.parent_id&&isActive(t));
+  const tasks=applyTaskFilters((state.expTasks[acc.id]||[]).filter(t=>!t.parent_id));
   return`<section class="account-card">
-    <div class="account-head"><div class="account-title">${esc(acc.name)}</div><div class="card-tools"><span class="tag ${tasks.length&&tasks.every(isDone)?'green':''}">${tasks.filter(isDone).length}/${tasks.length}</span><button class="btn icon" onclick="openCreateTask('account','${acc.id}','weekly')">+</button></div></div>
+    <div class="account-head"><div><div class="account-title">${esc(acc.name)}</div>${isAccountHidden(acc.id)?'<div class="tiny">숨김 처리된 계정</div>':''}</div><div class="card-tools"><button class="account-eye" onclick="toggleHideAccount(event,'${acc.id}')">${isAccountHidden(acc.id)?'보기':'숨김'}</button><span class="tag ${tasks.length&&tasks.every(isDone)?'green':''}">${tasks.filter(isDone).length}/${tasks.length}</span><button class="btn icon" onclick="openCreateTask('account','${acc.id}','weekly')">+</button></div></div>
     <div class="card-body">${tasks.length?tasks.map(t=>taskRow(t,true,acc.id)).join(''):'<div class="empty">원정대 숙제가 없습니다</div>'}</div>
   </section>`;
 }
 function taskRow(t,isExp,ownerId){
   const done=isDone(t),step=t.count_max!=null,rest=!!t.rest_enabled;
   return`<div class="task-row ${done?'done':''}" id="task-${t.id}">
-    <button class="check ${done?'on':''}" onclick="${step?`setTaskCount('${t.id}',${isExp},'${ownerId}',${done?0:t.count_max})`:`toggleTask('${t.id}',${isExp},'${ownerId}')`}">✓</button>
     <div class="task-main">
       <div class="task-title">${iconImg(t.icon_url)}<span>${esc(t.name)}</span></div>
       <div class="task-meta"><span class="tag">${resetText(t)}</span>${t.activate_day!=null?`<span class="tag">활성 ${DAYS[t.activate_day]}요일</span>`:''}</div>
       ${rest?restBox(t,isExp,ownerId):''}
+      <div class="row-actions"><button class="mini-btn" title="수정" onclick="openEditTask('${t.id}',${isExp},'${ownerId}')">수정</button><button class="mini-btn danger" title="삭제" onclick="deleteTask('${t.id}',${isExp},'${ownerId}')">삭제</button></div>
     </div>
-    <div>${step?stepDots(t,isExp,ownerId):''}</div>
+    <div class="task-control">${step?stepDots(t,isExp,ownerId):`<button class="check ${done?'on':''}" onclick="toggleTask('${t.id}',${isExp},'${ownerId}')">${done?'완료':'체크'}</button>`}</div>
   </div>`;
 }
 function stepDots(t,isExp,ownerId){
   const max=Number(t.count_max)||1,cur=Number(t.count_current)||0;
   let html='<div class="step-wrap">';
-  for(let i=1;i<=max;i++)html+=`<button class="step-dot ${cur>=i?'on':''}" onclick="setTaskCount('${t.id}',${isExp},'${ownerId}',${i})">${i}</button>`;
+  for(let i=1;i<=max;i++){const next=cur===i?i-1:i;html+=`<button class="step-dot ${cur>=i?'on':''}" onclick="setTaskCount('${t.id}',${isExp},'${ownerId}',${next})">${i}</button>`;}
   return html+'</div>';
 }
 function restBox(t,isExp,ownerId){
   const r=restInfo(t),groups=[];
   for(let i=0;i<r.totalCells;i+=r.cellsPerUse){
+    const start=i*r.charge,end=Math.min(r.max,(i+r.cellsPerUse)*r.charge);
+    const pct=Math.max(0,Math.min(100,((r.cur-start)/(end-start))*100));
     let cells='';
     for(let j=i;j<Math.min(i+r.cellsPerUse,r.totalCells);j++){
       const val=Math.min(r.max,(j+1)*r.charge);
-      cells+=`<button class="rest-seg ${r.cur>=val?'filled':''}" title="${val}" onclick="setRest('${t.id}',${isExp},'${ownerId}',${val})"></button>`;
+      const left=(j-i)/r.cellsPerUse*100,width=100/r.cellsPerUse;
+      cells+=`<button class="rest-hit" style="left:${left}%;width:${width}%;" title="${val}" onclick="setRest('${t.id}',${isExp},'${ownerId}',${val})"></button>`;
     }
-    groups.push(`<div class="rest-group">${cells}</div>`);
+    groups.push(`<div class="rest-group" style="--fill:${pct}%">${cells}</div>`);
   }
   return`<div class="rest-box"><div class="rest-line"><span>강조 ${r.threshold} · 충전 ${r.charge}</span><b>${r.cur}/${r.max}</b></div><div class="rest-segments">${groups.join('')}</div></div>`;
 }
 function raidRow(t,charId){
   const done=isDone(t),diffClass=String(t.difficulty||'').includes('하드')?'hard':String(t.difficulty||'').includes('나이트')?'nightmare':'normal';
+  const preset=state.presets[t.preset_id]||{};
+  const rn=preset.name||t.name;
+  const icon=preset.icon_url||state.raidGroupSettings[rn]?.icon_url||'';
   const flow=Math.max(0,(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0)),bound=Number(t.bound_gold)||0,bonus=Number(t.bonus_gold)||0;
   return`<div class="raid-row ${done?'done':''}">
-    <button class="check ${done?'on':''}" onclick="toggleRaid('${t.id}','${charId}')">✓</button>
     <div class="task-main">
-      <div class="raid-title"><span class="raid-name">${esc(t.name)}</span>${t.difficulty?`<span class="diff ${diffClass}">${esc(t.difficulty)}</span>`:''}</div>
+      <div class="raid-title">${iconImg(icon)}<span class="raid-name">${esc(rn)}</span>${t.difficulty?`<span class="diff ${diffClass}">${esc(t.difficulty)}</span>`:''}</div>
       <div class="task-meta">${t.entry_level?`<span class="tag">입장 ${t.entry_level}</span>`:''}${flow||bound?`<span class="tag gold">골드 ${flow.toLocaleString()} / 귀속 ${bound.toLocaleString()}</span>`:''}${bonus?`<span class="tag purple">더보기 ${bonus.toLocaleString()}</span>`:''}</div>
+      <div class="row-actions"><button class="mini-btn danger" onclick="deleteRaidTask('${t.id}','${charId}')">삭제</button></div>
     </div>
-    <span class="tag">${done?'완료':'대기'}</span>
+    <button class="check ${done?'on':''}" onclick="toggleRaid('${t.id}','${charId}')">${done?'완료':'체크'}</button>
   </div>`;
 }
 function currencyRow(c,charId){
@@ -490,35 +594,44 @@ function currencyRow(c,charId){
 }
 
 async function toggleTask(id,isExp,ownerId){
+  const key=`task:${id}`;if(!withBusy(key))return;
   const list=isExp?(state.expTasks[ownerId]||[]):(state.tasks[ownerId]||[]);
-  const t=list.find(x=>x.id===id);if(!t)return;
+  const t=list.find(x=>x.id===id);if(!t){clearBusy(key);return;}
   const done=!isDone(t),up={is_completed:done,last_completed_at:done?appNowIso():null};
   if(t.count_max!=null)up.count_current=done?t.count_max:0;
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
+  clearBusy(key);
   if(error){toast('저장 실패');return;}
   Object.assign(t,up);render();
 }
 async function setTaskCount(id,isExp,ownerId,val){
+  const key=`task:${id}`;if(!withBusy(key))return;
   const list=isExp?(state.expTasks[ownerId]||[]):(state.tasks[ownerId]||[]);
-  const t=list.find(x=>x.id===id);if(!t)return;
+  const t=list.find(x=>x.id===id);if(!t){clearBusy(key);return;}
   const max=Number(t.count_max)||1,cur=Math.max(0,Math.min(Number(val)||0,max)),done=cur>=max;
   const up={count_current:cur,is_completed:done,last_completed_at:done?appNowIso():null};
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
+  clearBusy(key);
   if(error){toast('저장 실패');return;}
   Object.assign(t,up);render();
 }
 async function setRest(id,isExp,ownerId,val){
+  if(!id||id==='undefined')return;
+  const key=`rest:${id}`;if(!withBusy(key))return;
   const list=isExp?(state.expTasks[ownerId]||[]):(state.tasks[ownerId]||[]);
-  const t=list.find(x=>x.id===id);if(!t)return;
+  const t=list.find(x=>x.id===id);if(!t){clearBusy(key);return;}
   const cur=Math.max(0,Math.min(Number(val)||0,Number(t.rest_max)||100));
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update({rest_current:cur}).eq('id',id);
+  clearBusy(key);
   if(error){toast('휴식 게이지 저장 실패');return;}
   t.rest_current=cur;render();
 }
 async function toggleRaid(id,charId){
-  const t=(state.raidTasks[charId]||[]).find(x=>x.id===id);if(!t)return;
+  const key=`raid:${id}`;if(!withBusy(key))return;
+  const t=(state.raidTasks[charId]||[]).find(x=>x.id===id);if(!t){clearBusy(key);return;}
   const done=!isDone(t),up={is_completed:done,last_completed_at:done?appNowIso():null};
   const {error}=await sb.from('raid_tasks').update(up).eq('id',id);
+  clearBusy(key);
   if(error){toast('저장 실패');return;}
   Object.assign(t,up);render();
 }
@@ -527,11 +640,33 @@ async function adjustCurrency(id,charId,delta){
   await setCurrency(id,charId,(Number(c.amount)||0)+delta);
 }
 async function setCurrency(id,charId,val){
-  const c=(state.currencies[charId]||[]).find(x=>x.id===id);if(!c)return;
+  const key=`curr:${id}`;if(!withBusy(key))return;
+  const c=(state.currencies[charId]||[]).find(x=>x.id===id);if(!c){clearBusy(key);return;}
   const amount=Math.max(0,Number(val)||0),now=appNowIso();
   const {error}=await sb.from('currencies').update({amount,updated_at:now}).eq('id',id);
+  clearBusy(key);
   if(error){toast('재화 저장 실패');return;}
   c.amount=amount;c.updated_at=now;render();
+}
+async function deleteTask(id,isExp,ownerId){
+  const list=isExp?(state.expTasks[ownerId]||[]):(state.tasks[ownerId]||[]);
+  const t=list.find(x=>x.id===id);if(!t)return;
+  if(!confirm(`"${t.name}" 숙제를 삭제하시겠습니까? 하위 숙제도 함께 삭제됩니다.`))return;
+  const table=isExp?'expedition_tasks':'tasks';
+  const {error}=await sb.from(table).delete().eq('id',id);
+  if(error){toast('삭제 실패');return;}
+  const next=list.filter(x=>x.id!==id&&x.parent_id!==id);
+  if(isExp)state.expTasks[ownerId]=next;else state.tasks[ownerId]=next;
+  render();toast('삭제했습니다');
+}
+async function deleteRaidTask(id,charId){
+  const list=state.raidTasks[charId]||[];
+  const t=list.find(x=>x.id===id);if(!t)return;
+  if(!confirm(`"${t.name}" 레이드 숙제를 삭제하시겠습니까?`))return;
+  const {error}=await sb.from('raid_tasks').delete().eq('id',id);
+  if(error){toast('삭제 실패');return;}
+  state.raidTasks[charId]=list.filter(x=>x.id!==id);
+  render();toast('삭제했습니다');
 }
 
 function openCreateForCurrent(){
@@ -545,10 +680,11 @@ function openCreateForCurrent(){
 }
 function openCreateTask(scope,id,resetType){
   state.createTarget={scope,id};
+  state.editTarget=null;
   state.createType='rest';
   document.querySelectorAll('.type-card').forEach(b=>b.classList.toggle('active',b.dataset.type==='rest'));
   document.getElementById('task-name').value='';
-  document.getElementById('task-icon-url').value='';
+  setTaskIcon(null);
   document.getElementById('task-reset').value=resetType||'daily';
   document.getElementById('task-reset-day').value='3';
   document.getElementById('task-activate-enabled').checked=false;
@@ -556,6 +692,34 @@ function openCreateTask(scope,id,resetType){
   const name=scope==='account'?(state.accounts.find(a=>a.id===id)?.name||'계정'):(state.chars.find(c=>c.id===id)?.name||'캐릭터');
   document.getElementById('create-title').textContent=scope==='account'?'계정 숙제 생성':'캐릭터 숙제 생성';
   document.getElementById('create-target').textContent=`대상: ${name}`;
+  document.getElementById('task-submit-btn').textContent='추가';
+  renderRestPreview();
+  openModal('modal-create');
+}
+function openEditTask(id,isExp,ownerId){
+  const list=isExp?(state.expTasks[ownerId]||[]):(state.tasks[ownerId]||[]);
+  const t=list.find(x=>x.id===id);if(!t)return;
+  state.createTarget={scope:isExp?'account':'char',id:ownerId};
+  state.editTarget={id,isExp,ownerId};
+  const type=t.rest_enabled?'rest':t.count_max!=null?'step':'check';
+  document.getElementById('task-name').value=t.name||'';
+  setTaskIcon(t.icon_url||null);
+  document.getElementById('task-reset').value=t.reset_type||'daily';
+  document.getElementById('task-reset-day').value=String(t.reset_day??3);
+  document.getElementById('task-activate-enabled').checked=t.activate_day!=null;
+  if(t.activate_day!=null)document.getElementById('task-activate-day').value=String(t.activate_day);
+  document.getElementById('step-max').value=t.count_max??3;
+  document.getElementById('rest-max').value=t.rest_max??100;
+  document.getElementById('rest-current').value=t.rest_current??0;
+  document.getElementById('rest-charge').value=t.rest_charge??10;
+  document.getElementById('rest-consume').value=t.rest_consume??20;
+  document.getElementById('rest-daily-limit').value=t.rest_daily_limit??1;
+  document.getElementById('rest-threshold').value=t.rest_threshold??0;
+  syncCreateReset();syncCreateActivate();selectCreateType(type);
+  const name=isExp?(state.accounts.find(a=>a.id===ownerId)?.name||'계정'):(state.chars.find(c=>c.id===ownerId)?.name||'캐릭터');
+  document.getElementById('create-title').textContent=isExp?'계정 숙제 수정':'캐릭터 숙제 수정';
+  document.getElementById('create-target').textContent=`대상: ${name}`;
+  document.getElementById('task-submit-btn').textContent='저장';
   renderRestPreview();
   openModal('modal-create');
 }
@@ -579,7 +743,7 @@ async function submitCreatedTask(){
   const resetType=document.getElementById('task-reset').value;
   const resetDay=resetType==='weekly'?Number(document.getElementById('task-reset-day').value):3;
   const activateDay=document.getElementById('task-activate-enabled').checked?Number(document.getElementById('task-activate-day').value):null;
-  const rec={name,icon_url:document.getElementById('task-icon-url').value.trim()||null,reset_type:resetType,reset_day:resetDay,activate_day:activateDay,count_max:null,rest_enabled:false,rest_current:0,rest_max:200,rest_charge:20,rest_consume:40,rest_threshold:40,rest_daily_limit:1,rest_last_processed_at:null};
+  const rec={name,icon_url:state.taskIconUrl||null,reset_type:resetType,reset_day:resetDay,activate_day:activateDay,count_max:null,rest_enabled:false,rest_current:0,rest_max:200,rest_charge:20,rest_consume:40,rest_threshold:40,rest_daily_limit:1,rest_last_processed_at:null};
   if(state.createType==='step'){rec.count_max=Math.max(2,Number(document.getElementById('step-max').value)||3);rec.count_current=0;}
   if(state.createType==='rest'){
     rec.rest_enabled=true;
@@ -593,6 +757,14 @@ async function submitCreatedTask(){
   }
   const isExp=target.scope==='account';
   const table=isExp?'expedition_tasks':'tasks';
+  if(state.editTarget){
+    const {id,ownerId}=state.editTarget;
+    const {error}=await sb.from(table).update(rec).eq('id',id);
+    if(error){toast('숙제 저장 실패');console.error(error);return;}
+    const list=isExp?(state.expTasks[ownerId]||[]):(state.tasks[ownerId]||[]);
+    const t=list.find(x=>x.id===id);if(t)Object.assign(t,rec);
+    closeModal('modal-create');state.editTarget=null;render();toast('저장했습니다');return;
+  }
   if(isExp){rec.account_id=target.id;rec.sort_order=(state.expTasks[target.id]||[]).filter(t=>!t.parent_id).length;}
   else{rec.character_id=target.id;rec.sort_order=(state.tasks[target.id]||[]).filter(t=>!t.parent_id).length;}
   const {data,error}=await sb.from(table).insert(rec).select().single();
@@ -601,6 +773,52 @@ async function submitCreatedTask(){
   else{if(!state.tasks[target.id])state.tasks[target.id]=[];state.tasks[target.id].push(data);}
   closeModal('modal-create');render();toast('숙제를 추가했습니다');
 }
+
+function setTaskIcon(url){
+  state.taskIconUrl=url||null;
+  const el=document.getElementById('task-icon-preview');
+  if(el)el.innerHTML=state.taskIconUrl?`<img src="${esc(state.taskIconUrl)}" alt="">`:'없음';
+}
+function openTaskIconPicker(){openImagePicker(url=>setTaskIcon(url));}
+
+const ICON_REPO=localStorage.getItem('la_icon_repo')||'ghk71/LoAHomeworkCheck';
+const ICON_RAW=`https://raw.githubusercontent.com/${ICON_REPO}/main/`;
+const ICON_API=`https://api.github.com/repos/${ICON_REPO}/contents/`;
+let pickerCallback=null;
+async function openImagePicker(cb,path='images/'){
+  pickerCallback=cb;
+  document.getElementById('picker-content').innerHTML='<div class="pick-empty">불러오는 중...</div>';
+  openModal('modal-img-picker');
+  await loadPickerDir(path);
+}
+async function loadPickerDir(path){
+  const cKey='la_ic_'+path;
+  let items;
+  try{const cached=sessionStorage.getItem(cKey);if(cached)items=JSON.parse(cached);}catch{}
+  if(!items){
+    const r=await fetch(ICON_API+path);
+    if(!r.ok){document.getElementById('picker-content').innerHTML='<div class="pick-empty">폴더를 불러올 수 없습니다</div>';return;}
+    items=await r.json();
+    try{sessionStorage.setItem(cKey,JSON.stringify(items));}catch{}
+  }
+  const dirs=items.filter(x=>x.type==='dir');
+  const imgs=items.filter(x=>x.type==='file'&&/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(x.name));
+  const parts=path.replace(/^images\//,'').split('/').filter(Boolean);
+  let bc=`<span class="pick-bc" onclick="loadPickerDir('images/')">images</span>`;
+  let cum='images/';
+  parts.forEach(p=>{cum+=p+'/';bc+=` / <span class="pick-bc" onclick="loadPickerDir('${cum}')">${esc(p)}</span>`;});
+  document.getElementById('picker-breadcrumb').innerHTML=bc;
+  let html='';
+  if(dirs.length)html+=dirs.map(d=>`<div class="pick-folder" onclick="loadPickerDir('${path}${d.name}/')">폴더 ${esc(d.name)}</div>`).join('');
+  if(imgs.length)html+=`<div class="pick-imgs">${imgs.map(f=>{const url=ICON_RAW+f.path;return`<div class="pick-img-wrap" title="${esc(f.name)}" onclick="selectPickerImg('${url}')"><img src="${url}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`;}).join('')}</div>`;
+  if(!html)html='<div class="pick-empty">이미지가 없습니다</div>';
+  document.getElementById('picker-content').innerHTML=html;
+}
+function selectPickerImg(url){if(pickerCallback)pickerCallback(url);closeModal('modal-img-picker');}
+function pickerRemoveIcon(){if(pickerCallback)pickerCallback(null);closeModal('modal-img-picker');}
+
+document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'));});
 
 init();
 </script>
