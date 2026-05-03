@@ -37,10 +37,10 @@ button,input,select,textarea{font:inherit}
 button{cursor:pointer}
 input[type=number]{appearance:textfield;-moz-appearance:textfield}
 input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{appearance:none;margin:0}
-.page-nav{height:38px;background:rgba(8,11,16,.88);border-bottom:1px solid var(--line);display:flex;align-items:stretch;backdrop-filter:blur(16px)}
-.pnav-item{padding:0 18px;display:flex;align-items:center;color:var(--muted);text-decoration:none;border-right:1px solid var(--line);font-size:.78rem;font-weight:820}
+.page-nav{height:42px;background:rgba(8,11,16,.9);border-bottom:1px solid var(--line);display:flex;align-items:stretch;backdrop-filter:blur(16px)}
+.pnav-item{padding:0 22px;display:flex;align-items:center;gap:6px;color:var(--muted);text-decoration:none;border-right:1px solid var(--line);font-size:.82rem;font-weight:850;white-space:nowrap}
 .pnav-item:hover,.pnav-item.active{color:var(--text);background:rgba(255,255,255,.045)}
-.pnav-item.active{box-shadow:inset 0 -2px 0 var(--accent)}
+.pnav-item.active{box-shadow:inset 0 -2px 0 var(--accent);color:#eefcff}
 .setup{min-height:calc(100vh - 36px);display:flex;align-items:center;justify-content:center;padding:24px}
 .setup-card{width:min(560px,100%);background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:28px;box-shadow:var(--shadow)}
 .setup-card h1{margin:0 0 8px;font-size:1.2rem}
@@ -255,12 +255,11 @@ body.manage-active .mode-done{display:inline-flex}
 </head>
 <body>
 <nav class="page-nav">
-  <a href="index.html" class="pnav-item">기존 숙제</a>
-  <a href="index_redesign.html" class="pnav-item active">새 숙제 UI 테스트</a>
-  <a href="core.html" class="pnav-item">코어현황</a>
-  <a href="raid.html" class="pnav-item">레이드</a>
-  <a href="overview.html" class="pnav-item">레이드 현황</a>
-  <a href="parties.html" class="pnav-item">파티 현황</a>
+  <a href="index.html" class="pnav-item active">⚔️ 숙제</a>
+  <a href="core.html" class="pnav-item">🔮 코어현황</a>
+  <a href="raid.html" class="pnav-item">🏰 레이드</a>
+  <a href="overview.html" class="pnav-item">📊 레이드 현황</a>
+  <a href="parties.html" class="pnav-item">👥 파티 현황</a>
 </nav>
 
 <section class="setup" id="setup">
