@@ -1321,6 +1321,7 @@ if(isViewer)document.getElementById('viewer-banner').classList.add('show');
 const VIEWER_ACC_KEY='la_viewer_account_id';
 let viewerPendingCharId=null;
 function getConfig(){if(isViewer)return viewerCreds;const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
+function safeJson(key,fallback){try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback;}catch(e){console.warn('localStorage JSON parse failed:',key,e);return fallback;}}
 function viewerScopeCharIds(accs,chars,accId){
   const subIds=(accs||[]).filter(a=>a.parent_account_id===accId).map(a=>a.id);
   const ids=new Set([accId,...subIds]);
@@ -1456,14 +1457,16 @@ async function loadViewerOverview(el){
   const raidCharIds=new Set((rtasks||[]).map(t=>t.character_id));
   const scopedViewerChars=(chars||[]).filter(c=>allowedCharIds.has(c.id)&&(raidCharIds.has(c.id)||c.id===viewerPendingCharId));
   let selectedViewerChars;
-  const savedViewerChars=localStorage.getItem('la_viewer_ov_chars');
-  try{selectedViewerChars=savedViewerChars?new Set(JSON.parse(savedViewerChars).filter(id=>scopedViewerChars.some(c=>c.id===id))):new Set(scopedViewerChars.map(c=>c.id));}catch{selectedViewerChars=new Set(scopedViewerChars.map(c=>c.id));}
+  const savedViewerChars=safeJson('la_viewer_ov_chars',null);
+  const scopedIds=new Set(scopedViewerChars.map(c=>c.id));
+  selectedViewerChars=new Set(Array.isArray(savedViewerChars)?savedViewerChars.filter(id=>scopedIds.has(id)):[...scopedIds]);
+  if(!selectedViewerChars.size)selectedViewerChars=new Set(scopedIds);
   if(savedViewerChars===null)localStorage.setItem('la_viewer_ov_chars',JSON.stringify([...selectedViewerChars]));
   const renderViewerFilter=()=>{
     const allIds=scopedViewerChars.map(c=>c.id);
     const filterOpen=localStorage.getItem('la_viewer_ov_filter_open')==='1';
-    const chipToggle=id=>`(()=>{const cur=new Set(JSON.parse(localStorage.getItem('la_viewer_ov_chars')||'[]'));if(cur.has('${id}'))cur.delete('${id}');else cur.add('${id}');localStorage.setItem('la_viewer_ov_chars',JSON.stringify([...cur]));loadViewerOverview(document.getElementById('viewer-overview-area'));})()`;
-    const groupToggle=ids=>`(()=>{const ids=[${ids.map(id=>`'${id}'`).join(',')}];const cur=new Set(JSON.parse(localStorage.getItem('la_viewer_ov_chars')||'[]'));if(ids.every(id=>cur.has(id)))ids.forEach(id=>cur.delete(id));else ids.forEach(id=>cur.add(id));localStorage.setItem('la_viewer_ov_chars',JSON.stringify([...cur]));loadViewerOverview(document.getElementById('viewer-overview-area'));})()`;
+    const chipToggle=id=>`(()=>{const cur=new Set(safeJson('la_viewer_ov_chars',[]));if(cur.has('${id}'))cur.delete('${id}');else cur.add('${id}');localStorage.setItem('la_viewer_ov_chars',JSON.stringify([...cur]));loadViewerOverview(document.getElementById('viewer-overview-area'));})()`;
+    const groupToggle=ids=>`(()=>{const ids=[${ids.map(id=>`'${id}'`).join(',')}];const cur=new Set(safeJson('la_viewer_ov_chars',[]));if(ids.every(id=>cur.has(id)))ids.forEach(id=>cur.delete(id));else ids.forEach(id=>cur.add(id));localStorage.setItem('la_viewer_ov_chars',JSON.stringify([...cur]));loadViewerOverview(document.getElementById('viewer-overview-area'));})()`;
     const row=(label,aChars,sub=false)=>{
       if(!aChars.length)return'';
       const ids=aChars.map(c=>c.id);
@@ -1721,8 +1724,8 @@ let sb,accounts=[],allChars=[],raids=[],parties=[],schedules=[],overrides={},not
 let selPartyId=null,selGroupName=null,weekOffset=0,partySize=4,selPresetId=null;
 let pickCtx={mode:'party',partyId:null,slotIndex:null,scheduleId:null};
 let ovrEditSchId=null;
-let openRaidGroups=new Set(JSON.parse(localStorage.getItem('la_raid_open_groups')||'[]'));
-let openRaidPresets=new Set(JSON.parse(localStorage.getItem('la_raid_open_presets')||'[]'));
+let openRaidGroups=new Set(safeJson('la_raid_open_groups',[]));
+let openRaidPresets=new Set(safeJson('la_raid_open_presets',[]));
 const WEEK_DAY_NUMS=[3,4,5,6,0,1,2];
 const DKO=['일','월','화','수','목','금','토'];
 function saveRaidOpenState(){localStorage.setItem('la_raid_open_groups',JSON.stringify([...openRaidGroups]));localStorage.setItem('la_raid_open_presets',JSON.stringify([...openRaidPresets]));}
@@ -1862,9 +1865,9 @@ function rdClean(){document.querySelectorAll('.r-drag,.r-dnd-v,.r-dnd-h,.r-dnd-d
 function getAllGroupNames(){
   const dbNames=[...new Set(raids.map(r=>r.name))];
   const settingNames=Object.keys(raidGroupSettings);
-  const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]').filter(n=>!dbNames.includes(n)&&!settingNames.includes(n));
+  const extras=safeJson('la_raid_groups',[]).filter(n=>!dbNames.includes(n)&&!settingNames.includes(n));
   const all=[...dbNames,...settingNames.filter(n=>!dbNames.includes(n)),...extras];
-  const saved=JSON.parse(localStorage.getItem('la_raid_group_order')||'[]');
+  const saved=safeJson('la_raid_group_order',[]);
   if(!saved.length)return all;
   return[...saved.filter(n=>all.includes(n)),...all.filter(n=>!saved.includes(n))];
 }
@@ -1881,7 +1884,7 @@ async function loadRaidGroupSettings(){
 }
 async function migrateLegacyRaidGroupSettings(){
   if(!raidGroupSettingsAvailable)return;
-  const names=new Set(JSON.parse(localStorage.getItem('la_raid_groups')||'[]'));
+  const names=new Set(safeJson('la_raid_groups',[]));
   for(let i=0;i<localStorage.length;i++){
     const k=localStorage.key(i);
     if(k?.startsWith('la_gicon_'))names.add(k.slice('la_gicon_'.length));
@@ -2298,14 +2301,14 @@ async function submitRaidName(){
     raids.filter(r=>r.name===oldName).forEach(r=>{r.name=name;});
     if(oldName!==name)await deleteRaidGroupSetting(oldName);
     // localStorage 그룹 이름도 업데이트
-    const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]');
+    const extras=safeJson('la_raid_groups',[]);
     const idx=extras.indexOf(oldName);if(idx>=0)extras[idx]=name;localStorage.setItem('la_raid_groups',JSON.stringify(extras));
     if(selGroupName===oldName)selGroupName=name;
     if(openRaidGroups.has(oldName)){openRaidGroups.delete(oldName);openRaidGroups.add(name);saveRaidOpenState();}
     toast('✅ 이름 변경됨');
   } else {
     // 추가: 빈 그룹도 raid_group_settings DB 테이블에 저장
-    const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]');
+    const extras=safeJson('la_raid_groups',[]);
     if(extras.includes(name))localStorage.setItem('la_raid_groups',JSON.stringify(extras.filter(n=>n!==name)));
     selGroupName=name;openRaidGroups.add(name);saveRaidOpenState();toast('✅ 레이드 추가됨');
   }
@@ -2320,7 +2323,7 @@ async function deleteGroup(groupName){
   parties=parties.filter(p=>!presetIds.has(p.preset_id));
   schedules=schedules.filter(s=>!partyIds.has(s.party_id));
   raids=raids.filter(r=>r.name!==groupName);
-  const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]').filter(n=>n!==groupName);
+  const extras=safeJson('la_raid_groups',[]).filter(n=>n!==groupName);
   localStorage.setItem('la_raid_groups',JSON.stringify(extras));
   await deleteRaidGroupSetting(groupName);
   openRaidGroups.delete(groupName);
@@ -2374,7 +2377,7 @@ async function submitDifficulty(){
     rec.name=groupName;rec.sort_order=raids.filter(r=>r.name===groupName).length;
     const{data,error}=await sb.from('raid_presets').insert(rec).select().single();if(error){toast('❗ '+error.message);return;}
     raids.push(data);selPresetId=data.id;
-    const extras=JSON.parse(localStorage.getItem('la_raid_groups')||'[]').filter(n=>n!==groupName);
+    const extras=safeJson('la_raid_groups',[]).filter(n=>n!==groupName);
     localStorage.setItem('la_raid_groups',JSON.stringify(extras));
     toast('✅ 난이도 추가됨');
   }
@@ -2451,19 +2454,20 @@ function saveSchFilter(){
 
 function initSchFilter(){
   // 기존 필터 상태 로드 (호환성 유지)
-  const saved=localStorage.getItem(SCH_FILTER_KEY);
-  if(saved){try{const ids=JSON.parse(saved);schFilterChars=new Set(ids.filter(id=>allChars.some(c=>c.id===id)));if(!schFilterChars.size)schFilterChars=null;}catch{schFilterChars=null;}}
-  else schFilterChars=null;
+  const allCharIds=new Set(allChars.map(c=>c.id));
+  const savedIds=safeJson(SCH_FILTER_KEY,null);
+  schFilterChars=Array.isArray(savedIds)?new Set(savedIds.filter(id=>allCharIds.has(id))):null;
+  if(schFilterChars&&!schFilterChars.size)schFilterChars=null;
   // 하이라이트 상태 로드
-  const hl=localStorage.getItem(SCH_HL_KEY);
+  const hlIds=safeJson(SCH_HL_KEY,null);
   const viewerAcc=isViewer?viewerSelectedAccount(accounts):null;
   if(viewerAcc){
     const allowed=viewerScopeCharIds(accounts,allChars,viewerAcc.id);
-    if(hl){try{schHighlightChars=new Set(JSON.parse(hl).filter(id=>allowed.includes(id)));}catch{schHighlightChars=new Set();}}
+    if(Array.isArray(hlIds))schHighlightChars=new Set(hlIds.filter(id=>allowed.includes(id)));
     else schHighlightChars=new Set(allowed);
     if(!schHighlightChars.size)schHighlightChars=new Set(allowed);
     localStorage.setItem(SCH_HL_KEY,JSON.stringify([...schHighlightChars]));
-  } else if(hl){try{schHighlightChars=new Set(JSON.parse(hl).filter(id=>allChars.some(c=>c.id===id)));}catch{schHighlightChars=new Set();}}
+  } else if(Array.isArray(hlIds))schHighlightChars=new Set(hlIds.filter(id=>allCharIds.has(id)));
   else schHighlightChars=new Set();
   renderSchFilter();
 }
@@ -2554,8 +2558,8 @@ function schPassesFilter(s,wk){
 // stored as: la_day_groups_perm (permanent), la_day_groups_WEEKKEY (week override)
 function getDayGroups(){
   const wk=getWeekKey(weekOffset);
-  const perm=JSON.parse(localStorage.getItem('la_day_groups_perm')||'[]');
-  const override=JSON.parse(localStorage.getItem('la_day_groups_'+wk)||'null');
+  const perm=safeJson('la_day_groups_perm',[]);
+  const override=safeJson('la_day_groups_'+wk,null);
   return override!==null?override:perm; // week override replaces permanent
 }
 function setDayGroups(groups,permanent){
@@ -2564,7 +2568,7 @@ function setDayGroups(groups,permanent){
     localStorage.setItem('la_day_groups_perm',JSON.stringify(groups));
     localStorage.removeItem('la_day_groups_'+wk); // clear any week override
   } else {
-    const perm=JSON.parse(localStorage.getItem('la_day_groups_perm')||'[]');
+    const perm=safeJson('la_day_groups_perm',[]);
     const same=JSON.stringify(groups)===JSON.stringify(perm);
     if(same)localStorage.removeItem('la_day_groups_'+wk);
     else localStorage.setItem('la_day_groups_'+wk,JSON.stringify(groups));
@@ -2611,7 +2615,7 @@ function openDayGroupModal(i){
   if(inGroup){
     const [a,b]=inGroup;
     const nameA=DKO[WEEK_DAY_NUMS[a]],nameB=DKO[WEEK_DAY_NUMS[b]];
-    const perm=JSON.parse(localStorage.getItem('la_day_groups_perm')||'[]');
+    const perm=safeJson('la_day_groups_perm',[]);
     const isPerm=perm.some(([pa,pb])=>pa===a&&pb===b);
     const wk=getWeekKey(weekOffset);
     const wkOvr=localStorage.getItem('la_day_groups_'+wk);

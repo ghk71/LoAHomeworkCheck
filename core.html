@@ -911,6 +911,7 @@ body::before{background:none;}
 <script>
 const{createClient}=supabase;
 function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
+function safeJson(key,fallback){try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback;}catch(e){console.warn('localStorage JSON parse failed:',key,e);return fallback;}}
 let sb=null,allChars=[],selectedChars=new Set(),coreData={};
 let filterCollapsed=localStorage.getItem('la_core_filter_col')==='1';
 
@@ -973,8 +974,8 @@ function applyLock(){
   if(resetBtn)resetBtn.disabled=isLocked;
   if(hiddenBtn)hiddenBtn.disabled=isLocked;
 }
-let collapsedSections=new Set(JSON.parse(localStorage.getItem('la_core_sections')||'[]'));
-let hiddenRows=new Set(JSON.parse(localStorage.getItem('la_core_hidden')||'[]'));
+let collapsedSections=new Set(safeJson('la_core_sections',[]));
+let hiddenRows=new Set(safeJson('la_core_hidden',[]));
 const TYPES=[
   {group:'질서',type:'order',cls:'sec-order',elements:[{name:'해',key:'sun'},{name:'달',key:'moon'},{name:'별',key:'star'}]},
   {group:'혼돈',type:'chaos',cls:'sec-chaos',elements:[{name:'해',key:'sun'},{name:'달',key:'moon'},{name:'별',key:'star'}]}
@@ -1010,9 +1011,10 @@ async function init(){
   const[{data:accs},{data:chars},{data:cores}]=results;
   const aOrd={};(accs||[]).forEach((a,i)=>{aOrd[a.id]=a.sort_order??i;});
   allChars=(chars||[]).filter(c=>(c.item_level||0)>=1700).sort((a,b)=>{const d=(aOrd[a.account_id]??999)-(aOrd[b.account_id]??999);return d||((a.sort_order??0)-(b.sort_order??0));});
-  const sv=localStorage.getItem('la_core_filter_sel');
-  if(sv){try{const ids=JSON.parse(sv);selectedChars=new Set(ids.filter(id=>allChars.some(c=>c.id===id)));}catch{selectedChars=new Set(allChars.map(c=>c.id));}}
-  else selectedChars=new Set(allChars.map(c=>c.id));
+  const allCharIds=new Set(allChars.map(c=>c.id));
+  const savedIds=safeJson('la_core_filter_sel',null);
+  selectedChars=new Set(Array.isArray(savedIds)?savedIds.filter(id=>allCharIds.has(id)):[...allCharIds]);
+  if(!selectedChars.size)selectedChars=new Set(allCharIds);
   (cores||[]).forEach(r=>{coreData[r.character_id]={id:r.id,cores:r.cores||{}};});
   allChars.forEach(c=>{if(!coreData[c.id])coreData[c.id]={id:null,cores:{}};});
   setViewModeUI(viewMode);

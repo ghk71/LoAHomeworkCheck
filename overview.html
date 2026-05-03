@@ -722,14 +722,19 @@ body::before{background:none;}
 <script>
 const{createClient}=supabase;
 function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
+function safeJson(key,fallback){try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback;}catch(e){console.warn('localStorage JSON parse failed:',key,e);return fallback;}}
 
 let sb,accounts=[],characters=[],raidTasks=[],tempRaidTaskIds=new Set(),tempRemovedRaidTaskIds=new Set(),tempRemovedPresetByTask={},raidGroupSettings={},raidGroupSettingsAvailable=true;
 let weekOffset=0;
-let collapsedAccs=new Set(JSON.parse(localStorage.getItem('la_ov_collapsed')||'[]'));
+let collapsedAccs=new Set(safeJson('la_ov_collapsed',[]));
 let selectedChars=new Set(); // selected character ids for filter
 let filterOpen=localStorage.getItem('la_ov_filter_open')==='1';
 
 const DAYS=['일','월','화','수','목','금','토'];
+function charsWithRaidTasks(){
+  const ids=new Set(raidTasks.map(t=>t.character_id).filter(Boolean));
+  return characters.filter(c=>ids.has(c.id));
+}
 
 // ─── Init ───
 async function init(){
@@ -750,8 +755,7 @@ async function loadAll(){
   if(firstError){toast('❗ 로딩 오류: '+firstError.message);console.error(firstError);return;}
   const[r1,r2,r3,r4]=results;
   accounts=r1.data||[];characters=r2.data||[];raidTasks=r3.data||[];
-  await loadRaidGroupSettings();
-  await loadTempRaidTaskIds();
+  await Promise.all([loadRaidGroupSettings(),loadTempRaidTaskIds()]);
   const presetsMap={};(r4.data||[]).forEach(p=>{presetsMap[p.id]=p;});
   raidTasks.forEach(t=>{
     const removedPreset=tempRemovedPresetByTask[t.id];
@@ -766,10 +770,11 @@ async function loadAll(){
   });
   await markPartyLinkedRaidTasks();
   // Init filter: all chars with raids selected by default
-  const charsWithRaids=characters.filter(c=>raidTasks.some(t=>t.character_id===c.id));
-  const saved=localStorage.getItem('la_ov_sel_chars');
-  if(saved){try{const ids=JSON.parse(saved);selectedChars=new Set(ids.filter(id=>charsWithRaids.some(c=>c.id===id)));}catch{selectedChars=new Set(charsWithRaids.map(c=>c.id));}}
-  else{selectedChars=new Set(charsWithRaids.map(c=>c.id));}
+  const charsWithRaids=charsWithRaidTasks();
+  const raidCharIds=new Set(charsWithRaids.map(c=>c.id));
+  const savedIds=safeJson('la_ov_sel_chars',null);
+  selectedChars=new Set(Array.isArray(savedIds)?savedIds.filter(id=>raidCharIds.has(id)):[...raidCharIds]);
+  if(!selectedChars.size)selectedChars=new Set(raidCharIds);
   await autoReset();
   updateWeekLabel();
   document.getElementById('loading').style.display='none';
@@ -897,7 +902,7 @@ function renderFilterBar(){
 }
 function toggleCharGroup(ids){const allOn=ids.every(id=>selectedChars.has(id));ids.forEach(id=>{if(allOn)selectedChars.delete(id);else selectedChars.add(id);});saveFilter();renderFilterBar();render();}
 function toggleChar(id){if(selectedChars.has(id))selectedChars.delete(id);else selectedChars.add(id);saveFilter();renderFilterBar();render();}
-function selectAllChars(){const ci=characters.filter(c=>raidTasks.some(t=>t.character_id===c.id));selectedChars=new Set(ci.map(c=>c.id));saveFilter();renderFilterBar();render();}
+function selectAllChars(){const ci=charsWithRaidTasks();selectedChars=new Set(ci.map(c=>c.id));saveFilter();renderFilterBar();render();}
 function deselectAllChars(){selectedChars.clear();saveFilter();renderFilterBar();render();}
 
 // ─── Render ───
