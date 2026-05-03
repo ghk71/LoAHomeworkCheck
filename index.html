@@ -1863,10 +1863,9 @@ function isEffDone(t){if(!t.is_completed||!t.last_completed_at)return false;retu
 // ★ Activation date check
 function isTaskActive(t){
   if(t.rest_enabled&&Number(t.rest_current||0)<Number(t.rest_threshold||0))return false;
-  if(t.activate_day==null||t.reset_type==='daily'||t.reset_type==='monthly')return true;
-  if(t.activate_day===t.reset_day)return true;
+  if(t.activate_day==null)return true;
   const lastActivate=getLastResetUTC('weekly',t.activate_day);
-  const lastReset=getLastResetUTC('weekly',t.reset_day);
+  const lastReset=getLastResetUTC(t.reset_type||'daily',t.reset_day);
   return lastActivate>=lastReset;
 }
 function restInfo(t){
@@ -2673,7 +2672,7 @@ function openAddTask(isExp=false,parentId=''){
     document.getElementById('rest-toggle-wrap').style.display='block';
     document.getElementById('task-reset-row').style.display='flex';
     document.getElementById('task-reset-detail-row').style.display='flex';
-    document.getElementById('activate-group').style.display='none';
+    document.getElementById('activate-group').style.display='block';
   }
   openModal('modal-task');setTimeout(()=>document.getElementById('task-name').focus(),80);
 }
@@ -2698,7 +2697,7 @@ function openEditTask(taskId,isExp){
   document.getElementById('rest-toggle-wrap').style.display=t.parent_id?'none':'block';
   document.getElementById('task-reset-row').style.display='flex';
   document.getElementById('task-reset-detail-row').style.display='flex';
-  document.getElementById('activate-group').style.display=t.reset_type==='weekly'?'block':'none';
+  document.getElementById('activate-group').style.display=t.parent_id?'none':'block';
   const hc=t.count_max!=null;
   document.getElementById('has-count').checked=hc;
   document.getElementById('count-max-row').style.display=hc?'flex':'none';
@@ -2725,7 +2724,7 @@ function fillRestForm(t){
 }
 function toggleHasRest(){const cb=document.getElementById('has-rest');cb.checked=!cb.checked;document.getElementById('rest-config-row').style.display=cb.checked?'block':'none';}
 function toggleHasActivate(){const cb=document.getElementById('has-activate');cb.checked=!cb.checked;document.getElementById('activate-day-row').style.display=cb.checked?'block':'none';}
-function onResetTypeChange(){const v=document.getElementById('task-reset').value;syncTaskGroupUI(v);document.getElementById('day-group').style.display=v==='weekly'?'block':'none';document.getElementById('activate-group').style.display=v==='weekly'?'block':'none';}
+function onResetTypeChange(){const v=document.getElementById('task-reset').value;syncTaskGroupUI(v);document.getElementById('day-group').style.display=v==='weekly'?'block':'none';document.getElementById('activate-group').style.display=document.getElementById('task-parent-id').value?'none':'block';}
 async function submitTask(){
   const name=document.getElementById('task-name').value.trim();
   const resetType=document.getElementById('task-reset').value,resetDay=parseInt(document.getElementById('task-day').value);
