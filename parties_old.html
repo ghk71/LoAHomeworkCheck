@@ -6,7 +6,6 @@
 <title>👥 파티 현황</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 
@@ -517,91 +516,6 @@ button,input,select,textarea{ font:inherit; }
 
 /* ===== list/status page polish ===== */
 .loading-full{ min-height:180px; }
-
-/* ===== index redesign visual alignment ===== */
-:root{
-  --bg:#080b10;
-  --bg-soft:#0d121a;
-  --panel:#111821;
-  --panel-2:#151e2a;
-  --panel-3:#1b2634;
-  --panel-hover:#202d3d;
-  --line:rgba(159,180,205,.13);
-  --line-2:rgba(184,202,225,.2);
-  --surface-1:var(--bg-soft);
-  --surface-2:var(--panel);
-  --surface-3:var(--panel-2);
-  --surface-4:var(--panel-hover);
-  --s1:var(--surface-1);
-  --s2:var(--surface-2);
-  --s3:var(--surface-3);
-  --s4:var(--surface-4);
-  --border:var(--line);
-  --border-lit:var(--line-2);
-  --text:#eef4fb;
-  --text-2:#9cacc0;
-  --text-3:#657386;
-  --muted:#9cacc0;
-  --dim:#657386;
-  --accent:#22d3ee;
-  --accent-2:#8b5cf6;
-  --green:#28e59a;
-  --green-2:#12b981;
-  --gold:#f4c76b;
-  --gold-bright:#ffd985;
-  --gold-text:#ffd985;
-  --orange:#f59e0b;
-  --purple:#b89cff;
-  --blue:#68a8ff;
-  --red:#ff5d6c;
-  --teal:#2dd4bf;
-  --shadow-sm:0 1px 0 rgba(255,255,255,.03) inset;
-  --shadow-md:0 16px 34px rgba(0,0,0,.28);
-  --shadow-lg:0 22px 48px rgba(0,0,0,.36);
-  --r:8px;
-  --r-sm:7px;
-  --r-lg:8px;
-  --r-xl:12px;
-  --t:.16s ease;
-}
-body{
-  background:
-    radial-gradient(circle at 15% 0%,rgba(34,211,238,.08),transparent 32%),
-    radial-gradient(circle at 85% 0%,rgba(139,92,246,.10),transparent 28%),
-    var(--bg);
-  color:var(--text);
-  font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-  font-size:13px;
-  line-height:1.42;
-  font-weight:560;
-}
-body::before{background:none;}
-.page-nav{height:38px;background:rgba(8,11,16,.88);border-bottom:1px solid var(--line);backdrop-filter:blur(16px);}
-.page-nav::after,.pnav-item.active::after,.header::after{display:none;}
-.pnav-item{padding:0 18px;font-size:.78rem;font-weight:820;color:var(--muted);letter-spacing:0;border-right:1px solid var(--line);}
-.pnav-item:hover,.pnav-item.active{color:var(--text);background:rgba(255,255,255,.045);}
-.pnav-item.active{box-shadow:inset 0 -2px 0 var(--accent);}
-.header{background:rgba(8,11,16,.82);border-bottom:1px solid var(--line);padding:10px 14px;backdrop-filter:blur(18px);}
-.header-title{font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text);letter-spacing:0;font-size:.98rem;font-weight:900;}
-.btn{border:1px solid var(--line-2);background:linear-gradient(180deg,#1a2330,#131b26);color:var(--text);border-radius:7px;padding:8px 11px;font-weight:820;font-family:inherit;}
-.btn:hover{background:var(--panel-hover);border-color:rgba(34,211,238,.32);color:var(--text);}
-.btn-gold{background:rgba(243,180,63,.12);border:1px solid rgba(243,180,63,.36);color:#ffd985;box-shadow:none;}
-.btn-sec{background:linear-gradient(180deg,#1a2330,#131b26);color:var(--text-2);border:1px solid var(--line-2);}
-.btn-sec:hover{border-color:rgba(34,211,238,.32);color:#bff6ff;background:var(--panel-hover);}
-.form-input,.form-select,textarea,input[type="time"]{background:#0d131c;border:1px solid var(--line-2);border-radius:7px;color:var(--text);}
-.modal,.filter-bar,.char-section-header,.party-card{
-  background:linear-gradient(180deg,rgba(21,30,42,.98),rgba(13,18,26,.98));
-  border:1px solid var(--line);
-  border-radius:8px;
-  box-shadow:var(--shadow-sm);
-}
-.party-card:hover{border-color:rgba(34,211,238,.24);box-shadow:var(--shadow-md);transform:translateY(-1px);}
-.pc-header{background:linear-gradient(135deg,rgba(34,211,238,.10),rgba(139,92,246,.08));border-bottom:1px solid var(--line);}
-.fb-acc-btn,.fb-char-btn{background:rgba(17,24,33,.76);border:1px solid var(--line);border-radius:999px;color:var(--muted);font-weight:850;}
-.fb-acc-btn.all-on,.fb-char-btn.on{background:linear-gradient(135deg,#e8fbff,#dcd6ff);border-color:transparent;color:#081018;}
-.slot-row{border-radius:7px;}
-.slot-row.mine{background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.22);}
-.leave-btn{border-radius:7px;background:rgba(255,93,108,.11);border-color:rgba(255,93,108,.30);color:#ff9a9a;}
 
 </style>
 </head>
