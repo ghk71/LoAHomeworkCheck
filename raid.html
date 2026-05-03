@@ -1063,15 +1063,19 @@ body::before{background:none;}
 .unplaced-panel{background:linear-gradient(180deg,rgba(21,30,42,.98),rgba(13,18,26,.98));border-left:1px solid var(--line);}
 .unplaced-head{border-bottom:1px solid var(--line);}
 .unplaced-title{color:#bff6ff;}
-.unplaced-card{border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.025);}
+.unplaced-card{border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.025);cursor:pointer;}
 .unplaced-card:hover{border-color:rgba(34,211,238,.34);background:rgba(34,211,238,.07);}
+.unplaced-card.selected{border-color:rgba(34,211,238,.75);background:linear-gradient(135deg,rgba(34,211,238,.12),rgba(139,92,246,.09));box-shadow:inset 3px 0 0 rgba(34,211,238,.86),0 12px 26px rgba(0,0,0,.24);}
 .unplaced-panel.collapsed .unplaced-preview{display:none;}
-.unplaced-preview{margin:10px 10px 0;border:1px solid rgba(34,211,238,.22);border-radius:8px;background:linear-gradient(180deg,rgba(13,19,28,.98),rgba(9,14,22,.98));box-shadow:0 14px 28px rgba(0,0,0,.22);overflow:hidden;}
-.unplaced-preview-head{padding:10px 11px;border-bottom:1px solid var(--line);display:grid;gap:4px;}
-.unplaced-preview-title{display:flex;align-items:center;gap:6px;font-size:.88rem;font-weight:950;min-width:0;}
-.unplaced-preview-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;color:var(--muted);font-size:.7rem;}
+.unplaced-preview{position:relative;margin:10px 10px 0;border:1px solid rgba(34,211,238,.45);border-radius:8px;background:linear-gradient(160deg,rgba(13,26,37,.98),rgba(11,16,25,.98));box-shadow:0 16px 32px rgba(0,0,0,.28),0 0 0 1px rgba(255,255,255,.025) inset;overflow:hidden;}
+.unplaced-preview::before{content:"";position:absolute;inset:0 0 auto;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent-2));}
+.unplaced-preview-head{padding:13px 11px 10px;border-bottom:1px solid var(--line);display:grid;gap:6px;}
+.unplaced-preview-kicker{font-size:.64rem;font-weight:950;letter-spacing:.02em;color:#89f3ff;text-transform:uppercase;}
+.unplaced-preview-title{display:flex;align-items:center;gap:6px;font-size:.92rem;font-weight:950;min-width:0;}
+.unplaced-preview-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap;color:var(--muted);font-size:.69rem;}
+.unplaced-preview-meta span,.unplaced-preview-meta b{display:inline-flex;align-items:center;min-height:20px;padding:3px 7px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.035);line-height:1;}
 .unplaced-preview-body{padding:9px;display:grid;gap:6px;}
-.unplaced-preview-empty{padding:11px;color:var(--muted);font-size:.75rem;line-height:1.5;}
+.unplaced-preview-empty{position:relative;padding:13px 12px 12px;color:var(--muted);font-size:.75rem;line-height:1.5;background:linear-gradient(160deg,rgba(34,211,238,.07),rgba(139,92,246,.05));}
 .unplaced-member{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:7px;padding:7px 8px;border:1px solid transparent;border-radius:7px;font-size:.74rem;color:var(--text-2);}
 .unplaced-member.filled{border-color:rgba(34,211,238,.22);background:rgba(34,211,238,.075);}
 .unplaced-member.empty{color:var(--muted);opacity:.75;}
@@ -2797,7 +2801,7 @@ function renderUnplacedPreview(){
   const box=document.getElementById('unplaced-preview');if(!box||isViewer)return;
   const p=unplacedPreviewPartyId?parties.find(x=>x.id===unplacedPreviewPartyId):null;
   if(!p){
-    box.innerHTML='<div class="unplaced-preview-empty">미배치 파티를 선택하거나 마우스를 올리면 파티 구성이 표시됩니다.</div>';
+    box.innerHTML='<div class="unplaced-preview-empty"><b>선택 파티 정보</b><br>미배치 파티를 클릭하면 이곳에 파티 구성이 표시됩니다.</div>';
     return;
   }
   const r=raids.find(x=>x.id===p.preset_id);
@@ -2805,14 +2809,23 @@ function renderUnplacedPreview(){
   const pc=p.color||'#e0ddd5';
   const filled=(p.members||[]).filter(m=>m.character_id).length;
   box.innerHTML=`<div class="unplaced-preview-head">
+    <div class="unplaced-preview-kicker">선택 파티 정보</div>
     <div class="unplaced-preview-title" style="color:${raidColor};">${iconImg(getGroupIcon(r?.name||'')||r?.icon_url||'','entity-icon-sm')}${esc(r?.name||'레이드')} <span class="${diffClass(r?.difficulty||'')}">${esc(r?.difficulty||'')}</span></div>
     <div class="unplaced-preview-meta"><b style="color:${pc};">${esc(p.name||'파티')}</b><span>${filled}/${p.party_size||4}명</span>${r?.entry_level?`<span>입장 ${r.entry_level}</span>`:''}</div>
   </div>
   <div class="unplaced-preview-body">${unplacedMemberRows(p)}</div>`;
 }
+function refreshUnplacedSelection(){
+  document.querySelectorAll('.unplaced-card[data-party-id]').forEach(card=>{
+    const selected=card.dataset.partyId===unplacedPreviewPartyId;
+    card.classList.toggle('selected',selected);
+    card.setAttribute('aria-selected',selected?'true':'false');
+  });
+}
 function showUnplacedPartyInfo(partyId){
   unplacedPreviewPartyId=partyId;
   renderUnplacedPreview();
+  refreshUnplacedSelection();
 }
 function renderUnplacedPanel(){
   const panel=document.getElementById('unplaced-panel');if(!panel||isViewer)return;
@@ -2826,12 +2839,14 @@ function renderUnplacedPanel(){
   list.innerHTML=items.length?items.map(p=>{
     const r=raids.find(x=>x.id===p.preset_id);
     const color=getGroupColor(r?.name||'');
-    return`<div class="unplaced-card" draggable="true" tabindex="0" ondragstart="rdStartUnplacedParty(event,'${p.id}')" ondragend="rdEnd(event)" onmouseenter="showUnplacedPartyInfo('${p.id}')" onfocus="showUnplacedPartyInfo('${p.id}')" onclick="showUnplacedPartyInfo('${p.id}')" title="요일 칸으로 드래그해 일정에 배치">
+    const selected=p.id===unplacedPreviewPartyId?' selected':'';
+    return`<div class="unplaced-card${selected}" data-party-id="${p.id}" draggable="true" tabindex="0" role="button" aria-selected="${p.id===unplacedPreviewPartyId?'true':'false'}" ondragstart="rdStartUnplacedParty(event,'${p.id}')" ondragend="rdEnd(event)" onclick="showUnplacedPartyInfo('${p.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showUnplacedPartyInfo('${p.id}')}" title="클릭해 파티 정보를 보고, 요일 칸으로 드래그해 일정에 배치">
       <div class="unplaced-raid" style="color:${color};">${iconImg(getGroupIcon(r?.name||''),'entity-icon-sm')}${esc(r?.name||'레이드')} <span class="${diffClass(r?.difficulty||'')}">${esc(r?.difficulty||'')}</span></div>
       <div class="unplaced-meta">${esc(p.name||'파티')} · ${p.party_size||4}인${r?.entry_level?` · 입장 ${r.entry_level}`:''}</div>
     </div>`;
   }).join(''):'<div class="unplaced-empty">이번 주 모든 파티가 일정에 배치되어 있습니다.</div>';
   renderUnplacedPreview();
+  refreshUnplacedSelection();
 }
 async function addScheduleFromUnplacedParty(partyId,dn,insertIdx=null){
   const {wsMs,weMs}=weekScheduleWindow(weekOffset);
