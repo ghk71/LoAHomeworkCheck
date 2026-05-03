@@ -80,6 +80,13 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .switch.on{border-color:rgba(40,229,154,.42);background:rgba(40,229,154,.16)}
 .switch.on::after{left:20px;background:var(--green)}
 .tool-row{display:flex;align-items:center;gap:8px;justify-content:space-between;margin-top:8px}
+.tool-actions{display:flex;gap:7px;flex-wrap:wrap;align-items:center;justify-content:flex-end;position:relative}
+.tool-pop{position:absolute;right:0;top:38px;z-index:20;width:230px;background:#101721;border:1px solid var(--line-2);border-radius:8px;padding:10px;box-shadow:var(--shadow);display:none}
+.tool-pop.open{display:grid;gap:8px}
+.tool-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--muted);font-size:.78rem;font-weight:820}
+.action-only{display:none!important}
+body.action-copy .action-copy,body.action-edit .action-edit,body.action-delete .action-delete,body.action-order .action-order{display:inline-flex!important}
+.mode-action.active{border-color:rgba(34,211,238,.55);color:#bff6ff;background:rgba(34,211,238,.12)}
 .tiny{color:var(--dim);font-size:.76rem}
 .content{padding:14px;max-width:1920px;margin:0 auto}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(312px,1fr));gap:12px}
@@ -92,6 +99,9 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .char-meta{min-width:0;flex:1}
 .char-name{font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .char-sub{color:var(--muted);font-size:.75rem}
+.char-combat{color:#bff6ff;font-size:.71rem;margin-top:1px}
+.sub-account-mark{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(184,156,255,.16);border:1px solid rgba(184,156,255,.35);color:#d9ccff;font-size:.66rem;font-weight:950;margin-left:4px}
+.card-tools .mini-btn{height:24px}
 .char-card.hot .char-sub{color:rgba(255,255,255,.72)}
 .card-tools{display:flex;gap:5px;align-items:center}
 .card-body{padding:10px 12px 12px}
@@ -105,6 +115,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .check:hover{border-color:rgba(34,211,238,.45);color:#c8f8ff}
 .done .check,.check.on{background:rgba(40,229,154,.16);border-color:rgba(40,229,154,.45);color:#8df8c2}
 .task-main{min-width:0}
+.task-main.child{padding-left:17px;position:relative}
+.task-main.child::before{content:"";position:absolute;left:5px;top:4px;bottom:4px;width:2px;border-radius:999px;background:rgba(34,211,238,.24)}
 .task-title{font-weight:850;white-space:nowrap;display:flex;align-items:center;gap:7px;min-width:0}
 .task-title>span:not(.title-actions){min-width:0;overflow:hidden;text-overflow:ellipsis}
 .task-icon{width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;overflow:hidden;flex:none}
@@ -116,6 +128,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .row-actions{display:flex;gap:4px;justify-content:flex-end;margin-top:5px;opacity:.72}
 .title-actions{display:inline-flex;gap:4px;align-items:center;margin-left:2px;flex:none}
 .task-rest-span{grid-column:1/-1}
+.subtask-list{grid-column:1/-1;margin-left:10px;border-left:1px solid rgba(34,211,238,.18);padding-left:10px}
+.child-count{font-size:.68rem;color:#8bdcf0;border:1px solid rgba(34,211,238,.24);background:rgba(34,211,238,.08);border-radius:999px;padding:1px 6px}
 .task-row:hover .row-actions,.raid-row:hover .row-actions,.account-card:hover .row-actions{opacity:1}
 .mini-btn{height:22px;min-width:34px;padding:0 6px;border-radius:6px;border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--muted);font-size:.7rem;font-weight:850}
 .mini-btn:hover{color:var(--text);border-color:rgba(34,211,238,.36)}
@@ -139,6 +153,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .curr-name{font-weight:820;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .curr-edit{display:flex;align-items:center;gap:5px}
 .curr-input{width:78px;text-align:right;background:#111419;border:1px solid var(--line-2);color:var(--text);border-radius:6px;padding:5px 7px;font-weight:900}
+.curr-actions{display:flex;gap:4px;align-items:center}
 .raid-title{display:flex;gap:6px;align-items:center;font-weight:850;min-width:0}
 .raid-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .diff{font-weight:850}
@@ -151,6 +166,13 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .preset-item:hover{background:rgba(34,211,238,.08)}
 .preset-name{font-weight:900}
 .preset-meta{font-size:.72rem;color:var(--muted);margin-top:2px}
+.target-group{border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.025);padding:9px;display:grid;gap:8px}
+.target-group-head{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--gold);font-weight:950}
+.target-chips{display:flex;gap:7px;flex-wrap:wrap}
+.target-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;background:#0c121b;color:var(--muted);padding:6px 9px;font-size:.76rem;font-weight:850}
+.target-chip input{width:15px;height:15px;accent-color:var(--accent)}
+.target-chip:has(input:checked){border-color:rgba(34,211,238,.5);color:#dffbff;background:rgba(34,211,238,.1)}
+.modal-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .empty{padding:14px;border:1px dashed var(--line-2);border-radius:8px;color:var(--dim);text-align:center;font-size:.82rem}
 .account-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:10px}
 .account-card{min-height:160px}
@@ -230,9 +252,19 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
     <div class="filter-row" id="character-tabs"></div>
     <div class="tool-row">
       <div class="tiny" id="mode-help"></div>
-      <div style="display:flex;gap:7px;flex-wrap:wrap">
-        <button class="btn" id="hide-done-btn" onclick="toggleHideCompleted()">완료 숨기기</button>
-        <button class="btn" id="show-inactive-btn" onclick="toggleShowInactive()">활성화 보이기</button>
+      <div class="tool-actions">
+        <button class="btn" onclick="toggleOptionsPanel()">보기 옵션</button>
+        <div class="tool-pop" id="options-panel">
+          <label class="tool-toggle-row"><span>완료 숙제 숨기기</span><button class="switch" id="hide-done-switch" onclick="toggleHideCompleted()"></button></label>
+          <label class="tool-toggle-row"><span>비활성 숙제 보이기</span><button class="switch" id="show-inactive-switch" onclick="toggleShowInactive()"></button></label>
+        </div>
+        <button class="btn" onclick="openAccountModal()">+ 계정</button>
+        <button class="btn" onclick="openCharacterModal()">+ 캐릭터</button>
+        <button class="btn mode-action" data-action="edit" onclick="setActionMode('edit')">수정</button>
+        <button class="btn mode-action" data-action="copy" onclick="setActionMode('copy')">복제</button>
+        <button class="btn mode-action danger" data-action="delete" onclick="setActionMode('delete')">삭제</button>
+        <button class="btn mode-action" data-action="order" onclick="setActionMode('order')">순서</button>
+        <button class="btn" onclick="collapseAllSections()">일괄접기</button>
         <button class="btn" onclick="openAccountSettings()">계정 설정</button>
         <button class="btn" onclick="reloadAll()">새로고침</button>
       </div>
@@ -399,6 +431,74 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
   </div>
 </div>
 
+<div class="overlay" id="modal-account">
+  <div class="modal" style="width:min(520px,100%)">
+    <div class="modal-head"><div><div class="modal-title" id="account-modal-title">계정 추가</div><div class="tiny">계정명과 부계정 여부를 관리합니다.</div></div><button class="btn" onclick="closeModal('modal-account')">닫기</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field"><label>계정명</label><input id="account-name" class="input" placeholder="예: 겹삽"></div>
+        <div class="field"><label>상위 계정</label><select id="account-parent" class="select"><option value="">상위 계정 없음</option></select></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn" onclick="closeModal('modal-account')">취소</button><button class="btn primary" onclick="saveAccount()">저장</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="modal-character">
+  <div class="modal" style="width:min(720px,100%)">
+    <div class="modal-head"><div><div class="modal-title" id="character-modal-title">캐릭터 추가</div><div class="tiny" id="character-modal-sub"></div></div><button class="btn" onclick="closeModal('modal-character')">닫기</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field"><label>캐릭터명</label><input id="character-name" class="input"></div>
+        <div class="field"><label>직업</label><input id="character-class" class="input"></div>
+        <div class="field"><label>아이템 레벨</label><input id="character-ilvl" class="input" type="number" step="0.01"></div>
+        <div class="field"><label>전투력</label><input id="character-combat" class="input" type="number" step="1"></div>
+        <div class="field full"><label><input type="checkbox" id="character-show-raid" checked> 레이드 현황 표시</label></div>
+        <div class="field full"><label><input type="checkbox" id="character-show-currency" checked> 재화 현황 표시</label></div>
+        <div class="field full"><label><input type="checkbox" id="character-show-note" checked> 커스텀 노트 표시</label></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn danger" id="character-delete-btn" onclick="deleteCharacterFromModal()">삭제</button><button class="btn" onclick="closeModal('modal-character')">취소</button><button class="btn primary" onclick="saveCharacter()">저장</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="modal-currency">
+  <div class="modal" style="width:min(520px,100%)">
+    <div class="modal-head"><div><div class="modal-title" id="currency-modal-title">재화 추가</div><div class="tiny" id="currency-modal-sub"></div></div><button class="btn" onclick="closeModal('modal-currency')">닫기</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field"><label>재화명</label><input id="currency-name" class="input"></div>
+        <div class="field"><label>수량</label><input id="currency-amount" class="input" type="number"></div>
+        <div class="field full"><label>아이콘</label><div class="icon-control"><div class="icon-preview" id="currency-icon-preview">돈</div><button class="btn" onclick="openCurrencyIconPicker()">선택</button><button class="btn" onclick="setCurrencyIcon(null)">제거</button></div></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn danger" id="currency-delete-btn" onclick="deleteCurrencyFromModal()">삭제</button><button class="btn" onclick="closeModal('modal-currency')">취소</button><button class="btn primary" onclick="saveCurrencyModal()">저장</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="modal-note-viewer">
+  <div class="modal" style="width:min(680px,100%)">
+    <div class="modal-head"><div><div class="modal-title" id="note-view-title">커스텀 노트</div><div class="tiny" id="note-view-sub"></div></div><button class="btn" onclick="closeModal('modal-note-viewer')">닫기</button></div>
+    <div class="modal-body" id="note-view-content"></div>
+    <div class="modal-foot"><button class="btn danger action-only action-delete" onclick="deleteCurrentNote()">삭제</button><button class="btn action-only action-edit" onclick="openNoteEditor()">편집</button><button class="btn" onclick="closeModal('modal-note-viewer')">닫기</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="modal-note-editor">
+  <div class="modal" style="width:min(720px,100%)">
+    <div class="modal-head"><div><div class="modal-title" id="note-editor-title">커스텀 노트 편집</div><div class="tiny">간단 텍스트/표 블록을 관리합니다.</div></div><button class="btn" onclick="closeModal('modal-note-editor')">닫기</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field"><label>제목</label><input id="note-title-input" class="input"></div>
+        <div class="field"><label>아이콘</label><input id="note-icon-input" class="input" placeholder="📋"></div>
+      </div>
+      <div class="modal-tabs"><button class="btn" onclick="addNoteBlock('text')">텍스트</button><button class="btn" onclick="addNoteBlock('table')">표</button><button class="btn" onclick="addNoteBlock('divider')">구분선</button></div>
+      <div id="note-block-list"></div>
+    </div>
+    <div class="modal-foot"><button class="btn danger" onclick="deleteCurrentNote()">삭제</button><button class="btn" onclick="closeModal('modal-note-editor')">취소</button><button class="btn primary" onclick="saveNote()">저장</button></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -407,6 +507,8 @@ let sb=null;
 const DAYS=['일','월','화','수','목','금','토'];
 const state={
   mode:'daily',
+  actionMode:'normal',
+  optionsOpen:false,
   selectedAccount:null,
   selectedChar:'all',
   accounts:[],
@@ -428,9 +530,18 @@ const state={
   busy:new Set(),
   createType:'rest',
   createTarget:null,
+  createParentId:null,
   editTarget:null,
   taskIconUrl:null,
   raidAddCharId:null,
+  editAccountId:null,
+  editCharacterId:null,
+  editCurrencyId:null,
+  editCurrencyCharId:null,
+  currencyIconUrl:null,
+  viewNoteId:null,
+  viewNoteCharId:null,
+  editBlocks:[],
   copyCtx:null,
   bulkCtx:null
 };
@@ -447,6 +558,28 @@ function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function withBusy(key){if(state.busy.has(key))return false;state.busy.add(key);return true;}
 function clearBusy(key){state.busy.delete(key);}
+
+function setActionMode(mode){
+  state.actionMode=state.actionMode===mode?'normal':mode;
+  render();
+}
+function toggleOptionsPanel(){
+  state.optionsOpen=!state.optionsOpen;
+  render();
+}
+function applyActionMode(){
+  document.body.classList.toggle('action-copy',state.actionMode==='copy');
+  document.body.classList.toggle('action-edit',state.actionMode==='edit');
+  document.body.classList.toggle('action-delete',state.actionMode==='delete');
+  document.body.classList.toggle('action-order',state.actionMode==='order');
+  document.querySelectorAll('.mode-action').forEach(b=>b.classList.toggle('active',b.dataset.action===state.actionMode));
+  const pop=document.getElementById('options-panel');
+  if(pop)pop.classList.toggle('open',state.optionsOpen);
+  const hd=document.getElementById('hide-done-switch');
+  const ia=document.getElementById('show-inactive-switch');
+  if(hd)hd.classList.toggle('on',state.hideCompleted);
+  if(ia)ia.classList.toggle('on',state.showInactive);
+}
 
 async function init(){
   const cfg=getConfig();
@@ -543,6 +676,23 @@ function toggleSectionCollapse(kind,charId){
   localStorage.setItem(key,JSON.stringify([...set]));
   render();
 }
+function collapseAllSections(){
+  const chars=visibleChars().map(c=>c.id);
+  if(state.mode==='daily'){
+    const allCollapsed=chars.every(id=>state.collapsedCurrency.has(id));
+    chars.forEach(id=>allCollapsed?state.collapsedCurrency.delete(id):state.collapsedCurrency.add(id));
+    localStorage.setItem('la_redesign_collapsed_currency',JSON.stringify([...state.collapsedCurrency]));
+  }else if(state.mode==='weekly'){
+    const allCollapsed=chars.every(id=>state.collapsedRaid.has(id)&&state.collapsedNotes.has(id));
+    chars.forEach(id=>{
+      if(allCollapsed){state.collapsedRaid.delete(id);state.collapsedNotes.delete(id);}
+      else{state.collapsedRaid.add(id);state.collapsedNotes.add(id);}
+    });
+    localStorage.setItem('la_redesign_collapsed_raid',JSON.stringify([...state.collapsedRaid]));
+    localStorage.setItem('la_redesign_collapsed_notes',JSON.stringify([...state.collapsedNotes]));
+  }
+  render();
+}
 function openAccountSettings(){
   renderAccountSettings();
   openModal('modal-account-settings');
@@ -560,7 +710,7 @@ function renderAccountSettings(){
         <div class="setting-title">${esc(a.name)}</div>
         <div class="setting-sub">${chars}캐릭터 · ${hidden?'현재 숨김':'현재 표시 중'}</div>
       </div>
-      <button class="switch ${hidden?'':'on'}" onclick="toggleHideAccount(event,'${a.id}')" title="${hidden?'계정 표시':'계정 숨김'}"></button>
+      <div class="card-tools"><button class="mini-btn" onclick="openAccountModal('${a.id}')">수정</button><button class="mini-btn danger" onclick="deleteAccount('${a.id}')">삭제</button><button class="switch ${hidden?'':'on'}" onclick="toggleHideAccount(event,'${a.id}')" title="${hidden?'계정 표시':'계정 숨김'}"></button></div>
     </div>`;
   }).join('')||'<div class="empty">계정이 없습니다</div>';
 }
@@ -597,8 +747,7 @@ function restInfo(t){
 
 function render(){
   document.querySelectorAll('.mode-tab').forEach(b=>b.classList.toggle('active',b.dataset.mode===state.mode));
-  const hd=document.getElementById('hide-done-btn');if(hd){hd.textContent=state.hideCompleted?'완료 보이기':'완료 숨기기';hd.classList.toggle('active',state.hideCompleted);}
-  const ia=document.getElementById('show-inactive-btn');if(ia){ia.textContent=state.showInactive?'활성화 숨기기':'활성화 보이기';ia.classList.toggle('active',state.showInactive);}
+  applyActionMode();
   renderAccountSettings();
   renderAccountTabs();
   renderCharTabs();
@@ -613,7 +762,7 @@ function renderAccountTabs(){
   if(state.mode==='account'){el.classList.add('hidden');return;}
   el.classList.remove('hidden');
   const accounts=visibleAccounts();
-  el.innerHTML=accounts.map(a=>`<span class="account-chip"><button class="pill ${a.id===state.selectedAccount?'active':''} ${isAccountHidden(a.id)?'hidden-account':''}" onclick="selectAccount('${a.id}')">${esc(a.name)}</button></span>`).join('');
+  el.innerHTML=accounts.map((a,i)=>`<span class="account-chip"><button class="pill ${a.id===state.selectedAccount?'active':''} ${isAccountHidden(a.id)?'hidden-account':''}" onclick="selectAccount('${a.id}')">${esc(a.name)}${a.parent_account_id?'<span class="sub-account-mark" title="부계정">↳</span>':''}</button><span class="title-actions action-only action-order"><button class="mini-btn" onclick="moveItem('accounts','${a.id}',-1)">↑</button><button class="mini-btn" onclick="moveItem('accounts','${a.id}',1)">↓</button></span></span>`).join('');
 }
 function renderCharTabs(){
   const el=document.getElementById('character-tabs');
@@ -640,71 +789,102 @@ function charHeader(ch,tasks,hot=false){
   const done=tasks.filter(isDone).length,total=tasks.length;
   return`<div class="char-head">
     <div class="avatar">${ch.icon_url?`<img src="${esc(ch.icon_url)}" alt="">`:'검'}</div>
-    <div class="char-meta"><div class="char-name">${esc(ch.name)}</div><div class="char-sub">${esc(ch.class_name||'')} ${ch.item_level?` · ${ch.item_level}`:''}</div></div>
-    <div class="card-tools"><span class="tag ${total&&done===total?'green':''}">${done}/${total}</span><button class="btn icon" title="이 캐릭터에 숙제 추가" onclick="openCreateTask('char','${ch.id}','${state.mode==='daily'?'daily':'weekly'}')">+</button></div>
+    <div class="char-meta"><div class="char-name">${esc(ch.name)}</div><div class="char-sub">${esc(ch.class_name||'')} ${ch.item_level?` · ${Number(ch.item_level).toLocaleString()}`:''}</div>${ch.combat_power?`<div class="char-combat">전투력 ${Number(ch.combat_power).toLocaleString()}</div>`:''}</div>
+    <div class="card-tools"><span class="tag ${total&&done===total?'green':''}">${done}/${total}</span><button class="btn icon" title="이 캐릭터에 숙제 추가" onclick="openCreateTask('char','${ch.id}','${state.mode==='daily'?'daily':'weekly'}')">+</button><button class="mini-btn action-only action-edit" onclick="openCharacterModal('${ch.id}')">정보</button><button class="mini-btn danger action-only action-delete" onclick="deleteCharacter('${ch.id}')">삭제</button><span class="title-actions action-only action-order"><button class="mini-btn" onclick="moveItem('characters','${ch.id}',-1)">↑</button><button class="mini-btn" onclick="moveItem('characters','${ch.id}',1)">↓</button></span></div>
+  </div>`;
+}
+function buildTaskTree(list){
+  const roots=(list||[]).filter(t=>!t.parent_id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const children={};
+  (list||[]).filter(t=>t.parent_id).forEach(t=>{
+    if(!children[t.parent_id])children[t.parent_id]=[];
+    children[t.parent_id].push(t);
+  });
+  Object.values(children).forEach(arr=>arr.sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)));
+  return{roots,children};
+}
+function renderTaskGroups(list,isExp,ownerId,predicate){
+  const filtered=(list||[]).filter(t=>predicate(t));
+  const tree=buildTaskTree(filtered);
+  const roots=applyTaskFilters(tree.roots);
+  if(!roots.length)return '<div class="empty">숙제가 없습니다</div>';
+  return roots.map((t,i)=>taskGroup(t,tree.children[t.id]||[],isExp,ownerId,i)).join('');
+}
+function taskGroup(t,children,isExp,ownerId,idx){
+  const visibleChildren=applyTaskFilters(children);
+  const childDone=children.filter(isDone).length;
+  return`<div class="task-group">
+    ${taskRow(t,isExp,ownerId,false,idx,children)}
+    ${visibleChildren.length?`<div class="subtask-list">${visibleChildren.map((c,i)=>taskRow(c,isExp,ownerId,true,i,[])).join('')}</div>`:''}
+    ${children.length?`<div class="tiny" style="padding-left:18px">하위 숙제 ${childDone}/${children.length}</div>`:''}
   </div>`;
 }
 function renderDailyCard(ch){
-  const tasks=applyTaskFilters((state.tasks[ch.id]||[]).filter(t=>!t.parent_id&&isDaily(t)));
+  const allTasks=state.tasks[ch.id]||[];
+  const taskRoots=applyTaskFilters(allTasks.filter(t=>!t.parent_id&&isDaily(t)));
   const curr=state.currencies[ch.id]||[];
   const currCollapsed=state.collapsedCurrency.has(ch.id);
-  const hot=tasks.length&&tasks.some(t=>!isDone(t));
-  return`<section class="char-card ${hot?'hot':''} ${tasks.length&&tasks.every(isDone)?'done':''}">
-    ${charHeader(ch,tasks,hot)}
+  const showCurr=ch.show_currencies!==false;
+  const hot=taskRoots.length&&taskRoots.some(t=>!isDone(t));
+  return`<section class="char-card ${hot?'hot':''} ${taskRoots.length&&taskRoots.every(isDone)?'done':''}">
+    ${charHeader(ch,taskRoots,hot)}
     <div class="card-body">
-      <div class="section-label"><span>일일 숙제</span><span>${tasks.filter(isDone).length}/${tasks.length}</span></div>
-      ${tasks.length?tasks.map(t=>taskRow(t,false,ch.id)).join(''):'<div class="empty">일일 숙제가 없습니다</div>'}
-      <div class="currency-block ${currCollapsed?'collapsed':''}">
+      <div class="section-label"><span>일일 숙제</span><span>${taskRoots.filter(isDone).length}/${taskRoots.length}</span></div>
+      ${renderTaskGroups(allTasks,false,ch.id,isDaily)}
+      ${showCurr?`<div class="currency-block ${currCollapsed?'collapsed':''}">
         <div class="section-label">
           <span>재화 현황</span>
-          <span class="section-actions"><span>${curr.length}</span><button class="section-toggle" onclick="toggleCurrencyCollapse('${ch.id}')">${currCollapsed?'펼치기':'접기'}</button></span>
+          <span class="section-actions"><span>${curr.length}</span><button class="btn icon action-only action-edit" title="재화 추가" onclick="openCurrencyModal('${ch.id}')">+</button><button class="section-toggle" onclick="toggleCurrencyCollapse('${ch.id}')">${currCollapsed?'펼치기':'접기'}</button></span>
         </div>
         <div class="currency-items">${curr.length?curr.map(c=>currencyRow(c,ch.id)).join(''):'<div class="empty">재화가 없습니다</div>'}</div>
-      </div>
+      </div>`:''}
     </div>
   </section>`;
 }
 function renderWeeklyCard(ch){
-  const tasks=applyTaskFilters((state.tasks[ch.id]||[]).filter(t=>!t.parent_id&&isWeeklyMonthly(t)));
+  const allTasks=state.tasks[ch.id]||[];
+  const tasks=applyTaskFilters(allTasks.filter(t=>!t.parent_id&&isWeeklyMonthly(t)));
   const raids=applyDoneFilter(state.raidTasks[ch.id]||[]);
   const notes=(state.notes[ch.id]||[]);
   const raidCollapsed=state.collapsedRaid.has(ch.id);
   const notesCollapsed=state.collapsedNotes.has(ch.id);
+  const showRaid=ch.show_raid_tasks!==false,showNotes=ch.show_custom_notes!==false;
   const checkables=[...tasks,...raids];
   return`<section class="char-card ${checkables.length&&checkables.every(isDone)?'done':''}">
     ${charHeader(ch,checkables)}
     <div class="card-body">
       <div class="section-label"><span>주간/월간 숙제</span><span>${tasks.filter(isDone).length}/${tasks.length}</span></div>
-      ${tasks.length?tasks.map(t=>taskRow(t,false,ch.id)).join(''):'<div class="empty">주간/월간 숙제가 없습니다</div>'}
-      <div class="collapse-block ${raidCollapsed?'collapsed':''}">
+      ${renderTaskGroups(allTasks,false,ch.id,isWeeklyMonthly)}
+      ${showRaid?`<div class="collapse-block ${raidCollapsed?'collapsed':''}">
         <div class="section-label">
           <span>레이드 현황</span>
           <span class="section-actions"><span>${raids.filter(isDone).length}/${raids.length}</span><button class="btn icon" title="레이드 추가" onclick="openAddRaidTask('${ch.id}')">+</button><button class="section-toggle" onclick="toggleSectionCollapse('raid','${ch.id}')">${raidCollapsed?'펼치기':'접기'}</button></span>
         </div>
         <div class="collapse-items">${raids.length?raids.map(t=>raidRow(t,ch.id)).join(''):'<div class="empty">레이드 숙제가 없습니다</div>'}</div>
-      </div>
-      <div class="collapse-block ${notesCollapsed?'collapsed':''}">
+      </div>`:''}
+      ${showNotes?`<div class="collapse-block ${notesCollapsed?'collapsed':''}">
         <div class="section-label">
           <span>커스텀 노트</span>
-          <span class="section-actions"><span>${notes.length}</span><button class="section-toggle" onclick="toggleSectionCollapse('notes','${ch.id}')">${notesCollapsed?'펼치기':'접기'}</button></span>
+          <span class="section-actions"><span>${notes.length}</span><button class="btn icon action-only action-edit" title="노트 추가" onclick="openNoteEditor(null,'${ch.id}')">+</button><button class="section-toggle" onclick="toggleSectionCollapse('notes','${ch.id}')">${notesCollapsed?'펼치기':'접기'}</button></span>
         </div>
-        <div class="collapse-items">${notes.length?notes.map(n=>`<div class="note-row"><div class="task-main"><div class="task-title">${esc(n.icon||'메모')} ${esc(n.title)}</div></div><span class="tag">노트</span></div>`).join(''):'<div class="empty">노트가 없습니다</div>'}</div>
-      </div>
+        <div class="collapse-items">${notes.length?notes.map((n,i)=>noteRow(n,ch.id,i)).join(''):'<div class="empty">노트가 없습니다</div>'}</div>
+      </div>`:''}
     </div>
   </section>`;
 }
 function renderAccountCard(acc){
-  const tasks=applyTaskFilters((state.expTasks[acc.id]||[]).filter(t=>!t.parent_id));
+  const all=state.expTasks[acc.id]||[];
+  const tasks=applyTaskFilters(all.filter(t=>!t.parent_id));
   return`<section class="account-card">
     <div class="account-head"><div><div class="account-title">${esc(acc.name)}</div>${isAccountHidden(acc.id)?'<div class="tiny">숨김 처리된 계정</div>':''}</div><div class="card-tools"><span class="tag ${tasks.length&&tasks.every(isDone)?'green':''}">${tasks.filter(isDone).length}/${tasks.length}</span><button class="btn icon" onclick="openCreateTask('account','${acc.id}','weekly')">+</button></div></div>
-    <div class="card-body">${tasks.length?tasks.map(t=>taskRow(t,true,acc.id)).join(''):'<div class="empty">원정대 숙제가 없습니다</div>'}</div>
+    <div class="card-body">${renderTaskGroups(all,true,acc.id,()=>true)}</div>
   </section>`;
 }
-function taskRow(t,isExp,ownerId){
+function taskRow(t,isExp,ownerId,isChild=false,idx=0,children=[]){
   const done=isDone(t),step=t.count_max!=null,rest=!!t.rest_enabled;
   return`<div class="task-row ${done?'done':''}" id="task-${t.id}">
-    <div class="task-main">
-      <div class="task-title">${iconImg(t.icon_url)}<span>${esc(t.name)}</span><span class="title-actions"><button class="mini-btn" title="복제" onclick="openCopyTask('${t.id}',${isExp},'${ownerId}')">복제</button><button class="mini-btn" title="수정" onclick="openEditTask('${t.id}',${isExp},'${ownerId}')">수정</button><button class="mini-btn danger" title="삭제" onclick="deleteTask('${t.id}',${isExp},'${ownerId}')">삭제</button><button class="mini-btn danger" title="복제본 일괄 삭제" onclick="openBulkDelete('${t.id}',${isExp},'${ownerId}')">일괄</button></span></div>
+    <div class="task-main ${isChild?'child':''}">
+      <div class="task-title">${iconImg(t.icon_url)}<span>${esc(t.name)}</span>${children.length?`<span class="child-count">${children.filter(isDone).length}/${children.length}</span>`:''}<span class="title-actions"><button class="mini-btn action-only action-copy" title="복제" onclick="openCopyTask('${t.id}',${isExp},'${ownerId}')">복제</button><button class="mini-btn action-only action-edit" title="수정" onclick="openEditTask('${t.id}',${isExp},'${ownerId}')">수정</button>${!isChild?`<button class="mini-btn action-only action-edit" title="하위 숙제 추가" onclick="openCreateSubTask('${t.id}',${isExp},'${ownerId}')">하위</button>`:''}<button class="mini-btn danger action-only action-delete" title="삭제" onclick="smartDeleteTask('${t.id}',${isExp},'${ownerId}')">삭제</button><button class="mini-btn action-only action-order" onclick="moveTask('${t.id}',${isExp},'${ownerId}',${isChild},-1)">↑</button><button class="mini-btn action-only action-order" onclick="moveTask('${t.id}',${isExp},'${ownerId}',${isChild},1)">↓</button></span></div>
       ${taskMetaHTML(t)}
     </div>
     <div class="task-control">${step?stepDots(t,isExp,ownerId):`<button class="check ${done?'on':''}" onclick="toggleTask('${t.id}',${isExp},'${ownerId}')">${done?'완료':'체크'}</button>`}</div>
@@ -740,16 +920,22 @@ function raidRow(t,charId){
   const flow=Math.max(0,(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0)),bound=Number(t.bound_gold)||0,bonus=Number(t.bonus_gold)||0;
   return`<div class="raid-row ${done?'done':''}">
     <div class="task-main">
-      <div class="raid-title">${iconImg(icon)}<span class="raid-name">${esc(rn)}</span>${t.difficulty?`<span class="diff ${diffClass}">${esc(t.difficulty)}</span>`:''}<span class="title-actions"><button class="mini-btn danger" onclick="deleteRaidTask('${t.id}','${charId}')">삭제</button></span></div>
+      <div class="raid-title">${iconImg(icon)}<span class="raid-name">${esc(rn)}</span>${t.difficulty?`<span class="diff ${diffClass}">${esc(t.difficulty)}</span>`:''}<span class="title-actions"><button class="mini-btn danger action-only action-delete" onclick="deleteRaidTask('${t.id}','${charId}')">삭제</button><button class="mini-btn action-only action-order" onclick="moveItem('raid_tasks','${t.id}',-1,'${charId}')">↑</button><button class="mini-btn action-only action-order" onclick="moveItem('raid_tasks','${t.id}',1,'${charId}')">↓</button></span></div>
       <div class="task-meta">${t.entry_level?`<span class="tag">입장 ${t.entry_level}</span>`:''}${flow||bound?`<span class="tag gold">골드 ${flow.toLocaleString()} / 귀속 ${bound.toLocaleString()}</span>`:''}${bonus?`<span class="tag purple">더보기 ${bonus.toLocaleString()}</span>`:''}</div>
     </div>
     <button class="check ${done?'on':''}" onclick="toggleRaid('${t.id}','${charId}')">${done?'완료':'체크'}</button>
   </div>`;
 }
+function noteRow(n,charId,idx){
+  return`<div class="note-row">
+    <div class="task-main"><div class="task-title"><span>${esc(n.icon||'메모')}</span><span>${esc(n.title)}</span><span class="title-actions"><button class="mini-btn" onclick="openNoteViewer('${n.id}','${charId}')">보기</button><button class="mini-btn action-only action-edit" onclick="openNoteEditor('${n.id}','${charId}')">수정</button><button class="mini-btn danger action-only action-delete" onclick="deleteNote('${n.id}','${charId}')">삭제</button><button class="mini-btn action-only action-order" onclick="moveItem('custom_popups','${n.id}',-1,'${charId}')">↑</button><button class="mini-btn action-only action-order" onclick="moveItem('custom_popups','${n.id}',1,'${charId}')">↓</button></span></div></div>
+    <span class="tag">노트</span>
+  </div>`;
+}
 function currencyRow(c,charId){
   return`<div class="currency-row">
     <div class="curr-main">${c.icon_url?iconImg(c.icon_url,'task-icon'):`<span class="task-icon">${esc(c.icon||'돈')}</span>`}<span class="curr-name">${esc(c.name)}</span></div>
-    <div class="curr-edit"><button class="btn icon" onclick="adjustCurrency('${c.id}','${charId}',-1)">-</button><input class="curr-input" type="number" value="${Number(c.amount)||0}" onchange="setCurrency('${c.id}','${charId}',this.value)"><button class="btn icon" onclick="adjustCurrency('${c.id}','${charId}',1)">+</button></div>
+    <div class="curr-edit"><button class="btn icon" onclick="adjustCurrency('${c.id}','${charId}',-1)">-</button><input class="curr-input" type="number" value="${Number(c.amount)||0}" onchange="setCurrency('${c.id}','${charId}',this.value)"><button class="btn icon" onclick="adjustCurrency('${c.id}','${charId}',1)">+</button><span class="curr-actions"><button class="mini-btn action-only action-edit" onclick="openCurrencyModal('${charId}','${c.id}')">수정</button><button class="mini-btn danger action-only action-delete" onclick="deleteCurrency('${charId}','${c.id}')">삭제</button><button class="mini-btn action-only action-order" onclick="moveItem('currencies','${c.id}',-1,'${charId}')">↑</button><button class="mini-btn action-only action-order" onclick="moveItem('currencies','${c.id}',1,'${charId}')">↓</button></span></div>
   </div>`;
 }
 
@@ -762,7 +948,9 @@ async function toggleTask(id,isExp,ownerId){
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
   clearBusy(key);
   if(error){toast('저장 실패');return;}
-  Object.assign(t,up);render();
+  Object.assign(t,up);
+  if(t.parent_id)await syncParentDone(t.parent_id,isExp,ownerId);
+  render();
 }
 async function setTaskCount(id,isExp,ownerId,val){
   const key=`task:${id}`;if(!withBusy(key))return;
@@ -773,7 +961,16 @@ async function setTaskCount(id,isExp,ownerId,val){
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
   clearBusy(key);
   if(error){toast('저장 실패');return;}
-  Object.assign(t,up);render();
+  Object.assign(t,up);
+  if(t.parent_id)await syncParentDone(t.parent_id,isExp,ownerId);
+  render();
+}
+async function syncParentDone(parentId,isExp,ownerId){
+  const list=getTaskList(isExp,ownerId),children=list.filter(t=>t.parent_id===parentId),parent=list.find(t=>t.id===parentId);
+  if(!parent||!children.length)return;
+  const done=children.every(isDone),up={is_completed:done,last_completed_at:done?appNowIso():null};
+  const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',parentId);
+  if(!error)Object.assign(parent,up);
 }
 async function setRest(id,isExp,ownerId,val){
   if(!id||id==='undefined')return;
@@ -818,6 +1015,12 @@ async function deleteTask(id,isExp,ownerId){
   const next=list.filter(x=>x.id!==id&&x.parent_id!==id);
   if(isExp)state.expTasks[ownerId]=next;else state.tasks[ownerId]=next;
   render();toast('삭제했습니다');
+}
+async function smartDeleteTask(id,isExp,ownerId){
+  const t=getTaskList(isExp,ownerId).find(x=>x.id===id);
+  if(!t)return;
+  if(t.clone_group_id){await openBulkDelete(id,isExp,ownerId);return;}
+  await deleteTask(id,isExp,ownerId);
 }
 async function deleteRaidTask(id,charId){
   const list=state.raidTasks[charId]||[];
@@ -869,6 +1072,238 @@ async function addRaidPreset(presetId){
   toast('레이드를 추가했습니다');
 }
 
+function openAccountModal(id=null){
+  state.editAccountId=id;
+  const acc=id?state.accounts.find(a=>a.id===id):null;
+  document.getElementById('account-modal-title').textContent=id?'계정 수정':'계정 추가';
+  document.getElementById('account-name').value=acc?.name||'';
+  const sel=document.getElementById('account-parent');
+  sel.innerHTML='<option value="">상위 계정 없음</option>'+state.accounts.filter(a=>a.id!==id&&!a.parent_account_id).map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
+  sel.value=acc?.parent_account_id||'';
+  openModal('modal-account');
+}
+async function saveAccount(){
+  const name=document.getElementById('account-name').value.trim();
+  if(!name){toast('계정명을 입력하세요');return;}
+  const parent=document.getElementById('account-parent').value||null;
+  if(state.editAccountId){
+    const {error}=await sb.from('accounts').update({name,parent_account_id:parent}).eq('id',state.editAccountId);
+    if(error){toast('계정 저장 실패');return;}
+  }else{
+    const {error}=await sb.from('accounts').insert({name,parent_account_id:parent,sort_order:state.accounts.length});
+    if(error){toast('계정 추가 실패');return;}
+  }
+  closeModal('modal-account');await reloadAll();
+}
+async function deleteAccount(id){
+  const acc=state.accounts.find(a=>a.id===id);if(!acc)return;
+  if(!confirm(`"${acc.name}" 계정과 모든 캐릭터/숙제를 삭제하시겠습니까?`))return;
+  const {error}=await sb.from('accounts').delete().eq('id',id);
+  if(error){toast('계정 삭제 실패');return;}
+  state.selectedAccount=null;await reloadAll();
+}
+function openCharacterModal(id=null){
+  const selected=selectedAccount();
+  if(!selected&&!id){toast('계정을 먼저 선택하세요');return;}
+  state.editCharacterId=id;
+  const ch=id?state.chars.find(c=>c.id===id):null;
+  document.getElementById('character-modal-title').textContent=id?'캐릭터 정보 수정':'캐릭터 추가';
+  document.getElementById('character-modal-sub').textContent=id?'':`대상 계정: ${selected?.name||''}`;
+  document.getElementById('character-name').value=ch?.name||'';
+  document.getElementById('character-class').value=ch?.class_name||'';
+  document.getElementById('character-ilvl').value=ch?.item_level||'';
+  document.getElementById('character-combat').value=ch?.combat_power||'';
+  document.getElementById('character-show-raid').checked=ch?.show_raid_tasks!==false;
+  document.getElementById('character-show-currency').checked=ch?.show_currencies!==false;
+  document.getElementById('character-show-note').checked=ch?.show_custom_notes!==false;
+  document.getElementById('character-delete-btn').style.display=id?'inline-flex':'none';
+  openModal('modal-character');
+}
+async function saveCharacter(){
+  const rec={
+    name:document.getElementById('character-name').value.trim(),
+    class_name:document.getElementById('character-class').value.trim(),
+    item_level:Number(document.getElementById('character-ilvl').value)||0,
+    combat_power:Number(document.getElementById('character-combat').value)||0,
+    show_raid_tasks:document.getElementById('character-show-raid').checked,
+    show_currencies:document.getElementById('character-show-currency').checked,
+    show_custom_notes:document.getElementById('character-show-note').checked
+  };
+  if(!rec.name){toast('캐릭터명을 입력하세요');return;}
+  if(state.editCharacterId){
+    const {error}=await sb.from('characters').update(rec).eq('id',state.editCharacterId);
+    if(error){toast('캐릭터 저장 실패');return;}
+  }else{
+    rec.account_id=state.selectedAccount;rec.sort_order=selectedCharsForAccount().length;
+    const {error}=await sb.from('characters').insert(rec);
+    if(error){toast('캐릭터 추가 실패');return;}
+  }
+  closeModal('modal-character');await reloadAll();
+}
+async function deleteCharacterFromModal(){if(state.editCharacterId)await deleteCharacter(state.editCharacterId);}
+async function deleteCharacter(id){
+  const ch=state.chars.find(c=>c.id===id);if(!ch)return;
+  if(!confirm(`"${ch.name}" 캐릭터와 모든 숙제를 삭제하시겠습니까?`))return;
+  const {error}=await sb.from('characters').delete().eq('id',id);
+  if(error){toast('캐릭터 삭제 실패');return;}
+  closeModal('modal-character');await reloadAll();
+}
+
+function setCurrencyIcon(url){
+  state.currencyIconUrl=url||null;
+  const el=document.getElementById('currency-icon-preview');
+  if(el)el.innerHTML=state.currencyIconUrl?`<img src="${esc(state.currencyIconUrl)}" alt="">`:'돈';
+}
+function openCurrencyIconPicker(){openImagePicker(url=>setCurrencyIcon(url));}
+function openCurrencyModal(charId,id=null){
+  const ch=state.chars.find(c=>c.id===charId);if(!ch)return;
+  state.editCurrencyCharId=charId;state.editCurrencyId=id;
+  const c=id?(state.currencies[charId]||[]).find(x=>x.id===id):null;
+  document.getElementById('currency-modal-title').textContent=id?'재화 수정':'재화 추가';
+  document.getElementById('currency-modal-sub').textContent=`대상: ${ch.name}`;
+  document.getElementById('currency-name').value=c?.name||'';
+  document.getElementById('currency-amount').value=c?.amount??0;
+  setCurrencyIcon(c?.icon_url||null);
+  document.getElementById('currency-delete-btn').style.display=id?'inline-flex':'none';
+  openModal('modal-currency');
+}
+async function saveCurrencyModal(){
+  const charId=state.editCurrencyCharId;
+  const rec={name:document.getElementById('currency-name').value.trim(),amount:Number(document.getElementById('currency-amount').value)||0,icon_url:state.currencyIconUrl||null,updated_at:appNowIso()};
+  if(!rec.name){toast('재화명을 입력하세요');return;}
+  if(state.editCurrencyId){
+    const {error}=await sb.from('currencies').update(rec).eq('id',state.editCurrencyId);
+    if(error){toast('재화 저장 실패');return;}
+  }else{
+    rec.character_id=charId;rec.sort_order=(state.currencies[charId]||[]).length;
+    const {error}=await sb.from('currencies').insert(rec);
+    if(error){toast('재화 추가 실패');return;}
+  }
+  closeModal('modal-currency');await loadAccountData();render();
+}
+async function deleteCurrencyFromModal(){if(state.editCurrencyId)await deleteCurrency(state.editCurrencyCharId,state.editCurrencyId);}
+async function deleteCurrency(charId,id){
+  const c=(state.currencies[charId]||[]).find(x=>x.id===id);if(!c)return;
+  if(!confirm(`"${c.name}" 재화를 삭제하시겠습니까?`))return;
+  const {error}=await sb.from('currencies').delete().eq('id',id);
+  if(error){toast('재화 삭제 실패');return;}
+  state.currencies[charId]=(state.currencies[charId]||[]).filter(x=>x.id!==id);
+  closeModal('modal-currency');render();
+}
+
+function renderNoteContent(blocks){
+  if(!blocks||!blocks.length)return '<div class="empty">내용이 없습니다. 수정 모드에서 내용을 추가하세요.</div>';
+  return blocks.map(b=>{
+    if(b.type==='text')return`<div class="preview-card">${b.label?`<div class="section-label" style="margin-top:0">${esc(b.label)}</div>`:''}<div style="white-space:pre-wrap;color:var(--text)">${esc(b.content||'')}</div></div>`;
+    if(b.type==='table'){
+      const heads=String(b.headers||'').split(',').map(x=>x.trim()).filter(Boolean);
+      const rows=String(b.rows||'').split('\n').map(r=>r.split(',').map(c=>c.trim())).filter(r=>r.some(Boolean));
+      return`<div class="preview-card">${b.label?`<div class="section-label" style="margin-top:0">${esc(b.label)}</div>`:''}<div style="overflow:auto"><table style="width:100%;border-collapse:collapse">${rows.length?`<thead><tr>${heads.map(h=>`<th style="border:1px solid var(--line);padding:6px;text-align:left;color:var(--gold)">${esc(h)}</th>`).join('')}</tr></thead>`:''}<tbody>${rows.map(r=>`<tr>${heads.map((_,i)=>`<td style="border:1px solid var(--line);padding:6px">${esc(r[i]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+    }
+    return '<hr style="border:0;border-top:1px solid var(--line)">';
+  }).join('');
+}
+function openNoteViewer(id,charId){
+  const n=(state.notes[charId]||[]).find(x=>x.id===id);if(!n)return;
+  state.viewNoteId=id;state.viewNoteCharId=charId;
+  document.getElementById('note-view-title').textContent=`${n.icon||'메모'} ${n.title}`;
+  document.getElementById('note-view-sub').textContent=state.chars.find(c=>c.id===charId)?.name||'';
+  document.getElementById('note-view-content').innerHTML=renderNoteContent(n.content||[]);
+  openModal('modal-note-viewer');
+}
+function openNoteEditor(id=null,charId=null){
+  charId=charId||state.viewNoteCharId;
+  state.viewNoteCharId=charId;state.viewNoteId=id;
+  const n=id?(state.notes[charId]||[]).find(x=>x.id===id):null;
+  document.getElementById('note-editor-title').textContent=id?'커스텀 노트 수정':'커스텀 노트 추가';
+  document.getElementById('note-title-input').value=n?.title||'';
+  document.getElementById('note-icon-input').value=n?.icon||'📋';
+  state.editBlocks=JSON.parse(JSON.stringify(n?.content||[]));
+  renderNoteBlocks();
+  closeModal('modal-note-viewer');
+  openModal('modal-note-editor');
+}
+function addNoteBlock(type){
+  if(type==='text')state.editBlocks.push({type:'text',label:'',content:''});
+  else if(type==='table')state.editBlocks.push({type:'table',label:'',headers:'항목,내용',rows:''});
+  else state.editBlocks.push({type:'divider'});
+  renderNoteBlocks();
+}
+function moveNoteBlock(i,dir){const n=i+dir;if(n<0||n>=state.editBlocks.length)return;[state.editBlocks[i],state.editBlocks[n]]=[state.editBlocks[n],state.editBlocks[i]];renderNoteBlocks();}
+function removeNoteBlock(i){state.editBlocks.splice(i,1);renderNoteBlocks();}
+function renderNoteBlocks(){
+  const el=document.getElementById('note-block-list');if(!el)return;
+  if(!state.editBlocks.length){el.innerHTML='<div class="empty">블록이 없습니다</div>';return;}
+  el.innerHTML=state.editBlocks.map((b,i)=>{
+    const controls=`<span class="title-actions"><button class="mini-btn" onclick="moveNoteBlock(${i},-1)">↑</button><button class="mini-btn" onclick="moveNoteBlock(${i},1)">↓</button><button class="mini-btn danger" onclick="removeNoteBlock(${i})">삭제</button></span>`;
+    if(b.type==='text')return`<div class="preview-card"><div class="section-label" style="margin-top:0"><span>텍스트</span>${controls}</div><div class="form-grid"><div class="field"><label>블록 제목</label><input class="input" value="${esc(b.label||'')}" onchange="state.editBlocks[${i}].label=this.value"></div><div class="field full"><label>내용</label><textarea class="textarea" onchange="state.editBlocks[${i}].content=this.value">${esc(b.content||'')}</textarea></div></div></div>`;
+    if(b.type==='table')return`<div class="preview-card"><div class="section-label" style="margin-top:0"><span>표</span>${controls}</div><div class="form-grid"><div class="field"><label>블록 제목</label><input class="input" value="${esc(b.label||'')}" onchange="state.editBlocks[${i}].label=this.value"></div><div class="field"><label>열 이름</label><input class="input" value="${esc(b.headers||'')}" onchange="state.editBlocks[${i}].headers=this.value"></div><div class="field full"><label>행 데이터</label><textarea class="textarea" onchange="state.editBlocks[${i}].rows=this.value">${esc(b.rows||'')}</textarea></div></div></div>`;
+    return`<div class="preview-card"><div class="section-label" style="margin-top:0"><span>구분선</span>${controls}</div></div>`;
+  }).join('');
+}
+async function saveNote(){
+  const charId=state.viewNoteCharId,title=document.getElementById('note-title-input').value.trim(),icon=document.getElementById('note-icon-input').value.trim()||'📋';
+  if(!charId||!title){toast('노트 제목을 입력하세요');return;}
+  const rec={title,icon,content:state.editBlocks};
+  if(state.viewNoteId){
+    const {error}=await sb.from('custom_popups').update(rec).eq('id',state.viewNoteId);
+    if(error){toast('노트 저장 실패');return;}
+  }else{
+    rec.character_id=charId;rec.sort_order=(state.notes[charId]||[]).length;
+    const {error}=await sb.from('custom_popups').insert(rec);
+    if(error){toast('노트 추가 실패');return;}
+  }
+  closeModal('modal-note-editor');await loadAccountData();render();
+}
+async function deleteCurrentNote(){if(state.viewNoteId)await deleteNote(state.viewNoteId,state.viewNoteCharId);}
+async function deleteNote(id,charId){
+  const n=(state.notes[charId]||[]).find(x=>x.id===id);if(!n)return;
+  if(!confirm(`"${n.title}" 노트를 삭제하시겠습니까?`))return;
+  const {error}=await sb.from('custom_popups').delete().eq('id',id);
+  if(error){toast('노트 삭제 실패');return;}
+  state.notes[charId]=(state.notes[charId]||[]).filter(x=>x.id!==id);
+  closeModal('modal-note-viewer');closeModal('modal-note-editor');render();
+}
+
+function localListForMove(type,ownerId){
+  if(type==='accounts')return{list:state.accounts,table:'accounts'};
+  if(type==='characters')return{list:selectedCharsForAccount(),table:'characters'};
+  if(type==='tasks')return{list:state.tasks[ownerId]||[],table:'tasks'};
+  if(type==='expedition_tasks')return{list:state.expTasks[ownerId]||[],table:'expedition_tasks'};
+  if(type==='raid_tasks')return{list:state.raidTasks[ownerId]||[],table:'raid_tasks'};
+  if(type==='currencies')return{list:state.currencies[ownerId]||[],table:'currencies'};
+  if(type==='custom_popups')return{list:state.notes[ownerId]||[],table:'custom_popups'};
+  return{list:[],table:type};
+}
+async function persistOrder(table,list){
+  await Promise.all(list.map((item,i)=>sb.from(table).update({sort_order:i}).eq('id',item.id)));
+}
+async function moveItem(type,id,dir,ownerId=null){
+  let {list,table}=localListForMove(type,ownerId);
+  if(type==='characters')list=list.slice();
+  if(type==='accounts')list=list.slice();
+  const idx=list.findIndex(x=>x.id===id),next=idx+dir;
+  if(idx<0||next<0||next>=list.length)return;
+  [list[idx],list[next]]=[list[next],list[idx]];
+  list.forEach((x,i)=>x.sort_order=i);
+  await persistOrder(table,list);
+  if(type==='accounts'){state.accounts=list;}
+  if(type==='characters'){state.chars=state.chars.filter(c=>c.account_id!==state.selectedAccount).concat(list).sort((a,b)=>(a.account_id||'').localeCompare(b.account_id||'')||(a.sort_order||0)-(b.sort_order||0));}
+  render();
+}
+async function moveTask(id,isExp,ownerId,isChild,dir){
+  const table=isExp?'expedition_tasks':'tasks';
+  const all=getTaskList(isExp,ownerId);
+  const t=all.find(x=>x.id===id);if(!t)return;
+  const list=all.filter(x=>(x.parent_id||null)===(isChild?t.parent_id||null:null)).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const idx=list.findIndex(x=>x.id===id),next=idx+dir;
+  if(idx<0||next<0||next>=list.length)return;
+  [list[idx],list[next]]=[list[next],list[idx]];
+  list.forEach((x,i)=>x.sort_order=i);
+  await persistOrder(table,list);
+  render();
+}
+
 function getTaskList(isExp,ownerId){return isExp?(state.expTasks[ownerId]||[]):(state.tasks[ownerId]||[]);}
 function taskOwnerName(isExp,ownerId){
   if(isExp){const a=state.accounts.find(x=>x.id===ownerId);return a?`${a.name}${isAccountHidden(ownerId)?' · 숨김':''}`:ownerId;}
@@ -913,16 +1348,19 @@ async function openCopyTask(id,isExp,ownerId){
   const task=getTaskList(isExp,ownerId).find(x=>x.id===id);if(!task)return;
   state.copyCtx={id,isExp,ownerId};
   document.getElementById('copy-task-label').textContent=`"${task.name}" 설정을 그대로 복제합니다.`;
-  let html='<label class="copy-row"><div class="copy-main"><div class="copy-title">전체 선택</div><div class="copy-sub">아래 대상 전체를 선택합니다.</div></div><input type="checkbox" id="copy-select-all" onchange="copySelectAll(this.checked)"></label>';
+  let html='<div class="copy-row"><div class="copy-main"><div class="copy-title">전체 선택</div><div class="copy-sub">아래 대상 전체를 선택합니다.</div></div><input type="checkbox" id="copy-select-all" onchange="copySelectAll(this.checked)"></div>';
   if(isExp){
-    const targets=state.accounts.filter(a=>a.id!==ownerId);
-    html+=targets.map(a=>`<label class="copy-row"><div class="copy-main"><div class="copy-title">${esc(a.name)}</div><div class="copy-sub">계정 숙제로 복제${isAccountHidden(a.id)?' · 숨김 계정':''}</div></div><input type="checkbox" data-copy-target value="${a.id}"></label>`).join('');
+    const roots=state.accounts.filter(a=>!a.parent_account_id);
+    html+=roots.map(a=>{
+      const group=[a,...state.accounts.filter(s=>s.parent_account_id===a.id)].filter(x=>x.id!==ownerId);
+      if(!group.length)return '';
+      return`<div class="target-group"><div class="target-group-head"><span>${esc(a.name)}</span><label class="target-chip"><input type="checkbox" data-copy-account="${a.id}" onchange="copySelectAccount('${a.id}',this.checked)"> 계정별 선택</label></div><div class="target-chips">${group.map(acc=>`<label class="target-chip"><input type="checkbox" data-copy-target data-copy-account-id="${a.id}" value="${acc.id}">${esc(acc.name)}${acc.parent_account_id?'<span class="sub-account-mark">↳</span>':''}</label>`).join('')}</div></div>`;
+    }).join('');
   }else{
     state.accounts.forEach(a=>{
       const chars=state.chars.filter(c=>c.account_id===a.id&&c.id!==ownerId);
       if(!chars.length)return;
-      html+=`<div class="copy-row" style="background:rgba(34,211,238,.055)"><div class="copy-main"><div class="copy-title">${esc(a.name)}</div><div class="copy-sub">${chars.length}캐릭터</div></div><input type="checkbox" data-copy-account="${a.id}" onchange="copySelectAccount('${a.id}',this.checked)"></div>`;
-      html+=chars.map(c=>`<label class="copy-row"><div class="copy-main"><div class="copy-title">${esc(c.name)}</div><div class="copy-sub">${esc(c.class_name||'')} ${c.item_level?` · ${c.item_level}`:''}</div></div><input type="checkbox" data-copy-target data-copy-account-id="${a.id}" value="${c.id}"></label>`).join('');
+      html+=`<div class="target-group"><div class="target-group-head"><span>${esc(a.name)}${a.parent_account_id?'<span class="sub-account-mark">↳</span>':''}</span><label class="target-chip"><input type="checkbox" data-copy-account="${a.id}" onchange="copySelectAccount('${a.id}',this.checked)"> 계정별 선택</label></div><div class="target-chips">${chars.map(c=>`<label class="target-chip"><input type="checkbox" data-copy-target data-copy-account-id="${a.id}" value="${c.id}">${esc(c.name)}<span class="setting-sub">${esc(c.class_name||'')}</span></label>`).join('')}</div></div>`;
     });
   }
   document.getElementById('copy-task-list').innerHTML=html;
@@ -972,8 +1410,20 @@ async function openBulkDelete(id,isExp,ownerId){
   }
   state.bulkCtx={isExp,rows};
   document.getElementById('bulk-delete-label').textContent=task.clone_group_id?`"${task.name}" 복제 그룹에서 삭제할 대상을 고르세요.`:`"${task.name}"은 복제 그룹이 없어 현재 항목만 삭제할 수 있습니다.`;
-  const html=`<label class="bulk-row"><div class="bulk-main"><div class="bulk-title">전체 선택</div><div class="bulk-sub">표시된 항목 전체</div></div><input type="checkbox" id="bulk-select-all" checked onchange="bulkSelectAll(this.checked)"></label>`+
-    rows.map(r=>{const oid=r[ownerField],current=r.id===id;return`<label class="bulk-row"><div class="bulk-main"><div class="bulk-title">${esc(taskOwnerName(isExp,oid))}</div><div class="bulk-sub">${esc(r.name)}${current?' · 현재 항목':''}</div></div><input type="checkbox" data-bulk-id="${r.id}" checked></label>`;}).join('');
+  let html=`<div class="bulk-row"><div class="bulk-main"><div class="bulk-title">전체 선택</div><div class="bulk-sub">표시된 항목 전체</div></div><input type="checkbox" id="bulk-select-all" checked onchange="bulkSelectAll(this.checked)"></div>`;
+  if(isExp){
+    html+=state.accounts.map(a=>{
+      const items=rows.filter(r=>r[ownerField]===a.id);if(!items.length)return '';
+      return`<div class="target-group"><div class="target-group-head"><span>${esc(a.name)}</span></div><div class="target-chips">${items.map(r=>`<label class="target-chip"><input type="checkbox" data-bulk-id="${r.id}" checked>${esc(r.name)}${r.id===id?' · 현재':''}</label>`).join('')}</div></div>`;
+    }).join('');
+  }else{
+    state.accounts.forEach(a=>{
+      const chars=state.chars.filter(c=>c.account_id===a.id);
+      const items=rows.map(r=>({r,ch:chars.find(c=>c.id===r[ownerField])})).filter(x=>x.ch);
+      if(!items.length)return;
+      html+=`<div class="target-group"><div class="target-group-head"><span>${esc(a.name)}${a.parent_account_id?'<span class="sub-account-mark">↳</span>':''}</span></div><div class="target-chips">${items.map(({r,ch})=>`<label class="target-chip"><input type="checkbox" data-bulk-id="${r.id}" checked>${esc(ch.name)}${r.id===id?' · 현재':''}</label>`).join('')}</div></div>`;
+    });
+  }
   document.getElementById('bulk-delete-list').innerHTML=html;
   openModal('modal-bulk-delete');
 }
@@ -1009,6 +1459,7 @@ function openCreateForCurrent(){
 }
 function openCreateTask(scope,id,resetType){
   state.createTarget={scope,id};
+  state.createParentId=null;
   state.editTarget=null;
   state.createType='rest';
   document.querySelectorAll('.type-card').forEach(b=>b.classList.toggle('active',b.dataset.type==='rest'));
@@ -1025,10 +1476,23 @@ function openCreateTask(scope,id,resetType){
   renderRestPreview();
   openModal('modal-create');
 }
+function openCreateSubTask(parentId,isExp,ownerId){
+  openCreateTask(isExp?'account':'char',ownerId,'daily');
+  state.createParentId=parentId;
+  state.createType='check';
+  selectCreateType('check');
+  const parent=getTaskList(isExp,ownerId).find(t=>t.id===parentId);
+  document.getElementById('task-reset').value=parent?.reset_type||'daily';
+  document.getElementById('task-reset-day').value=String(parent?.reset_day??3);
+  syncCreateReset();
+  document.getElementById('create-title').textContent='하위 숙제 생성';
+  document.getElementById('create-target').textContent+=' · 하위 숙제';
+}
 function openEditTask(id,isExp,ownerId){
   const list=isExp?(state.expTasks[ownerId]||[]):(state.tasks[ownerId]||[]);
   const t=list.find(x=>x.id===id);if(!t)return;
   state.createTarget={scope:isExp?'account':'char',id:ownerId};
+  state.createParentId=t.parent_id||null;
   state.editTarget={id,isExp,ownerId};
   const type=t.rest_enabled?'rest':t.count_max!=null?'step':'check';
   document.getElementById('task-name').value=t.name||'';
@@ -1096,6 +1560,11 @@ async function submitCreatedTask(){
   }
   if(isExp){rec.account_id=target.id;rec.sort_order=(state.expTasks[target.id]||[]).filter(t=>!t.parent_id).length;}
   else{rec.character_id=target.id;rec.sort_order=(state.tasks[target.id]||[]).filter(t=>!t.parent_id).length;}
+  if(state.createParentId){
+    rec.parent_id=state.createParentId;
+    rec.sort_order=(isExp?(state.expTasks[target.id]||[]):(state.tasks[target.id]||[])).filter(t=>t.parent_id===state.createParentId).length;
+    rec.rest_enabled=false;rec.rest_current=0;rec.rest_max=200;rec.rest_charge=20;rec.rest_consume=40;rec.rest_threshold=40;rec.rest_daily_limit=1;rec.rest_last_processed_at=null;
+  }
   const {data,error}=await sb.from(table).insert(rec).select().single();
   if(error){toast('숙제 추가 실패');console.error(error);return;}
   if(isExp){if(!state.expTasks[target.id])state.expTasks[target.id]=[];state.expTasks[target.id].push(data);}
