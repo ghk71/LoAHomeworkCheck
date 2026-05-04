@@ -178,8 +178,12 @@ body.manage-active .mode-done{display:inline-flex}
 .raid-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .diff{font-weight:850}
 .diff.hard{color:#ffb020}.diff.nightmare{color:#b794ff}.diff.normal{color:#a8b1bc}
-.link-badge{display:inline-flex;align-items:center;gap:3px;border:1px solid rgba(20,184,166,.34);background:rgba(20,184,166,.08);color:#7dd3c7;border-radius:999px;padding:2px 7px;font-size:.65rem;font-weight:900}
+.link-badge{display:inline-flex;align-items:center;gap:3px;border:1px solid rgba(20,184,166,.34);background:rgba(20,184,166,.08);color:#7dd3c7;border-radius:999px;padding:2px 7px;font-size:.65rem;font-weight:900;transition:background .14s,border-color .14s,color .14s,transform .12s}
+.link-badge[onclick]{cursor:pointer}
+.link-badge[onclick]:hover{background:rgba(20,184,166,.22);border-color:rgba(20,184,166,.65);color:#aef0e3}
+.link-badge[onclick]:active{transform:scale(.95)}
 .link-badge.temp{border-color:rgba(244,199,107,.34);background:rgba(244,199,107,.09);color:#ffd985}
+.link-badge.temp[onclick]:hover{background:rgba(244,199,107,.22);border-color:rgba(244,199,107,.65);color:#ffe5a8}
 .curr-updated{display:inline-block;margin-left:8px;padding:1px 7px;font-size:.65rem;font-weight:780;color:var(--muted);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:999px}
 .party-link-preset{padding:11px 12px;background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:9px;margin-bottom:10px}
 .party-link-preset-name{font-weight:880;display:flex;align-items:center;gap:7px}
@@ -229,6 +233,7 @@ body.manage-active .mode-done{display:inline-flex}
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#0f1217;border:1px solid var(--line-2);border-radius:999px;padding:9px 14px;color:var(--text);box-shadow:var(--shadow);z-index:200;opacity:0;pointer-events:none;transition:.18s}
 .toast.show{opacity:1;bottom:26px}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:100;padding:18px}
+.overlay#modal-img-picker{z-index:200} 
 .overlay.open{display:flex}
 .modal{width:min(980px,100%);max-height:90vh;overflow:auto;background:#15171b;border:1px solid var(--line-2);border-radius:12px;box-shadow:var(--shadow)}
 .modal-head{padding:17px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center}
@@ -710,7 +715,7 @@ function updateClock(){const k=new Date(appNow().getTime()+9*3600000),p=n=>Strin
 function toLocalDateTimeValue(ms){const d=new Date(ms),p=n=>String(n).padStart(2,'0');return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;}
 function openSettings(){const c=getConfig();document.getElementById('set-url').value=c?.url||'';document.getElementById('set-key').value=c?.key||'';const td=localStorage.getItem('la_test_now');document.getElementById('set-test-date').value=td?toLocalDateTimeValue(Number(td)):'';openModal('modal-settings');}
 function saveSettings(){const u=document.getElementById('set-url').value.trim(),k=document.getElementById('set-key').value.trim();if(!u||!k){toast('URL과 key를 입력하세요');return;}localStorage.setItem('la_url',u);localStorage.setItem('la_key',k);const tv=document.getElementById('set-test-date').value;if(tv){const ms=new Date(tv).getTime();if(Number.isFinite(ms))localStorage.setItem('la_test_now',String(ms));else localStorage.removeItem('la_test_now');}else{localStorage.removeItem('la_test_now');}closeModal('modal-settings');location.reload();}
-function clearTestDate(){document.getElementById('set-test-date').value='';localStorage.removeItem('la_test_now');toast('실제 현재 날짜를 사용합니다');}
+function clearTestDate(){document.getElementById('set-test-date').value=toLocalDateTimeValue(Date.now());}
 function clearConfig(){if(!confirm('Supabase 연결을 해제합니다. 데이터는 보존됩니다.\n계속할까요?'))return;localStorage.removeItem('la_url');localStorage.removeItem('la_key');location.reload();}
 function ensureClock(){
   if(clockTimer)clearInterval(clockTimer);
@@ -1356,7 +1361,7 @@ function raidRow(t,charId){
   return`<div class="raid-row ${done?'done':''}" draggable="true" ondragstart="dragStart(event,'raid_tasks','${t.id}','${charId}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'raid_tasks','${t.id}','${charId}')">
     <div class="task-main">
       <div class="raid-title">${iconImg(icon)}<span class="raid-name">${esc(rn)}</span>${t.difficulty?`<span class="diff ${diffClass}">${esc(t.difficulty)}</span>`:''}<span class="title-actions"><button class="mini-btn danger action-only action-delete" onclick="deleteRaidTask('${t.id}','${charId}')">삭제</button></span></div>
-      <div class="task-meta">${t.entry_level?`<span class="tag">입장 ${t.entry_level}</span>`:''}${flow||bound?`<span class="tag gold">골드 ${flow.toLocaleString()} / 귀속 ${bound.toLocaleString()}</span>`:''}${bonus?`<span class="tag purple">더보기 ${bonus.toLocaleString()}</span>`:''}${linkText?`<span class="link-badge ${(isTemp||isRemoved)?'temp':''}" style="cursor:pointer" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id||''}','${t.id}','${charId}')" title="파티 정보 보기">${linkText}</span>`:''}</div>
+      <div class="task-meta">${t.entry_level?`<span class="tag">입장 ${t.entry_level}</span>`:''}${flow||bound?`<span class="tag gold">골드 ${flow.toLocaleString()} / 귀속 ${bound.toLocaleString()}</span>`:''}${bonus?`<span class="tag purple">더보기 ${bonus.toLocaleString()}</span>`:''}${linkText?`<span class="link-badge ${(isTemp||isRemoved)?'temp':''}" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id||''}','${t.id}','${charId}')" title="파티 정보 보기">${linkText}</span>`:''}</div>
     </div>
     <button class="check ${done?'on':''}" onclick="toggleRaid('${t.id}','${charId}')">${done?'완료':'체크'}</button>
   </div>`;
