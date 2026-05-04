@@ -630,7 +630,8 @@ body.manage-active .mode-done{display:inline-flex}
           <label>테스트 기준 날짜</label>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <input id="set-test-date" class="input" type="datetime-local" style="flex:1;min-width:200px">
-            <button class="btn" type="button" onclick="clearTestDate()">현재 날짜</button>
+            <button class="btn" type="button" onclick="fillTestDateNow()">현재 시각으로</button>
+            <button class="btn" type="button" onclick="clearTestDate()">테스트 끄기</button>
           </div>
           <div class="tiny" style="margin-top:6px">초기화/주간 계산 테스트용입니다. 비워두면 실제 현재 시간이 사용됩니다.</div>
         </div>
@@ -719,7 +720,8 @@ function updateClock(){const k=new Date(appNow().getTime()+9*3600000),p=n=>Strin
 function toLocalDateTimeValue(ms){const d=new Date(ms),p=n=>String(n).padStart(2,'0');return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;}
 function openSettings(){const c=getConfig();document.getElementById('set-url').value=c?.url||'';document.getElementById('set-key').value=c?.key||'';const td=localStorage.getItem('la_test_now');document.getElementById('set-test-date').value=td?toLocalDateTimeValue(Number(td)):'';openModal('modal-settings');}
 function saveSettings(){const u=document.getElementById('set-url').value.trim(),k=document.getElementById('set-key').value.trim();if(!u||!k){toast('URL과 key를 입력하세요');return;}localStorage.setItem('la_url',u);localStorage.setItem('la_key',k);const tv=document.getElementById('set-test-date').value;if(tv){const ms=new Date(tv).getTime();if(Number.isFinite(ms))localStorage.setItem('la_test_now',String(ms));else localStorage.removeItem('la_test_now');}else{localStorage.removeItem('la_test_now');}closeModal('modal-settings');location.reload();}
-function clearTestDate(){document.getElementById('set-test-date').value=toLocalDateTimeValue(Date.now());}
+function fillTestDateNow(){document.getElementById('set-test-date').value=toLocalDateTimeValue(Date.now());}
+function clearTestDate(){document.getElementById('set-test-date').value='';localStorage.removeItem('la_test_now');updateClock();toast('테스트 모드를 껐습니다. 저장하면 새로고침됩니다.');}
 function clearConfig(){if(!confirm('Supabase 연결을 해제합니다. 데이터는 보존됩니다.\n계속할까요?'))return;localStorage.removeItem('la_url');localStorage.removeItem('la_key');location.reload();}
 function ensureClock(){
   if(clockTimer)clearInterval(clockTimer);
