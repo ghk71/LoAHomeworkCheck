@@ -103,12 +103,14 @@ body.manage-active .mode-done{display:inline-flex}
 .avatar{width:34px;height:34px;border-radius:8px;background:#0b1119;border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none;color:var(--muted)}
 .avatar img,.task-icon img{width:100%;height:100%;object-fit:cover}
 .char-meta{min-width:0;flex:1}
-.char-name{font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.char-name{font-weight:900;display:flex;align-items:center;gap:5px;min-width:0;white-space:nowrap}
+.char-name-text{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .char-sub{font-size:.75rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .char-class{color:#dbeafe}
 .char-level{color:#8dd7ff;font-weight:850}
 .char-power{color:#ffd985;font-weight:850}
 .char-combat{color:#bff6ff;font-size:.71rem;margin-top:1px}
+.azena-badge{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1px solid rgba(125,211,252,.58);background:radial-gradient(circle at 35% 25%,rgba(255,255,255,.42),rgba(34,211,238,.2) 38%,rgba(59,130,246,.2));color:#dff8ff;font-size:.66rem;font-weight:950;box-shadow:0 0 12px rgba(34,211,238,.18);flex:none}
 .sub-account-mark{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(184,156,255,.16);border:1px solid rgba(184,156,255,.35);color:#d9ccff;font-size:.66rem;font-weight:950;margin-left:4px}
 .card-tools .mini-btn{height:24px}
 .char-card.hot .char-sub{color:rgba(255,255,255,.72)}
@@ -524,6 +526,7 @@ body.manage-active .mode-done{display:inline-flex}
         <div class="field"><label>직업</label><input id="character-class" class="input"></div>
         <div class="field"><label>아이템 레벨</label><input id="character-ilvl" class="input" type="number" step="0.01"></div>
         <div class="field"><label>전투력</label><input id="character-combat" class="input" type="number" step="1"></div>
+        <div class="field full"><label><input type="checkbox" id="character-azena"> 아제나의 축복 적용</label><div class="tiny">체크하면 캐릭터 카드에 아제나 축복 아이콘이 표시됩니다.</div></div>
         <div class="field full"><label><input type="checkbox" id="character-show-raid" checked> 레이드 현황 표시</label></div>
         <div class="field full"><label><input type="checkbox" id="character-show-currency" checked> 재화 현황 표시</label></div>
         <div class="field full"><label><input type="checkbox" id="character-show-note" checked> 커스텀 노트 표시</label></div>
@@ -1222,9 +1225,10 @@ function renderAccountTasks(content){
 
 function charHeader(ch,tasks,hot=false){
   const done=tasks.filter(isDone).length,total=tasks.length;
+  const azena=ch.azena_blessing===true;
   return`<div class="char-head">
     <div class="avatar">${ch.icon_url?`<img src="${esc(ch.icon_url)}" alt="">`:'검'}</div>
-    <div class="char-meta"><div class="char-name">${esc(ch.name)}</div><div class="char-sub"><span class="char-class">${esc(ch.class_name||'')}</span>${ch.item_level?`<span class="char-level">${Number(ch.item_level).toLocaleString()}</span>`:''}${ch.combat_power?`<span class="char-power">${Number(ch.combat_power).toLocaleString()}</span>`:''}</div></div>
+    <div class="char-meta"><div class="char-name"><span class="char-name-text">${esc(ch.name)}</span>${azena?`<span class="azena-badge" title="아제나의 축복 적용">AZ</span>`:''}</div><div class="char-sub"><span class="char-class">${esc(ch.class_name||'')}</span>${ch.item_level?`<span class="char-level">${Number(ch.item_level).toLocaleString()}</span>`:''}${ch.combat_power?`<span class="char-power">${Number(ch.combat_power).toLocaleString()}</span>`:''}</div></div>
     <div class="card-tools"><span class="tag ${total&&done===total?'green':''}">${done}/${total}</span><button class="btn icon" title="이 캐릭터에 숙제 추가" onclick="openCreateTask('char','${ch.id}','${state.mode==='daily'?'daily':'weekly'}')">+</button><button class="mini-btn action-only action-edit" onclick="openCharacterModal('${ch.id}')">정보</button><button class="mini-btn danger action-only action-delete" onclick="deleteCharacter('${ch.id}')">삭제</button></div>
   </div>`;
 }
@@ -1597,6 +1601,7 @@ function openCharacterModal(id=null){
   document.getElementById('character-class').value=ch?.class_name||'';
   document.getElementById('character-ilvl').value=ch?.item_level||'';
   document.getElementById('character-combat').value=ch?.combat_power||'';
+  document.getElementById('character-azena').checked=ch?.azena_blessing===true;
   document.getElementById('character-show-raid').checked=ch?.show_raid_tasks!==false;
   document.getElementById('character-show-currency').checked=ch?.show_currencies!==false;
   document.getElementById('character-show-note').checked=ch?.show_custom_notes!==false;
@@ -1617,17 +1622,29 @@ async function saveCharacter(){
     item_level:Number(document.getElementById('character-ilvl').value)||0,
     combat_power:Number(document.getElementById('character-combat').value)||0,
     icon_url:state.characterIconUrl||null,
+    azena_blessing:document.getElementById('character-azena').checked,
     show_raid_tasks:document.getElementById('character-show-raid').checked,
     show_currencies:document.getElementById('character-show-currency').checked,
     show_custom_notes:document.getElementById('character-show-note').checked
   };
   if(!rec.name){toast('캐릭터명을 입력하세요');return;}
+  const saveRec={...rec};
   if(state.editCharacterId){
-    const {error}=await sb.from('characters').update(rec).eq('id',state.editCharacterId);
+    let {error}=await sb.from('characters').update(saveRec).eq('id',state.editCharacterId);
+    if(error&&/azena_blessing|schema cache|column/i.test(error.message||'')){
+      delete saveRec.azena_blessing;
+      ({error}=await sb.from('characters').update(saveRec).eq('id',state.editCharacterId));
+      if(!error)toast('캐릭터 저장 완료. 아제나 체크 저장은 schema.sql 적용 후 가능합니다.');
+    }
     if(error){toast('캐릭터 저장 실패');return;}
   }else{
     rec.account_id=state.selectedAccount;rec.sort_order=selectedCharsForAccount().length;
-    const {error}=await sb.from('characters').insert(rec);
+    let {error}=await sb.from('characters').insert(rec);
+    if(error&&/azena_blessing|schema cache|column/i.test(error.message||'')){
+      const fallback={...rec};delete fallback.azena_blessing;
+      ({error}=await sb.from('characters').insert(fallback));
+      if(!error)toast('캐릭터 추가 완료. 아제나 체크 저장은 schema.sql 적용 후 가능합니다.');
+    }
     if(error){toast('캐릭터 추가 실패');return;}
   }
   closeModal('modal-character');await reloadAll();

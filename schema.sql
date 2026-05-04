@@ -22,6 +22,7 @@ create table if not exists characters(
   class_name text default '',
   item_level numeric default 0,
   combat_power numeric default 0,
+  azena_blessing boolean default false,
   show_raid_tasks boolean default true,
   show_currencies boolean default true,
   show_custom_notes boolean default true,
@@ -276,6 +277,7 @@ alter table raid_tasks add column if not exists receive_bonus boolean default tr
 -- 이미지 아이콘 URL
 alter table characters add column if not exists icon_url text;
 alter table characters add column if not exists combat_power numeric default 0;
+alter table characters add column if not exists azena_blessing boolean default false;
 alter table characters add column if not exists show_raid_tasks boolean default true;
 alter table characters add column if not exists show_currencies boolean default true;
 alter table characters add column if not exists show_custom_notes boolean default true;

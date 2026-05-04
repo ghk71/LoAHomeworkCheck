@@ -246,3 +246,17 @@ alter table accounts add column if not exists hide_from_filters boolean default 
 - `overview.html`
 - `raid.html`
 - `parties.html`
+
+## 2026-05-04 - characters 아제나의 축복 컬럼 추가
+
+### 목적
+- 캐릭터별 아제나의 축복 적용 여부를 저장하고 `index.html` 캐릭터 카드에 아이콘 배지로 표시하기 위함.
+
+### SQL
+```sql
+alter table characters add column if not exists azena_blessing boolean default false;
+```
+
+### 적용 파일
+- `schema.sql`
+- `index.html`
