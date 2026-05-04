@@ -2021,38 +2021,52 @@ function setTaskIcon(url){
 }
 function openTaskIconPicker(){openImagePicker(url=>setTaskIcon(url));}
 
-const ICON_REPO=localStorage.getItem('la_icon_repo')||'ghk71/LoAHomeworkCheck';
-const ICON_RAW=`https://raw.githubusercontent.com/${ICON_REPO}/main/`;
-const ICON_API=`https://api.github.com/repos/${ICON_REPO}/contents/`;
+const IMAGE_INDEX_URL='images/index.json';
+const IMAGE_BASE='images/';
 let pickerCallback=null;
-async function openImagePicker(cb,path='images/'){
+let imageIndex=null;
+let imageIndexLoaded=false;
+async function openImagePicker(cb){
   pickerCallback=cb;
+  document.getElementById('picker-breadcrumb').innerHTML='';
   document.getElementById('picker-content').innerHTML='<div class="pick-empty">불러오는 중...</div>';
   openModal('modal-img-picker');
-  await loadPickerDir(path);
+  await ensureImageIndex();
+  renderPickerRoot();
 }
-async function loadPickerDir(path){
-  const cKey='la_ic_'+path;
-  let items;
-  try{const cached=sessionStorage.getItem(cKey);if(cached)items=JSON.parse(cached);}catch{}
-  if(!items){
-    const r=await fetch(ICON_API+path);
-    if(!r.ok){document.getElementById('picker-content').innerHTML='<div class="pick-empty">폴더를 불러올 수 없습니다</div>';return;}
-    items=await r.json();
-    try{sessionStorage.setItem(cKey,JSON.stringify(items));}catch{}
+async function ensureImageIndex(){
+  if(imageIndexLoaded)return;
+  try{
+    const r=await fetch(IMAGE_INDEX_URL+'?t='+Date.now(),{cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    imageIndex=await r.json();
+  }catch(e){
+    imageIndex=null;
+    console.error('[picker] images/index.json 로드 실패:',e);
   }
-  const dirs=items.filter(x=>x.type==='dir');
-  const imgs=items.filter(x=>x.type==='file'&&/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(x.name));
-  const parts=path.replace(/^images\//,'').split('/').filter(Boolean);
-  let bc=`<span class="pick-bc" onclick="loadPickerDir('images/')">images</span>`;
-  let cum='images/';
-  parts.forEach(p=>{cum+=p+'/';bc+=` / <span class="pick-bc" onclick="loadPickerDir('${cum}')">${esc(p)}</span>`;});
-  document.getElementById('picker-breadcrumb').innerHTML=bc;
-  let html='';
-  if(dirs.length)html+=dirs.map(d=>`<div class="pick-folder" onclick="loadPickerDir('${path}${d.name}/')">폴더 ${esc(d.name)}</div>`).join('');
-  if(imgs.length)html+=`<div class="pick-imgs">${imgs.map(f=>{const url=ICON_RAW+f.path;return`<div class="pick-img-wrap" title="${esc(f.name)}" onclick="selectPickerImg('${url}')"><img src="${url}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`;}).join('')}</div>`;
-  if(!html)html='<div class="pick-empty">이미지가 없습니다</div>';
-  document.getElementById('picker-content').innerHTML=html;
+  imageIndexLoaded=true;
+}
+function renderPickerRoot(){
+  document.getElementById('picker-breadcrumb').innerHTML=`<span class="pick-bc">images</span>`;
+  const content=document.getElementById('picker-content');
+  if(!imageIndex){
+    content.innerHTML='<div class="pick-empty">images/index.json 을 불러올 수 없습니다.<br><span class="tiny">GitHub Actions가 아직 실행되지 않았거나 파일이 없습니다.</span></div>';
+    return;
+  }
+  const cats=Object.keys(imageIndex);
+  if(!cats.length){content.innerHTML='<div class="pick-empty">등록된 카테고리가 없습니다</div>';return;}
+  content.innerHTML=cats.map(cat=>`<div class="pick-folder" data-cat="${esc(cat)}">📁 ${esc(cat)} <span class="tiny">(${imageIndex[cat].length})</span></div>`).join('');
+  content.querySelectorAll('.pick-folder').forEach(el=>{el.addEventListener('click',()=>renderPickerCategory(el.dataset.cat));});
+}
+function renderPickerCategory(cat){
+  if(!imageIndex||!imageIndex[cat]){renderPickerRoot();return;}
+  document.getElementById('picker-breadcrumb').innerHTML=`<span class="pick-bc" id="pick-bc-root">images</span> / <span class="pick-bc">${esc(cat)}</span>`;
+  document.getElementById('pick-bc-root').addEventListener('click',renderPickerRoot);
+  const files=imageIndex[cat];
+  const content=document.getElementById('picker-content');
+  if(!files.length){content.innerHTML='<div class="pick-empty">이미지가 없습니다</div>';return;}
+  content.innerHTML=`<div class="pick-imgs">${files.map(f=>{const url=IMAGE_BASE+encodeURI(cat)+'/'+encodeURI(f);return`<div class="pick-img-wrap" data-url="${esc(url)}" title="${esc(f)}"><img src="${esc(url)}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`;}).join('')}</div>`;
+  content.querySelectorAll('.pick-img-wrap').forEach(el=>{el.addEventListener('click',()=>selectPickerImg(el.dataset.url));});
 }
 function selectPickerImg(url){if(pickerCallback)pickerCallback(url);closeModal('modal-img-picker');}
 function pickerRemoveIcon(){if(pickerCallback)pickerCallback(null);closeModal('modal-img-picker');}
