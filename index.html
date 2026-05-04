@@ -315,6 +315,7 @@ body.manage-active .mode-done{display:inline-flex}
         <button class="btn green mode-done" id="mode-done-btn" onclick="finishActionMode()">모드 완료</button>
         <button class="btn gold daily-tool" onclick="openCharacterApiUpdateModal()">캐릭 업데이트</button>
         <button class="btn" onclick="reloadAll()">새로고침</button>
+        <button class="btn" onclick="openSettings()" title="설정">⚙️</button>
       </div>
     </div>
   </div>
@@ -586,6 +587,27 @@ body.manage-active .mode-done{display:inline-flex}
   </div>
 </div>
 
+<div class="overlay" id="modal-settings">
+  <div class="modal" style="width:min(560px,100%)">
+    <div class="modal-head"><div><div class="modal-title">⚙️ 설정</div><div class="tiny">Supabase 연결 정보와 테스트 기준 날짜를 관리합니다.</div></div><button class="btn" onclick="closeModal('modal-settings')">닫기</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field full"><label>Supabase URL</label><input id="set-url" class="input" type="url" placeholder="https://xxxx.supabase.co"></div>
+        <div class="field full"><label>Anon Key</label><input id="set-key" class="input" type="password" placeholder="eyJ..."></div>
+        <div class="field full" style="border-top:1px solid var(--line);padding-top:12px;margin-top:4px">
+          <label>테스트 기준 날짜</label>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input id="set-test-date" class="input" type="datetime-local" style="flex:1;min-width:200px">
+            <button class="btn" type="button" onclick="clearTestDate()">현재 날짜</button>
+          </div>
+          <div class="tiny" style="margin-top:6px">초기화/주간 계산 테스트용입니다. 비워두면 실제 현재 시간이 사용됩니다.</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn danger" style="margin-right:auto" onclick="clearConfig()">연결 해제</button><button class="btn" onclick="closeModal('modal-settings')">취소</button><button class="btn primary" onclick="saveSettings()">저장</button></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -659,7 +681,12 @@ function getConfig(){const url=localStorage.getItem('la_url'),key=localStorage.g
 function saveConfig(){const url=document.getElementById('setup-url').value.trim(),key=document.getElementById('setup-key').value.trim();if(!url||!key){toast('URL과 key를 입력하세요');return;}localStorage.setItem('la_url',url);localStorage.setItem('la_key',key);init();}
 function appNow(){const t=Number(localStorage.getItem('la_test_now')||0);return Number.isFinite(t)&&t>0?new Date(t):new Date();}
 function appNowIso(){return appNow().toISOString();}
-function updateClock(){const k=new Date(appNow().getTime()+9*3600000),p=n=>String(n).padStart(2,'0');document.getElementById('clock').textContent=`KST ${p(k.getUTCHours())}:${p(k.getUTCMinutes())} (${DAYS[k.getUTCDay()]})`;}
+function updateClock(){const k=new Date(appNow().getTime()+9*3600000),p=n=>String(n).padStart(2,'0'),test=localStorage.getItem('la_test_now')?' · 테스트':'';document.getElementById('clock').textContent=`KST ${p(k.getUTCHours())}:${p(k.getUTCMinutes())} (${DAYS[k.getUTCDay()]})${test}`;}
+function toLocalDateTimeValue(ms){const d=new Date(ms),p=n=>String(n).padStart(2,'0');return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;}
+function openSettings(){const c=getConfig();document.getElementById('set-url').value=c?.url||'';document.getElementById('set-key').value=c?.key||'';const td=localStorage.getItem('la_test_now');document.getElementById('set-test-date').value=td?toLocalDateTimeValue(Number(td)):'';openModal('modal-settings');}
+function saveSettings(){const u=document.getElementById('set-url').value.trim(),k=document.getElementById('set-key').value.trim();if(!u||!k){toast('URL과 key를 입력하세요');return;}localStorage.setItem('la_url',u);localStorage.setItem('la_key',k);const tv=document.getElementById('set-test-date').value;if(tv){const ms=new Date(tv).getTime();if(Number.isFinite(ms))localStorage.setItem('la_test_now',String(ms));else localStorage.removeItem('la_test_now');}else{localStorage.removeItem('la_test_now');}closeModal('modal-settings');location.reload();}
+function clearTestDate(){document.getElementById('set-test-date').value='';localStorage.removeItem('la_test_now');toast('실제 현재 날짜를 사용합니다');}
+function clearConfig(){if(!confirm('Supabase 연결을 해제합니다. 데이터는 보존됩니다.\n계속할까요?'))return;localStorage.removeItem('la_url');localStorage.removeItem('la_key');location.reload();}
 function ensureClock(){
   if(clockTimer)clearInterval(clockTimer);
   updateClock();
