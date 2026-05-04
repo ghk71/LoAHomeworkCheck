@@ -110,7 +110,8 @@ body.manage-active .mode-done{display:inline-flex}
 .char-level{color:#8dd7ff;font-weight:850}
 .char-power{color:#ffd985;font-weight:850}
 .char-combat{color:#bff6ff;font-size:.71rem;margin-top:1px}
-.azena-badge{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1px solid rgba(125,211,252,.58);background:radial-gradient(circle at 35% 25%,rgba(255,255,255,.42),rgba(34,211,238,.2) 38%,rgba(59,130,246,.2));color:#dff8ff;font-size:.66rem;font-weight:950;box-shadow:0 0 12px rgba(34,211,238,.18);flex:none}
+.azena-badge{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1px solid rgba(125,211,252,.58);background:rgba(8,13,20,.72);box-shadow:0 0 12px rgba(34,211,238,.18);overflow:hidden;flex:none}
+.azena-badge img{width:100%;height:100%;object-fit:cover;display:block}
 .sub-account-mark{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(184,156,255,.16);border:1px solid rgba(184,156,255,.35);color:#d9ccff;font-size:.66rem;font-weight:950;margin-left:4px}
 .card-tools .mini-btn{height:24px}
 .char-card.hot .char-sub{color:rgba(255,255,255,.72)}
@@ -1228,7 +1229,7 @@ function charHeader(ch,tasks,hot=false){
   const azena=ch.azena_blessing===true;
   return`<div class="char-head">
     <div class="avatar">${ch.icon_url?`<img src="${esc(ch.icon_url)}" alt="">`:'검'}</div>
-    <div class="char-meta"><div class="char-name"><span class="char-name-text">${esc(ch.name)}</span>${azena?`<span class="azena-badge" title="아제나의 축복 적용">AZ</span>`:''}</div><div class="char-sub"><span class="char-class">${esc(ch.class_name||'')}</span>${ch.item_level?`<span class="char-level">${Number(ch.item_level).toLocaleString()}</span>`:''}${ch.combat_power?`<span class="char-power">${Number(ch.combat_power).toLocaleString()}</span>`:''}</div></div>
+    <div class="char-meta"><div class="char-name"><span class="char-name-text">${esc(ch.name)}</span>${azena?`<span class="azena-badge" title="아제나의 축복 적용"><img src="images/goods/azena.png" alt="아제나의 축복"></span>`:''}</div><div class="char-sub"><span class="char-class">${esc(ch.class_name||'')}</span>${ch.item_level?`<span class="char-level">${Number(ch.item_level).toLocaleString()}</span>`:''}${ch.combat_power?`<span class="char-power">${Number(ch.combat_power).toLocaleString()}</span>`:''}</div></div>
     <div class="card-tools"><span class="tag ${total&&done===total?'green':''}">${done}/${total}</span><button class="btn icon" title="이 캐릭터에 숙제 추가" onclick="openCreateTask('char','${ch.id}','${state.mode==='daily'?'daily':'weekly'}')">+</button><button class="mini-btn action-only action-edit" onclick="openCharacterModal('${ch.id}')">정보</button><button class="mini-btn danger action-only action-delete" onclick="deleteCharacter('${ch.id}')">삭제</button></div>
   </div>`;
 }
