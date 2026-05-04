@@ -159,7 +159,7 @@ body.manage-active .mode-done{display:inline-flex}
 .rest-box{margin-top:5px}
 .rest-line{display:flex;justify-content:space-between;color:var(--muted);font-size:.68rem;margin-bottom:4px}
 .rest-segments{display:flex;gap:4px}
-.rest-group{position:relative;height:8px;flex:1;background:#243040;border-radius:999px;overflow:hidden}
+.rest-group{position:relative;height:8px;flex:1;background:#243040;border-radius:999px;overflow:hidden;cursor:pointer}
 .rest-group::before{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--fill,0%);background:linear-gradient(90deg,var(--green),#6ee7f9)}
 .rest-box.rest-ready .rest-group::before{background:linear-gradient(90deg,#38bdf8,#818cf8)}
 .rest-hit{position:absolute;top:0;bottom:0;border:0;background:transparent;padding:0}
@@ -210,8 +210,11 @@ body.manage-active .mode-done{display:inline-flex}
 .target-group{border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.025);padding:9px;display:grid;gap:8px}
 .target-group-head{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--gold);font-weight:950}
 .target-chips{display:flex;gap:7px;flex-wrap:wrap}
-.target-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;background:#0c121b;color:var(--muted);padding:6px 9px;font-size:.76rem;font-weight:850}
+.target-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;background:#0c121b;color:var(--muted);padding:6px 9px;font-size:.76rem;font-weight:850;max-width:100%;white-space:normal;flex-wrap:wrap;line-height:1.25}
 .target-chip input{width:15px;height:15px;accent-color:var(--accent)}
+.target-chip .target-main{color:var(--text);font-weight:920}
+.target-chip .target-level{color:#8dd7ff;font-size:.7rem;font-weight:850}
+.target-chip .target-class{color:var(--muted);font-size:.68rem;font-weight:760}
 .target-chip:has(input:checked){border-color:rgba(34,211,238,.5);color:#dffbff;background:rgba(34,211,238,.1)}
 .target-chip.exclude-chip:has(input:checked){border-color:rgba(255,93,108,.48);color:#ffc5ca;background:rgba(255,93,108,.1)}
 .api-update-grid{display:grid;gap:12px}
@@ -233,7 +236,7 @@ body.manage-active .mode-done{display:inline-flex}
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#0f1217;border:1px solid var(--line-2);border-radius:999px;padding:9px 14px;color:var(--text);box-shadow:var(--shadow);z-index:200;opacity:0;pointer-events:none;transition:.18s}
 .toast.show{opacity:1;bottom:26px}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:100;padding:18px}
-.overlay#modal-img-picker{z-index:200} 
+.overlay#modal-img-picker{z-index:200}
 .overlay.open{display:flex}
 .modal{width:min(980px,100%);max-height:90vh;overflow:auto;background:#15171b;border:1px solid var(--line-2);border-radius:12px;box-shadow:var(--shadow)}
 .modal-head{padding:17px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center}
@@ -504,9 +507,10 @@ body.manage-active .mode-done{display:inline-flex}
       <div class="form-grid">
         <div class="field"><label>계정명</label><input id="account-name" class="input" placeholder="예: 겹삽"></div>
         <div class="field"><label>상위 계정</label><select id="account-parent" class="select"><option value="">상위 계정 없음</option></select></div>
+        <div class="field full"><label><input type="checkbox" id="account-hide-filter"> 캐릭터 필터에서 이 계정 숨김</label><div class="tiny">코어/레이드 현황/파티 현황/공유 링크 필터에서만 숨기고, 파티 구성과 주간 일정 구성에는 계속 표시합니다.</div></div>
       </div>
     </div>
-    <div class="modal-foot"><button class="btn" onclick="closeModal('modal-account')">취소</button><button class="btn primary" onclick="saveAccount()">저장</button></div>
+    <div class="modal-foot"><button class="btn danger" id="account-delete-btn" style="margin-right:auto;display:none" onclick="deleteAccountFromModal()">삭제</button><button class="btn" onclick="closeModal('modal-account')">취소</button><button class="btn primary" onclick="saveAccount()">저장</button></div>
   </div>
 </div>
 
@@ -812,6 +816,11 @@ async function loadAccountData(){
 function selectedAccount(){return state.accounts.find(a=>a.id===state.selectedAccount)||null;}
 function isAccountHidden(id){return state.hiddenAccounts.has(id);}
 function visibleAccounts(){return state.accounts.filter(a=>state.showHiddenAccounts||!isAccountHidden(a.id));}
+function targetVisibleAccounts(){return state.accounts.filter(a=>!isAccountHidden(a.id));}
+function targetCharLabel(c){
+  const level=c.item_level?`Lv.${Number(c.item_level).toLocaleString()}`:'';
+  return`<span class="target-main">${esc(c.name)}</span>${level?`<span class="target-level">${level}</span>`:''}${c.class_name?`<span class="target-class">${esc(c.class_name)}</span>`:''}`;
+}
 function selectedCharsForAccount(){return state.chars.filter(c=>c.account_id===state.selectedAccount);}
 function visibleChars(){return selectedCharsForAccount();}
 function setMode(mode){state.mode=mode;state.selectedChar='all';render();}
@@ -1027,7 +1036,7 @@ function renderAccountSettings(){
     return`<div class="setting-row">
       <div class="setting-main">
         <div class="setting-title">${esc(a.name)}</div>
-        <div class="setting-sub">${chars}캐릭터 · ${hidden?'현재 숨김':'현재 표시 중'}</div>
+        <div class="setting-sub">${chars}캐릭터 · ${hidden?'현재 숨김':'현재 표시 중'}${a.hide_from_filters===true?' · 필터 제외':''}</div>
       </div>
       <div class="card-tools"><button class="mini-btn" onclick="openAccountModal('${a.id}')">수정</button><button class="mini-btn danger" onclick="deleteAccount('${a.id}')">삭제</button><button class="switch ${hidden?'':'on'}" onclick="toggleHideAccount(event,'${a.id}')" title="${hidden?'계정 표시':'계정 숨김'}"></button></div>
     </div>`;
@@ -1260,7 +1269,7 @@ function renderDailyCard(ch){
       ${showCurr?`<div class="currency-block ${currCollapsed?'collapsed':''}">
         <div class="section-label">
           <span>재화 현황${(()=>{const d=getLatestCurrencyUpdated(curr);return d?`<span class="curr-updated">최종 ${fmtRelDate(d)}</span>`:'';})()}</span>
-          <span class="section-actions"><span>${curr.length}</span><button class="btn icon action-only action-edit" title="재화 추가" onclick="openCurrencyModal('${ch.id}')">+</button><button class="section-toggle" onclick="toggleCurrencyCollapse('${ch.id}')">${currCollapsed?'펼치기':'접기'}</button></span>
+          <span class="section-actions"><span>${curr.length}</span><button class="btn icon" title="재화 추가" onclick="openCurrencyModal('${ch.id}')">+</button><button class="section-toggle" onclick="toggleCurrencyCollapse('${ch.id}')">${currCollapsed?'펼치기':'접기'}</button></span>
         </div>
         <div class="currency-items">${curr.length?curr.map(c=>currencyRow(c,ch.id)).join(''):'<div class="empty">재화가 없습니다</div>'}</div>
       </div>`:''}
@@ -1338,16 +1347,18 @@ function restBox(t,isExp,ownerId){
   for(let i=0;i<r.totalCells;i+=r.cellsPerUse){
     const start=i*r.charge,end=Math.min(r.max,(i+r.cellsPerUse)*r.charge);
     const pct=Math.max(0,Math.min(100,((r.cur-start)/(end-start))*100));
-    let cells='';
-    for(let j=i;j<Math.min(i+r.cellsPerUse,r.totalCells);j++){
-      const val=Math.min(r.max,(j+1)*r.charge);
-      const left=(j-i)/r.cellsPerUse*100,width=100/r.cellsPerUse;
-      cells+=`<button class="rest-hit" style="left:${left}%;width:${width}%;" title="${val}" onclick="setRest('${t.id}',${isExp},'${ownerId}',${val})"></button>`;
-    }
-    groups.push(`<div class="rest-group" style="--fill:${pct}%">${cells}</div>`);
+    groups.push(`<div class="rest-group" style="--fill:${pct}%" title="${start} - ${end}" onclick="setRestFromGroup(event,'${t.id}',${isExp},'${ownerId}',${start},${end},${r.charge})"></div>`);
   }
   const ready=r.threshold>0&&r.cur>=r.threshold;
   return`<div class="rest-box ${ready?'rest-ready':''}"><div class="rest-line"><span>${r.threshold>0?`강조 ${r.threshold} · `:''}충전 ${r.charge}</span><b>${r.cur}/${r.max}</b></div><div class="rest-segments">${groups.join('')}</div></div>`;
+}
+function setRestFromGroup(e,id,isExp,ownerId,start,end,charge){
+  const rect=e.currentTarget.getBoundingClientRect();
+  const width=Math.max(1,rect.width);
+  const ratio=Math.max(0,Math.min(1,(e.clientX-rect.left)/width));
+  let val=start+Math.ceil(((end-start)*ratio)/Math.max(1,charge))*Math.max(1,charge);
+  if(start===0&&ratio<=0.08)val=0;
+  setRest(id,isExp,ownerId,Math.max(0,Math.min(end,val)));
 }
 function raidRow(t,charId){
   const done=isDone(t),diffClass=String(t.difficulty||'').includes('하드')?'hard':String(t.difficulty||'').includes('나이트')?'nightmare':'normal';
@@ -1536,26 +1547,41 @@ function openAccountModal(id=null){
   const sel=document.getElementById('account-parent');
   sel.innerHTML='<option value="">상위 계정 없음</option>'+state.accounts.filter(a=>a.id!==id&&!a.parent_account_id).map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
   sel.value=acc?.parent_account_id||'';
+  document.getElementById('account-hide-filter').checked=acc?.hide_from_filters===true;
+  document.getElementById('account-delete-btn').style.display=id?'inline-flex':'none';
   openModal('modal-account');
 }
 async function saveAccount(){
   const name=document.getElementById('account-name').value.trim();
   if(!name){toast('계정명을 입력하세요');return;}
   const parent=document.getElementById('account-parent').value||null;
+  const hideFromFilters=document.getElementById('account-hide-filter').checked;
+  let result,filterColumnMissing=false;
   if(state.editAccountId){
-    const {error}=await sb.from('accounts').update({name,parent_account_id:parent}).eq('id',state.editAccountId);
-    if(error){toast('계정 저장 실패');return;}
+    result=await sb.from('accounts').update({name,parent_account_id:parent,hide_from_filters:hideFromFilters}).eq('id',state.editAccountId);
+    if(result.error&&/hide_from_filters|schema cache|column/i.test(result.error.message||'')){
+      filterColumnMissing=true;
+      result=await sb.from('accounts').update({name,parent_account_id:parent}).eq('id',state.editAccountId);
+    }
+    if(result.error){toast('계정 저장 실패');return;}
   }else{
-    const {error}=await sb.from('accounts').insert({name,parent_account_id:parent,sort_order:state.accounts.length});
-    if(error){toast('계정 추가 실패');return;}
+    result=await sb.from('accounts').insert({name,parent_account_id:parent,hide_from_filters:hideFromFilters,sort_order:state.accounts.length});
+    if(result.error&&/hide_from_filters|schema cache|column/i.test(result.error.message||'')){
+      filterColumnMissing=true;
+      result=await sb.from('accounts').insert({name,parent_account_id:parent,sort_order:state.accounts.length});
+    }
+    if(result.error){toast('계정 추가 실패');return;}
   }
   closeModal('modal-account');await reloadAll();
+  if(filterColumnMissing)toast('계정 저장 완료. 필터 숨김은 schema.sql 적용 후 저장됩니다.');
 }
+async function deleteAccountFromModal(){if(state.editAccountId)await deleteAccount(state.editAccountId);}
 async function deleteAccount(id){
   const acc=state.accounts.find(a=>a.id===id);if(!acc)return;
   if(!confirm(`"${acc.name}" 계정과 모든 캐릭터/숙제를 삭제하시겠습니까?`))return;
   const {error}=await sb.from('accounts').delete().eq('id',id);
   if(error){toast('계정 삭제 실패');return;}
+  if(document.getElementById('modal-account')?.classList.contains('open'))closeModal('modal-account');
   state.selectedAccount=null;await reloadAll();
 }
 function openCharacterModal(id=null){
@@ -2001,17 +2027,18 @@ async function openCopyTask(id,isExp,ownerId){
   document.getElementById('copy-task-label').textContent=`"${task.name}" 설정을 그대로 복제합니다.`;
   let html='<div class="copy-row"><div class="copy-main"><div class="copy-title">전체 선택</div><div class="copy-sub">아래 대상 전체를 선택합니다.</div></div><input type="checkbox" id="copy-select-all" onchange="copySelectAll(this.checked)"></div>';
   if(isExp){
-    const roots=state.accounts.filter(a=>!a.parent_account_id);
+    const accountsForTargets=targetVisibleAccounts();
+    const roots=accountsForTargets.filter(a=>!a.parent_account_id);
     html+=roots.map(a=>{
-      const group=[a,...state.accounts.filter(s=>s.parent_account_id===a.id)].filter(x=>x.id!==ownerId);
+      const group=[a,...accountsForTargets.filter(s=>s.parent_account_id===a.id)].filter(x=>x.id!==ownerId);
       if(!group.length)return '';
       return`<div class="target-group"><div class="target-group-head"><span>${esc(a.name)}</span><label class="target-chip"><input type="checkbox" data-copy-account="${a.id}" onchange="copySelectAccount('${a.id}',this.checked)"> 계정별 선택</label></div><div class="target-chips">${group.map(acc=>`<label class="target-chip"><input type="checkbox" data-copy-target data-copy-account-id="${a.id}" value="${acc.id}">${esc(acc.name)}${acc.parent_account_id?'<span class="sub-account-mark">↳</span>':''}</label>`).join('')}</div></div>`;
     }).join('');
   }else{
-    state.accounts.forEach(a=>{
+    targetVisibleAccounts().forEach(a=>{
       const chars=state.chars.filter(c=>c.account_id===a.id&&c.id!==ownerId);
       if(!chars.length)return;
-      html+=`<div class="target-group"><div class="target-group-head"><span>${esc(a.name)}${a.parent_account_id?'<span class="sub-account-mark">↳</span>':''}</span><label class="target-chip"><input type="checkbox" data-copy-account="${a.id}" onchange="copySelectAccount('${a.id}',this.checked)"> 계정별 선택</label></div><div class="target-chips">${chars.map(c=>`<label class="target-chip"><input type="checkbox" data-copy-target data-copy-account-id="${a.id}" value="${c.id}">${esc(c.name)}<span class="setting-sub">${esc(c.class_name||'')}</span></label>`).join('')}</div></div>`;
+      html+=`<div class="target-group"><div class="target-group-head"><span>${esc(a.name)}${a.parent_account_id?'<span class="sub-account-mark">↳</span>':''}</span><label class="target-chip"><input type="checkbox" data-copy-account="${a.id}" onchange="copySelectAccount('${a.id}',this.checked)"> 계정별 선택</label></div><div class="target-chips">${chars.map(c=>`<label class="target-chip"><input type="checkbox" data-copy-target data-copy-account-id="${a.id}" value="${c.id}">${targetCharLabel(c)}</label>`).join('')}</div></div>`;
     });
   }
   document.getElementById('copy-task-list').innerHTML=html;
@@ -2063,16 +2090,16 @@ async function openBulkDelete(id,isExp,ownerId){
   document.getElementById('bulk-delete-label').textContent=task.clone_group_id?`"${task.name}" 복제 그룹에서 삭제할 대상을 고르세요.`:`"${task.name}"은 복제 그룹이 없어 현재 항목만 삭제할 수 있습니다.`;
   let html=`<div class="bulk-row"><div class="bulk-main"><div class="bulk-title">전체 선택</div><div class="bulk-sub">표시된 항목 전체</div></div><input type="checkbox" id="bulk-select-all" checked onchange="bulkSelectAll(this.checked)"></div>`;
   if(isExp){
-    html+=state.accounts.map(a=>{
+    html+=targetVisibleAccounts().map(a=>{
       const items=rows.filter(r=>r[ownerField]===a.id);if(!items.length)return '';
       return`<div class="target-group"><div class="target-group-head"><span>${esc(a.name)}</span></div><div class="target-chips">${items.map(r=>`<label class="target-chip"><input type="checkbox" data-bulk-id="${r.id}" checked>${esc(r.name)}${r.id===id?' · 현재':''}</label>`).join('')}</div></div>`;
     }).join('');
   }else{
-    state.accounts.forEach(a=>{
+    targetVisibleAccounts().forEach(a=>{
       const chars=state.chars.filter(c=>c.account_id===a.id);
       const items=rows.map(r=>({r,ch:chars.find(c=>c.id===r[ownerField])})).filter(x=>x.ch);
       if(!items.length)return;
-      html+=`<div class="target-group"><div class="target-group-head"><span>${esc(a.name)}${a.parent_account_id?'<span class="sub-account-mark">↳</span>':''}</span></div><div class="target-chips">${items.map(({r,ch})=>`<label class="target-chip"><input type="checkbox" data-bulk-id="${r.id}" checked>${esc(ch.name)}${r.id===id?' · 현재':''}</label>`).join('')}</div></div>`;
+      html+=`<div class="target-group"><div class="target-group-head"><span>${esc(a.name)}${a.parent_account_id?'<span class="sub-account-mark">↳</span>':''}</span></div><div class="target-chips">${items.map(({r,ch})=>`<label class="target-chip"><input type="checkbox" data-bulk-id="${r.id}" checked>${targetCharLabel(ch)}${r.id===id?' <span class="target-class">현재</span>':''}</label>`).join('')}</div></div>`;
     });
   }
   document.getElementById('bulk-delete-list').innerHTML=html;
@@ -2224,6 +2251,12 @@ function openTaskIconPicker(){openImagePicker(url=>setTaskIcon(url));}
 
 const IMAGE_INDEX_URL='images/index.json';
 const IMAGE_BASE='images/';
+const IMAGE_INDEX_FALLBACK={
+  classes:["arkana.png","bard.png","battlemaster.png","berserker.png","blade.png","blaster.png","braker.png","changsool.png","demonic.png","destroyer.png","devilhunter.png","dohwaga.png","guardian.png","gun.png","hawkeye.png","hollyknight.png","hwansoo.png","infighter.png","kikongsa.png","kisang.png","reaper.png","scouter.png","slayer.png","sorcerer.png","souleater.png","striker.png","summoner.png","valkyrie.png","warode.png"],
+  goods:["bokwon.png","bool.png","bracelet.png","egyr.png","eunchong.png","gasi.png","guild.png","hondol.png","jeongsoo.png","karma.png","neok.png","single.png","stone.png","teuksoo.png","woondol.png"],
+  homework:["chunsang.png","cube1.png","cube2.png","cube3.png","cube4.png","guardiantobal.png","halmosi.png","hell_key.png","hongoon.png","ipjang.png","jaeryon.png","jeungmyong.png","kage.png","koojeon.png","localgold.png","mission.png","pilbo.png","yeongji.png"],
+  raid:["Armoche.png","Egir.png","Kazeroth.png","Seongdang.png","Serka.png"]
+};
 let pickerCallback=null;
 let imageIndex=null;
 let imageIndexLoaded=false;
@@ -2237,12 +2270,13 @@ async function openImagePicker(cb){
 }
 async function ensureImageIndex(){
   if(imageIndexLoaded)return;
+  imageIndex={...IMAGE_INDEX_FALLBACK};
   try{
     const r=await fetch(IMAGE_INDEX_URL+'?t='+Date.now(),{cache:'no-store'});
     if(!r.ok)throw new Error('HTTP '+r.status);
-    imageIndex=await r.json();
+    const data=await r.json();
+    if(data&&Object.keys(data).length)imageIndex=data;
   }catch(e){
-    imageIndex=null;
     console.error('[picker] images/index.json 로드 실패:',e);
   }
   imageIndexLoaded=true;

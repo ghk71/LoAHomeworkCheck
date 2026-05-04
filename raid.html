@@ -1322,14 +1322,18 @@ const VIEWER_ACC_KEY='la_viewer_account_id';
 let viewerPendingCharId=null;
 function getConfig(){if(isViewer)return viewerCreds;const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
 function safeJson(key,fallback){try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback;}catch(e){console.warn('localStorage JSON parse failed:',key,e);return fallback;}}
+function isFilterHiddenAccount(accountId,accs=accounts){return (accs||[]).some(a=>a.id===accountId&&a.hide_from_filters===true);}
+function filterVisibleAccounts(accs=accounts){return (accs||[]).filter(a=>a.hide_from_filters!==true);}
+function filterVisibleChars(chars=allChars,accs=accounts){return (chars||[]).filter(c=>!isFilterHiddenAccount(c.account_id,accs));}
 function viewerScopeCharIds(accs,chars,accId){
-  const subIds=(accs||[]).filter(a=>a.parent_account_id===accId).map(a=>a.id);
+  const visibleAccs=filterVisibleAccounts(accs);
+  const subIds=visibleAccs.filter(a=>a.parent_account_id===accId).map(a=>a.id);
   const ids=new Set([accId,...subIds]);
-  return (chars||[]).filter(c=>ids.has(c.account_id)).map(c=>c.id);
+  return filterVisibleChars(chars,accs).filter(c=>ids.has(c.account_id)).map(c=>c.id);
 }
 function viewerSelectedAccount(accs){
   const id=localStorage.getItem(VIEWER_ACC_KEY);
-  return (accs||accounts||[]).find(a=>!a.parent_account_id&&a.id===id)||null;
+  return filterVisibleAccounts(accs||accounts||[]).find(a=>!a.parent_account_id&&a.id===id)||null;
 }
 function setViewerAccount(id){
   localStorage.setItem(VIEWER_ACC_KEY,id);
@@ -1351,11 +1355,11 @@ function changeViewerAccount(){
   switchViewerTab('ov');
 }
 function renderViewerAccountSelect(el,accs){
-  const main=(accs||[]).filter(a=>!a.parent_account_id);
+  const main=filterVisibleAccounts(accs||[]).filter(a=>!a.parent_account_id);
   el.innerHTML=`<div class="viewer-account-select">
     <div class="viewer-account-title">공유 링크로 볼 계정을 선택하세요</div>
     <div class="viewer-account-grid">
-      ${main.map(a=>`<button class="viewer-account-btn" onclick="setViewerAccount('${a.id}')">${esc(a.name)}</button>`).join('')}
+      ${main.length?main.map(a=>`<button class="viewer-account-btn" onclick="setViewerAccount('${a.id}')">${esc(a.name)}</button>`).join(''):'<div class="empty">필터에 표시할 계정이 없습니다</div>'}
     </div>
   </div>`;
 }
@@ -1477,7 +1481,7 @@ async function loadViewerOverview(el){
     let accRows='';
     [selectedAcc].forEach(acc=>{
       const mainChars=scopedViewerChars.filter(c=>c.account_id===acc.id);
-      const subAccs=(accs||[]).filter(a=>a.parent_account_id===acc.id);
+      const subAccs=filterVisibleAccounts(accs||[]).filter(a=>a.parent_account_id===acc.id);
       const subChars=subAccs.flatMap(sa=>scopedViewerChars.filter(c=>c.account_id===sa.id));
       accRows+=row(acc.name,mainChars);
       accRows+=row(acc.name+'-부계정',subChars,true);
@@ -1569,7 +1573,7 @@ async function loadViewerOverview(el){
   };
   [selectedAcc].forEach(acc=>{
     const mainChars=scopedViewerChars.filter(c=>c.account_id===acc.id&&selectedViewerChars.has(c.id));
-    const subAccs=(accs||[]).filter(a=>a.parent_account_id===acc.id);
+    const subAccs=filterVisibleAccounts(accs||[]).filter(a=>a.parent_account_id===acc.id);
     const subChars=subAccs.flatMap(sa=>scopedViewerChars.filter(c=>c.account_id===sa.id&&selectedViewerChars.has(c.id)));
     renderViewerGroup(acc.name,mainChars);
     renderViewerGroup(acc.name+' - 부계정',subChars);
@@ -2454,7 +2458,8 @@ function saveSchFilter(){
 
 function initSchFilter(){
   // 기존 필터 상태 로드 (호환성 유지)
-  const allCharIds=new Set(allChars.map(c=>c.id));
+  const filterChars=filterVisibleChars(allChars,accounts);
+  const allCharIds=new Set(filterChars.map(c=>c.id));
   const savedIds=safeJson(SCH_FILTER_KEY,null);
   schFilterChars=Array.isArray(savedIds)?new Set(savedIds.filter(id=>allCharIds.has(id))):null;
   if(schFilterChars&&!schFilterChars.size)schFilterChars=null;
@@ -2481,7 +2486,7 @@ function toggleSchFilter(){
 function renderSchFilter(){
   const body=document.getElementById('sch-fb-body');if(!body)return;
   // 이번 주 일정에 있는 캐릭터만 표시
-  let weekChars=getCharsInWeekSchedules();
+  let weekChars=filterVisibleChars(getCharsInWeekSchedules(),accounts);
   const viewerAcc=isViewer?viewerSelectedAccount(accounts):null;
   if(viewerAcc){
     const allowed=new Set(viewerScopeCharIds(accounts,allChars,viewerAcc.id));
@@ -2489,7 +2494,8 @@ function renderSchFilter(){
   }
   if(!weekChars.length){body.innerHTML='<span style="font-size:.78rem;color:var(--muted);">이번 주 일정에 캐릭터가 없습니다</span>';body.style.display=schFilterOpen?'flex':'none';return;}
   let html='';
-  const mainAccounts=viewerAcc?[viewerAcc]:accounts.filter(a=>!a.parent_account_id);
+  const visibleAccs=filterVisibleAccounts(accounts);
+  const mainAccounts=viewerAcc?[viewerAcc]:visibleAccs.filter(a=>!a.parent_account_id);
   const renderAccBtn=(label,chars,sub=false)=>{
     if(!chars.length)return'';
     const allOn=chars.every(c=>schHighlightChars.has(c.id));
@@ -2504,7 +2510,7 @@ function renderSchFilter(){
   }).join('');
   mainAccounts.forEach(acc=>{
     const mainChars=weekChars.filter(c=>c.account_id===acc.id);
-    const subAccs=accounts.filter(a=>a.parent_account_id===acc.id);
+    const subAccs=visibleAccs.filter(a=>a.parent_account_id===acc.id);
     const subChars=subAccs.flatMap(sa=>weekChars.filter(c=>c.account_id===sa.id));
     if(!mainChars.length&&!subChars.length)return;
     if(mainChars.length){html+=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${renderAccBtn(acc.name,mainChars)}<div style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0;"></div>${renderCharBtns(mainChars)}</div>`;}
@@ -2512,7 +2518,7 @@ function renderSchFilter(){
   });
   if(!viewerAcc){
     // orphan subs
-    accounts.filter(a=>a.parent_account_id&&!accounts.some(m=>m.id===a.parent_account_id)).forEach(acc=>{
+    visibleAccs.filter(a=>a.parent_account_id&&!visibleAccs.some(m=>m.id===a.parent_account_id)).forEach(acc=>{
       const chars=weekChars.filter(c=>c.account_id===acc.id);if(!chars.length)return;
       const allOn=chars.every(c=>schHighlightChars.has(c.id)),anyOn=chars.some(c=>schHighlightChars.has(c.id));
       html+=`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><button style="padding:3px 11px;border-radius:12px;border:1px solid ${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.4)':'var(--border-lit)'};background:${allOn?'rgba(200,168,75,.12)':anyOn?'rgba(200,168,75,.06)':'var(--s1)'};color:${allOn?'var(--gold)':anyOn?'rgba(200,168,75,.7)':'var(--muted)'};cursor:pointer;font-size:.78rem;font-weight:700;font-family:'Noto Sans KR',sans-serif;" onclick="toggleHLGroup([${chars.map(c=>"'"+c.id+"'").join(',')}])">${esc(acc.name)}</button><div style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0;"></div>${renderCharBtns(chars)}</div>`;
@@ -2530,7 +2536,7 @@ function toggleHLGroup(ids){const allOn=ids.every(id=>schHighlightChars.has(id))
 
 
 function toggleSchAcc(accId){
-  const weekChars=getCharsInWeekSchedules();
+  const weekChars=filterVisibleChars(getCharsInWeekSchedules(),accounts);
   const chars=weekChars.filter(c=>c.account_id===accId);
   if(!schFilterChars)schFilterChars=new Set(weekChars.map(c=>c.id));
   const allOn=chars.every(c=>schFilterChars.has(c.id));
@@ -2539,7 +2545,7 @@ function toggleSchAcc(accId){
   saveSchFilter();renderSchFilter();renderSchedule();
 }
 function toggleSchChar(id){
-  const weekChars=getCharsInWeekSchedules();
+  const weekChars=filterVisibleChars(getCharsInWeekSchedules(),accounts);
   if(!schFilterChars)schFilterChars=new Set(weekChars.map(c=>c.id));
   if(schFilterChars.has(id))schFilterChars.delete(id);else schFilterChars.add(id);
   if(schFilterChars.size===weekChars.length)schFilterChars=null;

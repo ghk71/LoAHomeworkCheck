@@ -651,8 +651,11 @@ function getWeekStart(){const now=appNow(),kst=new Date(now.getTime()+9*3600000)
 function getWeekKey(){const ws=getWeekStart();return`${ws.getUTCFullYear()}-${String(ws.getUTCMonth()+1).padStart(2,'0')}-${String(ws.getUTCDate()).padStart(2,'0')}`;}
 function charsInPartyScope(){
   const ids=new Set([...members.map(m=>m.character_id),...raidTasks.map(t=>t.character_id)].filter(Boolean));
-  return characters.filter(c=>ids.has(c.id));
+  return filterVisibleChars(characters).filter(c=>ids.has(c.id));
 }
+function isFilterHiddenAccount(accountId){return accounts.some(a=>a.id===accountId&&a.hide_from_filters===true);}
+function filterVisibleAccounts(list=accounts){return (list||[]).filter(a=>a.hide_from_filters!==true);}
+function filterVisibleChars(list=characters){return (list||[]).filter(c=>!isFilterHiddenAccount(c.account_id));}
 
 async function init(){
   const cfg=getConfig();if(!cfg){window.location.href='index.html';return;}
@@ -711,7 +714,8 @@ async function loadRaidGroupSettings(){
 function renderFilter(){
   const charsInParties=charsInPartyScope();
   let html='';
-  const mainAccs=accounts.filter(a=>!a.parent_account_id);
+  const visibleAccs=filterVisibleAccounts(accounts);
+  const mainAccs=visibleAccs.filter(a=>!a.parent_account_id);
   const renderRow=(label,chars,sub=false)=>{
     if(!chars.length)return'';
     const allOn=chars.every(c=>selectedChars.has(c.id)),anyOn=chars.some(c=>selectedChars.has(c.id));
@@ -724,12 +728,12 @@ function renderFilter(){
   };
   mainAccs.forEach(acc=>{
     const mainChars=charsInParties.filter(c=>c.account_id===acc.id);
-    const subAccs=accounts.filter(a=>a.parent_account_id===acc.id);
+    const subAccs=visibleAccs.filter(a=>a.parent_account_id===acc.id);
     const subChars=subAccs.flatMap(sa=>charsInParties.filter(c=>c.account_id===sa.id));
     html+=renderRow(acc.name,mainChars);
     html+=renderRow(acc.name+'-부계정',subChars,true);
   });
-  accounts.filter(a=>a.parent_account_id&&!accounts.some(m=>m.id===a.parent_account_id)).forEach(acc=>{
+  visibleAccs.filter(a=>a.parent_account_id&&!visibleAccs.some(m=>m.id===a.parent_account_id)).forEach(acc=>{
     html+=renderRow(acc.name,charsInParties.filter(c=>c.account_id===acc.id));
   });
   document.getElementById('fb-body').innerHTML=html;

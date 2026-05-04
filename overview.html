@@ -733,8 +733,11 @@ let filterOpen=localStorage.getItem('la_ov_filter_open')==='1';
 const DAYS=['일','월','화','수','목','금','토'];
 function charsWithRaidTasks(){
   const ids=new Set(raidTasks.map(t=>t.character_id).filter(Boolean));
-  return characters.filter(c=>ids.has(c.id));
+  return filterVisibleChars(characters).filter(c=>ids.has(c.id));
 }
+function isFilterHiddenAccount(accountId){return accounts.some(a=>a.id===accountId&&a.hide_from_filters===true);}
+function filterVisibleAccounts(list=accounts){return (list||[]).filter(a=>a.hide_from_filters!==true);}
+function filterVisibleChars(list=characters){return (list||[]).filter(c=>!isFilterHiddenAccount(c.account_id));}
 
 // ─── Init ───
 async function init(){
@@ -871,9 +874,10 @@ function saveFilter(){localStorage.setItem('la_ov_sel_chars',JSON.stringify([...
 function toggleFilterBar(){filterOpen=!filterOpen;localStorage.setItem('la_ov_filter_open',filterOpen?'1':'0');applyFilterOpenState();}
 function applyFilterOpenState(){document.getElementById('cfb-body').style.display=filterOpen?'flex':'none';document.getElementById('cfb-toggle').textContent=filterOpen?'▼':'▶';}
 function renderFilterBar(){
-  const charsWithRaids=characters.filter(c=>raidTasks.some(t=>t.character_id===c.id));
+  const charsWithRaids=charsWithRaidTasks();
   let html='';
-  const mainAccs=accounts.filter(a=>!a.parent_account_id);
+  const visibleAccs=filterVisibleAccounts(accounts);
+  const mainAccs=visibleAccs.filter(a=>!a.parent_account_id);
   const renderRow=(label,chars,sub=false)=>{
     if(!chars.length)return'';
     const allOn=chars.every(c=>selectedChars.has(c.id)),anyOn=chars.some(c=>selectedChars.has(c.id));
@@ -886,12 +890,12 @@ function renderFilterBar(){
   };
   mainAccs.forEach(acc=>{
     const mainChars=charsWithRaids.filter(c=>c.account_id===acc.id);
-    const subAccs=accounts.filter(a=>a.parent_account_id===acc.id);
+    const subAccs=visibleAccs.filter(a=>a.parent_account_id===acc.id);
     const subChars=subAccs.flatMap(sa=>charsWithRaids.filter(c=>c.account_id===sa.id));
     html+=renderRow(acc.name,mainChars);
     html+=renderRow(acc.name+'-부계정',subChars,true);
   });
-  accounts.filter(a=>a.parent_account_id&&!accounts.some(m=>m.id===a.parent_account_id)).forEach(acc=>{
+  visibleAccs.filter(a=>a.parent_account_id&&!visibleAccs.some(m=>m.id===a.parent_account_id)).forEach(acc=>{
     const chars=charsWithRaids.filter(c=>c.account_id===acc.id);
     html+=renderRow(acc.name,chars);
   });
@@ -944,9 +948,10 @@ function render(){
     ${weekOffset===0?`<div class="sum-item" style="margin-left:auto;font-size:.72rem;color:var(--dim);">초기화 ${nextResetLabel()}</div>`:''}`;
 
   // Account sections - filtered (부계정 그룹핑)
-  const mainAccounts=accounts.filter(a=>!a.parent_account_id);
+  const visibleAccs=filterVisibleAccounts(accounts);
+  const mainAccounts=visibleAccs.filter(a=>!a.parent_account_id);
   function accCharCards(acc){
-    const allCharsOfAcc=characters.filter(c=>c.account_id===acc.id);
+    const allCharsOfAcc=filterVisibleChars(characters).filter(c=>c.account_id===acc.id);
     return allCharsOfAcc.filter(c=>raidTasks.some(t=>t.character_id===c.id)&&selectedChars.has(c.id));
   }
   function accStats(chars){
@@ -975,14 +980,14 @@ function render(){
   let sectHtml='';
   mainAccounts.forEach(acc=>{
     const mainChars=accCharCards(acc);
-    const subAccs=accounts.filter(a=>a.parent_account_id===acc.id);
+    const subAccs=visibleAccs.filter(a=>a.parent_account_id===acc.id);
     const subChars=subAccs.flatMap(sa=>accCharCards(sa));
     if(!mainChars.length&&!subChars.length)return;
     if(mainChars.length){const{html}=renderAccHeader(acc,mainChars,null);sectHtml+=html;}
     if(subChars.length){const{html}=renderAccHeader(acc,subChars,acc.name+' - 부계정');sectHtml+=html;}
   });
   // orphan subs
-  accounts.filter(a=>a.parent_account_id&&!accounts.some(m=>m.id===a.parent_account_id)).forEach(acc=>{
+  visibleAccs.filter(a=>a.parent_account_id&&!visibleAccs.some(m=>m.id===a.parent_account_id)).forEach(acc=>{
     const chars=accCharCards(acc);if(!chars.length)return;const{html}=renderAccHeader(acc,chars,null);sectHtml+=html;
   });
   document.getElementById('account-sections').innerHTML=sectHtml;

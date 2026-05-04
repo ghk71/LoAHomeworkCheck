@@ -228,3 +228,21 @@ alter table characters add column if not exists combat_power numeric default 0;
 ### 적용 파일
 - `schema.sql`
 - `index.html` 내부 초기 SQL
+
+## 2026-05-04 - accounts 필터 숨김 컬럼 추가
+
+### 목적
+- 특정 계정을 코어/레이드 현황/파티 현황/공유 링크의 캐릭터 필터에서 제외하되, 파티 구성과 주간 일정 구성 데이터에는 그대로 남기기 위함.
+
+### SQL
+```sql
+alter table accounts add column if not exists hide_from_filters boolean default false;
+```
+
+### 적용 파일
+- `schema.sql`
+- `index.html`
+- `core.html`
+- `overview.html`
+- `raid.html`
+- `parties.html`

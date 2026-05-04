@@ -1002,15 +1002,16 @@ async function init(){
   const cfg=getConfig();if(!cfg){window.location.href='index.html';return;}
   sb=createClient(cfg.url,cfg.key);
   const results=await Promise.all([
-    sb.from('accounts').select('id,name,sort_order').order('sort_order').order('created_at'),
+    sb.from('accounts').select('*').order('sort_order').order('created_at'),
     sb.from('characters').select('*').order('sort_order').order('created_at'),
     sb.from('character_cores').select('*')
   ]);
   const firstError=results.find(r=>r.error)?.error;
   if(firstError){toast('❗ 로딩 오류: '+firstError.message);console.error(firstError);return;}
   const[{data:accs},{data:chars},{data:cores}]=results;
+  const hiddenAccIds=new Set((accs||[]).filter(a=>a.hide_from_filters===true).map(a=>a.id));
   const aOrd={};(accs||[]).forEach((a,i)=>{aOrd[a.id]=a.sort_order??i;});
-  allChars=(chars||[]).filter(c=>(c.item_level||0)>=1700).sort((a,b)=>{const d=(aOrd[a.account_id]??999)-(aOrd[b.account_id]??999);return d||((a.sort_order??0)-(b.sort_order??0));});
+  allChars=(chars||[]).filter(c=>(c.item_level||0)>=1700&&!hiddenAccIds.has(c.account_id)).sort((a,b)=>{const d=(aOrd[a.account_id]??999)-(aOrd[b.account_id]??999);return d||((a.sort_order??0)-(b.sort_order??0));});
   const allCharIds=new Set(allChars.map(c=>c.id));
   const savedIds=safeJson('la_core_filter_sel',null);
   selectedChars=new Set(Array.isArray(savedIds)?savedIds.filter(id=>allCharIds.has(id)):[...allCharIds]);

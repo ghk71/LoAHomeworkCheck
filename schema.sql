@@ -10,6 +10,7 @@ create table if not exists accounts(
   id uuid default uuid_generate_v4() primary key,
   name text not null,
   sort_order int default 0,
+  hide_from_filters boolean default false,
   created_at timestamptz default now()
 );
 
@@ -221,6 +222,7 @@ alter table raid_notice_comments disable row level security;
 
 -- ★ 기존 설치 업데이트용 (이미 있는 DB에서 실행 시)
 alter table accounts         add column if not exists sort_order int default 0;
+alter table accounts         add column if not exists hide_from_filters boolean default false;
 alter table tasks            add column if not exists count_current int default 0;
 alter table tasks            add column if not exists count_max int default null;
 alter table tasks            add column if not exists parent_id uuid references tasks(id) on delete cascade;
