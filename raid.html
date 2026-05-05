@@ -1718,12 +1718,43 @@ async function deleteViewerRaidTask(taskId){
   if(!allowed.has(t.character_id)){toast('선택 계정의 레이드만 삭제할 수 있습니다');return;}
   if(!confirm('레이드 숙제를 삭제하시겠습니까?'))return;
   const{error}=await sb.from('raid_tasks').delete().eq('id',taskId);
+  if(!error)await cleanupRaidPartyLinksForViewerTask(t);
   if(error){toast('❗ '+error.message);return;}
   toast('삭제되었습니다');
   await loadViewerOverview(document.getElementById('viewer-overview-area'));
 }
 
 // ─── State ───
+async function cleanupRaidPartyLinksForViewerTask(t){
+  if(!t?.preset_id||!t?.character_id)return;
+  try{
+    const {data:partyRows,error:partyErr}=await sb.from('raid_parties').select('id').eq('preset_id',t.preset_id);
+    if(partyErr){console.warn(partyErr);return;}
+    const partyIds=(partyRows||[]).map(p=>p.id);
+    if(!partyIds.length)return;
+    const memberRes=await sb.from('raid_party_members').delete().in('party_id',partyIds).eq('character_id',t.character_id);
+    if(memberRes.error)console.warn(memberRes.error);
+    const {data:scheduleRows,error:scheduleErr}=await sb.from('raid_schedules').select('id').in('party_id',partyIds);
+    if(scheduleErr){console.warn(scheduleErr);return;}
+    const scheduleIds=(scheduleRows||[]).map(s=>s.id);
+    if(!scheduleIds.length)return;
+    const {data:overrideRows,error:overrideErr}=await sb.from('raid_schedule_overrides').select('id,slot_overrides,temp_changes').in('schedule_id',scheduleIds);
+    if(overrideErr){console.warn(overrideErr);return;}
+    await Promise.all((overrideRows||[]).map(async row=>{
+      const slotOverrides={...(row.slot_overrides||{})};
+      const tempChanges={added:{...((row.temp_changes||{}).added||{})},removed:{...((row.temp_changes||{}).removed||{})}};
+      let changed=false;
+      Object.keys(slotOverrides).forEach(k=>{if(slotOverrides[k]===t.character_id){slotOverrides[k]=null;changed=true;}});
+      const addInfo=tempChanges.added[t.character_id];
+      if(addInfo&&(!(addInfo.taskId||addInfo.task_id)||(addInfo.taskId||addInfo.task_id)===t.id)){delete tempChanges.added[t.character_id];changed=true;}
+      const remInfo=tempChanges.removed[t.character_id];
+      if(remInfo&&(!(remInfo.taskId||remInfo.task_id)||(remInfo.taskId||remInfo.task_id)===t.id)){delete tempChanges.removed[t.character_id];changed=true;}
+      if(!changed)return;
+      const {error}=await sb.from('raid_schedule_overrides').update({slot_overrides:slotOverrides,temp_changes:tempChanges}).eq('id',row.id);
+      if(error)console.warn(error);
+    }));
+  }catch(err){console.warn('raid party link cleanup failed:',err);}
+}
 let sb,accounts=[],allChars=[],raids=[],parties=[],schedules=[],overrides={},notices={},noticeComments={},noticeCommentsAvailable=true,noticeCommentsCollapsed=localStorage.getItem('la_notice_comments_collapsed')!=='0',unplacedPanelCollapsed=localStorage.getItem('la_unplaced_panel_collapsed')==='1',unplacedPreviewPartyId=null,raidTasksAll={},raidGroupSettings={},raidGroupSettingsAvailable=true;
 let selPartyId=null,selGroupName=null,weekOffset=0,partySize=4,selPresetId=null;
 let pickCtx={mode:'party',partyId:null,slotIndex:null,scheduleId:null};

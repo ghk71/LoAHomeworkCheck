@@ -1558,8 +1558,43 @@ async function deleteRaidTask(id,charId){
   if(!confirm(`"${t.name}" 레이드 숙제를 삭제하시겠습니까?`))return;
   const {error}=await sb.from('raid_tasks').delete().eq('id',id);
   if(error){toast('삭제 실패');return;}
+  await cleanupRaidPartyLinksForTask(t);
   state.raidTasks[charId]=list.filter(x=>x.id!==id);
+  state.tempRaidTaskIds.delete(id);
+  state.tempRemovedRaidTaskIds.delete(id);
+  delete state.tempRemovedPresetByTask[id];
+  await loadRaidMetaForCurrent();
   render();toast('삭제했습니다');
+}
+async function cleanupRaidPartyLinksForTask(t){
+  if(!t?.preset_id||!t?.character_id)return;
+  try{
+    const {data:partyRows,error:partyErr}=await sb.from('raid_parties').select('id').eq('preset_id',t.preset_id);
+    if(partyErr){console.warn(partyErr);return;}
+    const partyIds=(partyRows||[]).map(p=>p.id);
+    if(!partyIds.length)return;
+    const memberRes=await sb.from('raid_party_members').delete().in('party_id',partyIds).eq('character_id',t.character_id);
+    if(memberRes.error)console.warn(memberRes.error);
+    const {data:scheduleRows,error:scheduleErr}=await sb.from('raid_schedules').select('id').in('party_id',partyIds);
+    if(scheduleErr){console.warn(scheduleErr);return;}
+    const scheduleIds=(scheduleRows||[]).map(s=>s.id);
+    if(!scheduleIds.length)return;
+    const {data:overrideRows,error:overrideErr}=await sb.from('raid_schedule_overrides').select('id,slot_overrides,temp_changes').in('schedule_id',scheduleIds);
+    if(overrideErr){console.warn(overrideErr);return;}
+    await Promise.all((overrideRows||[]).map(async row=>{
+      const slotOverrides={...(row.slot_overrides||{})};
+      const tempChanges={added:{...((row.temp_changes||{}).added||{})},removed:{...((row.temp_changes||{}).removed||{})}};
+      let changed=false;
+      Object.keys(slotOverrides).forEach(k=>{if(slotOverrides[k]===t.character_id){slotOverrides[k]=null;changed=true;}});
+      const addInfo=tempChanges.added[t.character_id];
+      if(addInfo&&(!(addInfo.taskId||addInfo.task_id)||(addInfo.taskId||addInfo.task_id)===t.id)){delete tempChanges.added[t.character_id];changed=true;}
+      const remInfo=tempChanges.removed[t.character_id];
+      if(remInfo&&(!(remInfo.taskId||remInfo.task_id)||(remInfo.taskId||remInfo.task_id)===t.id)){delete tempChanges.removed[t.character_id];changed=true;}
+      if(!changed)return;
+      const {error}=await sb.from('raid_schedule_overrides').update({slot_overrides:slotOverrides,temp_changes:tempChanges}).eq('id',row.id);
+      if(error)console.warn(error);
+    }));
+  }catch(err){console.warn('raid party link cleanup failed:',err);}
 }
 async function openAddRaidTask(charId){
   const ch=state.chars.find(c=>c.id===charId);if(!ch)return;
