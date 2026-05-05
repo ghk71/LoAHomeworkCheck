@@ -709,6 +709,7 @@ const state={
   tempRemovedRaidTaskIds:new Set(),
   tempRemovedPresetByTask:{},
   dragCtx:null,
+  viewScrolls:{},
   lostarkApiToken:'',
   lostarkApiSave:!!localStorage.getItem('la_lostark_api_token'),
   apiUpdateExcluded:new Set(safeJson('la_lostark_update_excluded',[]))
@@ -859,7 +860,7 @@ function targetCharLabel(c){
 }
 function selectedCharsForAccount(){return state.chars.filter(c=>c.account_id===state.selectedAccount);}
 function visibleChars(){return selectedCharsForAccount();}
-function setMode(mode){state.mode=mode;state.selectedChar='all';render();}
+function setMode(mode){if(mode===state.mode)return;saveViewScroll(state.mode);state.mode=mode;state.selectedChar='all';render();}
 async function selectAccount(id){state.selectedAccount=id;state.selectedChar='all';await loadRaidMetaForCurrent();render();}
 function selectChar(id){state.selectedChar=id;render();}
 async function showPartyLinkPopup(presetId,taskId,charId){
@@ -1228,17 +1229,40 @@ function restInfo(t){
   return{max,cur,charge,consume,totalCells,cellsPerUse,threshold:Math.max(0,Number(t.rest_threshold)||0)};
 }
 
+function saveViewScroll(mode=state.mode){
+  const cardScrolls={};
+  document.querySelectorAll('[data-scroll-key]').forEach(card=>{
+    const body=card.querySelector('.card-body');
+    if(body)cardScrolls[card.dataset.scrollKey]=body.scrollTop;
+  });
+  state.viewScrolls[mode]={windowY:window.scrollY||0,cardScrolls};
+}
+function restoreViewScroll(mode=state.mode){
+  const saved=state.viewScrolls[mode];
+  if(!saved)return;
+  requestAnimationFrame(()=>{
+    window.scrollTo({top:saved.windowY||0,left:0,behavior:'auto'});
+    document.querySelectorAll('[data-scroll-key]').forEach(card=>{
+      const body=card.querySelector('.card-body');
+      const y=saved.cardScrolls?.[card.dataset.scrollKey];
+      if(body&&Number.isFinite(y))body.scrollTop=y;
+    });
+  });
+}
 function render(){
+  saveViewScroll(state.lastRenderedMode||state.mode);
   document.querySelectorAll('.mode-tab').forEach(b=>b.classList.toggle('active',b.dataset.mode===state.mode));
   applyActionMode();
   if(document.getElementById('modal-account-settings')?.classList.contains('open'))renderAccountSettings();
   renderAccountTabs();
   renderCharTabs();
   const content=document.getElementById('content');
-  if(!state.accounts.length){content.innerHTML='<div class="empty">계정이 없습니다. 기존 index.html에서 계정을 먼저 추가하세요.</div>';return;}
+  if(!state.accounts.length){content.innerHTML='<div class="empty">계정이 없습니다. 기존 index.html에서 계정을 먼저 추가하세요.</div>';state.lastRenderedMode=state.mode;return;}
   if(state.mode==='daily')renderDaily(content);
   else if(state.mode==='weekly')renderWeekly(content);
   else renderAccountTasks(content);
+  restoreViewScroll(state.mode);
+  state.lastRenderedMode=state.mode;
 }
 function renderAccountTabs(){
   const el=document.getElementById('account-tabs');
@@ -1310,7 +1334,7 @@ function renderDailyCard(ch){
   const currCollapsed=state.collapsedCurrency.has(ch.id);
   const showCurr=ch.show_currencies!==false;
   const hot=taskRoots.length&&taskRoots.some(t=>!isDone(t));
-  return`<section class="char-card ${hot?'hot':''} ${taskRoots.length&&taskRoots.every(isDone)?'done':''}" draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')">
+  return`<section class="char-card ${hot?'hot':''} ${taskRoots.length&&taskRoots.every(isDone)?'done':''}" data-scroll-key="daily:${ch.id}" draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')">
     ${charHeader(ch,taskRoots,hot)}
     <div class="card-body">
       <div class="card-section">
@@ -1336,7 +1360,7 @@ function renderWeeklyCard(ch){
   const notesCollapsed=state.collapsedNotes.has(ch.id);
   const showRaid=ch.show_raid_tasks!==false,showNotes=ch.show_custom_notes!==false;
   const checkables=[...tasks,...raids];
-  return`<section class="char-card ${checkables.length&&checkables.every(isDone)?'done':''}" draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')">
+  return`<section class="char-card ${checkables.length&&checkables.every(isDone)?'done':''}" data-scroll-key="weekly:${ch.id}" draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')">
     ${charHeader(ch,checkables)}
     <div class="card-body">
       <div class="card-section">
@@ -1363,7 +1387,7 @@ function renderWeeklyCard(ch){
 function renderAccountCard(acc){
   const all=state.expTasks[acc.id]||[];
   const tasks=applyTaskFilters(all.filter(t=>!t.parent_id));
-  return`<section class="account-card" draggable="true" ondragstart="dragStart(event,'accounts','${acc.id}','')" ondragover="allowDrop(event)" ondrop="dropOn(event,'accounts','${acc.id}','')">
+  return`<section class="account-card" data-scroll-key="account:${acc.id}" draggable="true" ondragstart="dragStart(event,'accounts','${acc.id}','')" ondragover="allowDrop(event)" ondrop="dropOn(event,'accounts','${acc.id}','')">
     <div class="account-head"><div><div class="account-title">${esc(acc.name)}</div>${isAccountHidden(acc.id)?'<div class="tiny">숨김 처리된 계정</div>':''}</div><div class="card-tools"><span class="tag ${tasks.length&&tasks.every(isDone)?'green':''}">${tasks.filter(isDone).length}/${tasks.length}</span><button class="btn icon" onclick="openCreateTask('account','${acc.id}','weekly')">+</button></div></div>
     <div class="card-body">${renderTaskGroups(all,true,acc.id,()=>true)}</div>
   </section>`;
