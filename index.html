@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>숙제 UI 테스트 - 로스트아크 숙제</title>
+<title>로스트아크 숙제 트래커</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
@@ -93,7 +93,7 @@ body.action-copy .action-copy,body.action-edit .action-edit,body.action-delete .
 body.manage-active .mode-done{display:inline-flex}
 .tiny{color:var(--dim);font-size:.76rem}
 .content{padding:14px;max-width:1920px;margin:0 auto}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));grid-auto-rows:360px;gap:14px;align-items:stretch}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));grid-auto-rows:600px;gap:14px;align-items:stretch}
 .char-card,.account-card{background:linear-gradient(180deg,rgba(29,34,42,.98),rgba(24,28,35,.98));border:1px solid var(--line);border-radius:8px;overflow:hidden;height:100%;min-height:0;display:flex;flex-direction:column;box-shadow:0 1px 0 rgba(255,255,255,.045) inset}
 .char-card.done{border-color:rgba(40,229,154,.42);box-shadow:inset 0 0 0 1px rgba(40,229,154,.12),0 0 0 1px rgba(40,229,154,.04)}
 .char-card[draggable=true],.account-card[draggable=true],.task-row[draggable=true],.raid-row[draggable=true],.currency-row[draggable=true],.note-row[draggable=true]{cursor:grab}
@@ -116,7 +116,7 @@ body.manage-active .mode-done{display:inline-flex}
 .card-tools .mini-btn{height:24px}
 .char-card.hot .char-sub{color:rgba(255,255,255,.72)}
 .card-tools{display:flex;gap:5px;align-items:center}
-.card-body{padding:12px;display:grid;gap:10px;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(174,182,194,.42) transparent}
+.card-body{padding:12px;display:grid;grid-auto-rows:max-content;align-content:start;gap:10px;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(174,182,194,.42) transparent}
 .card-body::-webkit-scrollbar{width:8px}
 .card-body::-webkit-scrollbar-thumb{background:rgba(174,182,194,.34);border-radius:999px;border:2px solid transparent;background-clip:padding-box}
 .card-body::-webkit-scrollbar-track{background:transparent}
@@ -235,7 +235,7 @@ body.manage-active .mode-done{display:inline-flex}
 .api-log-row.ok{color:#a7f3d0}.api-log-row.fail{color:#ffb4b4}
 .modal-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .empty{padding:14px;border:1px dashed var(--line-2);border-radius:8px;color:var(--dim);text-align:center;font-size:.82rem}
-.account-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));grid-auto-rows:360px;gap:10px;align-items:stretch}
+.account-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));grid-auto-rows:600px;gap:10px;align-items:stretch}
 .account-card{min-height:0}
 .account-head{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line);background:linear-gradient(135deg,rgba(39,47,58,.9),rgba(31,38,48,.9));flex:none}
 .account-title{font-weight:1000;color:var(--gold);font-size:1rem}
@@ -275,7 +275,7 @@ body.manage-active .mode-done{display:inline-flex}
 @media(max-width:760px){
   .create-grid{grid-template-columns:1fr}
   .form-grid.compact{grid-template-columns:1fr 1fr}
-  .grid,.account-grid{grid-template-columns:1fr;grid-auto-rows:420px}
+  .grid,.account-grid{grid-template-columns:1fr;grid-auto-rows:600px}
   .tool-row{align-items:flex-start;flex-direction:column}
 }
 </style>
@@ -809,17 +809,41 @@ async function reloadAll(){
 }
 
 async function loadAccountData(){
-  const chars=selectedCharsForAccount();
-  const accIds=visibleAccounts().map(a=>a.id);
-  const charJobs=chars.flatMap(ch=>[
-    sb.from('tasks').select('*').eq('character_id',ch.id).order('sort_order').order('created_at').then(async r=>{state.tasks[ch.id]=r.data||[];if(r.error)console.warn(r.error);await autoResetTasks(state.tasks[ch.id],'tasks');}),
-    sb.from('raid_tasks').select('*').eq('character_id',ch.id).order('sort_order').order('created_at').then(async r=>{state.raidTasks[ch.id]=r.data||[];if(r.error)console.warn(r.error);await autoResetRaidList(state.raidTasks[ch.id]);}),
-    sb.from('currencies').select('*').eq('character_id',ch.id).order('sort_order').order('created_at').then(r=>{state.currencies[ch.id]=r.data||[];if(r.error)console.warn(r.error);}),
-    sb.from('custom_popups').select('*').eq('character_id',ch.id).order('sort_order').order('created_at').then(r=>{state.notes[ch.id]=r.data||[];if(r.error)console.warn(r.error);})
+  const charIds=state.chars.map(c=>c.id);
+  const accIds=state.accounts.map(a=>a.id);
+  const [taskRes,raidRes,currencyRes,noteRes,expRes]=await Promise.all([
+    fetchRowsByOwner('tasks','character_id',charIds),
+    fetchRowsByOwner('raid_tasks','character_id',charIds),
+    fetchRowsByOwner('currencies','character_id',charIds),
+    fetchRowsByOwner('custom_popups','character_id',charIds),
+    fetchRowsByOwner('expedition_tasks','account_id',accIds)
   ]);
-  const expJobs=accIds.map(id=>sb.from('expedition_tasks').select('*').eq('account_id',id).order('sort_order').order('created_at').then(async r=>{state.expTasks[id]=r.data||[];if(r.error)console.warn(r.error);await autoResetTasks(state.expTasks[id],'expedition_tasks');}));
-  await Promise.all([...charJobs,...expJobs]);
+  state.tasks=taskRes.buckets;
+  state.raidTasks=raidRes.buckets;
+  state.currencies=currencyRes.buckets;
+  state.notes=noteRes.buckets;
+  state.expTasks=expRes.buckets;
+  await Promise.all([
+    autoResetTasks(taskRes.rows,'tasks'),
+    autoResetRaidList(raidRes.rows),
+    autoResetTasks(expRes.rows,'expedition_tasks')
+  ]);
   await loadRaidMetaForCurrent();
+}
+
+async function fetchRowsByOwner(table,ownerField,ownerIds){
+  const buckets={};
+  ownerIds.forEach(id=>{buckets[id]=[];});
+  if(!ownerIds.length)return{rows:[],buckets};
+  const {data,error}=await sb.from(table).select('*').in(ownerField,ownerIds).order('sort_order').order('created_at');
+  if(error){console.warn(error);return{rows:[],buckets};}
+  const rows=data||[];
+  rows.forEach(row=>{
+    const ownerId=row[ownerField];
+    if(!buckets[ownerId])buckets[ownerId]=[];
+    buckets[ownerId].push(row);
+  });
+  return{rows,buckets};
 }
 
 function selectedAccount(){return state.accounts.find(a=>a.id===state.selectedAccount)||null;}
@@ -833,7 +857,7 @@ function targetCharLabel(c){
 function selectedCharsForAccount(){return state.chars.filter(c=>c.account_id===state.selectedAccount);}
 function visibleChars(){return selectedCharsForAccount();}
 function setMode(mode){state.mode=mode;state.selectedChar='all';render();}
-async function selectAccount(id){state.selectedAccount=id;state.selectedChar='all';await loadAccountData();render();}
+async function selectAccount(id){state.selectedAccount=id;state.selectedChar='all';await loadRaidMetaForCurrent();render();}
 function selectChar(id){state.selectedChar=id;render();}
 async function showPartyLinkPopup(presetId,taskId,charId){
   const el=document.getElementById('party-link-content');
@@ -988,7 +1012,7 @@ async function toggleShowHiddenAccounts(){
   state.showHiddenAccounts=!state.showHiddenAccounts;
   const first=visibleAccounts()[0]||state.accounts[0]||null;
   if(!state.selectedAccount||(!state.showHiddenAccounts&&state.hiddenAccounts.has(state.selectedAccount)))state.selectedAccount=first?.id||null;
-  await loadAccountData();
+  await loadRaidMetaForCurrent();
   render();
   renderAccountSettings();
 }
@@ -997,7 +1021,7 @@ async function toggleHideAccount(event,id){
   if(state.hiddenAccounts.has(id))state.hiddenAccounts.delete(id);else state.hiddenAccounts.add(id);
   localStorage.setItem('la_hidden_accs',JSON.stringify([...state.hiddenAccounts]));
   if(!state.showHiddenAccounts&&state.selectedAccount===id)state.selectedAccount=(visibleAccounts()[0]||state.accounts[0]||{}).id||null;
-  await loadAccountData();
+  await loadRaidMetaForCurrent();
   render();
   renderAccountSettings();
 }
@@ -1093,11 +1117,22 @@ function getResetBoundariesSince(t,latest){
   // Cap iterations to prevent infinite loops on bad data (~62 cycles is plenty)
   while(b>cursor&&stack.length<62){
     stack.unshift(new Date(b));
-    if(type==='daily')b.setUTCDate(b.getUTCDate()-1);
-    else if(type==='monthly')b.setUTCMonth(b.getUTCMonth()-1);
-    else b.setUTCDate(b.getUTCDate()-7);
+    b=getPreviousResetBoundary(type,b);
   }
   return stack.filter(x=>x>cursor&&x<=latest);
+}
+function getPreviousResetBoundary(type,boundary){
+  const prev=new Date(boundary);
+  if(type==='daily'){
+    prev.setUTCDate(prev.getUTCDate()-1);
+    return prev;
+  }
+  if(type==='monthly'){
+    const kst=new Date(prev.getTime()+9*3600000);
+    return new Date(Date.UTC(kst.getUTCFullYear(),kst.getUTCMonth()-1,0,21,0,0,0));
+  }
+  prev.setUTCDate(prev.getUTCDate()-7);
+  return prev;
 }
 // 데이터 로드 후 호출. 휴식 게이지 task의 충전/소모를 적용하고 만료된 완료 상태를 초기화함
 async function autoResetTasks(list,table){
@@ -1127,6 +1162,7 @@ async function autoResetTasks(list,table){
       if(boundaries.length){
         up.rest_current=cur;
         up.rest_last_processed_at=latest.toISOString();
+        up.count_current=0;
       }
     }
     // 일반 reset 처리: is_completed가 켜져 있는데 isDone 기준으론 이미 만료된 경우 정리
@@ -1138,10 +1174,10 @@ async function autoResetTasks(list,table){
     if(Object.keys(up).length)updates.push({t,up});
   }
   if(!updates.length)return;
-  for(const x of updates){
+  await Promise.all(updates.map(async x=>{
     const {error}=await sb.from(table).update(x.up).eq('id',x.t.id);
     if(!error)Object.assign(x.t,x.up);
-  }
+  }));
 }
 async function autoResetRaidList(list){
   if(!list||!list.length)return;
@@ -1155,7 +1191,9 @@ function countIsCurrent(t){
   return !!(t.last_completed_at&&new Date(t.last_completed_at)>getLastResetUTC(t.reset_type||'daily',t.reset_day||3));
 }
 function effectiveCount(t){return countIsCurrent(t)?Number(t.count_current)||0:0;}
+function isRaidTaskRecord(t){return !!(t&&('preset_id' in t||'clear_gold' in t||'bound_gold' in t||'bonus_gold' in t));}
 function isDone(t){
+  if(isRaidTaskRecord(t))return !!(t.is_completed&&t.last_completed_at&&new Date(t.last_completed_at)>getLastResetUTC('weekly',t.reset_day??3));
   const current=countIsCurrent(t);
   if(t.rest_enabled){
     const max=Math.max(1,Number(t.rest_daily_limit)||1);
@@ -1407,12 +1445,14 @@ async function toggleTask(id,isExp,ownerId){
   if(list.some(x=>x.parent_id===id)){clearBusy(key);toast('상위 숙제는 하위 숙제 완료로 자동 처리됩니다');return;}
   const done=!isDone(t),up={is_completed:done,last_completed_at:done?appNowIso():null};
   if(t.count_max!=null)up.count_current=done?t.count_max:0;
+  const prev={is_completed:t.is_completed,last_completed_at:t.last_completed_at,count_current:t.count_current};
+  Object.assign(t,up);
+  render();
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
   clearBusy(key);
+  if(error){Object.assign(t,prev);render();}
   if(error){toast('저장 실패');return;}
-  Object.assign(t,up);
-  if(t.parent_id)await syncParentDone(t.parent_id,isExp,ownerId);
-  render();
+  if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}
 }
 async function setTaskCount(id,isExp,ownerId,val){
   const key=`task:${id}`;if(!withBusy(key))return;
@@ -1421,12 +1461,14 @@ async function setTaskCount(id,isExp,ownerId,val){
   if(list.some(x=>x.parent_id===id)){clearBusy(key);toast('상위 숙제는 하위 숙제 완료로 자동 처리됩니다');return;}
   const max=Number(t.count_max)||1,cur=Math.max(0,Math.min(Number(val)||0,max)),done=cur>=max;
   const up={count_current:cur,is_completed:done,last_completed_at:cur>0?appNowIso():null};
+  const prev={count_current:t.count_current,is_completed:t.is_completed,last_completed_at:t.last_completed_at};
+  Object.assign(t,up);
+  render();
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
   clearBusy(key);
+  if(error){Object.assign(t,prev);render();}
   if(error){toast('저장 실패');return;}
-  Object.assign(t,up);
-  if(t.parent_id)await syncParentDone(t.parent_id,isExp,ownerId);
-  render();
+  if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}
 }
 async function setRestTaskCount(id,isExp,ownerId,val){
   const key=`task:${id}`;if(!withBusy(key))return;
@@ -1435,12 +1477,14 @@ async function setRestTaskCount(id,isExp,ownerId,val){
   if(list.some(x=>x.parent_id===id)){clearBusy(key);toast('상위 숙제는 하위 숙제 완료로 자동 처리됩니다');return;}
   const max=Math.max(1,Number(t.rest_daily_limit)||1),cur=Math.max(0,Math.min(Number(val)||0,max)),done=cur>=max;
   const up={count_current:cur,is_completed:done,last_completed_at:cur>0?appNowIso():null};
+  const prev={count_current:t.count_current,is_completed:t.is_completed,last_completed_at:t.last_completed_at};
+  Object.assign(t,up);
+  render();
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
   clearBusy(key);
+  if(error){Object.assign(t,prev);render();}
   if(error){toast('저장 실패');return;}
-  Object.assign(t,up);
-  if(t.parent_id)await syncParentDone(t.parent_id,isExp,ownerId);
-  render();
+  if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}
 }
 async function syncParentDone(parentId,isExp,ownerId){
   const list=getTaskList(isExp,ownerId),children=list.filter(t=>t.parent_id===parentId),parent=list.find(t=>t.id===parentId);
@@ -1455,19 +1499,25 @@ async function setRest(id,isExp,ownerId,val){
   const list=isExp?(state.expTasks[ownerId]||[]):(state.tasks[ownerId]||[]);
   const t=list.find(x=>x.id===id);if(!t){clearBusy(key);return;}
   const cur=Math.max(0,Math.min(Number(val)||0,Number(t.rest_max)||100));
+  const prev=t.rest_current;
+  t.rest_current=cur;
+  render();
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update({rest_current:cur}).eq('id',id);
   clearBusy(key);
+  if(error){t.rest_current=prev;render();}
   if(error){toast('휴식 게이지 저장 실패');return;}
-  t.rest_current=cur;render();
 }
 async function toggleRaid(id,charId){
   const key=`raid:${id}`;if(!withBusy(key))return;
   const t=(state.raidTasks[charId]||[]).find(x=>x.id===id);if(!t){clearBusy(key);return;}
   const done=!isDone(t),up={is_completed:done,last_completed_at:done?appNowIso():null};
+  const prev={is_completed:t.is_completed,last_completed_at:t.last_completed_at};
+  Object.assign(t,up);
+  render();
   const {error}=await sb.from('raid_tasks').update(up).eq('id',id);
   clearBusy(key);
+  if(error){Object.assign(t,prev);render();}
   if(error){toast('저장 실패');return;}
-  Object.assign(t,up);render();
 }
 async function adjustCurrency(id,charId,delta){
   const c=(state.currencies[charId]||[]).find(x=>x.id===id);if(!c)return;
@@ -2044,6 +2094,9 @@ async function countRootTasks(table,ownerField,ownerId){
   if(error)return 99;
   return count||0;
 }
+function localRootTaskCount(isExp,ownerId){
+  return getTaskList(isExp,ownerId).filter(t=>!t.parent_id).length;
+}
 async function openCopyTask(id,isExp,ownerId){
   const task=getTaskList(isExp,ownerId).find(x=>x.id===id);if(!task)return;
   state.copyCtx={id,isExp,ownerId};
@@ -2080,7 +2133,7 @@ async function executeTaskCopy(){
   try{groupId=await ensureCloneGroup(src,ctx.isExp);}catch{return;}
   let copied=0;
   for(const targetId of targets){
-    const rootRec={...taskCopyFields(src),clone_group_id:groupId,[ownerField]:targetId,sort_order:await countRootTasks(table,ownerField,targetId)};
+    const rootRec={...taskCopyFields(src),clone_group_id:groupId,[ownerField]:targetId,sort_order:localRootTaskCount(ctx.isExp,targetId)};
     const {data:newRoot,error}=await sb.from(table).insert(rootRec).select().single();
     if(error){console.warn(error);continue;}
     if(!ctx.isExp&&state.tasks[targetId])state.tasks[targetId].push(newRoot);
@@ -2096,7 +2149,6 @@ async function executeTaskCopy(){
     copied++;
   }
   closeModal('modal-copy-task');
-  await loadAccountData();
   render();
   toast(`${copied}개 대상에 복제했습니다`);
 }
@@ -2144,7 +2196,6 @@ async function confirmBulkDelete(){
     if(ctx.isExp)state.expTasks[ownerId]=next;else state.tasks[ownerId]=next;
   });
   closeModal('modal-bulk-delete');
-  await loadAccountData();
   render();
   toast('일괄 삭제했습니다');
 }
