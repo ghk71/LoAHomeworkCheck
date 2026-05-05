@@ -724,6 +724,7 @@ function toast(msg){const el=document.getElementById('toast');el.textContent=msg
 function getConfig(){const url=localStorage.getItem('la_url'),key=localStorage.getItem('la_key');return url&&key?{url,key}:null;}
 function saveConfig(){const url=document.getElementById('setup-url').value.trim(),key=document.getElementById('setup-key').value.trim();if(!url||!key){toast('URL과 key를 입력하세요');return;}localStorage.setItem('la_url',url);localStorage.setItem('la_key',key);init();}
 function appNow(){const t=Number(localStorage.getItem('la_test_now')||0);return Number.isFinite(t)&&t>0?new Date(t):new Date();}
+function isTestMode(){return !!localStorage.getItem('la_test_now');}
 function appNowIso(){return appNow().toISOString();}
 function getLatestCurrencyUpdated(list){const ds=(list||[]).map(c=>c.updated_at).filter(Boolean).sort((a,b)=>new Date(b)-new Date(a));return ds[0]||'';}
 function fmtRelDate(iso){if(!iso)return'';const d=new Date(iso);return`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;}
@@ -732,7 +733,7 @@ function toLocalDateTimeValue(ms){const d=new Date(ms),p=n=>String(n).padStart(2
 function openSettings(){const c=getConfig();document.getElementById('set-url').value=c?.url||'';document.getElementById('set-key').value=c?.key||'';const td=localStorage.getItem('la_test_now');document.getElementById('set-test-date').value=td?toLocalDateTimeValue(Number(td)):'';openModal('modal-settings');}
 function saveSettings(){const u=document.getElementById('set-url').value.trim(),k=document.getElementById('set-key').value.trim();if(!u||!k){toast('URL과 key를 입력하세요');return;}localStorage.setItem('la_url',u);localStorage.setItem('la_key',k);const tv=document.getElementById('set-test-date').value;if(tv){const ms=new Date(tv).getTime();if(Number.isFinite(ms))localStorage.setItem('la_test_now',String(ms));else localStorage.removeItem('la_test_now');}else{localStorage.removeItem('la_test_now');}closeModal('modal-settings');location.reload();}
 function fillTestDateNow(){document.getElementById('set-test-date').value=toLocalDateTimeValue(Date.now());}
-function clearTestDate(){document.getElementById('set-test-date').value='';localStorage.removeItem('la_test_now');updateClock();toast('테스트 모드를 껐습니다. 저장하면 새로고침됩니다.');}
+function clearTestDate(){document.getElementById('set-test-date').value='';localStorage.removeItem('la_test_now');updateClock();toast('테스트 모드를 껐습니다. 원래 상태로 다시 불러옵니다.');location.reload();}
 function clearConfig(){if(!confirm('Supabase 연결을 해제합니다. 데이터는 보존됩니다.\n계속할까요?'))return;localStorage.removeItem('la_url');localStorage.removeItem('la_key');location.reload();}
 function ensureClock(){
   if(clockTimer)clearInterval(clockTimer);
@@ -1178,6 +1179,10 @@ async function autoResetTasks(list,table){
     if(Object.keys(up).length)updates.push({t,up});
   }
   if(!updates.length)return;
+  if(isTestMode()){
+    updates.forEach(x=>Object.assign(x.t,x.up));
+    return;
+  }
   await Promise.all(updates.map(async x=>{
     const {error}=await sb.from(table).update(x.up).eq('id',x.t.id);
     if(!error)Object.assign(x.t,x.up);
@@ -1188,6 +1193,7 @@ async function autoResetRaidList(list){
   const stale=list.filter(t=>t.is_completed&&t.last_completed_at&&new Date(t.last_completed_at)<=getLastResetUTC('weekly',t.reset_day??3));
   if(!stale.length)return;
   const ids=stale.map(t=>t.id);
+  if(isTestMode()){stale.forEach(t=>{t.is_completed=false;t.last_completed_at=null;});return;}
   const {error}=await sb.from('raid_tasks').update({is_completed:false,last_completed_at:null}).in('id',ids);
   if(!error)stale.forEach(t=>{t.is_completed=false;t.last_completed_at=null;});
 }
@@ -1475,6 +1481,7 @@ async function toggleTask(id,isExp,ownerId){
   const prev={is_completed:t.is_completed,last_completed_at:t.last_completed_at,count_current:t.count_current};
   Object.assign(t,up);
   render();
+  if(isTestMode()){clearBusy(key);if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}return;}
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
   clearBusy(key);
   if(error){Object.assign(t,prev);render();}
@@ -1491,6 +1498,7 @@ async function setTaskCount(id,isExp,ownerId,val){
   const prev={count_current:t.count_current,is_completed:t.is_completed,last_completed_at:t.last_completed_at};
   Object.assign(t,up);
   render();
+  if(isTestMode()){clearBusy(key);if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}return;}
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
   clearBusy(key);
   if(error){Object.assign(t,prev);render();}
@@ -1507,6 +1515,7 @@ async function setRestTaskCount(id,isExp,ownerId,val){
   const prev={count_current:t.count_current,is_completed:t.is_completed,last_completed_at:t.last_completed_at};
   Object.assign(t,up);
   render();
+  if(isTestMode()){clearBusy(key);if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}return;}
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
   clearBusy(key);
   if(error){Object.assign(t,prev);render();}
@@ -1517,6 +1526,7 @@ async function syncParentDone(parentId,isExp,ownerId){
   const list=getTaskList(isExp,ownerId),children=list.filter(t=>t.parent_id===parentId),parent=list.find(t=>t.id===parentId);
   if(!parent||!children.length)return;
   const done=children.every(isDone),up={is_completed:done,last_completed_at:done?appNowIso():null};
+  if(isTestMode()){Object.assign(parent,up);return;}
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',parentId);
   if(!error)Object.assign(parent,up);
 }
@@ -1529,6 +1539,7 @@ async function setRest(id,isExp,ownerId,val){
   const prev=t.rest_current;
   t.rest_current=cur;
   render();
+  if(isTestMode()){clearBusy(key);return;}
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update({rest_current:cur}).eq('id',id);
   clearBusy(key);
   if(error){t.rest_current=prev;render();}
@@ -1541,6 +1552,7 @@ async function toggleRaid(id,charId){
   const prev={is_completed:t.is_completed,last_completed_at:t.last_completed_at};
   Object.assign(t,up);
   render();
+  if(isTestMode()){clearBusy(key);return;}
   const {error}=await sb.from('raid_tasks').update(up).eq('id',id);
   clearBusy(key);
   if(error){Object.assign(t,prev);render();}

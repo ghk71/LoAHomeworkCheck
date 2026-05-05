@@ -1589,6 +1589,10 @@ async function viewerToggleRaidTask(taskId){
   const done=!!(t.is_completed&&t.last_completed_at&&new Date(t.last_completed_at)>ws);
   const nowDone=!done,ts=nowDone?appNowIso():null;
   Object.assign(t,{is_completed:nowDone,last_completed_at:ts});
+  if(isTestMode()){
+    await loadViewerOverview(document.getElementById('viewer-overview-area'));
+    return;
+  }
   const{error}=await sb.from('raid_tasks').update({is_completed:nowDone,last_completed_at:ts}).eq('id',taskId);
   if(error){toast('❗ 저장 실패: '+error.message);return;}
   await loadViewerOverview(document.getElementById('viewer-overview-area'));
@@ -1773,6 +1777,7 @@ function normalizeTempChanges(tc={}){
 function normalizeOverride(o){o=o||{};o.slot_overrides=o.slot_overrides||{};o.temp_changes=normalizeTempChanges(o.temp_changes||{});return o;}
 function supaErr(res,msg='작업 실패'){if(res?.error){toast('❗ '+(res.error.message||msg));console.error(res.error);return true;}return false;}
 function appNowMs(){const t=Number(localStorage.getItem('la_test_now')||0);return Number.isFinite(t)&&t>0?t:Date.now();}
+function isTestMode(){return !!localStorage.getItem('la_test_now');}
 function appNow(){return new Date(appNowMs());}
 function appNowIso(){return new Date(appNowMs()).toISOString();}
 
@@ -2926,6 +2931,17 @@ function toggleCompletion(schId,wk){
     if(btn)btn.textContent=nowDone?'✓ 완료':'○ 완료';
   }
   toast(nowDone?'✅ 완료 처리됨':'↩ 완료 취소됨');
+  if(isTestMode()){
+    const s=schedules.find(x=>x.id===schId);
+    const p=s?parties.find(x=>x.id===s.party_id):null;
+    const preset=p?raids.find(x=>x.id===p.preset_id):null;
+    const eff=s&&p?getEffectiveMembers(schId,s.party_id,wk):[];
+    eff.filter(sl=>sl.character_id).forEach(sl=>{
+      (raidTasksAll[sl.character_id]||[]).filter(t=>preset&&t.preset_id===preset.id).forEach(t=>Object.assign(t,{is_completed:nowDone,last_completed_at:ts}));
+    });
+    renderSchedule();
+    return;
+  }
   // All DB ops in background
   (async()=>{
     // 1. Save override

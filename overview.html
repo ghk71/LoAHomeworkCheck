@@ -817,6 +817,7 @@ async function autoReset(){
   const lr=getWeekStart(0);
   const toReset=raidTasks.filter(t=>t.is_completed&&t.last_completed_at&&new Date(t.last_completed_at)<=lr);
   if(!toReset.length)return;
+  if(isTestMode()){toReset.forEach(t=>{t.is_completed=false;t.last_completed_at=null;});return;}
   await sb.from('raid_tasks').update({is_completed:false,last_completed_at:null}).in('id',toReset.map(t=>t.id));
   toReset.forEach(t=>{t.is_completed=false;t.last_completed_at=null;});
 }
@@ -1123,6 +1124,7 @@ async function toggleRaidTask(taskId){
   Object.assign(t,up);
   render();
   // ★ await: Supabase JS v2에서 await 없으면 쿼리 미실행
+  if(isTestMode())return;
   const{error}=await sb.from('raid_tasks').update(up).eq('id',taskId);
   if(error){toast('❗ 저장 실패: '+error.message);return;}
 }
@@ -1192,6 +1194,7 @@ function openModal(id){document.getElementById(id)?.classList.add('open');}
 function closeModal(id){document.getElementById(id)?.classList.remove('open');}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function appNowMs(){const t=Number(localStorage.getItem('la_test_now')||0);return Number.isFinite(t)&&t>0?t:Date.now();}
+function isTestMode(){return !!localStorage.getItem('la_test_now');}
 function appNow(){return new Date(appNowMs());}
 function appNowIso(){return new Date(appNowMs()).toISOString();}
 init();
