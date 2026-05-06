@@ -260,3 +260,22 @@ alter table characters add column if not exists azena_blessing boolean default f
 ### 적용 파일
 - `schema.sql`
 - `index.html`
+## 2026-05-06 - share_links 짧은 공유 링크 테이블 추가
+
+### 목적
+- 기존 `?viewer=` 공유 링크에 Supabase URL/key payload가 포함되어 길어지는 문제를 줄이기 위해 짧은 토큰 기반 공유 링크를 저장.
+
+### SQL
+```sql
+create table if not exists share_links(
+  token text primary key,
+  payload jsonb not null,
+  created_at timestamptz default now()
+);
+```
+
+### 적용 파일
+- `schema.sql`
+- `raid.html`
+- `supabase/functions/create-share-link/index.ts`
+- `supabase/functions/resolve-share/index.ts`

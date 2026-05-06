@@ -204,6 +204,13 @@ create table if not exists raid_notice_comments(
   created_at timestamptz default now()
 );
 
+-- 짧은 공유 링크
+create table if not exists share_links(
+  token text primary key,
+  payload jsonb not null,
+  created_at timestamptz default now()
+);
+
 alter table accounts          disable row level security;
 alter table characters        disable row level security;
 alter table tasks             disable row level security;

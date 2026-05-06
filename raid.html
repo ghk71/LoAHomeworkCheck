@@ -1322,11 +1322,20 @@ body::before{background:none;}
 const{createClient}=supabase;
 // ─── Viewer ───
 function parseViewer(){try{const p=new URLSearchParams(location.search).get('viewer');return p?JSON.parse(atob(p)):null;}catch{return null;}}
-const viewerCreds=parseViewer(),isViewer=!!viewerCreds;
+function parseShortShare(){const p=new URLSearchParams(location.search);const token=p.get('s'),url=p.get('u');return token&&url?{token,url}:null;}
+let viewerCreds=parseViewer(),shortShare=parseShortShare(),isViewer=!!viewerCreds||!!shortShare;
 if(isViewer)document.getElementById('viewer-banner').classList.add('show');
 const VIEWER_ACC_KEY='la_viewer_account_id';
 let viewerPendingCharId=null;
 function getConfig(){if(isViewer)return viewerCreds;const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
+async function resolveShortShare(){
+  if(viewerCreds||!shortShare)return;
+  const base=decodeURIComponent(shortShare.url).replace(/\/$/,'');
+  const res=await fetch(`${base}/functions/v1/resolve-share?token=${encodeURIComponent(shortShare.token)}`);
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok||data.error)throw new Error(data.error||'짧은 공유 링크를 불러오지 못했습니다.');
+  viewerCreds=data.payload;
+}
 function safeJson(key,fallback){try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback;}catch(e){console.warn('localStorage JSON parse failed:',key,e);return fallback;}}
 function isFilterHiddenAccount(accountId,accs=accounts){return (accs||[]).some(a=>a.id===accountId&&a.hide_from_filters===true);}
 function filterVisibleAccounts(accs=accounts){return (accs||[]).filter(a=>a.hide_from_filters!==true);}
@@ -1789,6 +1798,10 @@ function appNowIso(){return new Date(appNowMs()).toISOString();}
 
 // ─── Init ───
 async function init(){
+  if(shortShare&&!viewerCreds){
+    try{await resolveShortShare();}
+    catch(err){toast('❗ '+(err?.message||err));console.error(err);setTimeout(()=>{window.location.href='index.html';},1200);return;}
+  }
   const cfg=getConfig();if(!cfg){window.location.href='index.html';return;}
   sb=createClient(cfg.url,cfg.key);
   let raidTasksData=[];
@@ -3377,13 +3390,28 @@ async function deleteNoticeComment(id){
 }
 
 // ─── Share ───
-function openShareModal(){const cfg=getConfig();if(!cfg)return;const pl=btoa(JSON.stringify({url:cfg.url,key:cfg.key}));const url=location.origin+location.pathname+'?viewer='+pl;document.getElementById('share-link-text').textContent=url;openModal('modal-share');}
-function copyShareLink(){navigator.clipboard.writeText(document.getElementById('share-link-text').textContent).then(()=>toast('📋 링크 복사됨!'));}
-function getShareUrl(){
+function longShareUrl(){
   const cfg=getConfig();if(!cfg)return location.href;
   const pl=btoa(JSON.stringify({url:cfg.url,key:cfg.key}));
   return location.origin+location.pathname+'?viewer='+pl;
 }
+async function createShortShareUrl(){
+  const cfg=getConfig();if(!cfg)return location.href;
+  const {data,error}=await sb.functions.invoke('create-share-link',{body:{payload:{url:cfg.url,key:cfg.key}}});
+  if(error)throw error;
+  if(data?.error)throw new Error(data.error);
+  if(!data?.token)throw new Error('짧은 공유 토큰 생성 실패');
+  return `${location.origin}${location.pathname}?s=${encodeURIComponent(data.token)}&u=${encodeURIComponent(cfg.url)}`;
+}
+async function openShareModal(){
+  const box=document.getElementById('share-link-text');
+  if(box)box.textContent='짧은 공유 링크 생성 중...';
+  openModal('modal-share');
+  try{if(box)box.textContent=await createShortShareUrl();}
+  catch(err){console.warn(err);if(box)box.textContent=longShareUrl();toast('짧은 링크 생성 실패, 기존 공유 링크를 표시합니다');}
+}
+function copyShareLink(){navigator.clipboard.writeText(document.getElementById('share-link-text').textContent).then(()=>toast('📋 링크 복사됨!'));}
+async function getShareUrl(){try{return await createShortShareUrl();}catch(err){console.warn(err);return longShareUrl();}}
 async function sendDiscordSchedule(){
   if(isViewer)return;
   if(!confirm('현재 선택된 주차의 레이드 일정을 디스코드 채널로 전송하시겠습니까?'))return;
@@ -3391,7 +3419,7 @@ async function sendDiscordSchedule(){
   const oldText=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='전송 중...';}
   try{
-    const {data,error}=await sb.functions.invoke('send-raid-discord',{body:{weekOffset,shareUrl:getShareUrl()}});
+    const {data,error}=await sb.functions.invoke('send-raid-discord',{body:{weekOffset,shareUrl:await getShareUrl()}});
     if(error)throw error;
     if(data?.error)throw new Error(data.error);
     toast(`✅ 디스코드 전송 완료${Number.isFinite(Number(data?.sentLines))?` (${data.sentLines}줄)`:''}`);
