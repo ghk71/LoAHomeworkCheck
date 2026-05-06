@@ -1068,19 +1068,21 @@ body::before{background:none;}
 .unplaced-card.selected{border-color:rgba(34,211,238,.75);background:linear-gradient(135deg,rgba(34,211,238,.12),rgba(139,92,246,.09));box-shadow:inset 3px 0 0 rgba(34,211,238,.86),0 12px 26px rgba(0,0,0,.24);}
 .unplaced-panel.collapsed .unplaced-preview{display:none;}
 .unplaced-preview{position:relative;margin:10px 10px 0;border:1px solid rgba(34,211,238,.45);border-radius:8px;background:linear-gradient(160deg,rgba(13,26,37,.98),rgba(11,16,25,.98));box-shadow:0 16px 32px rgba(0,0,0,.28),0 0 0 1px rgba(255,255,255,.025) inset;overflow:hidden;flex:0 0 auto;min-height:72px;scrollbar-width:thin;}
+.unplaced-preview[draggable="true"]{cursor:grab;}
+.unplaced-preview[draggable="true"]:active{cursor:grabbing;}
 .unplaced-preview::before{content:"";position:absolute;inset:0 0 auto;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent-2));}
-.unplaced-preview-head{padding:13px 42px 10px 11px;border-bottom:1px solid var(--line);display:grid;gap:6px;}
+.unplaced-preview-head{padding:9px 40px 8px 10px;border-bottom:1px solid var(--line);display:grid;gap:4px;}
 .unplaced-preview-kicker{font-size:.64rem;font-weight:950;letter-spacing:.02em;color:#89f3ff;text-transform:uppercase;}
 .unplaced-preview-close{position:absolute;top:9px;right:9px;width:24px;height:24px;border:1px solid var(--line);border-radius:999px;background:rgba(17,24,33,.82);color:var(--muted);font-size:.86rem;font-weight:950;line-height:1;display:grid;place-items:center;cursor:pointer;transition:all var(--t);z-index:2;}
 .unplaced-preview-close:hover{border-color:rgba(34,211,238,.55);color:#dffbff;background:rgba(34,211,238,.12);}
-.unplaced-preview-title{display:flex;align-items:center;gap:6px;font-size:.92rem;font-weight:950;min-width:0;}
-.unplaced-preview-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap;color:var(--muted);font-size:.69rem;}
+.unplaced-preview-title{display:flex;align-items:center;gap:6px;font-size:.86rem;font-weight:950;min-width:0;}
+.unplaced-preview-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap;color:var(--muted);font-size:.66rem;}
 .unplaced-preview-meta span,.unplaced-preview-meta b{display:inline-flex;align-items:center;min-height:20px;padding:3px 7px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.035);line-height:1;}
-.unplaced-preview-body{padding:9px;display:grid;gap:6px;max-height:210px;overflow-y:auto;scrollbar-width:thin;}
+.unplaced-preview-body{padding:6px;display:grid;gap:4px;max-height:142px;overflow-y:auto;scrollbar-width:thin;}
 .unplaced-list{min-height:120px;scrollbar-width:thin;}
 .unplaced-preview-empty{position:relative;min-height:72px;padding:15px 12px 13px;color:var(--muted);font-size:.75rem;line-height:1.5;background:linear-gradient(160deg,rgba(34,211,238,.07),rgba(139,92,246,.05));display:grid;align-content:center;gap:3px;}
 .unplaced-preview-empty b{display:block;color:#dffbff;font-size:.82rem;font-weight:950;}
-.unplaced-member{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:7px;padding:7px 8px;border:1px solid transparent;border-radius:7px;font-size:.74rem;color:var(--text-2);}
+.unplaced-member{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:7px;padding:5px 7px;border:1px solid transparent;border-radius:7px;font-size:.72rem;color:var(--text-2);}
 .unplaced-member.filled{border-color:rgba(34,211,238,.22);background:rgba(34,211,238,.075);}
 .unplaced-member.empty{color:var(--muted);opacity:.75;}
 .unplaced-slot-num{color:var(--text-3);font-size:.7rem;text-align:center;}
@@ -1157,6 +1159,7 @@ body::before{background:none;}
       <span class="week-label" id="week-label"></span>
       <button class="btn btn-sec btn-sm" onclick="moveWeek(1)">다음 ▶</button>
       <button class="btn btn-ghost btn-sm" onclick="goToCurrentWeek()">오늘</button>
+      <button class="btn btn-teal btn-sm edit-only" id="discord-send-btn" onclick="sendDiscordSchedule()">디스코드 전송</button>
     </div>
     <div class="viewer-sch-topbar" id="viewer-sch-topbar">
       <span id="viewer-sch-account-label">선택 계정</span>
@@ -2851,9 +2854,17 @@ function renderUnplacedPreview(){
   const box=document.getElementById('unplaced-preview');if(!box||isViewer)return;
   const p=unplacedPreviewPartyId?parties.find(x=>x.id===unplacedPreviewPartyId):null;
   if(!p){
+    box.removeAttribute('draggable');
+    box.removeAttribute('data-party-id');
+    box.ondragstart=null;
+    box.ondragend=null;
     box.innerHTML='<div class="unplaced-preview-empty"><b>선택 파티 정보</b><br>미배치 파티를 클릭하면 이곳에 파티 구성이 표시됩니다.</div>';
     return;
   }
+  box.setAttribute('draggable','true');
+  box.dataset.partyId=p.id;
+  box.ondragstart=e=>rdStartUnplacedParty(e,p.id);
+  box.ondragend=e=>rdEnd(e);
   const r=raids.find(x=>x.id===p.preset_id);
   const raidColor=getGroupColor(r?.name||'');
   const pc=p.color||'#e0ddd5';
@@ -3368,6 +3379,24 @@ async function deleteNoticeComment(id){
 // ─── Share ───
 function openShareModal(){const cfg=getConfig();if(!cfg)return;const pl=btoa(JSON.stringify({url:cfg.url,key:cfg.key}));const url=location.origin+location.pathname+'?viewer='+pl;document.getElementById('share-link-text').textContent=url;openModal('modal-share');}
 function copyShareLink(){navigator.clipboard.writeText(document.getElementById('share-link-text').textContent).then(()=>toast('📋 링크 복사됨!'));}
+async function sendDiscordSchedule(){
+  if(isViewer)return;
+  if(!confirm('현재 선택된 주차의 레이드 일정을 디스코드 채널로 전송하시겠습니까?'))return;
+  const btn=document.getElementById('discord-send-btn');
+  const oldText=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='전송 중...';}
+  try{
+    const {data,error}=await sb.functions.invoke('send-raid-discord',{body:{weekOffset}});
+    if(error)throw error;
+    if(data?.error)throw new Error(data.error);
+    toast(`✅ 디스코드 전송 완료${Number.isFinite(Number(data?.sentLines))?` (${data.sentLines}줄)`:''}`);
+  }catch(err){
+    console.error(err);
+    toast('❗ 디스코드 전송 실패: '+(err?.message||err));
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=oldText||'디스코드 전송';}
+  }
+}
 
 // ─── Tabs ───
 function switchTab(tab){
