@@ -37,7 +37,7 @@ button,input,select,textarea{font:inherit}
 button{cursor:pointer}
 input[type=number]{appearance:textfield;-moz-appearance:textfield}
 input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{appearance:none;margin:0}
-.page-nav{height:42px;background:rgba(18,21,27,.92);border-bottom:1px solid var(--line);display:flex;align-items:stretch;backdrop-filter:blur(16px)}
+.page-nav{position:sticky;top:0;z-index:60;height:42px;background:rgba(18,21,27,.92);border-bottom:1px solid var(--line);display:flex;align-items:stretch;backdrop-filter:blur(16px)}
 .pnav-item{padding:0 22px;display:flex;align-items:center;gap:6px;color:var(--muted);text-decoration:none;border-right:1px solid var(--line);font-size:.82rem;font-weight:850;white-space:nowrap}
 .pnav-item:hover,.pnav-item.active{color:var(--text);background:rgba(255,255,255,.045)}
 .pnav-item.active{box-shadow:inset 0 -2px 0 var(--accent);color:#eefcff}
@@ -61,7 +61,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .btn.active{border-color:rgba(34,211,238,.55);color:#bff6ff;background:rgba(34,211,238,.12)}
 .app{display:none;min-height:calc(100vh - 36px)}
 .app.active{display:block}
-.topbar{position:sticky;top:0;z-index:10;background:rgba(18,21,27,.86);border-bottom:1px solid var(--line);backdrop-filter:blur(18px);padding:11px 14px 10px}
+.topbar{position:sticky;top:42px;z-index:10;background:rgba(18,21,27,.86);border-bottom:1px solid var(--line);backdrop-filter:blur(18px);padding:11px 14px 10px}
 .mode-tabs,.account-tabs,.filter-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
 .mode-tabs{margin-bottom:9px}
 .mode-tab,.pill{border:1px solid var(--line);background:rgba(31,36,44,.78);color:var(--muted);border-radius:999px;padding:7px 12px;font-weight:850;font-size:.8rem}
