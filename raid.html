@@ -3379,6 +3379,11 @@ async function deleteNoticeComment(id){
 // ─── Share ───
 function openShareModal(){const cfg=getConfig();if(!cfg)return;const pl=btoa(JSON.stringify({url:cfg.url,key:cfg.key}));const url=location.origin+location.pathname+'?viewer='+pl;document.getElementById('share-link-text').textContent=url;openModal('modal-share');}
 function copyShareLink(){navigator.clipboard.writeText(document.getElementById('share-link-text').textContent).then(()=>toast('📋 링크 복사됨!'));}
+function getShareUrl(){
+  const cfg=getConfig();if(!cfg)return location.href;
+  const pl=btoa(JSON.stringify({url:cfg.url,key:cfg.key}));
+  return location.origin+location.pathname+'?viewer='+pl;
+}
 async function sendDiscordSchedule(){
   if(isViewer)return;
   if(!confirm('현재 선택된 주차의 레이드 일정을 디스코드 채널로 전송하시겠습니까?'))return;
@@ -3386,7 +3391,7 @@ async function sendDiscordSchedule(){
   const oldText=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='전송 중...';}
   try{
-    const {data,error}=await sb.functions.invoke('send-raid-discord',{body:{weekOffset}});
+    const {data,error}=await sb.functions.invoke('send-raid-discord',{body:{weekOffset,shareUrl:getShareUrl()}});
     if(error)throw error;
     if(data?.error)throw new Error(data.error);
     toast(`✅ 디스코드 전송 완료${Number.isFinite(Number(data?.sentLines))?` (${data.sentLines}줄)`:''}`);

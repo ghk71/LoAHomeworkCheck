@@ -85,6 +85,7 @@ Deno.serve(async (req) => {
 
   const body = await req.json().catch(() => ({}));
   const off = Number.isFinite(Number(body.weekOffset)) ? Number(body.weekOffset) : 0;
+  const shareUrl = String(body.shareUrl || "").trim();
   const wk = weekKey(off);
   const { wsMs, weMs } = weekWindow(off);
   const sb = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
@@ -212,8 +213,10 @@ Deno.serve(async (req) => {
     "",
     `**공지사항:** ${notice || "없음"}`,
     "",
-    "레이드 일정",
+    "4명 모두 포함 레이드 일정",
     scheduleLines.length ? scheduleLines.join("\n") : "조건에 맞는 레이드 일정이 없습니다.",
+    "",
+    shareUrl ? `일정 참조: ${shareUrl}` : "",
   ].join("\n");
 
   const discordRes = await fetch(webhookUrl, {
