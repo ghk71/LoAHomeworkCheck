@@ -1071,6 +1071,8 @@ body::before{background:none;}
 .unplaced-preview::before{content:"";position:absolute;inset:0 0 auto;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent-2));}
 .unplaced-preview-head{padding:13px 11px 10px;border-bottom:1px solid var(--line);display:grid;gap:6px;}
 .unplaced-preview-kicker{font-size:.64rem;font-weight:950;letter-spacing:.02em;color:#89f3ff;text-transform:uppercase;}
+.unplaced-preview-close{position:absolute;top:9px;right:9px;width:24px;height:24px;border:1px solid var(--line);border-radius:999px;background:rgba(17,24,33,.82);color:var(--muted);font-size:.86rem;font-weight:950;line-height:1;display:grid;place-items:center;cursor:pointer;transition:all var(--t);z-index:2;}
+.unplaced-preview-close:hover{border-color:rgba(34,211,238,.55);color:#dffbff;background:rgba(34,211,238,.12);}
 .unplaced-preview-title{display:flex;align-items:center;gap:6px;font-size:.92rem;font-weight:950;min-width:0;}
 .unplaced-preview-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap;color:var(--muted);font-size:.69rem;}
 .unplaced-preview-meta span,.unplaced-preview-meta b{display:inline-flex;align-items:center;min-height:20px;padding:3px 7px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.035);line-height:1;}
@@ -2857,6 +2859,7 @@ function renderUnplacedPreview(){
   const pc=p.color||'#e0ddd5';
   const filled=(p.members||[]).filter(m=>m.character_id).length;
   box.innerHTML=`<div class="unplaced-preview-head">
+    <button type="button" class="unplaced-preview-close" onclick="clearUnplacedPartyInfo()" aria-label="선택 파티 정보 닫기" title="선택 해제">×</button>
     <div class="unplaced-preview-kicker">선택 파티 정보</div>
     <div class="unplaced-preview-title" style="color:${raidColor};">${iconImg(getGroupIcon(r?.name||'')||r?.icon_url||'','entity-icon-sm')}${esc(r?.name||'레이드')} <span class="${diffClass(r?.difficulty||'')}">${esc(r?.difficulty||'')}</span></div>
     <div class="unplaced-preview-meta"><b style="color:${pc};">${esc(p.name||'파티')}</b><span>${filled}/${p.party_size||4}명</span>${r?.entry_level?`<span>입장 ${r.entry_level}</span>`:''}</div>
@@ -2872,6 +2875,11 @@ function refreshUnplacedSelection(){
 }
 function showUnplacedPartyInfo(partyId){
   unplacedPreviewPartyId=partyId;
+  renderUnplacedPreview();
+  refreshUnplacedSelection();
+}
+function clearUnplacedPartyInfo(){
+  unplacedPreviewPartyId=null;
   renderUnplacedPreview();
   refreshUnplacedSelection();
 }
