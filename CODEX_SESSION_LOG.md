@@ -1815,6 +1815,29 @@ Claude/ChatGPT/Codex 간 프로젝트 인수인계를 위해 문서 세트를 �
 ### 검증
 - 사용자 지침에 따라 `node tools/check-project.js`는 실행하지 않음.
 
+## 2026-05-07 - index.html 인코딩/태그 깨짐 긴급 복구
+
+### 요청
+- GitHub Pages에서 `index.html` 제목과 한글 텍스트가 깨지고 화면이 비어 보이는 문제 긴급 확인.
+
+### 수정 파일
+- `index.html`
+- `CODEX_SESSION_LOG.md`
+
+### 변경 내용
+- `index.html`이 잘못 저장되며 `<title>` 및 일부 닫는 태그가 깨진 상태였음을 확인.
+- Git 히스토리의 정상 UTF-8 blob을 기준으로 `index.html`을 복구.
+- 복구 후 휴식 게이지 관련 최근 수정 사항을 `apply_patch`로 다시 적용.
+
+### 검증
+- UTF-8 바이트 기준 `<title>로스트아크 숙제 트래커</title>` 정상 확인.
+- 대표 한글 UI 텍스트 `캐릭터 숙제` 정상 확인.
+- 명백한 누락 닫는 태그 패턴 없음 확인.
+- 5개 HTML에서 `</html>` 뒤 코드 없음 확인.
+- CSS 변수 누락 없음 확인.
+- `git diff --check` 통과. CRLF 경고만 있음.
+- 사용자 지침에 따라 `node tools/check-project.js`는 실행하지 않음.
+
 ## 2026-05-07 - 휴식 게이지 완료/초기화 로직 수정
 
 ### 요청
