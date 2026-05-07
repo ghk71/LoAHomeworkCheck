@@ -51,6 +51,7 @@ create table if not exists tasks(
   rest_threshold int default 40,
   rest_daily_limit int default 1,
   rest_last_processed_at timestamptz,
+  rest_consumed_current_cycle int default 0,
   sort_order int default 0,
   created_at timestamptz default now()
 );
@@ -76,6 +77,7 @@ create table if not exists expedition_tasks(
   rest_threshold int default 40,
   rest_daily_limit int default 1,
   rest_last_processed_at timestamptz,
+  rest_consumed_current_cycle int default 0,
   sort_order int default 0,
   created_at timestamptz default now()
 );
@@ -244,6 +246,7 @@ alter table tasks            add column if not exists rest_consume int default 4
 alter table tasks            add column if not exists rest_threshold int default 40;
 alter table tasks            add column if not exists rest_daily_limit int default 1;
 alter table tasks            add column if not exists rest_last_processed_at timestamptz;
+alter table tasks            add column if not exists rest_consumed_current_cycle int default 0;
 alter table expedition_tasks add column if not exists parent_id uuid references expedition_tasks(id) on delete cascade;
 alter table expedition_tasks add column if not exists activate_day int default null;
 alter table expedition_tasks add column if not exists clone_group_id uuid;
@@ -255,6 +258,7 @@ alter table expedition_tasks add column if not exists rest_consume int default 4
 alter table expedition_tasks add column if not exists rest_threshold int default 40;
 alter table expedition_tasks add column if not exists rest_daily_limit int default 1;
 alter table expedition_tasks add column if not exists rest_last_processed_at timestamptz;
+alter table expedition_tasks add column if not exists rest_consumed_current_cycle int default 0;
 -- raid_parties 기존 설치 업데이트
 alter table raid_parties     add column if not exists preset_id uuid references raid_presets(id) on delete cascade;
 -- raid_schedule_overrides 기존 설치 업데이트

@@ -274,6 +274,15 @@ create table if not exists share_links(
 );
 ```
 
+## 2026-05-07 - 휴식 게이지 현재 사이클 소모량 컬럼 추가
+
+휴식 게이지 숙제 완료 시 즉시 소모하고, 완료 체크 해제 시 정확히 소모량을 반납하기 위한 컬럼입니다.
+
+```sql
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycle INT DEFAULT 0;
+ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycle INT DEFAULT 0;
+```
+
 ### 적용 파일
 - `schema.sql`
 - `raid.html`

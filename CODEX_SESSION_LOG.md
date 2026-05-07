@@ -1815,6 +1815,53 @@ Claude/ChatGPT/Codex 간 프로젝트 인수인계를 위해 문서 세트를 �
 ### 검증
 - 사용자 지침에 따라 `node tools/check-project.js`는 실행하지 않음.
 
+## 2026-05-07 - 휴식 게이지 완료/초기화 로직 수정
+
+### 요청
+- 일일 숙제가 오전 6시 이후에도 휴식 게이지가 충전되지 않는 현상 확인.
+- 휴식 게이지 숙제 완료 시 즉시 소모, 완료 체크 해제 시 소모분 반납.
+- 오전 6시에는 완료되지 않은 일일 숙제를 먼저 확인해 1회 충전 게이지를 채운 뒤 완료 상태를 초기화.
+- 대한민국 시간 기준 여부 확인.
+
+### 수정 파일
+- `index.html`
+- `schema.sql`
+- `DB_MIGRATION_LOG.md`
+- `CODEX_SESSION_LOG.md`
+
+### 변경 내용
+- 휴식 게이지 완료 시 `rest_consume`만큼 즉시 차감하고, 현재 게이지가 소모량보다 작으면 차감하지 않도록 수정.
+- 완료 체크 해제 시 실제 차감했던 양만 정확히 돌려주도록 `rest_consumed_current_cycle` 컬럼을 추가.
+- 오전 6시 정산 시 완료된 사이클은 충전하지 않고, 완료되지 않은 사이클만 `rest_charge`만큼 충전하도록 수정.
+- 초기화 경계를 지난 완료 상태 정리 시 `rest_consumed_current_cycle`도 함께 0으로 초기화.
+- 기존 시간 기준은 UTC 21:00, 즉 KST 06:00 기준임을 확인.
+
+### Supabase SQL 필요
+```sql
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycle INT DEFAULT 0;
+ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycle INT DEFAULT 0;
+```
+
+### 검증
+- 사용자 지침에 따라 `node tools/check-project.js`는 실행하지 않음.
+
+## 2026-05-07 - index 열린 화면 휴식 게이지 정산 보강
+
+### 요청
+- 하루가 지났는데 휴식 게이지가 그대로인 현상 확인.
+
+### 수정 파일
+- `index.html`
+- `CODEX_SESSION_LOG.md`
+
+### 변경 내용
+- 기존 휴식 게이지 정산은 페이지 로드/데이터 로드 시점에만 실행되어, 화면을 켜둔 채 오전 6시를 넘기면 즉시 반영되지 않을 수 있었음.
+- `ensureClock()`의 30초 타이머에서 오전 6시 초기화 경계 변경을 감지하도록 추가.
+- 열린 페이지에서 초기화 경계가 바뀌면 `loadAccountData()`를 다시 실행해 휴식 게이지 충전/소모 및 완료 만료 처리를 반영하도록 수정.
+
+### 검증
+- 사용자 지침에 따라 `node tools/check-project.js`는 실행하지 않음.
+
 ## 2026-05-06 - 상단 내비게이션 고정 및 미배치 파티 패널 스크롤 개선
 
 ### 요청
