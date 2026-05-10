@@ -154,6 +154,8 @@ create table if not exists raid_parties(
   preset_id uuid references raid_presets(id) on delete cascade,
   name text default '파티',
   party_size int default 4,
+  is_temporary boolean default false,
+  temp_week_start_date text,
   sort_order int default 0,
   created_at timestamptz default now()
 );
@@ -261,6 +263,8 @@ alter table expedition_tasks add column if not exists rest_last_processed_at tim
 alter table expedition_tasks add column if not exists rest_consumed_current_cycle int default 0;
 -- raid_parties 기존 설치 업데이트
 alter table raid_parties     add column if not exists preset_id uuid references raid_presets(id) on delete cascade;
+alter table raid_parties     add column if not exists is_temporary boolean default false;
+alter table raid_parties     add column if not exists temp_week_start_date text;
 -- raid_schedule_overrides 기존 설치 업데이트
 alter table raid_schedule_overrides add column if not exists is_completed boolean default false;
 alter table raid_schedule_overrides add column if not exists completed_at timestamptz;

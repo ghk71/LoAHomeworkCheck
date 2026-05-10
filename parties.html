@@ -754,6 +754,12 @@ function raidSortKeyByPresetId(presetId){
 }
 function getTempPartiesForChar(charId){
   const out=[];
+  parties.forEach(p=>{
+    if(p.is_temporary&&p.temp_week_start_date===getWeekKey()&&(p.members||[]).some(m=>m.character_id===charId)){
+      const m=(p.members||[]).find(x=>x.character_id===charId);
+      out.push({party:p,slotIndex:m?.slot_index??0,override:null});
+    }
+  });
   scheduleOverrides.forEach(ovr=>{
     const sch=schedules.find(s=>s.id===ovr.schedule_id);
     const p=sch?parties.find(x=>x.id===sch.party_id):null;
@@ -793,7 +799,7 @@ function render(){
         const removed=(x.override.temp_changes&&x.override.temp_changes.removed)||{};
         return removed[c.id]?.taskId||removed[c.id]?.task_id||null;
       }).filter(Boolean));
-      const charMembers=members.filter(m=>m.character_id===c.id&&!removedPartyIds.has(m.party_id));
+      const charMembers=members.filter(m=>m.character_id===c.id&&!removedPartyIds.has(m.party_id)&&!parties.some(p=>p.id===m.party_id&&p.is_temporary));
       const charRaidTasks=raidTasks.filter(t=>t.character_id===c.id);
       const charParties=charMembers.map(m=>{const p=parties.find(x=>x.id===m.party_id);return p?{party:p,member:m}:null;}).filter(Boolean);
       const tempParties=getTempPartiesForChar(c.id);
@@ -845,7 +851,7 @@ function partyCardHTML(p,myChar,myMember,isTemp=false,isRemoved=false){
     <div class="pc-header">
       <div style="flex:1;min-width:0;">
         <div class="pc-raid-name" style="color:${getGroupColor(preset?.name||'')};display:flex;align-items:center;gap:5px;">${iconImg(getGroupIcon(preset?.name||''),'entity-icon-sm')}${esc(preset?.name||'?')}${preset?.difficulty?` <span class="${diffClass(preset.difficulty)}" style="font-size:.72rem;">${esc(preset.difficulty)}</span>`:''}</div>
-        <div class="pc-party-name"><span style="color:${getPartyColor(p)};font-weight:600;">${esc(p.name||'파티')}</span> · ${p.party_size}인${isTemp?' · <span class="temp-party-badge">임시파티연동</span>':''}${isRemoved?' · <span class="temp-party-badge">임시파티해제</span>':''}${preset?.entry_level?` · 입장 ${preset.entry_level}`:''}${p._sched_days?` · <span class="party-day-link" onclick="event.stopPropagation();goToPartySchedule('${p.id}')">📅 ${p._sched_days}</span>`:''}</div>
+        <div class="pc-party-name"><span style="color:${getPartyColor(p)};font-weight:600;">${esc(p.name||'파티')}</span> · ${p.party_size}인${isTemp?' · <span class="temp-party-badge">임시</span>':''}${isRemoved?' · <span class="temp-party-badge">임시해제</span>':''}${preset?.entry_level?` · 입장 ${preset.entry_level}`:''}${p._sched_days?` · <span class="party-day-link" onclick="event.stopPropagation();goToPartySchedule('${p.id}')">📅 ${p._sched_days}</span>`:''}</div>
       </div>
     </div>
     <div class="pc-body">

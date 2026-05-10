@@ -1815,6 +1815,43 @@ Claude/ChatGPT/Codex 간 프로젝트 인수인계를 위해 문서 세트를 �
 ### 검증
 - 사용자 지침에 따라 `node tools/check-project.js`는 실행하지 않음.
 
+## 2026-05-10 - 재화 UI 및 임시 파티 규칙/임시 파티 추가
+
+### 요청
+- `index.html` 재화 현황에서 수량 텍스트박스를 제거하고 가운데 정렬 수량 표시로 변경.
+- 재화 현황 접기 버튼 옆 총 개수 제거, `+` 버튼은 유지.
+- 임시파티 연동/해제 규칙을 확정된 판정 기준에 맞게 반영.
+- `임시파티연동` 문구는 `임시`, `임시파티해제` 문구는 `임시해제`로 축약.
+- `raid.html` 미배치 파티 패널에서 이번 주 전용 임시 파티를 추가하는 기능 추가.
+- 슬롯 강조 토글은 위/아래 화살표, 미배치 파티 접기 토글은 열림=우측/닫힘=좌측 화살표로 변경.
+
+### 수정 파일
+- `index.html`
+- `raid.html`
+- `overview.html`
+- `parties.html`
+- `schema.sql`
+- `DB_MIGRATION_LOG.md`
+- `CODEX_SESSION_LOG.md`
+
+### 변경 내용
+- 재화 수량 표시를 `<input>`에서 정적 가운데 정렬 `<span class="curr-amount">`로 변경.
+- 재화 현황 헤더의 총 개수 표시 제거.
+- `raid_parties.is_temporary`, `raid_parties.temp_week_start_date` 컬럼을 추가해 이번 주 전용 임시 파티를 저장하도록 구성.
+- 미배치 파티 패널에 `임시파티 추가` 버튼과 임시 파티 생성 모달 추가.
+- 임시 파티의 모든 멤버는 `임시`로 표시되도록 처리.
+- 같은 레이드 안에서 원래 파티와 다른 파티로 이동하면 `임시`, 같은 파티로 복귀하면 표시 없음이 되도록 임시 변경 기록에 원본 partyId를 보존.
+- `index.html`, `overview.html`, `parties.html`, `raid.html`의 임시 문구를 축약.
+
+### Supabase SQL 필요
+```sql
+ALTER TABLE raid_parties ADD COLUMN IF NOT EXISTS is_temporary BOOLEAN DEFAULT FALSE;
+ALTER TABLE raid_parties ADD COLUMN IF NOT EXISTS temp_week_start_date TEXT;
+```
+
+### 검증
+- 사용자 지침에 따라 `node tools/check-project.js`는 실행하지 않음.
+
 ## 2026-05-07 - index.html 인코딩/태그 깨짐 긴급 복구
 
 ### 요청

@@ -832,6 +832,17 @@ async function loadTempRaidTaskIds(){
     Object.values(added).forEach(v=>{if(v&&v.taskId)ids.push(v.taskId);});
     Object.values(removed).forEach(v=>{if(v&&v.taskId){removedIds.push(v.taskId);removedBySchedule.push({taskId:v.taskId,scheduleId:o.schedule_id});}});
   });
+  const{data:tempParties}=await sb.from('raid_parties').select('id,preset_id').eq('is_temporary',true).eq('temp_week_start_date',getWeekKey(0));
+  if(tempParties?.length){
+    const tempPartyIds=tempParties.map(p=>p.id);
+    const{data:tempMembers}=await sb.from('raid_party_members').select('party_id,character_id').in('party_id',tempPartyIds);
+    const presetByParty={};tempParties.forEach(p=>{presetByParty[p.id]=p.preset_id;});
+    (tempMembers||[]).forEach(m=>{
+      const presetId=presetByParty[m.party_id];
+      const task=raidTasks.find(t=>t.character_id===m.character_id&&t.preset_id===presetId);
+      if(task?.id)ids.push(task.id);
+    });
+  }
   tempRaidTaskIds=new Set(ids);
   tempRemovedRaidTaskIds=new Set(removedIds);
   tempRemovedPresetByTask={};
@@ -1025,11 +1036,11 @@ function raidTaskRowHTML(t){
   const partyLinked=t.has_party_link||isTemp||isRemoved;
   const partyClick=partyLinked?` onclick="event.stopPropagation();showOvPartyPopup('${popupPresetId}','${t.character_id}','${t.id}')"`:'';
   const partyClass=isRemoved?'temp-remove':isTemp?'temp-add':t.has_party_link?'on':'off';
-  const partyText=isRemoved?'↩ 임시해제':isTemp?'✨ 임시연동':t.has_party_link?'':'파티X';
+  const partyText=isRemoved?'↩ 임시해제':isTemp?'✨ 임시':t.has_party_link?'':'파티X';
   const flagChips=[
     (flow||bound)&&!goldChecked?`<span class="ov-status-chip gold off" title="골드체크 제외">골드X</span>`:'',
     bonus&&t.receive_bonus===false?`<span class="ov-status-chip bonus off" title="더보기 제외">더보기X</span>`:'',
-    isRemoved||isTemp||!t.has_party_link?`<span class="ov-status-chip party ${partyClass}${partyLinked?' clickable':''}" title="${isRemoved?'임시파티해제':isTemp?'임시파티연동':'파티연동 없음'}"${partyClick}>${partyText}</span>`:''
+    isRemoved||isTemp||!t.has_party_link?`<span class="ov-status-chip party ${partyClass}${partyLinked?' clickable':''}" title="${isRemoved?'임시해제':isTemp?'임시':'파티연동 없음'}"${partyClick}>${partyText}</span>`:''
   ].filter(Boolean).join('');
   return`<div class="rt-row ${done?'done':''}" id="ov-rti-${t.id}" onclick="toggleRaidTask('${t.id}')">
     <div class="rt-check"><span class="rt-check-icon">✓</span></div>
@@ -1086,7 +1097,7 @@ async function showOvPartyPopup(presetId,charId,taskId=''){
       html+=`<div style="margin-bottom:10px;border:1px solid ${isTemp?'rgba(200,168,75,.38)':'var(--border)'};border-radius:10px;overflow:hidden;background:${isTemp?'rgba(200,168,75,.06)':'transparent'};">
         <div style="padding:8px 10px;background:var(--s1);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;">
           <span style="font-weight:700;font-size:.82rem;color:${pc};">${esc(p.name||'파티')}</span>${days?`<span style="font-size:.68rem;color:var(--gold);margin-left:auto;">📅 ${days}</span>`:''}
-          ${isTemp?`<span class="ov-party-chip temp" style="cursor:default;">임시파티연동</span>`:''}
+          ${isTemp?`<span class="ov-party-chip temp" style="cursor:default;">임시</span>`:''}
           <a class="btn btn-sec btn-sm" style="text-decoration:none;" href="raid.html?party=${p.id}">파티 이동</a>
         </div>
         <div style="padding:6px 8px;">${Array.from({length:p.party_size},(_, i)=>{

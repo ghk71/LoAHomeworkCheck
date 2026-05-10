@@ -179,8 +179,8 @@ body.manage-active .mode-done{display:inline-flex}
 .section-actions{display:inline-flex;align-items:center;gap:6px}
 .curr-main{display:flex;align-items:center;gap:7px;min-width:0}
 .curr-name{font-weight:820;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.curr-edit{display:flex;align-items:center;gap:5px}
-.curr-input{width:78px;text-align:right;background:#111419;border:1px solid var(--line-2);color:var(--text);border-radius:6px;padding:5px 7px;font-weight:900}
+.curr-edit{display:flex;align-items:center;gap:7px}
+.curr-amount{min-width:34px;text-align:center;color:var(--text);font-weight:950;font-size:.92rem}
 .curr-actions{display:flex;gap:4px;align-items:center}
 .raid-title{display:flex;gap:6px;align-items:center;font-weight:900;min-width:0}
 .raid-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -995,6 +995,17 @@ async function loadTempRaidTaskIds(){
     Object.values(added).forEach(v=>{if(v?.taskId)addedIds.push(v.taskId);});
     Object.values(removed).forEach(v=>{if(v?.taskId){removedIds.push(v.taskId);removedBySchedule.push({taskId:v.taskId,scheduleId:o.schedule_id});}});
   });
+  const {data:tempParties}=await sb.from('raid_parties').select('id,preset_id').eq('is_temporary',true).eq('temp_week_start_date',wk);
+  if(tempParties?.length){
+    const tempPartyIds=tempParties.map(p=>p.id);
+    const {data:tempMembers}=await sb.from('raid_party_members').select('party_id,character_id').in('party_id',tempPartyIds);
+    const presetByParty={};tempParties.forEach(p=>{presetByParty[p.id]=p.preset_id;});
+    (tempMembers||[]).forEach(m=>{
+      const presetId=presetByParty[m.party_id];
+      const task=Object.values(state.raidTasks).flat().find(t=>t.character_id===m.character_id&&t.preset_id===presetId);
+      if(task?.id)addedIds.push(task.id);
+    });
+  }
   state.tempRaidTaskIds=new Set(addedIds);
   state.tempRemovedRaidTaskIds=new Set(removedIds);
   if(!removedBySchedule.length)return;
@@ -1373,7 +1384,7 @@ function renderDailyCard(ch){
       ${showCurr?`<div class="currency-block ${currCollapsed?'collapsed':''}">
         <div class="section-label">
           <span>재화 현황${(()=>{const d=getLatestCurrencyUpdated(curr);return d?`<span class="curr-updated">최종 ${fmtRelDate(d)}</span>`:'';})()}</span>
-          <span class="section-actions"><span>${curr.length}</span><button class="btn icon" title="재화 추가" onclick="openCurrencyModal('${ch.id}')">+</button><button class="section-toggle" onclick="toggleCurrencyCollapse('${ch.id}')">${currCollapsed?'펼치기':'접기'}</button></span>
+          <span class="section-actions"><button class="btn icon" title="재화 추가" onclick="openCurrencyModal('${ch.id}')">+</button><button class="section-toggle" onclick="toggleCurrencyCollapse('${ch.id}')">${currCollapsed?'펼치기':'접기'}</button></span>
         </div>
         <div class="currency-items">${curr.length?curr.map(c=>currencyRow(c,ch.id)).join(''):'<div class="empty">재화가 없습니다</div>'}</div>
       </div>`:''}
@@ -1472,7 +1483,7 @@ function raidRow(t,charId){
   const icon=preset.icon_url||state.raidGroupSettings[rn]?.icon_url||'';
   const flow=Math.max(0,(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0)),bound=Number(t.bound_gold)||0,bonus=Number(t.bonus_gold)||0;
   const isTemp=state.tempRaidTaskIds.has(t.id),isRemoved=state.tempRemovedRaidTaskIds.has(t.id);
-  const linkText=isRemoved?'임시파티체크해제':isTemp?'임시파티연동':t.has_party_link?'파티연동':'';
+  const linkText=isRemoved?'임시해제':isTemp?'임시':t.has_party_link?'파티연동':'';
   return`<div class="raid-row ${done?'done':''}" draggable="true" ondragstart="dragStart(event,'raid_tasks','${t.id}','${charId}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'raid_tasks','${t.id}','${charId}')">
     <div class="task-main">
       <div class="raid-title">${iconImg(icon)}<span class="raid-name">${esc(rn)}</span>${t.difficulty?`<span class="diff ${diffClass}">${esc(t.difficulty)}</span>`:''}<span class="title-actions"><button class="mini-btn danger action-only action-delete" onclick="deleteRaidTask('${t.id}','${charId}')">삭제</button></span></div>
@@ -1490,7 +1501,7 @@ function noteRow(n,charId,idx){
 function currencyRow(c,charId){
   return`<div class="currency-row" draggable="true" ondragstart="dragStart(event,'currencies','${c.id}','${charId}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'currencies','${c.id}','${charId}')">
     <div class="curr-main">${c.icon_url?iconImg(c.icon_url,'task-icon'):`<span class="task-icon">${esc(c.icon||'돈')}</span>`}<span class="curr-name">${esc(c.name)}</span></div>
-    <div class="curr-edit"><button class="btn icon" onclick="adjustCurrency('${c.id}','${charId}',-1)">-</button><input class="curr-input" type="number" value="${Number(c.amount)||0}" onchange="setCurrency('${c.id}','${charId}',this.value)"><button class="btn icon" onclick="adjustCurrency('${c.id}','${charId}',1)">+</button><span class="curr-actions"><button class="mini-btn action-only action-edit" onclick="openCurrencyModal('${charId}','${c.id}')">수정</button><button class="mini-btn danger action-only action-delete" onclick="deleteCurrency('${charId}','${c.id}')">삭제</button></span></div>
+    <div class="curr-edit"><button class="btn icon" onclick="adjustCurrency('${c.id}','${charId}',-1)">-</button><span class="curr-amount">${Number(c.amount)||0}</span><button class="btn icon" onclick="adjustCurrency('${c.id}','${charId}',1)">+</button><span class="curr-actions"><button class="mini-btn action-only action-edit" onclick="openCurrencyModal('${charId}','${c.id}')">수정</button><button class="mini-btn danger action-only action-delete" onclick="deleteCurrency('${charId}','${c.id}')">삭제</button></span></div>
   </div>`;
 }
 

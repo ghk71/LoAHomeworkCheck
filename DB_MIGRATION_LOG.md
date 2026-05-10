@@ -283,6 +283,15 @@ ALTER TABLE tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycle INT DEFAU
 ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycle INT DEFAULT 0;
 ```
 
+## 2026-05-10 - 주차 전용 임시 파티 컬럼 추가
+
+주간 일정의 미배치 파티 패널에서 이번 주에만 쓰는 임시 파티를 만들기 위한 컬럼입니다.
+
+```sql
+ALTER TABLE raid_parties ADD COLUMN IF NOT EXISTS is_temporary BOOLEAN DEFAULT FALSE;
+ALTER TABLE raid_parties ADD COLUMN IF NOT EXISTS temp_week_start_date TEXT;
+```
+
 ### 적용 파일
 - `schema.sql`
 - `raid.html`
