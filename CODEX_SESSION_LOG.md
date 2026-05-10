@@ -2209,3 +2209,21 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 
 ### 검증
 - `node tools/check-project.js`는 저장소 지침에 따라 실행하지 않음.
+## 2026-05-10 - raid 공유링크 완료 표시 및 임시고정 배지 정리
+
+### 요청
+- `raid.html` 공유링크 레이드 현황의 완료 표시를 `overview.html`처럼 행 전체가 완료 상태로 보이도록 변경.
+- 주간 일정 카드의 `임시고정` 배지가 세로로 크게 보여 레이아웃을 잡아먹는 문제 수정.
+
+### 수정 파일
+- `raid.html`
+- `CODEX_SESSION_LOG.md`
+
+### 변경 내용
+- 공유링크 레이드 현황의 `.vo-raid-line.done`에 초록 배경, 테두리, 왼쪽 강조선을 적용.
+- 완료된 레이드명 줄긋기를 제거하고 행 전체의 완료 상태가 더 잘 보이도록 조정.
+- 공유링크 레이드 완료 클릭 시 해당 행과 체크 표시가 즉시 갱신되도록 `vo-rti-*` id와 DOM 선반영을 추가.
+- `임시고정` 배지를 `임시` 단일 pill로 축약하고 고정 핀과 함께 의미가 전달되도록 정리.
+
+### 검증
+- `node tools/check-project.js`는 저장소 지침에 따라 실행하지 않음.
