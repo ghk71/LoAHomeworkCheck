@@ -292,6 +292,14 @@ ALTER TABLE raid_parties ADD COLUMN IF NOT EXISTS is_temporary BOOLEAN DEFAULT F
 ALTER TABLE raid_parties ADD COLUMN IF NOT EXISTS temp_week_start_date TEXT;
 ```
 
+## 2026-05-10 - 고정 일정 주차별 위치 오버라이드 컬럼 추가
+
+고정 일정의 원본 요일/시간은 유지하면서 특정 주에만 드래그 위치를 바꾸기 위한 컬럼입니다.
+
+```sql
+ALTER TABLE raid_schedule_overrides ADD COLUMN IF NOT EXISTS schedule_overrides JSONB DEFAULT '{}';
+```
+
 ### 적용 파일
 - `schema.sql`
 - `raid.html`

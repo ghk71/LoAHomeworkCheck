@@ -1803,7 +1803,7 @@ function normalizeTempChanges(tc={}){
   Object.entries(tc.removed||{}).forEach(([cid,info])=>{out.removed[cid]={taskId:info.taskId||info.task_id||null,hadPreset:!!(info.hadPreset??info.had_preset),partyId:info.partyId||info.party_id||null};});
   return out;
 }
-function normalizeOverride(o){o=o||{};o.slot_overrides=o.slot_overrides||{};o.temp_changes=normalizeTempChanges(o.temp_changes||{});return o;}
+function normalizeOverride(o){o=o||{};o.slot_overrides=o.slot_overrides||{};o.schedule_overrides=o.schedule_overrides||{};o.temp_changes=normalizeTempChanges(o.temp_changes||{});return o;}
 function isCurrentTempParty(p){return !!p?.is_temporary&&p.temp_week_start_date===getWeekKey(weekOffset);}
 function supaErr(res,msg='작업 실패'){if(res?.error){toast('❗ '+(res.error.message||msg));console.error(res.error);return true;}return false;}
 function appNowMs(){const t=Number(localStorage.getItem('la_test_now')||0);return Number.isFinite(t)&&t>0?t:Date.now();}
@@ -1991,12 +1991,17 @@ async function deleteRaidGroupSetting(name){
   if(error)console.warn('raid group setting delete failed:',error.message);
   delete raidGroupSettings[name];
 }
+function getScheduleOvr(s,wk=getWeekKey(weekOffset)){return overrides[s.id+'_'+wk]?.schedule_overrides||{};}
+function getEffectiveScheduleDay(s,wk=getWeekKey(weekOffset)){const so=getScheduleOvr(s,wk);return Number.isInteger(Number(so.day_of_week))?Number(so.day_of_week):Number(s.day_of_week);}
+function getEffectiveScheduleSort(s,wk=getWeekKey(weekOffset)){const so=getScheduleOvr(s,wk);return Number.isInteger(Number(so.sort_order))?Number(so.sort_order):Number(s.sort_order??0);}
+function isTempFixedSchedule(s,wk=getWeekKey(weekOffset)){return !!(s.is_fixed&&overrides[s.id+'_'+wk]?.schedule_overrides&&Object.keys(overrides[s.id+'_'+wk].schedule_overrides).length);}
 function getDaySchs(dn,wsMs,weMs){
+  const wk=getWeekKey(weekOffset);
   return schedules.filter(s=>{
-    if(s.day_of_week!==dn)return false;
+    if(getEffectiveScheduleDay(s,wk)!==dn)return false;
     if(s.is_fixed)return true;
     const t=new Date(s.created_at).getTime();return t>=wsMs&&t<weMs;
-  }).sort((a,b)=>(a.sort_order??0)-(b.sort_order??0));
+  }).sort((a,b)=>getEffectiveScheduleSort(a,wk)-getEffectiveScheduleSort(b,wk));
 }
 async function rdDropGroup(e,destIdx){
   e.preventDefault();e.stopPropagation();rdClean();
@@ -2036,6 +2041,11 @@ async function rdDropSch(e,destDn,destIdx){
   const{schId,srcDn,srcIdx}=_rd.src;_rd.type=null;
   const wsMs=getWeekStart(weekOffset).getTime()-9*3600000,weMs=wsMs+7*24*3600000;
   const s=schedules.find(x=>x.id===schId);if(!s)return;
+  if(s.is_fixed){
+    if(srcDn===destDn&&srcIdx===destIdx)return;
+    await saveFixedSchedulePositionOverride(s,destDn,destIdx);
+    return;
+  }
 
   if(srcDn===destDn){
     // 같은 날 — 재정렬만
@@ -2271,6 +2281,33 @@ function buildCharPickGrid(minIlvl=0){
     chars.forEach(c=>{html+=`<div class="char-pick-item" onclick="assignChar('${c.id}')"><div class="char-pick-name">${esc(c.name)}</div><div class="char-pick-meta">${charMeta(c)}</div></div>`;});
   });
   el.innerHTML=html;
+}
+async function saveFixedSchedulePositionOverride(s,destDn,destIdx){
+  const wk=getWeekKey(weekOffset),ovrKey=s.id+'_'+wk;
+  if(!overrides[ovrKey])overrides[ovrKey]={id:null,slot_overrides:{},temp_changes:{added:{},removed:{}},schedule_overrides:{}};
+  const ovr=overrides[ovrKey];
+  ovr.schedule_overrides={...(ovr.schedule_overrides||{}),day_of_week:destDn,sort_order:Math.max(0,Number(destIdx)||0)};
+  const {wsMs,weMs}=weekScheduleWindow(weekOffset);
+  const list=getDaySchs(destDn,wsMs,weMs).filter(x=>x.id!==s.id);
+  list.splice(Math.min(destIdx,list.length),0,s);
+  list.forEach((x,i)=>{
+    if(x.id===s.id)ovr.schedule_overrides.sort_order=i;
+    else if(x.is_fixed){
+      const key=x.id+'_'+wk;
+      if(!overrides[key])overrides[key]={id:null,slot_overrides:{},temp_changes:{added:{},removed:{}},schedule_overrides:{}};
+      overrides[key].schedule_overrides={...(overrides[key].schedule_overrides||{}),day_of_week:getEffectiveScheduleDay(x,wk),sort_order:i};
+    }else x.sort_order=i;
+  });
+  renderSchedule();
+  const saves=[persistOverride(s.id,wk,ovr)];
+  list.forEach(x=>{
+    if(x.id===s.id)return;
+    if(x.is_fixed)saves.push(persistOverride(x.id,wk,overrides[x.id+'_'+wk]));
+    else saves.push(sb.from('raid_schedules').update({sort_order:x.sort_order}).eq('id',x.id));
+  });
+  const res=await Promise.all(saves);
+  const err=res.find(x=>x?.error)?.error;if(err){toast('❗ 임시고정 이동 저장 실패: '+err.message);console.error(err);return;}
+  toast('📌 이번 주만 임시고정 이동됨');
 }
 function openTempPartyModal(){
   tempPartyDraft=[];
@@ -2872,16 +2909,18 @@ function schedCardHTML(s,wk){
   const ovr=overrides[s.id+'_'+wk];
   const isCompleted=!!(ovr?.is_completed);
   const hasOvr=ovr&&Object.keys(ovr.slot_overrides||{}).length>0; // null값도 override로 인정
+  const isTempFixed=isTempFixedSchedule(s,wk);
   const eff=getEffectiveMembers(s.id,s.party_id,wk);
   const gc=getGroupColor(preset?.name||'');
   const pc=getPartyColor(p);
-  return`<div class="sched-card ${isCompleted?'completed':''} ${hasOvr?'has-ovr':''}" id="sc-${s.id}">
+  return`<div class="sched-card ${isCompleted?'completed':''} ${(hasOvr||isTempFixed)?'has-ovr':''}" id="sc-${s.id}">
     <div class="sc-header">
       <div class="sc-raid-name" style="color:${gc};display:flex;align-items:center;gap:4px;">${iconImg(getGroupIcon(preset?.name||'')||preset?.icon_url||'','entity-icon-sm')}${esc(preset?.name||'?')}<span class="${diffClass(preset?.difficulty||'')}" style="font-size:.65rem;margin-left:5px;font-weight:600;">${esc(preset?.difficulty||'')}</span></div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
         <span class="sc-party-name" style="color:${pc};">${esc(p?.name||'?')} · ${p?.party_size||'?'}인</span>
         ${s.time_str?`<span style="font-size:.72rem;font-weight:700;color:var(--gold-bright);background:rgba(200,168,75,.12);padding:1px 6px;border-radius:4px;border:1px solid rgba(200,168,75,.3);">🕐 ${s.time_str}</span>`:''}
         ${s.is_fixed?'<span style="font-size:.62rem;color:var(--gold);">📌</span>':''}
+        ${isTempFixed?'<span style="font-size:.62rem;color:var(--gold);border:1px solid rgba(200,168,75,.35);border-radius:999px;padding:1px 6px;background:rgba(200,168,75,.09);">임시고정</span>':''}
         ${hasOvr?'<span style="font-size:.62rem;color:var(--gold);">편집</span>':''}
       </div>
     </div>
@@ -3225,7 +3264,7 @@ async function removeOvrSlot(schId,slotIdx,wk){
 // ─── 임시변경 DB 저장 ───
 async function persistOverride(schId,wk,ovr){
   ovr.temp_changes=normalizeTempChanges(ovr.temp_changes||{});
-  const saveData={slot_overrides:ovr.slot_overrides||{},temp_changes:ovr.temp_changes};
+  const saveData={slot_overrides:ovr.slot_overrides||{},temp_changes:ovr.temp_changes,schedule_overrides:ovr.schedule_overrides||{}};
   if(ovr.id){const res=await sb.from('raid_schedule_overrides').update(saveData).eq('id',ovr.id);if(supaErr(res,'임시 변경 저장 실패'))return false;}
   else{const{data,error}=await sb.from('raid_schedule_overrides').insert({schedule_id:schId,week_start_date:wk,...saveData,is_completed:false}).select().single();if(error){toast('❗ '+error.message);console.error(error);return false;}if(data){ovr.id=data.id;overrides[schId+'_'+wk]=ovr;}}
   return true;
@@ -3267,8 +3306,8 @@ async function resetOverrides(){
   for(const[charId,info] of Object.entries(tc.removed||{})){
     if(info.taskId&&info.hadPreset&&preset)await sb.from('raid_tasks').update({preset_id:preset.id}).eq('id',info.taskId);
   }
-  if(ovr.id){await sb.from('raid_schedule_overrides').update({slot_overrides:{},temp_changes:{}}).eq('id',ovr.id);}
-  ovr.slot_overrides={};ovr.temp_changes={added:{},removed:{}};
+  if(ovr.id){await sb.from('raid_schedule_overrides').update({slot_overrides:{},temp_changes:{},schedule_overrides:{}}).eq('id',ovr.id);}
+  ovr.slot_overrides={};ovr.temp_changes={added:{},removed:{}};ovr.schedule_overrides={};
   closeModal('modal-sch-edit');renderSchedule();toast('↩ 원본으로 초기화됨');
 }
 

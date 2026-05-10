@@ -688,6 +688,8 @@ const state={
   collapsedNotes:new Set(safeJson('la_redesign_collapsed_notes',[])),
   hideCompleted:localStorage.getItem('la_redesign_hide_done')==='1',
   showInactive:localStorage.getItem('la_redesign_show_inactive')==='1',
+  delayedDoneIds:new Set(),
+  delayedDoneTimers:{},
   busy:new Set(),
   createType:'rest',
   createTarget:null,
@@ -1257,8 +1259,25 @@ function resetText(t){const type=t.reset_type||'daily';if(type==='daily')return'
 function taskMetaHTML(t){
   return '';
 }
-function applyTaskFilters(list){return (list||[]).filter(t=>(state.showInactive||isActive(t))&&(!state.hideCompleted||!isDone(t)));}
-function applyDoneFilter(list){return (list||[]).filter(t=>!state.hideCompleted||!isDone(t));}
+function keepDoneVisibleBriefly(id){
+  if(!id)return;
+  state.delayedDoneIds.add(id);
+  clearTimeout(state.delayedDoneTimers[id]);
+  state.delayedDoneTimers[id]=setTimeout(()=>{
+    state.delayedDoneIds.delete(id);
+    delete state.delayedDoneTimers[id];
+    render();
+  },900);
+}
+function clearDelayedDone(id){
+  if(!id)return;
+  state.delayedDoneIds.delete(id);
+  clearTimeout(state.delayedDoneTimers[id]);
+  delete state.delayedDoneTimers[id];
+}
+function shouldHideDone(t){return state.hideCompleted&&isDone(t)&&!state.delayedDoneIds.has(t.id);}
+function applyTaskFilters(list){return (list||[]).filter(t=>(state.showInactive||isActive(t))&&!shouldHideDone(t));}
+function applyDoneFilter(list){return (list||[]).filter(t=>!shouldHideDone(t));}
 function restInfo(t){
   const max=Math.max(1,Number(t.rest_max)||100);
   const cur=Math.max(0,Math.min(Number(t.rest_current)||0,max));
@@ -1514,11 +1533,12 @@ async function toggleTask(id,isExp,ownerId){
   if(t.count_max!=null)up.count_current=done?t.count_max:0;
   const prev={is_completed:t.is_completed,last_completed_at:t.last_completed_at,count_current:t.count_current};
   Object.assign(t,up);
+  if(done)keepDoneVisibleBriefly(id);else clearDelayedDone(id);
   render();
   if(isTestMode()){clearBusy(key);if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}return;}
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
   clearBusy(key);
-  if(error){Object.assign(t,prev);render();}
+  if(error){Object.assign(t,prev);clearDelayedDone(id);render();}
   if(error){toast('저장 실패');return;}
   if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}
 }
@@ -1531,11 +1551,12 @@ async function setTaskCount(id,isExp,ownerId,val){
   const up={count_current:cur,is_completed:done,last_completed_at:cur>0?appNowIso():null};
   const prev={count_current:t.count_current,is_completed:t.is_completed,last_completed_at:t.last_completed_at};
   Object.assign(t,up);
+  if(done)keepDoneVisibleBriefly(id);else clearDelayedDone(id);
   render();
   if(isTestMode()){clearBusy(key);if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}return;}
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
   clearBusy(key);
-  if(error){Object.assign(t,prev);render();}
+  if(error){Object.assign(t,prev);clearDelayedDone(id);render();}
   if(error){toast('저장 실패');return;}
   if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}
 }
@@ -1574,11 +1595,12 @@ async function setRestTaskCount(id,isExp,ownerId,val){
   const up={count_current:cur,is_completed:done,last_completed_at:cur>0?appNowIso():null,...applyRestCompletionChange(t,cur)};
   const prev={count_current:t.count_current,is_completed:t.is_completed,last_completed_at:t.last_completed_at,rest_current:t.rest_current,rest_consumed_current_cycle:t.rest_consumed_current_cycle};
   Object.assign(t,up);
+  if(done)keepDoneVisibleBriefly(id);else clearDelayedDone(id);
   render();
   if(isTestMode()){clearBusy(key);if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}return;}
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
   clearBusy(key);
-  if(error){Object.assign(t,prev);render();}
+  if(error){Object.assign(t,prev);clearDelayedDone(id);render();}
   if(error){toast('저장 실패');return;}
   if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}
 }

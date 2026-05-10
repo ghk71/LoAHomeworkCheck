@@ -1815,6 +1815,35 @@ Claude/ChatGPT/Codex 간 프로젝트 인수인계를 위해 문서 세트를 �
 ### 검증
 - 사용자 지침에 따라 `node tools/check-project.js`는 실행하지 않음.
 
+## 2026-05-10 - 완료 숨김 지연 및 고정 일정 임시고정 이동
+
+### 요청
+- `index.html`에서 완료 숨기기 상태로 일일 숙제를 연속 클릭할 때 카드가 즉시 줄어들어 마우스 위치가 튀는 문제 완화.
+- `raid.html` 주간 일정의 고정 파티는 원본 날짜/시간을 유지하되, 특정 주에 드래그하면 그 주에만 이동되도록 처리.
+- 이동된 고정 일정은 `임시고정`으로 표시.
+
+### 수정 파일
+- `index.html`
+- `raid.html`
+- `schema.sql`
+- `DB_MIGRATION_LOG.md`
+- `CODEX_SESSION_LOG.md`
+
+### 변경 내용
+- `index.html`에 완료 직후 `900ms` 동안 완료 항목을 숨김 필터에서 예외 처리하는 `delayedDoneIds` 흐름 추가.
+- 체크박스/단계형/휴식 게이지 숙제 완료 시 완료 숨김 적용을 짧게 지연하고, 체크 해제 또는 저장 실패 시 즉시 해제하도록 수정.
+- `raid_schedule_overrides.schedule_overrides` JSONB 컬럼 추가.
+- 고정 일정 드래그 시 `raid_schedules` 원본 요일/시간을 수정하지 않고, 해당 주차의 `schedule_overrides.day_of_week/sort_order`로 저장하도록 수정.
+- 주간 일정 렌더링이 고정 일정의 주차별 위치 override를 반영하고 `임시고정` 뱃지를 표시하도록 변경.
+
+### Supabase SQL 필요
+```sql
+ALTER TABLE raid_schedule_overrides ADD COLUMN IF NOT EXISTS schedule_overrides JSONB DEFAULT '{}';
+```
+
+### 검증
+- 사용자 지침에 따라 `node tools/check-project.js`는 실행하지 않음.
+
 ## 2026-05-10 - overview 개별 레이드 완료 표시 강화
 
 ### 요청

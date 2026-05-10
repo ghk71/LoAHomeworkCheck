@@ -185,6 +185,7 @@ create table if not exists raid_schedule_overrides(
   schedule_id uuid references raid_schedules(id) on delete cascade,
   week_start_date text not null,
   slot_overrides jsonb default '{}'::jsonb,
+  schedule_overrides jsonb default '{}'::jsonb,
   is_completed boolean default false,
   completed_at timestamptz,
   created_at timestamptz default now(),
@@ -268,6 +269,7 @@ alter table raid_parties     add column if not exists temp_week_start_date text;
 -- raid_schedule_overrides 기존 설치 업데이트
 alter table raid_schedule_overrides add column if not exists is_completed boolean default false;
 alter table raid_schedule_overrides add column if not exists completed_at timestamptz;
+alter table raid_schedule_overrides add column if not exists schedule_overrides jsonb default '{}';
 -- raid_tasks에 preset 연동 컬럼 추가
 alter table raid_tasks add column if not exists preset_id uuid references raid_presets(id) on delete set null;
 -- 더보기 골드 컬럼 추가
