@@ -2174,3 +2174,38 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 
 ### 검증
 - 사용자 지침에 따라 `node tools/check-project.js`는 실행하지 않음.
+
+## 2026-05-10 - index 완료 숙제 즉시 숨김 및 카드 높이 지연 축소
+
+### 요청
+- 완료 숨기기 상태에서 숙제를 체크하면 숙제 행은 즉시 사라지되, 카드 높이는 약 1초 뒤 줄어들도록 변경.
+- 같은 마우스 위치에서 다음 숙제를 바로 클릭할 수 있게 기존 행 지연 표시 방식을 제거.
+
+### 수정 파일
+- `index.html`
+- `CODEX_SESSION_LOG.md`
+
+### 변경 내용
+- 완료된 숙제를 1초 동안 필터 예외 처리하던 `delayedDoneIds`/`delayedDoneTimers` 흐름을 제거.
+- 완료 처리 직전 카드 높이를 `heldCardHeights`에 저장하고 렌더 후 `min-height`로 유지하도록 변경.
+- 완료 행은 `hideCompleted` 필터에 따라 즉시 숨겨지고, 카드 높이만 1초 뒤 해제되어 줄어들도록 변경.
+- 일반 체크, 카운트형 숙제, 휴식 게이지형 숙제 완료/해제/저장 실패 흐름에 동일하게 적용.
+
+### 검증
+- `node tools/check-project.js`는 저장소 지침에 따라 실행하지 않음.
+## 2026-05-10 - raid 임시고정 배지 넘침 수정
+
+### 요청
+- 주간 일정 카드에서 `임시고정` 표시가 길어서 카드 밖으로 넘어가는 문제 수정.
+
+### 수정 파일
+- `raid.html`
+- `CODEX_SESSION_LOG.md`
+
+### 변경 내용
+- 일정 카드 보조 정보 줄에 `.sc-subline` 클래스를 적용해 좁은 카드에서도 자연스럽게 줄바꿈되도록 변경.
+- `임시고정` 인라인 배지를 `.sc-temp-fixed-badge` 클래스로 분리하고 `임시/고정` 2줄 고정 폭 배지로 표시.
+- 고정 핀/편집 표시도 전용 클래스로 분리해 폭 계산과 줄바꿈이 안정적으로 동작하도록 정리.
+
+### 검증
+- `node tools/check-project.js`는 저장소 지침에 따라 실행하지 않음.

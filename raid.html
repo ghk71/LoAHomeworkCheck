@@ -612,12 +612,22 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
 .sc-raid-name { font-size:.82rem; font-weight:700; margin-bottom:2px; }
 .sc-party-name { font-size:.7rem; margin-bottom:4px; }
 .sc-meta { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+.sc-subline{display:flex;align-items:center;gap:6px;margin-top:2px;min-width:0;flex-wrap:wrap;}
 .sc-time-badge {
   font-size:.68rem; font-weight:700;
   color:var(--gold-text);
   background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.2);
   padding:1px 6px; border-radius:8px;
 }
+.sc-fixed-pin{font-size:.62rem;color:var(--gold);line-height:1;flex:0 0 auto;}
+.sc-temp-fixed-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:38px;min-height:30px;padding:2px 5px;border-radius:999px;
+  border:1px solid rgba(200,168,75,.42);background:rgba(200,168,75,.09);
+  color:var(--gold);font-size:.58rem;font-weight:900;line-height:1.12;text-align:center;
+  white-space:normal;word-break:keep-all;flex:0 0 auto;
+}
+.sc-edit-badge{font-size:.62rem;color:var(--gold);white-space:nowrap;flex:0 0 auto;}
 .sc-members { display:flex; flex-direction:column; gap:3px; border-top:1px solid rgba(255,255,255,.06); padding-top:7px; }
 .sc-member {
   font-size:.75rem; display:flex; gap:5px;
@@ -2916,12 +2926,12 @@ function schedCardHTML(s,wk){
   return`<div class="sched-card ${isCompleted?'completed':''} ${(hasOvr||isTempFixed)?'has-ovr':''}" id="sc-${s.id}">
     <div class="sc-header">
       <div class="sc-raid-name" style="color:${gc};display:flex;align-items:center;gap:4px;">${iconImg(getGroupIcon(preset?.name||'')||preset?.icon_url||'','entity-icon-sm')}${esc(preset?.name||'?')}<span class="${diffClass(preset?.difficulty||'')}" style="font-size:.65rem;margin-left:5px;font-weight:600;">${esc(preset?.difficulty||'')}</span></div>
-      <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
+      <div class="sc-subline">
         <span class="sc-party-name" style="color:${pc};">${esc(p?.name||'?')} · ${p?.party_size||'?'}인</span>
         ${s.time_str?`<span style="font-size:.72rem;font-weight:700;color:var(--gold-bright);background:rgba(200,168,75,.12);padding:1px 6px;border-radius:4px;border:1px solid rgba(200,168,75,.3);">🕐 ${s.time_str}</span>`:''}
-        ${s.is_fixed?'<span style="font-size:.62rem;color:var(--gold);">📌</span>':''}
-        ${isTempFixed?'<span style="font-size:.62rem;color:var(--gold);border:1px solid rgba(200,168,75,.35);border-radius:999px;padding:1px 6px;background:rgba(200,168,75,.09);">임시고정</span>':''}
-        ${hasOvr?'<span style="font-size:.62rem;color:var(--gold);">편집</span>':''}
+        ${s.is_fixed?'<span class="sc-fixed-pin">📌</span>':''}
+        ${isTempFixed?'<span class="sc-temp-fixed-badge">임시<br>고정</span>':''}
+        ${hasOvr?'<span class="sc-edit-badge">편집</span>':''}
       </div>
     </div>
     <div class="sc-members">

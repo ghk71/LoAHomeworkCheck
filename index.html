@@ -688,8 +688,8 @@ const state={
   collapsedNotes:new Set(safeJson('la_redesign_collapsed_notes',[])),
   hideCompleted:localStorage.getItem('la_redesign_hide_done')==='1',
   showInactive:localStorage.getItem('la_redesign_show_inactive')==='1',
-  delayedDoneIds:new Set(),
-  delayedDoneTimers:{},
+  heldCardHeights:{},
+  heldCardTimers:{},
   busy:new Set(),
   createType:'rest',
   createTarget:null,
@@ -1259,23 +1259,37 @@ function resetText(t){const type=t.reset_type||'daily';if(type==='daily')return'
 function taskMetaHTML(t){
   return '';
 }
-function keepDoneVisibleBriefly(id){
-  if(!id)return;
-  state.delayedDoneIds.add(id);
-  clearTimeout(state.delayedDoneTimers[id]);
-  state.delayedDoneTimers[id]=setTimeout(()=>{
-    state.delayedDoneIds.delete(id);
-    delete state.delayedDoneTimers[id];
+function taskCardKey(t,isExp,ownerId){
+  if(isExp)return`account:${ownerId}`;
+  return`${isDaily(t)?'daily':'weekly'}:${ownerId}`;
+}
+function scrollKeySelector(key){
+  return`[data-scroll-key="${String(key).replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"]`;
+}
+function heldCardStyle(key){
+  const height=state.heldCardHeights[key];
+  return height?` style="min-height:${height}px"`:'';
+}
+function releaseHeldCardHeight(key){
+  if(!key)return;
+  delete state.heldCardHeights[key];
+  clearTimeout(state.heldCardTimers[key]);
+  delete state.heldCardTimers[key];
+}
+function holdTaskCardHeight(t,isExp,ownerId){
+  if(!state.hideCompleted||!isDone(t))return;
+  const key=taskCardKey(t,isExp,ownerId);
+  const card=document.querySelector(scrollKeySelector(key));
+  const height=card?Math.ceil(card.getBoundingClientRect().height):0;
+  if(!height)return;
+  state.heldCardHeights[key]=height;
+  clearTimeout(state.heldCardTimers[key]);
+  state.heldCardTimers[key]=setTimeout(()=>{
+    releaseHeldCardHeight(key);
     render();
-  },900);
+  },1000);
 }
-function clearDelayedDone(id){
-  if(!id)return;
-  state.delayedDoneIds.delete(id);
-  clearTimeout(state.delayedDoneTimers[id]);
-  delete state.delayedDoneTimers[id];
-}
-function shouldHideDone(t){return state.hideCompleted&&isDone(t)&&!state.delayedDoneIds.has(t.id);}
+function shouldHideDone(t){return state.hideCompleted&&isDone(t);}
 function applyTaskFilters(list){return (list||[]).filter(t=>(state.showInactive||isActive(t))&&!shouldHideDone(t));}
 function applyDoneFilter(list){return (list||[]).filter(t=>!shouldHideDone(t));}
 function restInfo(t){
@@ -1393,7 +1407,7 @@ function renderDailyCard(ch){
   const currCollapsed=state.collapsedCurrency.has(ch.id);
   const showCurr=ch.show_currencies!==false;
   const hot=taskRoots.length&&taskRoots.some(t=>!isDone(t));
-  return`<section class="char-card ${hot?'hot':''} ${taskRoots.length&&taskRoots.every(isDone)?'done':''}" data-scroll-key="daily:${ch.id}" draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')">
+  return`<section class="char-card ${hot?'hot':''} ${taskRoots.length&&taskRoots.every(isDone)?'done':''}" data-scroll-key="daily:${ch.id}"${heldCardStyle(`daily:${ch.id}`)} draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')">
     ${charHeader(ch,taskRoots,hot)}
     <div class="card-body">
       <div class="card-section">
@@ -1419,7 +1433,7 @@ function renderWeeklyCard(ch){
   const notesCollapsed=state.collapsedNotes.has(ch.id);
   const showRaid=ch.show_raid_tasks!==false,showNotes=ch.show_custom_notes!==false;
   const checkables=[...tasks,...raids];
-  return`<section class="char-card ${checkables.length&&checkables.every(isDone)?'done':''}" data-scroll-key="weekly:${ch.id}" draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')">
+  return`<section class="char-card ${checkables.length&&checkables.every(isDone)?'done':''}" data-scroll-key="weekly:${ch.id}"${heldCardStyle(`weekly:${ch.id}`)} draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')">
     ${charHeader(ch,checkables)}
     <div class="card-body">
       <div class="card-section">
@@ -1446,7 +1460,7 @@ function renderWeeklyCard(ch){
 function renderAccountCard(acc){
   const all=state.expTasks[acc.id]||[];
   const tasks=applyTaskFilters(all.filter(t=>!t.parent_id));
-  return`<section class="account-card" data-scroll-key="account:${acc.id}" draggable="true" ondragstart="dragStart(event,'accounts','${acc.id}','')" ondragover="allowDrop(event)" ondrop="dropOn(event,'accounts','${acc.id}','')">
+  return`<section class="account-card" data-scroll-key="account:${acc.id}"${heldCardStyle(`account:${acc.id}`)} draggable="true" ondragstart="dragStart(event,'accounts','${acc.id}','')" ondragover="allowDrop(event)" ondrop="dropOn(event,'accounts','${acc.id}','')">
     <div class="account-head"><div><div class="account-title">${esc(acc.name)}</div>${isAccountHidden(acc.id)?'<div class="tiny">숨김 처리된 계정</div>':''}</div><div class="card-tools"><span class="tag ${tasks.length&&tasks.every(isDone)?'green':''}">${tasks.filter(isDone).length}/${tasks.length}</span><button class="btn icon" onclick="openCreateTask('account','${acc.id}','weekly')">+</button></div></div>
     <div class="card-body">${renderTaskGroups(all,true,acc.id,()=>true)}</div>
   </section>`;
@@ -1533,12 +1547,12 @@ async function toggleTask(id,isExp,ownerId){
   if(t.count_max!=null)up.count_current=done?t.count_max:0;
   const prev={is_completed:t.is_completed,last_completed_at:t.last_completed_at,count_current:t.count_current};
   Object.assign(t,up);
-  if(done)keepDoneVisibleBriefly(id);else clearDelayedDone(id);
+  if(done)holdTaskCardHeight(t,isExp,ownerId);else releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));
   render();
   if(isTestMode()){clearBusy(key);if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}return;}
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
   clearBusy(key);
-  if(error){Object.assign(t,prev);clearDelayedDone(id);render();}
+  if(error){Object.assign(t,prev);releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));render();}
   if(error){toast('저장 실패');return;}
   if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}
 }
@@ -1551,12 +1565,12 @@ async function setTaskCount(id,isExp,ownerId,val){
   const up={count_current:cur,is_completed:done,last_completed_at:cur>0?appNowIso():null};
   const prev={count_current:t.count_current,is_completed:t.is_completed,last_completed_at:t.last_completed_at};
   Object.assign(t,up);
-  if(done)keepDoneVisibleBriefly(id);else clearDelayedDone(id);
+  if(done)holdTaskCardHeight(t,isExp,ownerId);else releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));
   render();
   if(isTestMode()){clearBusy(key);if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}return;}
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
   clearBusy(key);
-  if(error){Object.assign(t,prev);clearDelayedDone(id);render();}
+  if(error){Object.assign(t,prev);releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));render();}
   if(error){toast('저장 실패');return;}
   if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}
 }
@@ -1595,12 +1609,12 @@ async function setRestTaskCount(id,isExp,ownerId,val){
   const up={count_current:cur,is_completed:done,last_completed_at:cur>0?appNowIso():null,...applyRestCompletionChange(t,cur)};
   const prev={count_current:t.count_current,is_completed:t.is_completed,last_completed_at:t.last_completed_at,rest_current:t.rest_current,rest_consumed_current_cycle:t.rest_consumed_current_cycle};
   Object.assign(t,up);
-  if(done)keepDoneVisibleBriefly(id);else clearDelayedDone(id);
+  if(done)holdTaskCardHeight(t,isExp,ownerId);else releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));
   render();
   if(isTestMode()){clearBusy(key);if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}return;}
   const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
   clearBusy(key);
-  if(error){Object.assign(t,prev);clearDelayedDone(id);render();}
+  if(error){Object.assign(t,prev);releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));render();}
   if(error){toast('저장 실패');return;}
   if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}
 }
