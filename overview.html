@@ -469,14 +469,23 @@ body { overflow:hidden; }
 /* Raid task rows */
 .rt-row {
   display:flex; align-items:center; gap:8px;
-  padding: 7px 6px;
-  border-bottom: 1px solid rgba(255,255,255,.04);
-  cursor:pointer; border-radius:4px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-bottom-color: rgba(255,255,255,.04);
+  cursor:pointer; border-radius:7px;
   transition:all var(--t);
 }
 .rt-row:last-child { border-bottom:none; }
 .rt-row:hover { background:rgba(255,255,255,.04); }
-.rt-row.done .rt-name { color:var(--text-3); text-decoration:line-through; }
+.rt-row.done {
+  background:linear-gradient(90deg,rgba(16,185,129,.20),rgba(16,185,129,.075));
+  border-color:rgba(16,185,129,.34);
+  box-shadow:inset 3px 0 0 rgba(16,185,129,.78);
+}
+.rt-row.done:hover { background:linear-gradient(90deg,rgba(16,185,129,.25),rgba(16,185,129,.10)); }
+.rt-row.done .rt-name { color:#d1fae5; font-weight:850; }
+.rt-row.done .rt-info { opacity:.92; }
+.rt-row.done .ov-status-chip { opacity:.78; }
 .rt-check {
   width:18px; height:18px;
   border: 2px solid rgba(255,255,255,.15);
@@ -485,7 +494,7 @@ body { overflow:hidden; }
   flex-shrink:0; transition:all var(--t);
 }
 .rt-row:hover .rt-check { border-color:rgba(245,158,11,.5); }
-.rt-row.done .rt-check { background:linear-gradient(135deg,var(--green),#059669); border-color:var(--green); }
+.rt-row.done .rt-check { background:linear-gradient(135deg,var(--green),#059669); border-color:var(--green); box-shadow:0 0 0 3px rgba(16,185,129,.14); }
 .rt-check-icon { color:#fff; font-size:10px; opacity:0; font-weight:700; }
 .rt-row.done .rt-check-icon { opacity:1; }
 .rt-info { flex:1; min-width:0; }
@@ -1128,8 +1137,8 @@ async function toggleRaidTask(taskId){
   if(el){
     el.classList.toggle('done',nowDone);
     const icon=el.querySelector('.rt-check-icon');if(icon)icon.style.opacity=nowDone?'1':'0';
-    const cb=el.querySelector('.rt-check');if(cb){cb.style.background=nowDone?'var(--green)':'';cb.style.borderColor=nowDone?'var(--green)':'var(--border-lit)';}
-    const nm=el.querySelector('.rt-name');if(nm){nm.style.color=nowDone?'var(--muted)':'';nm.style.textDecoration=nowDone?'line-through':'';}
+    const cb=el.querySelector('.rt-check');if(cb){cb.style.background='';cb.style.borderColor='';}
+    const nm=el.querySelector('.rt-name');if(nm){nm.style.color='';nm.style.textDecoration='';}
   }
   // Memory update
   Object.assign(t,up);
