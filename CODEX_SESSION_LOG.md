@@ -2227,3 +2227,28 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 
 ### 검증
 - `node tools/check-project.js`는 저장소 지침에 따라 실행하지 않음.
+## 2026-05-11 - raid 공지 댓글 Discord 알림 추가
+
+### 요청
+- 레이드 공지사항에 댓글이 달리면 Discord 채널로 알림이 오도록 추가.
+
+### 수정 파일
+- `raid.html`
+- `supabase/functions/send-notice-comment-discord/index.ts`
+- `CODEX_SESSION_LOG.md`
+
+### 변경 내용
+- `send-notice-comment-discord` Supabase Edge Function 추가.
+- Edge Function은 `DISCORD_NOTICE_WEBHOOK_URL` Secret을 우선 사용하고, 없으면 기존 `DISCORD_RAID_WEBHOOK_URL`을 fallback으로 사용.
+- 댓글 작성자, 댓글 내용, 주차 범위, 현재 공지사항, 공유 링크를 Discord Webhook 메시지로 전송.
+- Discord `allowed_mentions`를 비워 댓글 내용의 `@everyone` 등 멘션이 실제 호출되지 않도록 처리.
+- `raid.html`의 댓글 등록 성공 후 알림 Function을 호출하도록 연결.
+- 알림 전송 실패 시에도 댓글 등록은 유지하고, 실패 toast만 표시하도록 처리.
+
+### 배포/설정 필요
+- Supabase에 새 Edge Function `send-notice-comment-discord` 배포 필요.
+- Discord 알림 전용 Webhook을 쓰려면 `DISCORD_NOTICE_WEBHOOK_URL` Secret 설정 필요.
+- 별도 Secret을 설정하지 않으면 기존 `DISCORD_RAID_WEBHOOK_URL` 채널로 전송됨.
+
+### 검증
+- `node tools/check-project.js`는 저장소 지침에 따라 실행하지 않음.
