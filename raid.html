@@ -1458,14 +1458,15 @@ async function switchViewerTab(tab){
 async function loadViewerOverview(el){
   el.innerHTML='<div class="loading-full"><div class="spinner"></div> 불러오는 중...</div>';
   // overview 데이터 로드
-  const[{data:accs},{data:chars},{data:rtasks},{data:presets},{data:vParties},{data:vMembers},{data:vSchedules}]=await Promise.all([
+  const[{data:accs},{data:chars},{data:rtasks},{data:presets},{data:vParties},{data:vMembers},{data:vSchedules},{data:vOverrides}]=await Promise.all([
     sb.from('accounts').select('*').order('sort_order'),
     sb.from('characters').select('*').order('sort_order'),
     sb.from('raid_tasks').select('*').order('sort_order'),
     sb.from('raid_presets').select('*').order('sort_order').order('created_at'),
     sb.from('raid_parties').select('*').order('sort_order').order('created_at'),
     sb.from('raid_party_members').select('*'),
-    sb.from('raid_schedules').select('id,party_id,day_of_week,time_str,is_fixed,sort_order').order('sort_order').order('created_at')
+    sb.from('raid_schedules').select('id,party_id,day_of_week,time_str,is_fixed,sort_order,created_at').order('sort_order').order('created_at'),
+    sb.from('raid_schedule_overrides').select('*').eq('week_start_date',getWeekKey(0))
   ]);
   const presetMap={};(presets||[]).forEach(p=>{presetMap[p.id]=p;});
   (rtasks||[]).forEach(t=>{const p=t.preset_id?presetMap[t.preset_id]:null;if(p){t.preset_name=p.name;t.difficulty=t.difficulty||p.difficulty;}});
@@ -1481,20 +1482,38 @@ async function loadViewerOverview(el){
   const boundOf=t=>Number(t.bound_gold)||0;
   const bonusOf=t=>Number(t.bonus_gold)||0;
   const dateForDn=dn=>{const d=['일','월','화','수','목','금','토'][Number(dn)];return d?`${d}요일`:'';};
-  const partyMembers=(vMembers||[]).reduce((m,x)=>{(m[x.party_id]||(m[x.party_id]=[])).push(x);return m;},{});
+  const wk=getWeekKey(0);
+  const {wsMs,weMs}=weekScheduleWindow(0);
+  const activeParties=(vParties||[]).filter(p=>!p.is_temporary||p.temp_week_start_date===wk);
+  const activePartyIds=new Set(activeParties.map(p=>p.id));
+  const partyMembers=(vMembers||[]).filter(x=>activePartyIds.has(x.party_id)).reduce((m,x)=>{(m[x.party_id]||(m[x.party_id]=[])).push(x);return m;},{});
+  Object.values(partyMembers).forEach(list=>list.sort((a,b)=>(a.slot_index??0)-(b.slot_index??0)));
+  const overrideMap={};(vOverrides||[]).forEach(o=>{overrideMap[o.schedule_id]=o;});
+  const scheduleOvr=s=>overrideMap[s.id]?.schedule_overrides||{};
+  const effectiveDay=s=>Number.isInteger(Number(scheduleOvr(s).day_of_week))?Number(scheduleOvr(s).day_of_week):Number(s.day_of_week);
+  const scheduleInWeek=s=>s.is_fixed||(new Date(s.created_at).getTime()>=wsMs&&new Date(s.created_at).getTime()<weMs);
+  const effectiveMembers=s=>{
+    const pty=activeParties.find(p=>p.id===s.party_id);if(!pty)return[];
+    const slots=overrideMap[s.id]?.slot_overrides||{};
+    const base=partyMembers[pty.id]||[];
+    return Array.from({length:pty.party_size||4},(_,i)=>{
+      const key=String(i),baseMem=base.find(m=>Number(m.slot_index)===i);
+      return Object.prototype.hasOwnProperty.call(slots,key)?slots[key]:baseMem?.character_id;
+    }).filter(Boolean);
+  };
   const charScheduleByPreset={};
   const charScheduleDayByPreset={};
   const linkedByCharPreset=new Set();
-  (vSchedules||[]).forEach(s=>{
-    const pty=(vParties||[]).find(p=>p.id===s.party_id),preset=pty?presetMap[pty.preset_id]:null;
+  (vSchedules||[]).filter(s=>activePartyIds.has(s.party_id)&&scheduleInWeek(s)).forEach(s=>{
+    const pty=activeParties.find(p=>p.id===s.party_id),preset=pty?presetMap[pty.preset_id]:null;
     if(!pty||!preset)return;
-    (partyMembers[pty.id]||[]).forEach(mem=>{
-      if(!mem.character_id)return;
-      const key=mem.character_id+'_'+preset.id;
+    effectiveMembers(s).forEach(charId=>{
+      const key=charId+'_'+preset.id;
       linkedByCharPreset.add(key);
-      const label=dateForDn(s.day_of_week);
+      const day=effectiveDay(s);
+      const label=dateForDn(day);
       if(label&&!charScheduleByPreset[key])charScheduleByPreset[key]=label;
-      if(charScheduleDayByPreset[key]==null)charScheduleDayByPreset[key]=Number(s.day_of_week);
+      if(charScheduleDayByPreset[key]==null)charScheduleDayByPreset[key]=Number(day);
     });
   });
   window._viewerRaidTasks=rtasks||[];
@@ -3200,6 +3219,44 @@ async function openSchEdit(schId,wk){
 }
 
 // ─── 임시 추가: 캐릭터 지정 + raid_task 생성/연동 ───
+function ensureOverrideBuckets(ovr){
+  if(!ovr.slot_overrides)ovr.slot_overrides={};
+  if(!ovr.temp_changes)ovr.temp_changes={added:{},removed:{}};
+  if(!ovr.temp_changes.added)ovr.temp_changes.added={};
+  if(!ovr.temp_changes.removed)ovr.temp_changes.removed={};
+  if(!ovr.schedule_overrides)ovr.schedule_overrides={};
+  return ovr;
+}
+function baseSlotCharId(p,slotIndex){
+  return (p?.members||[]).find(m=>Number(m.slot_index)===Number(slotIndex))?.character_id||null;
+}
+function partyHasBaseChar(p,charId){
+  return !!charId&&(p?.members||[]).some(m=>m.character_id===charId);
+}
+function samePresetPartyForSchedule(scheduleId,presetId){
+  const sch=schedules.find(x=>x.id===scheduleId);
+  const p=sch?parties.find(x=>x.id===sch.party_id):null;
+  return p&&p.preset_id===presetId?{schedule:sch,party:p}:null;
+}
+function findRemovedTempForCharPreset(charId,preset,wk){
+  if(!charId||!preset?.id)return null;
+  for(const [key,raw] of Object.entries(overrides)){
+    if(!key.endsWith('_'+wk))continue;
+    const ovr=ensureOverrideBuckets(raw);
+    const info=ovr.temp_changes.removed?.[charId];
+    if(!info)continue;
+    const scheduleId=key.slice(0,key.length-wk.length-1);
+    const pair=samePresetPartyForSchedule(scheduleId,preset.id);
+    if(pair)return{key,scheduleId,ovr,info,...pair};
+  }
+  return null;
+}
+function normalizeNoopSlotOverride(ovr,p,slotIndex){
+  const key=String(slotIndex);
+  if(Object.prototype.hasOwnProperty.call(ovr.slot_overrides||{},key)&&ovr.slot_overrides[key]===baseSlotCharId(p,slotIndex)){
+    delete ovr.slot_overrides[key];
+  }
+}
 async function assignOverrideChar(charId){
   const s=schedules.find(x=>x.id===pickCtx.scheduleId);if(!s)return;
   const p=parties.find(x=>x.id===s.party_id);
@@ -3207,8 +3264,7 @@ async function assignOverrideChar(charId){
   const wk=getWeekKey(weekOffset);
   const ovrKey=pickCtx.scheduleId+'_'+wk;
   if(!overrides[ovrKey])overrides[ovrKey]={id:null,slot_overrides:{},temp_changes:{added:{},removed:{}}};
-  const ovr=overrides[ovrKey];
-  if(!ovr.temp_changes)ovr.temp_changes={added:{},removed:{}};
+  const ovr=ensureOverrideBuckets(overrides[ovrKey]);
   const oldCharId=getEffectiveMembers(pickCtx.scheduleId,s.party_id,wk)[pickCtx.slotIndex]?.character_id||null;
   // 이미 임시추가 → 되돌리기
   if(oldCharId&&ovr.temp_changes.added?.[oldCharId]){
@@ -3219,7 +3275,6 @@ async function assignOverrideChar(charId){
     const taskId=tasks?.[0]?.id||null;
     if(taskId){
       await sb.from('raid_tasks').update({preset_id:null}).eq('id',taskId);
-      ovr.temp_changes.removed=ovr.temp_changes.removed||{};
       ovr.temp_changes.removed[oldCharId]={taskId,hadPreset:true,partyId:p.id};
     }
   }
@@ -3231,13 +3286,17 @@ async function assignOverrideChar(charId){
   let restoredRemoved=false;
   let restoredFromPartyId=null;
   if(charId&&preset){
-    if(ovr.temp_changes.removed?.[charId]){
-      const info=ovr.temp_changes.removed[charId];
-      restoredFromPartyId=info.partyId||null;
+    const removedRef=findRemovedTempForCharPreset(charId,preset,wk);
+    if(removedRef){
+      const info=removedRef.info;
+      restoredFromPartyId=info.partyId||removedRef.party?.id||null;
       if(info.taskId&&info.hadPreset)await sb.from('raid_tasks').update({preset_id:preset.id}).eq('id',info.taskId);
-      delete ovr.temp_changes.removed[charId];
+      if(restoredFromPartyId===p.id){
+        delete removedRef.ovr.temp_changes.removed[charId];
+      }
       taskId=info.taskId||null;wasNew=false;
       restoredRemoved=true;
+      if(removedRef.key!==ovrKey&&restoredFromPartyId===p.id)await persistOverride(removedRef.scheduleId,wk,removedRef.ovr);
     }
     // 해당 캐릭터에 이 preset 레이드가 있는지 확인
     if(!taskId){
@@ -3246,8 +3305,9 @@ async function assignOverrideChar(charId){
         taskId=existTask.id;wasNew=!!existTask.__created;
       }
     }
-    if(taskId&&(!restoredRemoved||restoredFromPartyId!==p.id))ovr.temp_changes.added[charId]={wasNew,taskId};
+    if(taskId&&(!restoredRemoved||restoredFromPartyId!==p.id)&&!partyHasBaseChar(p,charId))ovr.temp_changes.added[charId]={wasNew,taskId};
   }
+  normalizeNoopSlotOverride(ovr,p,pickCtx.slotIndex);
   await persistOverride(pickCtx.scheduleId,wk,ovr);
   closeModal('modal-char-pick');
   await openSchEdit(pickCtx.scheduleId,wk);
@@ -3261,8 +3321,7 @@ async function removeOvrSlot(schId,slotIdx,wk){
   const preset=p?raids.find(x=>x.id===p.preset_id):null;
   const ovrKey=schId+'_'+wk;
   if(!overrides[ovrKey])overrides[ovrKey]={id:null,slot_overrides:{},temp_changes:{added:{},removed:{}}};
-  const ovr=overrides[ovrKey];
-  if(!ovr.temp_changes)ovr.temp_changes={added:{},removed:{}};
+  const ovr=ensureOverrideBuckets(overrides[ovrKey]);
   const effSlot=getEffectiveMembers(schId,s.party_id,wk)[slotIdx];
   const removedCharId=effSlot?.character_id||null;
   // 슬롯을 null(비움)으로 설정
@@ -3294,6 +3353,7 @@ async function removeOvrSlot(schId,slotIdx,wk){
 
 // ─── 임시변경 DB 저장 ───
 async function persistOverride(schId,wk,ovr){
+  ovr=ensureOverrideBuckets(ovr);
   ovr.temp_changes=normalizeTempChanges(ovr.temp_changes||{});
   const saveData={slot_overrides:ovr.slot_overrides||{},temp_changes:ovr.temp_changes,schedule_overrides:ovr.schedule_overrides||{}};
   if(ovr.id){const res=await sb.from('raid_schedule_overrides').update(saveData).eq('id',ovr.id);if(supaErr(res,'임시 변경 저장 실패'))return false;}

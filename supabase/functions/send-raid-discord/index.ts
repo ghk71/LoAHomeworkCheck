@@ -59,7 +59,15 @@ function normalizeTime(v: unknown) {
 
 function sortTime(v: unknown) {
   const raw = String(v || "").trim();
-  return raw || "99:99";
+  if (!raw) return "99:99";
+  const m = raw.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return raw;
+  return `${String(Number(m[1])).padStart(2, "0")}:${m[2]}`;
+}
+
+function asInt(v: unknown, fallback = 0) {
+  const n = Number(v);
+  return Number.isInteger(n) ? n : fallback;
 }
 
 function isNonRaidName(name: unknown) {
@@ -125,7 +133,7 @@ Deno.serve(async (req) => {
   const accounts = accountsRes.data || [];
   const chars = charsRes.data || [];
   const presets = presetsRes.data || [];
-  const parties = partiesRes.data || [];
+  const partiesAll = partiesRes.data || [];
   const members = membersRes.data || [];
   const schedules = schedulesRes.data || [];
   const overrides = overridesRes.data || [];
@@ -133,13 +141,18 @@ Deno.serve(async (req) => {
 
   const accountById = new Map(accounts.map((a: any) => [a.id, a]));
   const presetById = new Map(presets.map((p: any) => [p.id, p]));
+
+  const parties = partiesAll.filter((p: any) => !p.is_temporary || p.temp_week_start_date === wk);
   const partyById = new Map(parties.map((p: any) => [p.id, p]));
+
   const memberByParty = new Map<string, any[]>();
   for (const m of members) {
+    if (!partyById.has(m.party_id)) continue;
     if (!memberByParty.has(m.party_id)) memberByParty.set(m.party_id, []);
     memberByParty.get(m.party_id)!.push(m);
   }
   for (const list of memberByParty.values()) list.sort((a, b) => (a.slot_index ?? 0) - (b.slot_index ?? 0));
+
   const overrideBySchedule = new Map(overrides.map((o: any) => [o.schedule_id, o]));
 
   const targetTopAccounts = accounts.filter((a: any) => !a.parent_account_id && a.hide_from_filters !== true);
@@ -156,7 +169,34 @@ Deno.serve(async (req) => {
     return json({ error: "전송 대상 계정/캐릭터가 없습니다." }, 400);
   }
 
-  const getEffectiveCharIds = (schedule: any) => {
+  const scheduleOverride = (schedule: any) => {
+    const override: any = overrideBySchedule.get(schedule.id);
+    return override?.schedule_overrides || {};
+  };
+
+  const effectiveDay = (schedule: any) => {
+    const so = scheduleOverride(schedule);
+    return Number.isInteger(Number(so.day_of_week)) ? Number(so.day_of_week) : Number(schedule.day_of_week);
+  };
+
+  const effectiveSort = (schedule: any) => {
+    const so = scheduleOverride(schedule);
+    return asInt(so.sort_order, asInt(schedule.sort_order, 0));
+  };
+
+  const effectiveTime = (schedule: any) => {
+    const so = scheduleOverride(schedule);
+    return Object.prototype.hasOwnProperty.call(so, "time_str") ? so.time_str : schedule.time_str;
+  };
+
+  const isScheduleInWeek = (schedule: any) => {
+    if (!partyById.has(schedule.party_id)) return false;
+    if (schedule.is_fixed) return true;
+    const t = new Date(schedule.created_at).getTime();
+    return t >= wsMs && t < weMs;
+  };
+
+  const effectiveCharIds = (schedule: any) => {
     const party: any = partyById.get(schedule.party_id);
     if (!party) return [];
     const size = Number(party.party_size || 4);
@@ -175,19 +215,14 @@ Deno.serve(async (req) => {
     return [...new Set(ids)];
   };
 
-  const rows = new Map<string, Set<string>>();
+  const rows = new Map<string, { dayOrder: number; timeSort: string; sort: number; labels: string[] }>();
   for (const dn of WEEK_DAY_NUMS) {
     const daySchedules = schedules
-      .filter((s: any) => {
-        if (s.day_of_week !== dn) return false;
-        if (s.is_fixed) return true;
-        const t = new Date(s.created_at).getTime();
-        return t >= wsMs && t < weMs;
-      })
+      .filter((s: any) => isScheduleInWeek(s) && effectiveDay(s) === dn)
       .sort((a: any, b: any) => {
-        const timeCmp = sortTime(a.time_str).localeCompare(sortTime(b.time_str));
+        const timeCmp = sortTime(effectiveTime(a)).localeCompare(sortTime(effectiveTime(b)));
         if (timeCmp) return timeCmp;
-        return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+        return effectiveSort(a) - effectiveSort(b);
       });
 
     for (const schedule of daySchedules) {
@@ -195,19 +230,37 @@ Deno.serve(async (req) => {
       const preset: any = party ? presetById.get(party.preset_id) : null;
       if (!preset || isNonRaidName(preset.name)) continue;
 
-      const charIds = getEffectiveCharIds(schedule);
+      const charIds = effectiveCharIds(schedule);
       const includesAllGroups = groupCharSets.every((ids) => charIds.some((id) => ids.has(id)));
       if (!includesAllGroups) continue;
 
       const dayLabel = `${DKO[dn]}요일`;
-      const timeLabel = normalizeTime(schedule.time_str);
-      const key = timeLabel ? `${dayLabel} ${timeLabel}` : dayLabel;
-      if (!rows.has(key)) rows.set(key, new Set());
-      rows.get(key)!.add(raidLabel(preset));
+      const timeValue = effectiveTime(schedule);
+      const timeLabel = normalizeTime(timeValue);
+      const rowKey = timeLabel ? `${dayLabel} ${timeLabel}` : dayLabel;
+      if (!rows.has(rowKey)) {
+        rows.set(rowKey, {
+          dayOrder: WEEK_DAY_NUMS.indexOf(dn),
+          timeSort: sortTime(timeValue),
+          sort: effectiveSort(schedule),
+          labels: [],
+        });
+      }
+      const row = rows.get(rowKey)!;
+      row.sort = Math.min(row.sort, effectiveSort(schedule));
+      row.labels.push(raidLabel(preset));
     }
   }
 
-  const scheduleLines = [...rows.entries()].map(([label, items]) => `${label}: ${[...items].join(", ")}`);
+  const scheduleLines = [...rows.entries()]
+    .sort(([, a], [, b]) => {
+      if (a.dayOrder !== b.dayOrder) return a.dayOrder - b.dayOrder;
+      const timeCmp = a.timeSort.localeCompare(b.timeSort);
+      if (timeCmp) return timeCmp;
+      return a.sort - b.sort;
+    })
+    .map(([label, row]) => `${label}: ${row.labels.join(", ")}`);
+
   const content = [
     weekRangeLabel(off),
     "",
@@ -217,7 +270,7 @@ Deno.serve(async (req) => {
     scheduleLines.length ? scheduleLines.join("\n") : "조건에 맞는 레이드 일정이 없습니다.",
     "",
     shareUrl ? `일정 참조: ${shareUrl}` : "",
-  ].join("\n");
+  ].filter((line, idx, arr) => line || idx < arr.length - 1).join("\n");
 
   const discordRes = await fetch(webhookUrl, {
     method: "POST",

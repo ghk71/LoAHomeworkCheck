@@ -677,7 +677,13 @@ async function loadAll(){
   const firstError=results.find(r=>r.error)?.error;
   if(firstError){toast('❗ 로딩 오류: '+firstError.message);console.error(firstError);return;}
   const[r1,r2,r3,r4,r5,r6,r7]=results;
-  accounts=r1.data||[];characters=r2.data||[];raids=r3.data||[];parties=r4.data||[];members=r5.data||[];schedules=r6.data||[];raidTasks=r7.data||[];
+  accounts=r1.data||[];characters=r2.data||[];raids=r3.data||[];
+  const wk=getWeekKey();
+  parties=(r4.data||[]).filter(p=>!p.is_temporary||p.temp_week_start_date===wk);
+  const activePartyIds=new Set(parties.map(p=>p.id));
+  members=(r5.data||[]).filter(m=>activePartyIds.has(m.party_id));
+  schedules=(r6.data||[]).filter(s=>activePartyIds.has(s.party_id));
+  raidTasks=r7.data||[];
   const[,{data:ovrData}]=await Promise.all([
     loadRaidGroupSettings(),
     sb.from('raid_schedule_overrides').select('*').eq('week_start_date',getWeekKey())
@@ -793,6 +799,9 @@ function render(){
     if(!chars.length)return;
     chars.forEach(c=>{
       const removedParties=getTempRemovedPartiesForChar(c.id);
+      const tempParties=getTempPartiesForChar(c.id);
+      const tempPresetIds=new Set(tempParties.map(x=>x.party.preset_id));
+      const displayRemovedParties=removedParties.filter(x=>!tempPresetIds.has(x.party.preset_id));
       const removedPartyIds=new Set(removedParties.map(x=>x.party.id));
       const removedPresetIds=new Set(removedParties.map(x=>x.party.preset_id));
       const removedTaskIds=new Set(removedParties.map(x=>{
@@ -802,14 +811,12 @@ function render(){
       const charMembers=members.filter(m=>m.character_id===c.id&&!removedPartyIds.has(m.party_id)&&!parties.some(p=>p.id===m.party_id&&p.is_temporary));
       const charRaidTasks=raidTasks.filter(t=>t.character_id===c.id);
       const charParties=charMembers.map(m=>{const p=parties.find(x=>x.id===m.party_id);return p?{party:p,member:m}:null;}).filter(Boolean);
-      const tempParties=getTempPartiesForChar(c.id);
-      const tempPresetIds=new Set(tempParties.map(x=>x.party.preset_id));
       if(!charMembers.length&&!charRaidTasks.length&&!tempParties.length&&!removedParties.length)return;
       const partylessTasks=charRaidTasks.filter(t=>!removedTaskIds.has(t.id)&&!removedPresetIds.has(t.preset_id)&&(!t.preset_id||(!charParties.some(({party:p})=>p.preset_id===t.preset_id)&&!tempPresetIds.has(t.preset_id))));
       const cards=[
         ...charParties.map(x=>({type:'party',key:raidSortKeyByPresetId(x.party.preset_id),html:partyCardHTML(x.party,c,x.member,false)})),
         ...tempParties.map(x=>({type:'temp',key:raidSortKeyByPresetId(x.party.preset_id),html:partyCardHTML(x.party,c,{slot_index:x.slotIndex,character_id:c.id,id:''},true)})),
-        ...removedParties.map(x=>({type:'removed',key:raidSortKeyByPresetId(x.party.preset_id),html:partyCardHTML(x.party,c,{slot_index:-1,character_id:c.id,id:''},false,true)})),
+        ...displayRemovedParties.map(x=>({type:'removed',key:raidSortKeyByPresetId(x.party.preset_id),html:partyCardHTML(x.party,c,{slot_index:-1,character_id:c.id,id:''},false,true)})),
         ...partylessTasks.map(t=>({type:'none',key:raidSortKeyByPresetId(t.preset_id),html:noPartyCardHTML(t,c)}))
       ];
       if(partyOrderMode==='raid_order')cards.sort((a,b)=>a.key-b.key||(a.type==='none')-(b.type==='none'));
@@ -820,7 +827,7 @@ function render(){
           ${c.item_level?`<div class="cs-ilvl">Lv.${c.item_level}</div>`:''}
           ${c.combat_power?`<div class="cs-ilvl">전투력 ${Number(c.combat_power).toLocaleString()}</div>`:''}
           <button class="btn btn-sec btn-sm" onclick="togglePartyOrderMode()" title="파티 없음 위치/레이드 순서 정렬">${partyOrderMode==='raid_order'?'레이드 순서':'파티 없음 뒤'}</button>
-          <div class="cs-count">${charParties.length+tempParties.length}개 파티${tempParties.length?` · 임시 ${tempParties.length}`:''}${removedParties.length?` · 임시해제 ${removedParties.length}`:''}${partylessTasks.length?` · 파티 없음 ${partylessTasks.length}`:''}</div>
+          <div class="cs-count">${charParties.length+tempParties.length}개 파티${tempParties.length?` · 임시 ${tempParties.length}`:''}${displayRemovedParties.length?` · 임시해제 ${displayRemovedParties.length}`:''}${partylessTasks.length?` · 파티 없음 ${partylessTasks.length}`:''}</div>
         </div>
         <div class="party-cards">${cards.map(x=>x.html).join('')}</div>
       </div>`;

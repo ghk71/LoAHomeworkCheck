@@ -833,13 +833,12 @@ async function autoReset(){
 async function loadTempRaidTaskIds(){
   const{data,error}=await sb.from('raid_schedule_overrides').select('schedule_id,temp_changes').eq('week_start_date',getWeekKey(0));
   if(error){tempRaidTaskIds=new Set();tempRemovedRaidTaskIds=new Set();tempRemovedPresetByTask={};return;}
-  const ids=[],removedIds=[];
-  const removedBySchedule=[];
+  const ids=[],removedBySchedule=[],removedRecords=[];
   (data||[]).forEach(o=>{
     const added=(o.temp_changes&&o.temp_changes.added)||{};
     const removed=(o.temp_changes&&o.temp_changes.removed)||{};
     Object.values(added).forEach(v=>{if(v&&v.taskId)ids.push(v.taskId);});
-    Object.values(removed).forEach(v=>{if(v&&v.taskId){removedIds.push(v.taskId);removedBySchedule.push({taskId:v.taskId,scheduleId:o.schedule_id});}});
+    Object.values(removed).forEach(v=>{if(v&&v.taskId)removedRecords.push({taskId:v.taskId,scheduleId:o.schedule_id});});
   });
   const{data:tempParties}=await sb.from('raid_parties').select('id,preset_id').eq('is_temporary',true).eq('temp_week_start_date',getWeekKey(0));
   if(tempParties?.length){
@@ -852,8 +851,10 @@ async function loadTempRaidTaskIds(){
       if(task?.id)ids.push(task.id);
     });
   }
-  tempRaidTaskIds=new Set(ids);
-  tempRemovedRaidTaskIds=new Set(removedIds);
+  const addedSet=new Set(ids);
+  removedRecords.filter(x=>!addedSet.has(x.taskId)).forEach(x=>removedBySchedule.push(x));
+  tempRaidTaskIds=addedSet;
+  tempRemovedRaidTaskIds=new Set(removedBySchedule.map(x=>x.taskId));
   tempRemovedPresetByTask={};
   const scheduleIds=[...new Set(removedBySchedule.map(x=>x.scheduleId).filter(Boolean))];
   if(scheduleIds.length){
@@ -879,8 +880,10 @@ async function loadRaidGroupSettings(){
 async function markPartyLinkedRaidTasks(){
   const pids=[...new Set(raidTasks.filter(t=>t.preset_id).map(t=>t.preset_id))];
   if(!pids.length){raidTasks.forEach(t=>t.has_party_link=false);return;}
-  const{data:partyRows}=await sb.from('raid_parties').select('id,preset_id').in('preset_id',pids);
-  const partyPreset={};(partyRows||[]).forEach(p=>{partyPreset[p.id]=p.preset_id;});
+  const wk=getWeekKey(0);
+  const{data:partyRows}=await sb.from('raid_parties').select('id,preset_id,is_temporary,temp_week_start_date').in('preset_id',pids);
+  const activePartyRows=(partyRows||[]).filter(p=>!p.is_temporary||p.temp_week_start_date===wk);
+  const partyPreset={};activePartyRows.forEach(p=>{partyPreset[p.id]=p.preset_id;});
   const partyIds=Object.keys(partyPreset);
   const linked=new Set();
   if(partyIds.length){
@@ -1076,22 +1079,28 @@ async function showOvPartyPopup(presetId,charId,taskId=''){
     ]);
     if(presetErr)throw presetErr;if(partyErr)throw partyErr;
     if(!preset){el.innerHTML='<span style="color:var(--muted);">정보 없음</span>';return;}
-    const pIds=(partiesData||[]).map(p=>p.id);
+    const wk=getWeekKey(0);
+    const activeParties=(partiesData||[]).filter(p=>!p.is_temporary||p.temp_week_start_date===wk);
+    const pIds=activeParties.map(p=>p.id);
     const[{data:members,error:mErr},{data:schData,error:sErr}]=await Promise.all([
       pIds.length?sb.from('raid_party_members').select('*,characters(id,name,class_name,item_level,combat_power,icon_url)').in('party_id',pIds):{data:[]},
       pIds.length?sb.from('raid_schedules').select('id,party_id,day_of_week').in('party_id',pIds):{data:[]}
     ]);
     if(mErr)throw mErr;if(sErr)throw sErr;
-    const tempPartyIds=new Set();
+    const tempPartyIds=new Set(),removedPartyIds=new Set();
     if(taskId){
-      const{data:ovrs}=await sb.from('raid_schedule_overrides').select('schedule_id,temp_changes').eq('week_start_date',getWeekKey(0));
+      const{data:ovrs}=await sb.from('raid_schedule_overrides').select('schedule_id,temp_changes,slot_overrides').eq('week_start_date',wk);
       (ovrs||[]).forEach(o=>{
         const added=(o.temp_changes&&o.temp_changes.added)||{};
+        const removed=(o.temp_changes&&o.temp_changes.removed)||{};
+        const slots=o.slot_overrides||{};
         const isTemp=Object.values(added).some(v=>v&&v.taskId===taskId);
         if(isTemp){const sch=(schData||[]).find(s=>s.id===o.schedule_id);if(sch)tempPartyIds.add(sch.party_id);}
+        Object.keys(slots).forEach(k=>{if(slots[k]===charId){const sch=(schData||[]).find(s=>s.id===o.schedule_id);if(sch)tempPartyIds.add(sch.party_id);}});
+        if(removed[charId]){const sch=(schData||[]).find(s=>s.id===o.schedule_id);if(sch)removedPartyIds.add(sch.party_id);}
       });
     }
-    const targetParties=(partiesData||[]).filter(p=>(members||[]).some(m=>m.party_id===p.id&&m.character_id===charId)||tempPartyIds.has(p.id));
+    const targetParties=activeParties.filter(p=>((members||[]).some(m=>m.party_id===p.id&&m.character_id===charId)&&!removedPartyIds.has(p.id))||tempPartyIds.has(p.id));
     const dayMap={};(schData||[]).forEach(s=>{if(!dayMap[s.party_id])dayMap[s.party_id]=[];dayMap[s.party_id].push(s.day_of_week);});
     const gc=preset.color||getGroupColor(preset.name||'');
     let html=`<div style="padding:10px 12px;background:var(--s3);border-radius:10px;margin-bottom:12px;border-left:3px solid ${gc};">

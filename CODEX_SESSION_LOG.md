@@ -2266,3 +2266,76 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 
 ### 검증
 - `node tools/check-project.js`는 저장소 지침에 따라 실행하지 않음.
+## 2026-05-13 - Discord 레이드 일정 전송 임시 변경 규칙 정리
+
+### 요청
+- `디스코드 전송` 버튼으로 보내는 레이드 일정이 실제 주간 일정과 다르게 표시되는 문제 수정.
+- 임시 해제, 임시 추가, 임시 파티, 고정파티 임시 이동이 겹쳐도 명확한 규칙으로 계산되도록 정리.
+
+### 수정 파일
+- `supabase/functions/send-raid-discord/index.ts`
+- `CODEX_SESSION_LOG.md`
+
+### 변경 내용
+- Discord 전송 Edge Function을 현재 주간 일정 화면과 같은 기준으로 재작성.
+- 고정 일정의 이번 주 임시 이동은 `raid_schedule_overrides.schedule_overrides.day_of_week/sort_order/time_str`를 우선 적용.
+- 비고정 일정은 기존처럼 해당 주차 생성 일정만 포함.
+- 임시 파티는 `raid_parties.is_temporary = true`이고 `temp_week_start_date`가 현재 전송 주차와 일치할 때만 포함.
+- 파티 멤버 계산은 `slot_overrides`를 최종 기준으로 삼음.
+  - 슬롯 키가 없으면 원본 파티 멤버 사용.
+  - 슬롯 키가 있고 값이 캐릭터 id면 임시 추가/교체 멤버로 사용.
+  - 슬롯 키가 있고 값이 null이면 임시 해제/빈 슬롯으로 사용.
+- `temp_changes`는 레이드 숙제 복구용 메타데이터로만 보고, Discord 일정 포함 여부 계산에는 사용하지 않도록 분리.
+- 같은 시간대에 같은 레이드/난이도 파티가 여러 개 있으면 `Set`으로 합치지 않고 파티 수만큼 중복 표시되도록 변경.
+- 출력 문구의 깨진 한글을 정상 한글로 정리.
+
+### 검증 필요
+- Supabase Edge Function `send-raid-discord` 재배포 필요.
+- 실제 데이터 기준으로 디스코드 전송 버튼을 눌러 목요일 20시 중복 종막 및 토요일 8시 임시 이동 일정이 맞는지 확인 필요.
+- `node tools/check-project.js`는 저장소 지침에 따라 실행하지 않음.
+## 2026-05-13 - 임시 멤버/임시 파티 규칙 재점검 및 정합성 수정
+
+### 요청
+- Discord 전송 외에도 `임시 멤버`, `임시 해제`, `임시 파티`, `고정파티 임시 일정 편집`이 index/overview/parties/raid 전체에서 같은 규칙으로 동작하는지 재점검하고 수정.
+
+### 수정 파일
+- `raid.html`
+- `index.html`
+- `overview.html`
+- `parties.html`
+- `supabase/functions/send-raid-discord/index.ts`
+- `CODEX_SESSION_LOG.md`
+
+### 확정 규칙
+- 실제 주간 파티 구성은 항상 `원본 파티 멤버 + 현재 주차 slot_overrides`로 계산한다.
+- `slot_overrides[slot] = character_id`는 해당 주차의 임시 추가/교체 멤버다.
+- `slot_overrides[slot] = null`은 해당 주차의 명시적 임시 해제/빈 슬롯이다.
+- `temp_changes`는 raid_tasks 복구/표시 보조용 메타데이터이며, 실제 멤버 판정의 1차 기준은 아니다.
+- 임시 파티는 `is_temporary = true`이고 `temp_week_start_date`가 현재 주차와 일치할 때만 유효하다.
+- 원래 파티에서 빠진 캐릭터가 같은 레이드의 다른 파티에 임시로 들어가면, 사용자 화면에서는 `임시해제`가 아니라 `임시` 상태로 본다.
+- 같은 레이드/난이도 파티가 여러 개 있으면 중복을 합치지 않고 파티 수만큼 유지한다.
+
+### 변경 내용
+- `raid.html` 임시 슬롯 편집에서, 제거된 캐릭터를 다른 파티에 다시 넣는 경우 기존 제거 task를 재사용하고 새 task 중복 생성을 막도록 수정.
+- 같은 캐릭터가 `임시해제`와 `임시`로 동시에 보이지 않도록 index/overview/parties의 표시 필터를 정리.
+- `index.html`과 `overview.html` 파티 연동 팝업에서 현재 주차의 유효 파티만 표시하고, 임시 해제된 원본 파티는 제외하며, 임시 추가된 파티는 표시하도록 수정.
+- `index.html`과 `overview.html`의 파티연동 판정에서 과거/다른 주차 임시 파티가 현재 파티연동으로 잡히지 않도록 현재 주차 임시 파티만 포함.
+- `parties.html`에서 과거/다른 주차 임시 파티와 멤버가 필터/카드에 섞이지 않도록 로드 시 현재 주차 임시 파티만 유지.
+- `parties.html`에서 같은 레이드에 임시 추가가 있는 캐릭터는 원본 파티 임시해제 카드를 중복 표시하지 않고, 실제 현재 상태인 임시 파티 카드 중심으로 표시.
+- `raid.html` 공유링크 레이드 현황도 현재 주차 임시 파티, slot_overrides, schedule_overrides를 기준으로 파티 연동/요일 표시를 계산하도록 수정.
+- `send-raid-discord` Edge Function도 같은 규칙으로 일정/멤버를 계산하도록 유지 보강.
+
+### 상황별 기대 동작
+- A를 원본 K 파티에서 제거하고 B를 넣으면: A는 임시해제, B는 임시.
+- B를 다시 빼고 A를 원래 파티에 되돌리면: A/B 모두 임시 표시 없음.
+- A를 제거한 뒤 B를 넣고, B를 빼고 C를 넣으면: A는 임시해제, B는 원상태, C는 임시.
+- A를 원본 K 파티에서 제거한 뒤 같은 레이드의 L 파티에 넣으면: A는 임시로만 표시되고 임시해제 중복 표시는 숨김.
+- 이번 주 임시 파티에 들어간 캐릭터는 현재 주차에서만 임시 파티연동으로 표시된다.
+- 고정파티를 이번 주만 다른 요일로 옮기면: 공유링크 레이드 현황과 Discord 전송 모두 옮긴 요일 기준으로 계산된다.
+
+### 검증
+- 5개 주요 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 5개 주요 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 경고만 있음.
+- `node tools/check-project.js`는 저장소 지침에 따라 실행하지 않음.
+- Supabase Edge Function 변경은 `send-raid-discord` 재배포 후 실제 버튼으로 확인 필요.
