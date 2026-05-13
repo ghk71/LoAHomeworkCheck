@@ -2339,3 +2339,14 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - `git diff --check` 통과. CRLF 경고만 있음.
 - `node tools/check-project.js`는 저장소 지침에 따라 실행하지 않음.
 - Supabase Edge Function 변경은 `send-raid-discord` 재배포 후 실제 버튼으로 확인 필요.
+## 2026-05-13 - index 캐릭터 카드 완료 표시
+
+### 변경 내용
+- `index.html` 캐릭터 숙제 카드 완료 판정을 표시용 목록과 분리했습니다.
+- 캐릭터 숙제 탭은 활성화된 일일 루트 숙제가 모두 완료되었거나 활성 숙제가 없으면 카드 헤더에 `완료` 배지와 완료 스타일을 표시합니다.
+- 주간/월간 숙제 탭은 활성화된 주간/월간 루트 숙제만 완료 판정에 사용하고, 레이드 현황은 의도적으로 제외했습니다.
+- 완료 숨김/활성화 보이기 상태와 무관하게 카드 완료 집계가 흔들리지 않도록 전용 `activeTaskRoots`, `taskProgress` 계산을 추가했습니다.
+
+### 검증
+- fallback 검증 예정: 주요 HTML `</html>` 이후 코드 없음, CSS var 정의 누락 없음, `git diff --check`.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.

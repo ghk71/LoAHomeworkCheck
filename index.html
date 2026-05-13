@@ -102,6 +102,7 @@ body.manage-active .mode-done{display:inline-flex}
 .drag-over{outline:2px solid rgba(34,211,238,.55);outline-offset:2px}
 .char-head{height:58px;padding:10px 12px;background:linear-gradient(135deg,rgba(39,47,58,.86),rgba(31,38,48,.86));display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);flex:none}
 .char-card.hot .char-head{background:linear-gradient(135deg,rgba(30,117,133,.28),rgba(64,72,92,.28))}
+.char-card.done .char-head{background:linear-gradient(135deg,rgba(19,92,68,.42),rgba(31,44,39,.9))}
 .avatar{width:34px;height:34px;border-radius:8px;background:#171c23;border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none;color:var(--muted)}
 .avatar img,.task-icon img{width:100%;height:100%;object-fit:cover}
 .char-meta{min-width:0;flex:1}
@@ -117,6 +118,8 @@ body.manage-active .mode-done{display:inline-flex}
 .sub-account-mark{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(184,156,255,.16);border:1px solid rgba(184,156,255,.35);color:#d9ccff;font-size:.66rem;font-weight:950;margin-left:4px}
 .card-tools .mini-btn{height:24px}
 .char-card.hot .char-sub{color:rgba(255,255,255,.72)}
+.char-card.done .char-sub{color:rgba(209,250,229,.8)}
+.char-done-badge{height:24px;padding:0 8px;border-radius:999px;border:1px solid rgba(52,211,153,.38);background:rgba(16,185,129,.14);color:#a7f3d0;font-size:.72rem;font-weight:950;display:inline-flex;align-items:center}
 .card-tools{display:flex;gap:5px;align-items:center}
 .card-body{padding:12px;display:grid;grid-auto-rows:max-content;align-content:start;gap:10px;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(174,182,194,.42) transparent}
 .card-body::-webkit-scrollbar{width:8px}
@@ -1301,6 +1304,11 @@ function holdTaskCardHeight(t,isExp,ownerId){
 function shouldHideDone(t){return state.hideCompleted&&isDone(t);}
 function applyTaskFilters(list){return (list||[]).filter(t=>(state.showInactive||isActive(t))&&!shouldHideDone(t));}
 function applyDoneFilter(list){return (list||[]).filter(t=>!shouldHideDone(t));}
+function activeTaskRoots(list,predicate){return (list||[]).filter(t=>!t.parent_id&&predicate(t)&&isActive(t));}
+function taskProgress(tasks){
+  const total=tasks.length,done=tasks.filter(isDone).length;
+  return{done,total,complete:total===0||done===total,hot:total>0&&done<total};
+}
 function restInfo(t){
   const max=Math.max(1,Number(t.rest_max)||100);
   const cur=Math.max(0,Math.min(Number(t.rest_current)||0,max));
@@ -1374,13 +1382,13 @@ function renderAccountTasks(content){
   content.innerHTML=`<div class="account-grid">${accounts.map(renderAccountCard).join('')||'<div class="empty">계정이 없습니다</div>'}</div>`;
 }
 
-function charHeader(ch,tasks,hot=false){
+function charHeader(ch,tasks,hot=false,complete=false){
   const done=tasks.filter(isDone).length,total=tasks.length;
   const azena=ch.azena_blessing===true;
   return`<div class="char-head">
     <div class="avatar">${ch.icon_url?`<img src="${esc(ch.icon_url)}" alt="">`:'검'}</div>
     <div class="char-meta"><div class="char-name"><span class="char-name-text">${esc(ch.name)}</span>${azena?`<span class="azena-badge" title="아제나의 축복 적용"><img src="images/goods/azena.png" alt="아제나의 축복"></span>`:''}</div><div class="char-sub"><span class="char-class">${esc(ch.class_name||'')}</span>${ch.item_level?`<span class="char-level">${Number(ch.item_level).toLocaleString()}</span>`:''}${ch.combat_power?`<span class="char-power">${Number(ch.combat_power).toLocaleString()}</span>`:''}</div></div>
-    <div class="card-tools"><span class="tag ${total&&done===total?'green':''}">${done}/${total}</span><button class="btn icon" title="이 캐릭터에 숙제 추가" onclick="openCreateTask('char','${ch.id}','${state.mode==='daily'?'daily':'weekly'}')">+</button><button class="mini-btn action-only action-edit" onclick="openCharacterModal('${ch.id}')">정보</button><button class="mini-btn danger action-only action-delete" onclick="deleteCharacter('${ch.id}')">삭제</button></div>
+    <div class="card-tools">${complete?'<span class="char-done-badge">완료</span>':''}<span class="tag ${complete?'green':''}">${done}/${total}</span><button class="btn icon" title="이 캐릭터에 숙제 추가" onclick="openCreateTask('char','${ch.id}','${state.mode==='daily'?'daily':'weekly'}')">+</button><button class="mini-btn action-only action-edit" onclick="openCharacterModal('${ch.id}')">정보</button><button class="mini-btn danger action-only action-delete" onclick="deleteCharacter('${ch.id}')">삭제</button></div>
   </div>`;
 }
 function buildTaskTree(list){
@@ -1411,16 +1419,16 @@ function taskGroup(t,children,isExp,ownerId,idx){
 }
 function renderDailyCard(ch){
   const allTasks=state.tasks[ch.id]||[];
-  const taskRoots=applyTaskFilters(allTasks.filter(t=>!t.parent_id&&isDaily(t)));
+  const activeRoots=activeTaskRoots(allTasks,isDaily);
+  const progress=taskProgress(activeRoots);
   const curr=state.currencies[ch.id]||[];
   const currCollapsed=state.collapsedCurrency.has(ch.id);
   const showCurr=ch.show_currencies!==false;
-  const hot=taskRoots.length&&taskRoots.some(t=>!isDone(t));
-  return`<section class="char-card ${hot?'hot':''} ${taskRoots.length&&taskRoots.every(isDone)?'done':''}" data-scroll-key="daily:${ch.id}"${heldCardStyle(`daily:${ch.id}`)} draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')">
-    ${charHeader(ch,taskRoots,hot)}
+  return`<section class="char-card ${progress.hot?'hot':''} ${progress.complete?'done':''}" data-scroll-key="daily:${ch.id}"${heldCardStyle(`daily:${ch.id}`)} draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')">
+    ${charHeader(ch,activeRoots,progress.hot,progress.complete)}
     <div class="card-body">
       <div class="card-section">
-        <div class="section-label"><span>일일 숙제</span><span>${taskRoots.filter(isDone).length}/${taskRoots.length}</span></div>
+        <div class="section-label"><span>일일 숙제</span><span>${progress.done}/${progress.total}</span></div>
         ${renderTaskGroups(allTasks,false,ch.id,isDaily)}
       </div>
       ${showCurr?`<div class="currency-block ${currCollapsed?'collapsed':''}">
@@ -1435,18 +1443,18 @@ function renderDailyCard(ch){
 }
 function renderWeeklyCard(ch){
   const allTasks=state.tasks[ch.id]||[];
-  const tasks=applyTaskFilters(allTasks.filter(t=>!t.parent_id&&isWeeklyMonthly(t)));
+  const activeRoots=activeTaskRoots(allTasks,isWeeklyMonthly);
+  const progress=taskProgress(activeRoots);
   const raids=applyDoneFilter(state.raidTasks[ch.id]||[]);
   const notes=(state.notes[ch.id]||[]);
   const raidCollapsed=state.collapsedRaid.has(ch.id);
   const notesCollapsed=state.collapsedNotes.has(ch.id);
   const showRaid=ch.show_raid_tasks!==false,showNotes=ch.show_custom_notes!==false;
-  const checkables=[...tasks,...raids];
-  return`<section class="char-card ${checkables.length&&checkables.every(isDone)?'done':''}" data-scroll-key="weekly:${ch.id}"${heldCardStyle(`weekly:${ch.id}`)} draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')">
-    ${charHeader(ch,checkables)}
+  return`<section class="char-card ${progress.hot?'hot':''} ${progress.complete?'done':''}" data-scroll-key="weekly:${ch.id}"${heldCardStyle(`weekly:${ch.id}`)} draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')">
+    ${charHeader(ch,activeRoots,progress.hot,progress.complete)}
     <div class="card-body">
       <div class="card-section">
-        <div class="section-label"><span>주간/월간 숙제</span><span>${tasks.filter(isDone).length}/${tasks.length}</span></div>
+        <div class="section-label"><span>주간/월간 숙제</span><span>${progress.done}/${progress.total}</span></div>
         ${renderTaskGroups(allTasks,false,ch.id,isWeeklyMonthly)}
       </div>
       ${showRaid?`<div class="collapse-block ${raidCollapsed?'collapsed':''}">
