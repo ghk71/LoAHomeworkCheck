@@ -2252,3 +2252,17 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 
 ### 검증
 - `node tools/check-project.js`는 저장소 지침에 따라 실행하지 않음.
+## 2026-05-13 - raid 임시파티 캐릭터 선택 모달 레이어 수정
+
+### 요청
+- 임시파티 추가 모달에서 슬롯 추가를 누르면 캐릭터 선택 모달이 임시파티 모달 뒤에 떠서 선택할 수 없는 문제 수정.
+
+### 수정 파일
+- `raid.html`
+- `CODEX_SESSION_LOG.md`
+
+### 변경 내용
+- 캐릭터 선택 모달 `#modal-char-pick.open`의 z-index를 상향해 임시파티/일정 편집 등 다른 모달 위에 표시되도록 수정.
+
+### 검증
+- `node tools/check-project.js`는 저장소 지침에 따라 실행하지 않음.
