@@ -2350,3 +2350,12 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 ### 검증
 - fallback 검증 예정: 주요 HTML `</html>` 이후 코드 없음, CSS var 정의 누락 없음, `git diff --check`.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+## 2026-05-13 - index 레이드 현황 체크박스 UI 정리
+
+### 변경 내용
+- `index.html` 주간/월간 숙제 카드의 레이드 현황 완료 버튼을 일반 숙제와 같은 사각 체크박스 형태로 변경했습니다.
+- 텍스트형 `완료/체크` 버튼을 제거하고 `.check.square` 스타일과 접근성 라벨을 적용했습니다.
+
+### 검증
+- fallback 검증 예정: 주요 HTML `</html>` 이후 코드 없음, CSS var 정의 누락 없음, `git diff --check`.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.

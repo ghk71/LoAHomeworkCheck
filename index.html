@@ -1539,7 +1539,7 @@ function raidRow(t,charId){
       <div class="raid-title">${iconImg(icon)}<span class="raid-name">${esc(rn)}</span>${t.difficulty?`<span class="diff ${diffClass}">${esc(t.difficulty)}</span>`:''}<span class="title-actions"><button class="mini-btn danger action-only action-delete" onclick="deleteRaidTask('${t.id}','${charId}')">삭제</button></span></div>
       <div class="task-meta">${t.entry_level?`<span class="tag">입장 ${t.entry_level}</span>`:''}${flow||bound?`<span class="tag gold">골드 ${flow.toLocaleString()} / 귀속 ${bound.toLocaleString()}</span>`:''}${bonus?`<span class="tag purple">더보기 ${bonus.toLocaleString()}</span>`:''}${linkText?`<span class="link-badge ${(isTemp||isRemoved)?'temp':''}" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id||''}','${t.id}','${charId}')" title="파티 정보 보기">${linkText}</span>`:''}</div>
     </div>
-    <button class="check ${done?'on':''}" onclick="toggleRaid('${t.id}','${charId}')">${done?'완료':'체크'}</button>
+    <button class="check square ${done?'on':''}" aria-label="레이드 체크" aria-pressed="${done?'true':'false'}" onclick="toggleRaid('${t.id}','${charId}')"></button>
   </div>`;
 }
 function noteRow(n,charId,idx){
