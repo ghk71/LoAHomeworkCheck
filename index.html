@@ -88,6 +88,10 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .tool-pop.open{display:grid;gap:8px}
 .tool-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--muted);font-size:.78rem;font-weight:820}
 .tool-pop .btn{width:100%;justify-content:flex-start}
+.global-memo-panel{margin-top:10px;border:1px solid var(--line);background:linear-gradient(180deg,rgba(26,32,40,.96),rgba(20,25,32,.96));border-radius:8px;box-shadow:0 1px 0 rgba(255,255,255,.04) inset;overflow:hidden}
+.global-memo-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.06);color:#dbeafe;font-weight:950;font-size:.82rem}
+.global-memo-input{width:100%;min-height:120px;max-height:240px;resize:vertical;border:0;background:transparent;color:var(--text);padding:12px;font:inherit;line-height:1.55;outline:none}
+.global-memo-input::placeholder{color:var(--dim)}
 .action-only{display:none!important}
 body.action-copy .action-copy,body.action-edit .action-edit,body.action-delete .action-delete,body.action-order .action-order{display:inline-flex!important}
 .mode-action.active{border-color:rgba(34,211,238,.55);color:#bff6ff;background:rgba(34,211,238,.12)}
@@ -346,9 +350,14 @@ body.manage-active .mode-done{display:inline-flex}
         </div>
         <button class="btn green mode-done" id="mode-done-btn" onclick="finishActionMode()">모드 완료</button>
         <button class="btn gold daily-tool" onclick="openCharacterApiUpdateModal()">캐릭 업데이트</button>
+        <button class="btn" onclick="toggleGlobalMemo()">메모</button>
         <button class="btn" onclick="reloadAll()">새로고침</button>
         <button class="btn" onclick="openSettings()" title="설정">⚙️</button>
       </div>
+    </div>
+    <div class="global-memo-panel hidden" id="global-memo-panel">
+      <div class="global-memo-head"><span>메모</span><button class="btn" onclick="toggleGlobalMemo()">닫기</button></div>
+      <textarea class="global-memo-input" id="global-memo-input" placeholder="필요한 메모를 적어두세요." oninput="saveGlobalMemo()"></textarea>
     </div>
   </div>
   <div class="content" id="content"></div>
@@ -789,6 +798,24 @@ function applyActionMode(){
   const apiSave=document.getElementById('lostark-api-save-switch');
   if(apiSave)apiSave.classList.toggle('on',state.lostarkApiSave);
 }
+function initGlobalMemo(){
+  const panel=document.getElementById('global-memo-panel');
+  const input=document.getElementById('global-memo-input');
+  if(input)input.value=localStorage.getItem('la_global_memo')||'';
+  if(panel)panel.classList.toggle('hidden',localStorage.getItem('la_global_memo_open')!=='1');
+}
+function toggleGlobalMemo(){
+  const panel=document.getElementById('global-memo-panel');
+  if(!panel)return;
+  const willOpen=panel.classList.contains('hidden');
+  panel.classList.toggle('hidden',!willOpen);
+  localStorage.setItem('la_global_memo_open',willOpen?'1':'0');
+  if(willOpen)setTimeout(()=>document.getElementById('global-memo-input')?.focus(),0);
+}
+function saveGlobalMemo(){
+  const input=document.getElementById('global-memo-input');
+  if(input)localStorage.setItem('la_global_memo',input.value);
+}
 
 async function init(){
   const cfg=getConfig();
@@ -801,6 +828,7 @@ async function init(){
   document.getElementById('app').classList.add('active');
   sb=createClient(cfg.url,cfg.key);
   ensureClock();
+  initGlobalMemo();
   await reloadAll();
 }
 

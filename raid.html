@@ -1916,7 +1916,11 @@ function updateWeekLabel(){const d=getWeekDays(weekOffset),f=x=>`${x.getUTCMonth
 function moveWeek(n){weekOffset+=n;updateWeekLabel();renderSchedule();loadNotice();}
 function goToCurrentWeek(){weekOffset=0;updateWeekLabel();renderSchedule();loadNotice();}
 async function autoResetNonFixed(){
-  const ws=getWeekStart(0),curWk=getWeekKey(0);
+  const ws=getWeekStart(0);
+  const curWk=getWeekKey(0);
+  const keepStart=new Date(ws);keepStart.setUTCDate(keepStart.getUTCDate()-14);
+  const keepMs=keepStart.getTime()-9*3600000;
+  const keepWk=getWeekKey(-2);
   const {data:oldOverrides,error}=await sb.from('raid_schedule_overrides')
     .select('*')
     .lt('week_start_date',curWk);
@@ -1934,15 +1938,11 @@ async function autoResetNonFixed(){
     for(const[charId,info] of Object.entries(tc.removed||{})){
       if(info.taskId&&info.hadPreset&&preset?.id)await sb.from('raid_tasks').update({preset_id:preset.id}).eq('id',info.taskId);
     }
-    await sb.from('raid_schedule_overrides').update({slot_overrides:{},temp_changes:{added:{},removed:{}}}).eq('id',ovr.id);
+    await sb.from('raid_schedule_overrides').update({temp_changes:{added:{},removed:{}}}).eq('id',ovr.id);
     if(overrides[ovr.schedule_id+'_'+ovr.week_start_date]){
-      overrides[ovr.schedule_id+'_'+ovr.week_start_date].slot_overrides={};
       overrides[ovr.schedule_id+'_'+ovr.week_start_date].temp_changes={added:{},removed:{}};
     }
   }
-  const keepStart=new Date(ws);keepStart.setUTCDate(keepStart.getUTCDate()-14);
-  const keepMs=keepStart.getTime()-9*3600000;
-  const keepWk=getWeekKey(-2);
   const oldOverrideIds=(oldOverrides||[]).filter(o=>o.week_start_date<keepWk).map(o=>o.id).filter(Boolean);
   if(oldOverrideIds.length){
     const res=await sb.from('raid_schedule_overrides').delete().in('id',oldOverrideIds);
@@ -2041,17 +2041,43 @@ async function deleteRaidGroupSetting(name){
   if(error)console.warn('raid group setting delete failed:',error.message);
   delete raidGroupSettings[name];
 }
-function getScheduleOvr(s,wk=getWeekKey(weekOffset)){return overrides[s.id+'_'+wk]?.schedule_overrides||{};}
+function hasOwn(obj,key){return Object.prototype.hasOwnProperty.call(obj||{},key);}
+function overrideKey(schId,wk){return schId+'_'+wk;}
+function blankOverride(){return{id:null,slot_overrides:{},temp_changes:{added:{},removed:{}},schedule_overrides:{}};}
+function getOrCreateOverride(schId,wk){
+  const key=overrideKey(schId,wk);
+  if(!overrides[key])overrides[key]=blankOverride();
+  return ensureOverrideBuckets(overrides[key]);
+}
+function getScheduleOvr(s,wk=getWeekKey(weekOffset)){return overrides[overrideKey(s.id,wk)]?.schedule_overrides||{};}
 function getEffectiveScheduleDay(s,wk=getWeekKey(weekOffset)){const so=getScheduleOvr(s,wk);return Number.isInteger(Number(so.day_of_week))?Number(so.day_of_week):Number(s.day_of_week);}
 function getEffectiveScheduleSort(s,wk=getWeekKey(weekOffset)){const so=getScheduleOvr(s,wk);return Number.isInteger(Number(so.sort_order))?Number(so.sort_order):Number(s.sort_order??0);}
-function isTempFixedSchedule(s,wk=getWeekKey(weekOffset)){return !!(s.is_fixed&&overrides[s.id+'_'+wk]?.schedule_overrides&&Object.keys(overrides[s.id+'_'+wk].schedule_overrides).length);}
-function getDaySchs(dn,wsMs,weMs){
-  const wk=getWeekKey(weekOffset);
+function getEffectiveScheduleTime(s,wk=getWeekKey(weekOffset)){const so=getScheduleOvr(s,wk);return hasOwn(so,'time_str')?String(so.time_str||''):(s.time_str||'');}
+function isTempFixedSchedule(s,wk=getWeekKey(weekOffset)){return !!(s.is_fixed&&overrides[overrideKey(s.id,wk)]?.schedule_overrides&&Object.keys(overrides[overrideKey(s.id,wk)].schedule_overrides).length);}
+function getDaySchs(dn,wsMs,weMs,wk=getWeekKey(weekOffset)){
   return schedules.filter(s=>{
     if(getEffectiveScheduleDay(s,wk)!==dn)return false;
     if(s.is_fixed)return true;
     const t=new Date(s.created_at).getTime();return t>=wsMs&&t<weMs;
   }).sort((a,b)=>getEffectiveScheduleSort(a,wk)-getEffectiveScheduleSort(b,wk));
+}
+function applyScheduleWeekOrder(list,wk,dn){
+  list.forEach((s,i)=>{
+    if(s.is_fixed){
+      const ovr=getOrCreateOverride(s.id,wk);
+      ovr.schedule_overrides={...(ovr.schedule_overrides||{}),day_of_week:dn,sort_order:i};
+    }else{
+      s.sort_order=i;
+    }
+  });
+}
+async function persistScheduleWeekOrder(list,wk,dn){
+  applyScheduleWeekOrder(list,wk,dn);
+  const saves=list.map(s=>{
+    if(s.is_fixed)return persistOverride(s.id,wk,overrides[overrideKey(s.id,wk)]);
+    return sb.from('raid_schedules').update({sort_order:s.sort_order}).eq('id',s.id);
+  });
+  return Promise.all(saves);
 }
 async function rdDropGroup(e,destIdx){
   e.preventDefault();e.stopPropagation();rdClean();
@@ -2089,39 +2115,40 @@ async function rdDropSch(e,destDn,destIdx){
   }
   if(_rd.type!=='sched'){_rd.type=null;return;}
   const{schId,srcDn,srcIdx}=_rd.src;_rd.type=null;
-  const wsMs=getWeekStart(weekOffset).getTime()-9*3600000,weMs=wsMs+7*24*3600000;
+  const wk=getWeekKey(weekOffset),wsMs=getWeekStart(weekOffset).getTime()-9*3600000,weMs=wsMs+7*24*3600000;
   const s=schedules.find(x=>x.id===schId);if(!s)return;
   if(s.is_fixed){
     if(srcDn===destDn&&srcIdx===destIdx)return;
-    await saveFixedSchedulePositionOverride(s,destDn,destIdx);
+    await saveFixedSchedulePositionOverride(s,destDn,destIdx,srcDn);
     return;
   }
 
   if(srcDn===destDn){
     // 같은 날 — 재정렬만
     if(srcIdx===destIdx)return;
-    const list=getDaySchs(destDn,wsMs,weMs);
-    const[m]=list.splice(srcIdx,1);list.splice(destIdx,0,m);
-    list.forEach((x,i)=>{x.sort_order=i;});
+    const list=getDaySchs(destDn,wsMs,weMs,wk);
+    const curIdx=list.findIndex(x=>x.id===schId);
+    if(curIdx<0)return;
+    const[m]=list.splice(curIdx,1);list.splice(Math.max(0,Math.min(destIdx,list.length)),0,m);
+    applyScheduleWeekOrder(list,wk,destDn);
     renderSchedule();
-    const res=await Promise.all(list.map((x,i)=>sb.from('raid_schedules').update({sort_order:i}).eq('id',x.id)));
+    const res=await persistScheduleWeekOrder(list,wk,destDn);
     const err=res.find(x=>x.error)?.error;if(err){toast('❗ 정렬 저장 실패: '+err.message);console.error(err);}
   } else {
     // 날짜 이동 — day_of_week 변경 + 재정렬
-    s.day_of_week=destDn;
-    const destList=getDaySchs(destDn,wsMs,weMs);
+    const srcList=getDaySchs(srcDn,wsMs,weMs,wk).filter(x=>x.id!==schId);
+    const destList=getDaySchs(destDn,wsMs,weMs,wk).filter(x=>x.id!==schId);
     const clampedIdx=Math.min(destIdx,destList.length);
     destList.splice(clampedIdx,0,s);
-    destList.forEach((x,i)=>{x.sort_order=i;});
-    const srcList=getDaySchs(srcDn,wsMs,weMs); // srcDn의 남은 항목 재정렬
-    srcList.forEach((x,i)=>{x.sort_order=i;});
+    s.day_of_week=destDn;
+    applyScheduleWeekOrder(destList,wk,destDn);
+    applyScheduleWeekOrder(srcList,wk,srcDn);
     renderSchedule();
     // DB 저장
-    const moveRes=await sb.from('raid_schedules').update({day_of_week:destDn,sort_order:clampedIdx}).eq('id',schId);
-    const sortRes=await Promise.all([
-      ...destList.map((x,i)=>sb.from('raid_schedules').update({sort_order:i}).eq('id',x.id)),
-      ...srcList.map((x,i)=>sb.from('raid_schedules').update({sort_order:i}).eq('id',x.id))
-    ]);
+    const moveRes=await sb.from('raid_schedules').update({day_of_week:destDn}).eq('id',schId);
+    const destRes=await persistScheduleWeekOrder(destList,wk,destDn);
+    const srcRes=await persistScheduleWeekOrder(srcList,wk,srcDn);
+    const sortRes=[...destRes,...srcRes];
     const err=moveRes.error||sortRes.find(x=>x.error)?.error;if(err){toast('❗ 일정 이동 저장 실패: '+err.message);console.error(err);return;}
     toast('📅 일정 날짜 변경됨');
   }
@@ -2332,30 +2359,18 @@ function buildCharPickGrid(minIlvl=0){
   });
   el.innerHTML=html;
 }
-async function saveFixedSchedulePositionOverride(s,destDn,destIdx){
-  const wk=getWeekKey(weekOffset),ovrKey=s.id+'_'+wk;
-  if(!overrides[ovrKey])overrides[ovrKey]={id:null,slot_overrides:{},temp_changes:{added:{},removed:{}},schedule_overrides:{}};
-  const ovr=overrides[ovrKey];
-  ovr.schedule_overrides={...(ovr.schedule_overrides||{}),day_of_week:destDn,sort_order:Math.max(0,Number(destIdx)||0)};
+async function saveFixedSchedulePositionOverride(s,destDn,destIdx,srcDn=null){
+  const wk=getWeekKey(weekOffset);
   const {wsMs,weMs}=weekScheduleWindow(weekOffset);
-  const list=getDaySchs(destDn,wsMs,weMs).filter(x=>x.id!==s.id);
+  const list=getDaySchs(destDn,wsMs,weMs,wk).filter(x=>x.id!==s.id);
   list.splice(Math.min(destIdx,list.length),0,s);
-  list.forEach((x,i)=>{
-    if(x.id===s.id)ovr.schedule_overrides.sort_order=i;
-    else if(x.is_fixed){
-      const key=x.id+'_'+wk;
-      if(!overrides[key])overrides[key]={id:null,slot_overrides:{},temp_changes:{added:{},removed:{}},schedule_overrides:{}};
-      overrides[key].schedule_overrides={...(overrides[key].schedule_overrides||{}),day_of_week:getEffectiveScheduleDay(x,wk),sort_order:i};
-    }else x.sort_order=i;
-  });
+  applyScheduleWeekOrder(list,wk,destDn);
+  const srcList=(srcDn!=null&&srcDn!==destDn)?getDaySchs(srcDn,wsMs,weMs,wk).filter(x=>x.id!==s.id):[];
+  if(srcList.length)applyScheduleWeekOrder(srcList,wk,srcDn);
   renderSchedule();
-  const saves=[persistOverride(s.id,wk,ovr)];
-  list.forEach(x=>{
-    if(x.id===s.id)return;
-    if(x.is_fixed)saves.push(persistOverride(x.id,wk,overrides[x.id+'_'+wk]));
-    else saves.push(sb.from('raid_schedules').update({sort_order:x.sort_order}).eq('id',x.id));
-  });
-  const res=await Promise.all(saves);
+  const destRes=await persistScheduleWeekOrder(list,wk,destDn);
+  const srcRes=await persistScheduleWeekOrder(srcList,wk,srcDn);
+  const res=[...destRes,...srcRes];
   const err=res.find(x=>x?.error)?.error;if(err){toast('❗ 임시고정 이동 저장 실패: '+err.message);console.error(err);return;}
   toast('📌 이번 주만 임시고정 이동됨');
 }
@@ -2960,6 +2975,7 @@ function schedCardHTML(s,wk){
   const isCompleted=!!(ovr?.is_completed);
   const hasOvr=ovr&&Object.keys(ovr.slot_overrides||{}).length>0; // null값도 override로 인정
   const isTempFixed=isTempFixedSchedule(s,wk);
+  const timeStr=getEffectiveScheduleTime(s,wk);
   const eff=getEffectiveMembers(s.id,s.party_id,wk);
   const gc=getGroupColor(preset?.name||'');
   const pc=getPartyColor(p);
@@ -2968,7 +2984,7 @@ function schedCardHTML(s,wk){
       <div class="sc-raid-name" style="color:${gc};display:flex;align-items:center;gap:4px;">${iconImg(getGroupIcon(preset?.name||'')||preset?.icon_url||'','entity-icon-sm')}${esc(preset?.name||'?')}<span class="${diffClass(preset?.difficulty||'')}" style="font-size:.65rem;margin-left:5px;font-weight:600;">${esc(preset?.difficulty||'')}</span></div>
       <div class="sc-subline">
         <span class="sc-party-name" style="color:${pc};">${esc(p?.name||'?')} · ${p?.party_size||'?'}인</span>
-        ${s.time_str?`<span style="font-size:.72rem;font-weight:700;color:var(--gold-bright);background:rgba(200,168,75,.12);padding:1px 6px;border-radius:4px;border:1px solid rgba(200,168,75,.3);">🕐 ${s.time_str}</span>`:''}
+        ${timeStr?`<span style="font-size:.72rem;font-weight:700;color:var(--gold-bright);background:rgba(200,168,75,.12);padding:1px 6px;border-radius:4px;border:1px solid rgba(200,168,75,.3);">🕐 ${timeStr}</span>`:''}
         ${s.is_fixed?'<span class="sc-fixed-pin">📌</span>':''}
         ${isTempFixed?'<span class="sc-temp-fixed-badge" title="이번 주만 이동된 고정 일정">임시</span>':''}
         ${hasOvr?'<span class="sc-edit-badge">편집</span>':''}
@@ -3003,8 +3019,9 @@ function weekScheduleWindow(off=weekOffset){
 }
 function scheduledPartyIdsForWeek(off=weekOffset){
   const {wsMs,weMs}=weekScheduleWindow(off);
+  const wk=getWeekKey(off);
   const ids=new Set();
-  WEEK_DAY_NUMS.forEach(dn=>getDaySchs(dn,wsMs,weMs).forEach(s=>ids.add(s.party_id)));
+  WEEK_DAY_NUMS.forEach(dn=>getDaySchs(dn,wsMs,weMs,wk).forEach(s=>ids.add(s.party_id)));
   return ids;
 }
 function unplacedPartiesForWeek(){
@@ -3101,16 +3118,20 @@ function renderUnplacedPanel(){
   refreshUnplacedSelection();
 }
 async function addScheduleFromUnplacedParty(partyId,dn,insertIdx=null){
+  const wk=getWeekKey(weekOffset);
   const {wsMs,weMs}=weekScheduleWindow(weekOffset);
-  const destList=getDaySchs(dn,wsMs,weMs);
+  const destList=getDaySchs(dn,wsMs,weMs,wk);
   const targetIdx=insertIdx==null?destList.length:Math.max(0,Math.min(insertIdx,destList.length));
-  destList.forEach((s,i)=>{if(i>=targetIdx)s.sort_order=i+1;});
   const createdAt=new Date(wsMs).toISOString();
   const rec={party_id:partyId,day_of_week:dn,time_str:'',is_fixed:false,sort_order:targetIdx,created_at:createdAt};
   const{data,error}=await sb.from('raid_schedules').insert(rec).select().single();
   if(error){toast('❗ 일정 배치 실패: '+error.message);console.error(error);return;}
-  schedules.push(data||rec);
-  const res=await Promise.all(destList.map(s=>sb.from('raid_schedules').update({sort_order:s.sort_order}).eq('id',s.id)));
+  const saved=data||rec;
+  schedules.push(saved);
+  const ordered=getDaySchs(dn,wsMs,weMs,wk).filter(s=>s.id!==saved.id);
+  ordered.splice(Math.min(targetIdx,ordered.length),0,saved);
+  applyScheduleWeekOrder(ordered,wk,dn);
+  const res=await persistScheduleWeekOrder(ordered,wk,dn);
   const err=res.find(x=>x.error)?.error;if(err)console.warn('unplaced schedule sort update failed',err);
   renderSchFilter();renderSchedule();toast('📅 미배치 파티를 일정에 배치했습니다');
 }
@@ -3184,7 +3205,7 @@ async function openSchEdit(schId,wk){
   if(!s||!p){toast('❗ 데이터 오류');return;}
   const ovrKey=schId+'_'+wk;
   const ovr=overrides[ovrKey];
-  const hasOvr=ovr&&Object.keys(ovr.slot_overrides||{}).length>0;
+  const hasOvr=ovr&&(Object.keys(ovr.slot_overrides||{}).length>0||Object.keys(ovr.schedule_overrides||{}).length>0);
   document.getElementById('ovr-modal-title').textContent=`${esc(preset?.name||'?')} — ${esc(p.name||'파티')} 편집`;
   document.getElementById('ovr-reset-btn').style.display=hasOvr?'flex':'none';
   const eff=getEffectiveMembers(schId,s.party_id,wk);
@@ -3405,7 +3426,7 @@ async function resetOverrides(){
 // ─── Schedule CRUD ───
 function openAddSchForParty(partyId){resetSchModal();document.getElementById('sch-modal-title').textContent='일정 추가';document.getElementById('sch-submit-btn').textContent='추가';populatePartySelect(partyId);document.getElementById('sch-day-select').value=String(getGameNowKST().getUTCDay());openModal('modal-schedule');}
 function openAddSchForDay(dn){resetSchModal();document.getElementById('sch-modal-title').textContent='일정 추가';document.getElementById('sch-submit-btn').textContent='추가';populatePartySelect('');document.getElementById('sch-day-select').value=String(dn);openModal('modal-schedule');}
-function openEditScheduleById(id){const s=schedules.find(x=>x.id===id);if(!s)return;resetSchModal();document.getElementById('sch-modal-title').textContent='일정 수정';document.getElementById('sch-submit-btn').textContent='저장';document.getElementById('sch-delete-btn').style.display='flex';document.getElementById('sch-edit-id').value=id;document.getElementById('sch-fixed').checked=s.is_fixed;document.getElementById('sch-time').value=s.time_str||'';populatePartySelect(s.party_id);document.getElementById('sch-day-select').value=String(s.day_of_week);closeModal('modal-sch-edit');openModal('modal-schedule');}
+function openEditScheduleById(id){const s=schedules.find(x=>x.id===id);if(!s)return;const wk=getWeekKey(weekOffset);resetSchModal();document.getElementById('sch-modal-title').textContent='일정 수정';document.getElementById('sch-submit-btn').textContent='저장';document.getElementById('sch-delete-btn').style.display='flex';document.getElementById('sch-edit-id').value=id;document.getElementById('sch-fixed').checked=s.is_fixed;document.getElementById('sch-time').value=getEffectiveScheduleTime(s,wk);populatePartySelect(s.party_id);document.getElementById('sch-day-select').value=String(getEffectiveScheduleDay(s,wk));closeModal('modal-sch-edit');openModal('modal-schedule');}
 function resetSchModal(){document.getElementById('sch-delete-btn').style.display='none';document.getElementById('sch-edit-id').value='';document.getElementById('sch-fixed').checked=false;document.getElementById('sch-time').value='';}
 function toggleFixed(){const cb=document.getElementById('sch-fixed');cb.checked=!cb.checked;}
 function partyMemberRows(p){
@@ -3470,7 +3491,22 @@ function populateDaySelect(){document.getElementById('sch-day-select').innerHTML
 async function submitSchedule(){
   const partyId=document.getElementById('sch-party-select').value,dayOfWeek=parseInt(document.getElementById('sch-day-select').value),timeStr=document.getElementById('sch-time').value,isFixed=document.getElementById('sch-fixed').checked,editId=document.getElementById('sch-edit-id').value;
   if(!partyId){toast('❗ 파티를 선택하세요');return;}
-  if(editId){const{error}=await sb.from('raid_schedules').update({party_id:partyId,day_of_week:dayOfWeek,time_str:timeStr,is_fixed:isFixed}).eq('id',editId);if(error){toast('❗ '+error.message);return;}const s=schedules.find(x=>x.id===editId);if(s)Object.assign(s,{party_id:partyId,day_of_week:dayOfWeek,time_str:timeStr,is_fixed:isFixed});toast('✅ 수정됨');}
+  if(editId){
+    const s=schedules.find(x=>x.id===editId);
+    if(s?.is_fixed&&isFixed&&partyId===s.party_id){
+      const wk=getWeekKey(weekOffset);
+      const ovr=getOrCreateOverride(editId,wk);
+      ovr.schedule_overrides={...(ovr.schedule_overrides||{}),day_of_week:dayOfWeek,time_str:timeStr,sort_order:getEffectiveScheduleSort(s,wk)};
+      const saved=await persistOverride(editId,wk,ovr);
+      if(!saved)return;
+      toast('✅ 이번 주 일정만 수정됨');
+    }else{
+      const{error}=await sb.from('raid_schedules').update({party_id:partyId,day_of_week:dayOfWeek,time_str:timeStr,is_fixed:isFixed}).eq('id',editId);
+      if(error){toast('❗ '+error.message);return;}
+      if(s)Object.assign(s,{party_id:partyId,day_of_week:dayOfWeek,time_str:timeStr,is_fixed:isFixed});
+      toast('✅ 수정됨');
+    }
+  }
   else{const{data,error}=await sb.from('raid_schedules').insert({party_id:partyId,day_of_week:dayOfWeek,time_str:timeStr,is_fixed:isFixed}).select().single();if(error){toast('❗ '+error.message);return;}schedules.push(data);toast('✅ 일정 추가됨');}
   closeModal('modal-schedule');renderSchFilter();renderSchedule();
 }

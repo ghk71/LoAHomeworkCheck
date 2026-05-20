@@ -2359,3 +2359,15 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 ### 검증
 - fallback 검증 예정: 주요 HTML `</html>` 이후 코드 없음, CSS var 정의 누락 없음, `git diff --check`.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+## 2026-05-20 - 레이드 일정 주차 분리 및 index 메모 패널
+
+### 변경 내용
+- `raid.html` 일정 정렬/드래그 저장에서 고정 일정의 `sort_order`, `day_of_week`를 원본 `raid_schedules`가 아니라 `raid_schedule_overrides.schedule_overrides`에 주차별로 저장하도록 정리했습니다.
+- 고정 일정 수정 모달에서 날짜/시간을 바꾸면 같은 파티의 고정 일정은 현재 선택 주차에만 `time_str`, `day_of_week`, `sort_order` override로 저장되게 했습니다. 파티 변경 또는 고정 해제처럼 원본 자체가 바뀌는 작업은 기존처럼 원본 일정 수정으로 유지했습니다.
+- 미배치 파티를 일정에 배치하거나 비고정 일정을 드래그할 때, 같은 요일에 있던 고정 일정의 순서가 전체 주차에 퍼지지 않도록 주차별 override로 저장합니다.
+- 지난 주차 정리 로직은 최근 3주 범위의 `slot_overrides`/`schedule_overrides`를 보존하고, 과거 임시 멤버의 DB 부작용만 되돌리도록 조정했습니다.
+- `index.html` 상단 도구 영역에 `메모` 버튼과 접이식 메모 패널을 추가했습니다. 메모 내용과 열림 상태는 `localStorage`에 저장됩니다.
+
+### 검증
+- fallback 검증 예정: 주요 HTML `</html>` 이후 코드 없음, CSS var 정의 누락 없음, `git diff --check`.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
