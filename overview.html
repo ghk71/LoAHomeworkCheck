@@ -733,7 +733,7 @@ const{createClient}=supabase;
 function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
 function safeJson(key,fallback){try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback;}catch(e){console.warn('localStorage JSON parse failed:',key,e);return fallback;}}
 
-let sb,accounts=[],characters=[],raidTasks=[],tempRaidTaskIds=new Set(),tempRemovedRaidTaskIds=new Set(),tempRemovedPresetByTask={},raidGroupSettings={},raidGroupSettingsAvailable=true;
+let sb,accounts=[],characters=[],raidTasks=[],raidTasksByChar=new Map(),tempRaidTaskIds=new Set(),tempRemovedRaidTaskIds=new Set(),tempRemovedPresetByTask={},raidGroupSettings={},raidGroupSettingsAvailable=true;
 let weekOffset=0;
 let collapsedAccs=new Set(safeJson('la_ov_collapsed',[]));
 let selectedChars=new Set(); // selected character ids for filter
@@ -747,6 +747,14 @@ function charsWithRaidTasks(){
 function isFilterHiddenAccount(accountId){return accounts.some(a=>a.id===accountId&&a.hide_from_filters===true);}
 function filterVisibleAccounts(list=accounts){return (list||[]).filter(a=>a.hide_from_filters!==true);}
 function filterVisibleChars(list=characters){return (list||[]).filter(c=>!isFilterHiddenAccount(c.account_id));}
+function rebuildRaidTaskIndex(){
+  raidTasksByChar=new Map();
+  (raidTasks||[]).forEach(t=>{
+    if(!raidTasksByChar.has(t.character_id))raidTasksByChar.set(t.character_id,[]);
+    raidTasksByChar.get(t.character_id).push(t);
+  });
+}
+function getRaidTasksForChar(charId){return raidTasksByChar.get(charId)||[];}
 
 // ─── Init ───
 async function init(){
@@ -780,6 +788,7 @@ async function loadAll(){
       t.preset_icon=getGroupIcon(t.preset_name);
     }
   });
+  rebuildRaidTaskIndex();
   await markPartyLinkedRaidTasks();
   // Init filter: all chars with raids selected by default
   const charsWithRaids=charsWithRaidTasks();
@@ -937,7 +946,7 @@ function deselectAllChars(){selectedChars.clear();saveFilter();renderFilterBar()
 function goldBreakdownFor(charsOrIds){
   const ids=charsOrIds.map(x=>typeof x==='string'?x:x.id);
   const out={flow:0,bound:0,bonus:0,earnedFlow:0,earnedBound:0,earnedBonus:0};
-  ids.forEach(cid=>raidTasks.filter(t=>t.character_id===cid).forEach(t=>{
+  ids.forEach(cid=>getRaidTasksForChar(cid).forEach(t=>{
     const flow=Math.max(0,(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0));
     const bound=Number(t.bound_gold)||0;
     const bonus=Number(t.bonus_gold)||0;
@@ -958,7 +967,7 @@ function render(){
   // Summary - only selected chars
   let totalRaids=0,doneRaids=0;
   [...selectedChars].forEach(cid=>{
-    raidTasks.filter(t=>t.character_id===cid).forEach(t=>{
+    getRaidTasksForChar(cid).forEach(t=>{
       totalRaids++;
       if(isEffDone(t))doneRaids++;
     });
@@ -976,11 +985,11 @@ function render(){
   const mainAccounts=visibleAccs.filter(a=>!a.parent_account_id);
   function accCharCards(acc){
     const allCharsOfAcc=filterVisibleChars(characters).filter(c=>c.account_id===acc.id);
-    return allCharsOfAcc.filter(c=>raidTasks.some(t=>t.character_id===c.id)&&selectedChars.has(c.id));
+    return allCharsOfAcc.filter(c=>getRaidTasksForChar(c.id).length&&selectedChars.has(c.id));
   }
   function accStats(chars){
-    const total=chars.reduce((s,c)=>s+raidTasks.filter(t=>t.character_id===c.id).length,0);
-    const done=chars.reduce((s,c)=>s+raidTasks.filter(t=>t.character_id===c.id&&isEffDone(t)).length,0);
+    const total=chars.reduce((s,c)=>s+getRaidTasksForChar(c.id).length,0);
+    const done=chars.reduce((s,c)=>s+getRaidTasksForChar(c.id).filter(isEffDone).length,0);
     return{total,done,...goldBreakdownFor(chars)};
   }
   function renderAccHeader(acc,chars,subLabel){
@@ -1018,7 +1027,7 @@ function render(){
 }
 
 function charCardHTML(c){
-  const tasks=raidTasks.filter(t=>t.character_id===c.id).sort((a,b)=>a.sort_order-b.sort_order);
+  const tasks=getRaidTasksForChar(c.id).slice().sort((a,b)=>a.sort_order-b.sort_order);
   if(!tasks.length)return'';
   const done=tasks.filter(t=>isEffDone(t)).length,tot=tasks.length;
   const allDone=done===tot;
@@ -1160,7 +1169,7 @@ async function toggleRaidTask(taskId){
 
 function renderSummary(){
   let totalRaids=0,doneRaids=0;
-  [...selectedChars].forEach(cid=>{raidTasks.filter(t=>t.character_id===cid).forEach(t=>{totalRaids++;if(isEffDone(t))doneRaids++;});});
+  [...selectedChars].forEach(cid=>{getRaidTasksForChar(cid).forEach(t=>{totalRaids++;if(isEffDone(t))doneRaids++;});});
   const gsum=goldBreakdownFor([...selectedChars]);
   const pct=totalRaids?Math.round(doneRaids/totalRaids*100):0;
   const sb2=document.getElementById('summary-bar');

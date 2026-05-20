@@ -812,10 +812,15 @@ function toggleGlobalMemo(){
   localStorage.setItem('la_global_memo_open',willOpen?'1':'0');
   if(willOpen)setTimeout(()=>document.getElementById('global-memo-input')?.focus(),0);
 }
+let globalMemoSaveTimer=null;
 function saveGlobalMemo(){
   const input=document.getElementById('global-memo-input');
-  if(input)localStorage.setItem('la_global_memo',input.value);
+  if(!input)return;
+  const value=input.value;
+  clearTimeout(globalMemoSaveTimer);
+  globalMemoSaveTimer=setTimeout(()=>localStorage.setItem('la_global_memo',value),250);
 }
+window.addEventListener('beforeunload',()=>{const input=document.getElementById('global-memo-input');if(input)localStorage.setItem('la_global_memo',input.value);});
 
 async function init(){
   const cfg=getConfig();

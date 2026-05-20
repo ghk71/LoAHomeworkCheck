@@ -642,6 +642,7 @@ function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getIt
 function safeJson(key,fallback){try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback;}catch(e){console.warn('localStorage JSON parse failed:',key,e);return fallback;}}
 
 let sb,accounts=[],characters=[],raids=[],parties=[],members=[],raidTasks=[],schedules=[],scheduleOverrides=[],raidGroupSettings={},raidGroupSettingsAvailable=true;
+let partyById=new Map(),raidById=new Map(),scheduleById=new Map(),membersByChar=new Map(),raidTasksByChar=new Map(),tempPartyIds=new Set(),raidSortKeyCache=new Map(),raidGroupOrderCache=[];
 let selectedChars=new Set();
 let filterOpen=localStorage.getItem('la_pt_filter_open')==='1';
 let partyOrderMode=localStorage.getItem('la_pt_order_mode')||'partyless_last';
@@ -656,6 +657,24 @@ function charsInPartyScope(){
 function isFilterHiddenAccount(accountId){return accounts.some(a=>a.id===accountId&&a.hide_from_filters===true);}
 function filterVisibleAccounts(list=accounts){return (list||[]).filter(a=>a.hide_from_filters!==true);}
 function filterVisibleChars(list=characters){return (list||[]).filter(c=>!isFilterHiddenAccount(c.account_id));}
+function rebuildRenderIndexes(){
+  partyById=new Map(parties.map(p=>[p.id,p]));
+  raidById=new Map(raids.map(r=>[r.id,r]));
+  scheduleById=new Map(schedules.map(s=>[s.id,s]));
+  tempPartyIds=new Set(parties.filter(p=>p.is_temporary).map(p=>p.id));
+  membersByChar=new Map();
+  members.forEach(m=>{
+    if(!membersByChar.has(m.character_id))membersByChar.set(m.character_id,[]);
+    membersByChar.get(m.character_id).push(m);
+  });
+  raidTasksByChar=new Map();
+  raidTasks.forEach(t=>{
+    if(!raidTasksByChar.has(t.character_id))raidTasksByChar.set(t.character_id,[]);
+    raidTasksByChar.get(t.character_id).push(t);
+  });
+  raidGroupOrderCache=safeJson('la_raid_group_order',[]);
+  raidSortKeyCache=new Map();
+}
 
 async function init(){
   const cfg=getConfig();if(!cfg){window.location.href='index.html';return;}
@@ -696,6 +715,7 @@ async function loadAll(){
     const days=schMap[p.id]||[];
     p._sched_days=days.map(d=>DAYS_KO[d]+'요일').join(', ');
   });
+  rebuildRenderIndexes();
   // Init filter: all chars that are in any party or have raid homework
   const charsInParties=charsInPartyScope();
   const partyCharIds=new Set(charsInParties.map(c=>c.id));
@@ -752,11 +772,13 @@ function selectAll(){const ci=charsInPartyScope();selectedChars=new Set(ci.map(c
 function deselectAll(){selectedChars.clear();saveFilter();renderFilter();render();}
 function togglePartyOrderMode(){partyOrderMode=partyOrderMode==='raid_order'?'partyless_last':'raid_order';localStorage.setItem('la_pt_order_mode',partyOrderMode);render();}
 function raidSortKeyByPresetId(presetId){
-  const preset=raids.find(r=>r.id===presetId);
+  if(raidSortKeyCache.has(presetId))return raidSortKeyCache.get(presetId);
+  const preset=raidById.get(presetId);
   if(!preset)return 999999;
-  const groupOrder=safeJson('la_raid_group_order',[]);
-  const gi=groupOrder.includes(preset.name)?groupOrder.indexOf(preset.name):999;
-  return gi*1000+(Number(preset.sort_order)||0);
+  const gi=raidGroupOrderCache.includes(preset.name)?raidGroupOrderCache.indexOf(preset.name):999;
+  const key=gi*1000+(Number(preset.sort_order)||0);
+  raidSortKeyCache.set(presetId,key);
+  return key;
 }
 function getTempPartiesForChar(charId){
   const out=[];
@@ -767,8 +789,8 @@ function getTempPartiesForChar(charId){
     }
   });
   scheduleOverrides.forEach(ovr=>{
-    const sch=schedules.find(s=>s.id===ovr.schedule_id);
-    const p=sch?parties.find(x=>x.id===sch.party_id):null;
+    const sch=scheduleById.get(ovr.schedule_id);
+    const p=sch?partyById.get(sch.party_id):null;
     if(!p)return;
     const slots=ovr.slot_overrides||{};
     Object.keys(slots).forEach(k=>{if(slots[k]===charId&&!p.members.some(m=>m.character_id===charId))out.push({party:p,slotIndex:Number(k),override:ovr});});
@@ -780,8 +802,8 @@ function getTempRemovedPartiesForChar(charId){
   scheduleOverrides.forEach(ovr=>{
     const removed=(ovr.temp_changes&&ovr.temp_changes.removed)||{};
     if(!removed[charId])return;
-    const sch=schedules.find(s=>s.id===ovr.schedule_id);
-    const p=sch?parties.find(x=>x.id===sch.party_id):null;
+    const sch=scheduleById.get(ovr.schedule_id);
+    const p=sch?partyById.get(sch.party_id):null;
     if(p&&!out.some(x=>x.party.id===p.id))out.push({party:p,override:ovr});
   });
   return out;
@@ -792,10 +814,15 @@ function render(){
   const el=document.getElementById('char-sections');
   const visChars=characters.filter(c=>selectedChars.has(c.id));
   if(!visChars.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div><div>캐릭터를 선택하세요</div></div>';return;}
+  const visByAccount=new Map();
+  visChars.forEach(c=>{
+    if(!visByAccount.has(c.account_id))visByAccount.set(c.account_id,[]);
+    visByAccount.get(c.account_id).push(c);
+  });
   // Group by account
   let html='';
   accounts.forEach(acc=>{
-    const chars=visChars.filter(c=>c.account_id===acc.id);
+    const chars=visByAccount.get(acc.id)||[];
     if(!chars.length)return;
     chars.forEach(c=>{
       const removedParties=getTempRemovedPartiesForChar(c.id);
@@ -808,9 +835,9 @@ function render(){
         const removed=(x.override.temp_changes&&x.override.temp_changes.removed)||{};
         return removed[c.id]?.taskId||removed[c.id]?.task_id||null;
       }).filter(Boolean));
-      const charMembers=members.filter(m=>m.character_id===c.id&&!removedPartyIds.has(m.party_id)&&!parties.some(p=>p.id===m.party_id&&p.is_temporary));
-      const charRaidTasks=raidTasks.filter(t=>t.character_id===c.id);
-      const charParties=charMembers.map(m=>{const p=parties.find(x=>x.id===m.party_id);return p?{party:p,member:m}:null;}).filter(Boolean);
+      const charMembers=(membersByChar.get(c.id)||[]).filter(m=>!removedPartyIds.has(m.party_id)&&!tempPartyIds.has(m.party_id));
+      const charRaidTasks=raidTasksByChar.get(c.id)||[];
+      const charParties=charMembers.map(m=>{const p=partyById.get(m.party_id);return p?{party:p,member:m}:null;}).filter(Boolean);
       if(!charMembers.length&&!charRaidTasks.length&&!tempParties.length&&!removedParties.length)return;
       const partylessTasks=charRaidTasks.filter(t=>!removedTaskIds.has(t.id)&&!removedPresetIds.has(t.preset_id)&&(!t.preset_id||(!charParties.some(({party:p})=>p.preset_id===t.preset_id)&&!tempPresetIds.has(t.preset_id))));
       const cards=[
@@ -837,8 +864,8 @@ function render(){
 }
 
 function noPartyCardHTML(t,myChar){
-  const raidName=t.preset_id?(raids.find(r=>r.id===t.preset_id)?.name||t.name):t.name;
-  const preset=raids.find(r=>r.id===t.preset_id);
+  const preset=t.preset_id?raidById.get(t.preset_id):null;
+  const raidName=preset?.name||t.name;
   return`<div class="party-card no-party">
     <div class="pc-header">
       <div style="flex:1;min-width:0;">
@@ -852,7 +879,7 @@ function noPartyCardHTML(t,myChar){
 }
 
 function partyCardHTML(p,myChar,myMember,isTemp=false,isRemoved=false){
-  const preset=raids.find(x=>x.id===p.preset_id);
+  const preset=raidById.get(p.preset_id);
   const slots=[];for(let i=0;i<p.party_size;i++){const m=p.members.find(x=>x.slot_index===i);slots.push(m||{slot_index:i,character_id:null});}
   return`<div class="party-card ${(isTemp||isRemoved)?'temp-party':''}">
     <div class="pc-header">

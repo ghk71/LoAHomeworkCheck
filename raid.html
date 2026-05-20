@@ -2164,8 +2164,9 @@ async function rdDropOnDay(e,destDn){
   if(_rd.type!=='sched'){_rd.type=null;return;}
   const{srcDn}=_rd.src;
   if(srcDn===destDn){_rd.type=null;return;} // 같은 날 → 카드 드롭으로 처리됨
+  const wk=getWeekKey(weekOffset);
   const {wsMs,weMs}=weekScheduleWindow(weekOffset);
-  const destList=getDaySchs(destDn,wsMs,weMs);
+  const destList=getDaySchs(destDn,wsMs,weMs,wk);
   await rdDropSch(e,destDn,destList.length);
 }
 
@@ -2681,7 +2682,7 @@ function getCharsInWeekSchedules(){
   const weMs=wsMs+7*24*3600000;
   const charIds=new Set();
   WEEK_DAY_NUMS.forEach(dn=>{
-    getDaySchs(dn,wsMs,weMs).forEach(s=>{
+    getDaySchs(dn,wsMs,weMs,wk).forEach(s=>{
       getEffectiveMembers(s.id,s.party_id,wk).forEach(slot=>{
         if(slot.character_id)charIds.add(slot.character_id);
       });
@@ -2914,6 +2915,8 @@ function renderSchedule(){
   renderUnplacedPanel();
   const days=getWeekDays(weekOffset),todayKST=getGameNowKST().getUTCDay(),wk=getWeekKey(weekOffset);
   const {wsMs,weMs}=weekScheduleWindow(weekOffset);
+  const dayScheduleMap={};
+  WEEK_DAY_NUMS.forEach(dn=>{dayScheduleMap[dn]=getDaySchs(dn,wsMs,weMs,wk);});
   const daySlots=buildDaySlots();
   el.innerHTML=daySlots.map(slot=>{
     const {indices,grouped}=slot;
@@ -2929,7 +2932,7 @@ function renderSchedule(){
       :`${slotDays[0].date.getUTCMonth()+1}/${slotDays[0].date.getUTCDate()}`;
     // All schedules for this slot (each day separately rendered)
     const allSchs=slotDays.flatMap(({dn})=>{
-      return getDaySchs(dn,wsMs,weMs).filter(s=>schPassesFilter(s,wk)).map(s=>({s,dn}));
+      return (dayScheduleMap[dn]||[]).filter(s=>schPassesFilter(s,wk)).map(s=>({s,dn}));
     });
     const i0=indices[0];
     const groupBtnLabel=grouped?'분리':'묶기';
@@ -2942,7 +2945,7 @@ function renderSchedule(){
       </div>
       <div class="day-parties-scroll" ondragover="rdOverDay(event)" ondragleave="rdLeave(event,true)" ondrop="rdDropOnDay(event,${slotDays[0].dn})">
         ${allSchs.map(({s,dn},si)=>{
-          const origIdx=getDaySchs(dn,wsMs,weMs).indexOf(s);
+          const origIdx=(dayScheduleMap[dn]||[]).indexOf(s);
           return`<div
             draggable="${!isViewer}"
             ondragstart="rdStartSch(event,'${s.id}',${dn},${origIdx})"

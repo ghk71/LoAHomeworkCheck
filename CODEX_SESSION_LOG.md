@@ -2371,3 +2371,15 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 ### 검증
 - fallback 검증 예정: 주요 HTML `</html>` 이후 코드 없음, CSS var 정의 누락 없음, `git diff --check`.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+## 2026-05-20 - 렌더링 반복 탐색 최적화
+
+### 변경 내용
+- `raid.html` 주간 일정 렌더에서 같은 주차/요일 일정 목록을 슬롯마다 반복 계산하지 않도록 렌더 1회당 요일별 일정 목록을 캐싱해 사용했습니다.
+- `raid.html` 주차별 일정/정렬 계산 함수 호출에 명시적인 week key를 넘기도록 정리해, 주차 이동 중에도 현재 주차 기준 계산이 섞이지 않게 했습니다.
+- `index.html` 전역 메모 저장을 입력마다 즉시 `localStorage`에 쓰지 않고 250ms debounce 후 저장하도록 최적화했습니다. 페이지 종료 시에는 즉시 저장합니다.
+- `overview.html` 레이드 현황 렌더에서 캐릭터별 레이드 숙제를 `Map`으로 인덱싱해 반복 `filter`를 줄였습니다.
+- `parties.html` 파티 현황 렌더에서 파티/레이드/멤버/레이드 숙제 조회용 `Map` 인덱스를 추가해 반복 `find`/`filter`를 줄였습니다.
+
+### 검증
+- fallback 검증 예정: 주요 HTML `</html>` 이후 코드 없음, CSS var 정의 누락 없음, `git diff --check`.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
