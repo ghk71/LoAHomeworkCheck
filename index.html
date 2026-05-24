@@ -936,9 +936,21 @@ async function fetchRowsByOwner(table,ownerField,ownerIds){
   const buckets={};
   ownerIds.forEach(id=>{buckets[id]=[];});
   if(!ownerIds.length)return{rows:[],buckets};
-  const {data,error}=await sb.from(table).select('*').in(ownerField,ownerIds).order('sort_order').order('created_at');
-  if(error){console.warn(error);return{rows:[],buckets};}
-  const rows=data||[];
+  const rows=[];
+  const pageSize=1000;
+  for(let from=0;;from+=pageSize){
+    const to=from+pageSize-1;
+    const {data,error}=await sb.from(table)
+      .select('*')
+      .in(ownerField,ownerIds)
+      .order('sort_order')
+      .order('created_at')
+      .range(from,to);
+    if(error){console.warn(error);return{rows,buckets};}
+    const page=data||[];
+    rows.push(...page);
+    if(page.length<pageSize)break;
+  }
   rows.forEach(row=>{
     const ownerId=row[ownerField];
     if(!buckets[ownerId])buckets[ownerId]=[];

@@ -2444,3 +2444,18 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 5개 주요 HTML의 CSS var 정의 누락 없음 확인.
 - `git diff --check` 통과. CRLF 경고만 있음.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+## 2026-05-24 - Supabase 목록 조회 페이지네이션 적용
+
+### 변경 내용
+- `index.html`의 공통 데이터 로더 `fetchRowsByOwner`를 단일 조회에서 1000개 단위 페이지 조회로 변경했습니다.
+- `tasks`, `raid_tasks`, `currencies`, `custom_popups`, `expedition_tasks`가 Supabase 기본 반환 제한에 걸려 일부 row만 로드되는 문제를 방지했습니다.
+
+### 원인 메모
+- audit 로그에서 `present-but-not-loaded-after-create`가 발생했고, 직접 ID 조회로는 `tasks` row가 존재했으며 `ownerLoaded=true`였습니다.
+- 이는 DB 삭제/숨김/계정 선택 문제가 아니라, `.in(ownerField, ownerIds)` 목록 조회가 반환 제한에 걸려 일부 row를 빠뜨리는 상황과 일치합니다.
+
+### 검증
+- 5개 주요 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 5개 주요 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 경고만 있음.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
