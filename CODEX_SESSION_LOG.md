@@ -2416,3 +2416,31 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 5개 주요 HTML의 CSS var 정의 누락 없음 확인.
 - `git diff --check` 통과. CRLF 경고만 있음.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+## 2026-05-24 - index 생성 후 누락 원인 분기 진단 보강
+
+### 변경 내용
+- `index.html`의 최근 생성 숙제 누락 감지를 보강해, 목록 조회에서 빠진 숙제를 ID로 직접 재조회하도록 했습니다.
+- 직접 재조회에서도 없으면 `missing-after-create`로 기록해 실제 DB row 삭제/소실 가능성을 표시합니다.
+- 직접 재조회에는 있는데 일반 목록에 없으면 `present-but-not-loaded-after-create`로 기록해 owner/캐릭터/계정 로드 기준 문제를 표시합니다.
+- 계정 삭제/캐릭터 삭제 시 cascade로 함께 삭제될 수 있는 숙제 ID도 `account-delete-success`, `character-delete-success` audit 로그에 남기도록 했습니다.
+
+### 검증
+- 5개 주요 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 5개 주요 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 경고만 있음.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+## 2026-05-24 - index 마지막 선택 계정 복구
+
+### 변경 내용
+- `index.html`에서 마지막 선택 계정을 `localStorage`의 `la_redesign_selected_account`에 저장하고 새로고침 후 복구하도록 했습니다.
+- 계정 탭 클릭, 숨김 계정 보기 토글, 계정 숨김 토글로 선택 계정이 바뀌는 경우에도 저장값을 갱신합니다.
+
+### 원인 메모
+- 사용자가 제공한 Supabase 조회 결과상 `쿠르잔 전선` 숙제는 DB에 정상 존재했고, `rest_threshold=0`이라 비활성 숨김 문제도 아니었습니다.
+- 기존 코드는 새로고침 시 마지막 선택 계정을 복구하지 않고 첫 번째 표시 계정으로 돌아갈 수 있어, 다른 계정 캐릭터에 추가한 숙제가 사라진 것처럼 보일 수 있었습니다.
+
+### 검증
+- 5개 주요 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 5개 주요 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 경고만 있음.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.

@@ -669,6 +669,7 @@ body.manage-active .mode-done{display:inline-flex}
 const {createClient}=supabase;
 let sb=null;
 const DAYS=['일','월','화','수','목','금','토'];
+const LAST_ACCOUNT_KEY='la_redesign_selected_account';
 function safeJson(key,fallback){
   try{
     const raw=localStorage.getItem(key);
@@ -682,7 +683,7 @@ const state={
   mode:'daily',
   actionMode:'normal',
   openMenu:null,
-  selectedAccount:null,
+  selectedAccount:localStorage.getItem(LAST_ACCOUNT_KEY)||null,
   selectedChar:'all',
   accounts:[],
   chars:[],
@@ -839,7 +840,7 @@ function recentCreatedTaskEvents(){
   const cutoff=Date.now()-1000*60*60*24*3;
   return readTaskAudit().filter(e=>e.action==='create-success'&&Date.parse(e.at)>=cutoff);
 }
-function checkRecentCreatedTasksPresence(rowsByTable){
+async function checkRecentCreatedTasksPresence(rowsByTable){
   const rows=rowsByTable||{};
   const missing=recentCreatedTaskEvents().filter(e=>{
     const list=rows[e.table]||[];
@@ -847,8 +848,31 @@ function checkRecentCreatedTasksPresence(rowsByTable){
   });
   if(!missing.length)return;
   const uniq=[...new Map(missing.map(e=>[e.id,e])).values()];
-  console.warn('[task-audit] 최근 추가했지만 현재 DB 조회에서 빠진 숙제',uniq);
-  toast(`최근 추가한 숙제 ${uniq.length}개가 DB 조회에서 빠졌습니다. 콘솔의 [task-audit]를 확인하세요.`);
+  const directRows=[];
+  for(const table of ['tasks','expedition_tasks']){
+    const ids=uniq.filter(e=>e.table===table).map(e=>e.id);
+    if(!ids.length)continue;
+    const {data,error}=await sb.from(table).select('*').in('id',ids);
+    if(error){
+      auditTaskEvent('missing-direct-check-fail',{table,ids,error:error.message||String(error)});
+      continue;
+    }
+    (data||[]).forEach(row=>directRows.push({table,row}));
+  }
+  const directIds=new Set(directRows.map(x=>x.row.id));
+  const trulyMissing=uniq.filter(e=>!directIds.has(e.id));
+  const presentButUnloaded=directRows.map(({table,row})=>{
+    const ownerField=table==='tasks'?'character_id':'account_id';
+    const expected=uniq.find(e=>e.id===row.id);
+    const ownerLoaded=table==='tasks'?state.chars.some(c=>c.id===row[ownerField]):state.accounts.some(a=>a.id===row[ownerField]);
+    return{table,id:row.id,name:row.name,expectedOwnerId:expected?.ownerId||null,dbOwnerId:row[ownerField],ownerLoaded,reset_type:row.reset_type,parent_id:row.parent_id||null};
+  });
+  if(trulyMissing.length)auditTaskEvent('missing-after-create',{items:trulyMissing});
+  if(presentButUnloaded.length)auditTaskEvent('present-but-not-loaded-after-create',{items:presentButUnloaded});
+  console.warn('[task-audit] 최근 추가했지만 현재 목록 조회에서 빠진 숙제',{trulyMissing,presentButUnloaded});
+  const missingCount=trulyMissing.length;
+  const unloadedCount=presentButUnloaded.length;
+  toast(`최근 추가한 숙제 누락 감지: DB 없음 ${missingCount}개, 목록 미포함 ${unloadedCount}개. 콘솔 [task-audit] 확인.`);
 }
 
 async function init(){
@@ -877,6 +901,7 @@ async function reloadAll(){
   state.chars=charRes.data||[];
   const firstVisible=visibleAccounts()[0]||state.accounts[0]||null;
   if(!state.selectedAccount||!state.accounts.some(a=>a.id===state.selectedAccount)||(!state.showHiddenAccounts&&state.hiddenAccounts.has(state.selectedAccount)))state.selectedAccount=firstVisible?.id||null;
+  if(state.selectedAccount)localStorage.setItem(LAST_ACCOUNT_KEY,state.selectedAccount);
   await loadAccountData();
   state.lastResetBoundaryKey=getOpenPageResetBoundaryKey();
   render();
@@ -898,7 +923,7 @@ async function loadAccountData(){
   state.currencies=currencyRes.buckets;
   state.notes=noteRes.buckets;
   state.expTasks=expRes.buckets;
-  checkRecentCreatedTasksPresence({tasks:taskRes.rows,expedition_tasks:expRes.rows});
+  await checkRecentCreatedTasksPresence({tasks:taskRes.rows,expedition_tasks:expRes.rows});
   await Promise.all([
     autoResetTasks(taskRes.rows,'tasks'),
     autoResetRaidList(raidRes.rows),
@@ -933,7 +958,7 @@ function targetCharLabel(c){
 function selectedCharsForAccount(){return state.chars.filter(c=>c.account_id===state.selectedAccount);}
 function visibleChars(){return selectedCharsForAccount();}
 function setMode(mode){if(mode===state.mode)return;saveViewScroll(state.mode);state.mode=mode;state.selectedChar='all';render();}
-async function selectAccount(id){state.selectedAccount=id;state.selectedChar='all';await loadRaidMetaForCurrent();render();}
+async function selectAccount(id){state.selectedAccount=id;state.selectedChar='all';if(id)localStorage.setItem(LAST_ACCOUNT_KEY,id);await loadRaidMetaForCurrent();render();}
 function selectChar(id){state.selectedChar=id;render();}
 async function showPartyLinkPopup(presetId,taskId,charId){
   const el=document.getElementById('party-link-content');
@@ -1108,6 +1133,7 @@ async function toggleShowHiddenAccounts(){
   state.showHiddenAccounts=!state.showHiddenAccounts;
   const first=visibleAccounts()[0]||state.accounts[0]||null;
   if(!state.selectedAccount||(!state.showHiddenAccounts&&state.hiddenAccounts.has(state.selectedAccount)))state.selectedAccount=first?.id||null;
+  if(state.selectedAccount)localStorage.setItem(LAST_ACCOUNT_KEY,state.selectedAccount);
   await loadRaidMetaForCurrent();
   render();
   renderAccountSettings();
@@ -1117,6 +1143,7 @@ async function toggleHideAccount(event,id){
   if(state.hiddenAccounts.has(id))state.hiddenAccounts.delete(id);else state.hiddenAccounts.add(id);
   localStorage.setItem('la_hidden_accs',JSON.stringify([...state.hiddenAccounts]));
   if(!state.showHiddenAccounts&&state.selectedAccount===id)state.selectedAccount=(visibleAccounts()[0]||state.accounts[0]||{}).id||null;
+  if(state.selectedAccount)localStorage.setItem(LAST_ACCOUNT_KEY,state.selectedAccount);
   await loadRaidMetaForCurrent();
   render();
   renderAccountSettings();
@@ -1890,8 +1917,12 @@ async function deleteAccountFromModal(){if(state.editAccountId)await deleteAccou
 async function deleteAccount(id){
   const acc=state.accounts.find(a=>a.id===id);if(!acc)return;
   if(!confirm(`"${acc.name}" 계정과 모든 캐릭터/숙제를 삭제하시겠습니까?`))return;
+  const charIds=state.chars.filter(c=>c.account_id===id).map(c=>c.id);
+  const taskIds=charIds.flatMap(charId=>(state.tasks[charId]||[]).map(t=>t.id));
+  const expTaskIds=(state.expTasks[id]||[]).map(t=>t.id);
   const {error}=await sb.from('accounts').delete().eq('id',id);
-  if(error){toast('계정 삭제 실패');return;}
+  if(error){auditTaskEvent('account-delete-fail',{accountId:id,name:acc.name,error:error.message||String(error)});toast('계정 삭제 실패');return;}
+  auditTaskEvent('account-delete-success',{accountId:id,name:acc.name,charIds,taskIds,expTaskIds});
   if(document.getElementById('modal-account')?.classList.contains('open'))closeModal('modal-account');
   state.selectedAccount=null;await reloadAll();
 }
@@ -1958,8 +1989,11 @@ async function deleteCharacterFromModal(){if(state.editCharacterId)await deleteC
 async function deleteCharacter(id){
   const ch=state.chars.find(c=>c.id===id);if(!ch)return;
   if(!confirm(`"${ch.name}" 캐릭터와 모든 숙제를 삭제하시겠습니까?`))return;
+  const taskIds=(state.tasks[id]||[]).map(t=>t.id);
+  const raidTaskIds=(state.raidTasks[id]||[]).map(t=>t.id);
   const {error}=await sb.from('characters').delete().eq('id',id);
-  if(error){toast('캐릭터 삭제 실패');return;}
+  if(error){auditTaskEvent('character-delete-fail',{characterId:id,name:ch.name,error:error.message||String(error)});toast('캐릭터 삭제 실패');return;}
+  auditTaskEvent('character-delete-success',{characterId:id,name:ch.name,accountId:ch.account_id,taskIds,raidTaskIds});
   closeModal('modal-character');await reloadAll();
 }
 
