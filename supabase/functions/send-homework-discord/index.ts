@@ -162,11 +162,60 @@ function pushChunks(chunks: string[], block: string) {
   }
 }
 
+function waitWebhookUrl(webhookUrl: string) {
+  return webhookUrl.includes("?") ? `${webhookUrl}&wait=true` : `${webhookUrl}?wait=true`;
+}
+
+function nextDeleteAfterKst(kind: "raid" | "homework") {
+  const spec = kind === "homework" ? { day: 3, hour: 6 } : { day: 2, hour: 22 };
+  const now = new Date();
+  const kst = new Date(now.getTime() + 9 * 3600000);
+  let addDays = (spec.day - kst.getUTCDay() + 7) % 7;
+  let target = new Date(Date.UTC(
+    kst.getUTCFullYear(),
+    kst.getUTCMonth(),
+    kst.getUTCDate() + addDays,
+    spec.hour - 9,
+    0,
+    0,
+  ));
+  if (target <= now) {
+    addDays += 7;
+    target = new Date(Date.UTC(
+      kst.getUTCFullYear(),
+      kst.getUTCMonth(),
+      kst.getUTCDate() + addDays,
+      spec.hour - 9,
+      0,
+      0,
+    ));
+  }
+  return target.toISOString();
+}
+
+async function trackDiscordMessage(sb: any, message: any, webhookEnv: string, content: string) {
+  if (!message?.id) return false;
+  const { error } = await sb.from("discord_sent_messages").insert({
+    kind: "homework",
+    webhook_env: webhookEnv,
+    message_id: String(message.id),
+    delete_after: nextDeleteAfterKst("homework"),
+    content_preview: content.slice(0, 500),
+  });
+  if (error) {
+    console.warn("[discord-message-track]", error);
+    return false;
+  }
+  return true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
-  const webhookUrl = Deno.env.get("DISCORD_HOMEWORK_WEBHOOK_URL") || Deno.env.get("DISCORD_RAID_WEBHOOK_URL");
+  const homeworkWebhookUrl = Deno.env.get("DISCORD_HOMEWORK_WEBHOOK_URL");
+  const webhookUrl = homeworkWebhookUrl || Deno.env.get("DISCORD_RAID_WEBHOOK_URL");
+  const webhookEnv = homeworkWebhookUrl ? "DISCORD_HOMEWORK_WEBHOOK_URL" : "DISCORD_RAID_WEBHOOK_URL";
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!webhookUrl) return json({ error: "DISCORD_HOMEWORK_WEBHOOK_URL 또는 DISCORD_RAID_WEBHOOK_URL Secret이 없습니다." }, 500);
@@ -230,8 +279,9 @@ Deno.serve(async (req) => {
 
     if (!chunks.length) chunks.push("모든 숙제가 완료되었습니다.");
 
+    let trackedCount = 0;
     for (const content of chunks) {
-      const discordRes = await fetch(webhookUrl, {
+      const discordRes = await fetch(waitWebhookUrl(webhookUrl), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content, allowed_mentions: { parse: [] } }),
@@ -240,9 +290,11 @@ Deno.serve(async (req) => {
         const text = await discordRes.text().catch(() => "");
         return json({ error: `Discord 전송 실패: ${discordRes.status} ${text}` }, 502);
       }
+      const message = await discordRes.json().catch(() => null);
+      if (await trackDiscordMessage(sb, message, webhookEnv, content)) trackedCount += 1;
     }
 
-    return json({ ok: true, accountCount: accounts.length, incompleteCount, chunks: chunks.length });
+    return json({ ok: true, accountCount: accounts.length, incompleteCount, chunks: chunks.length, trackedCount });
   } catch (error) {
     return json({ error: error instanceof Error ? error.message : String(error) }, 500);
   }

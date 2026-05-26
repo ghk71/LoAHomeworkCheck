@@ -216,6 +216,20 @@ create table if not exists share_links(
   created_at timestamptz default now()
 );
 
+-- Discord Webhook 전송 메시지 삭제 예약
+create table if not exists discord_sent_messages(
+  id uuid default uuid_generate_v4() primary key,
+  kind text not null,
+  webhook_env text not null,
+  message_id text not null,
+  delete_after timestamptz not null,
+  deleted_at timestamptz,
+  delete_attempts int default 0,
+  last_error text,
+  content_preview text,
+  created_at timestamptz default now()
+);
+
 alter table accounts          disable row level security;
 alter table characters        disable row level security;
 alter table tasks             disable row level security;
@@ -232,6 +246,7 @@ alter table raid_schedules    disable row level security;
 alter table raid_schedule_overrides disable row level security;
 alter table raid_notices      disable row level security;
 alter table raid_notice_comments disable row level security;
+alter table discord_sent_messages disable row level security;
 
 -- ★ 기존 설치 업데이트용 (이미 있는 DB에서 실행 시)
 alter table accounts         add column if not exists sort_order int default 0;
@@ -318,6 +333,21 @@ alter table currencies add column if not exists updated_at timestamptz;
 -- 임시 파티 변경사항 추적 (주 초기화 시 복원용)
 alter table raid_schedule_overrides add column if not exists temp_changes jsonb default '{}';
 
+-- Discord Webhook 전송 메시지 삭제 예약
+create table if not exists discord_sent_messages(
+  id uuid default uuid_generate_v4() primary key,
+  kind text not null,
+  webhook_env text not null,
+  message_id text not null,
+  delete_after timestamptz not null,
+  deleted_at timestamptz,
+  delete_attempts int default 0,
+  last_error text,
+  content_preview text,
+  created_at timestamptz default now()
+);
+alter table discord_sent_messages disable row level security;
+
 -- 성능 최적화용 인덱스 (중복 실행 안전)
 create index if not exists idx_characters_account_sort on characters(account_id, sort_order, created_at);
 create index if not exists idx_tasks_character_parent_sort on tasks(character_id, parent_id, sort_order, created_at);
@@ -335,3 +365,4 @@ create index if not exists idx_raid_party_members_party_slot on raid_party_membe
 create index if not exists idx_raid_schedules_party_day_sort on raid_schedules(party_id, day_of_week, sort_order, created_at);
 create index if not exists idx_raid_schedule_overrides_week on raid_schedule_overrides(week_start_date);
 create index if not exists idx_raid_notice_comments_week_created on raid_notice_comments(week_start_date, created_at);
+create index if not exists idx_discord_sent_messages_due on discord_sent_messages(kind, delete_after) where deleted_at is null;

@@ -2489,3 +2489,35 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - `git diff --check` 통과. CRLF 경고만 있음.
 - `deno`가 설치되어 있지 않아 Edge Function 타입 체크는 실행하지 못했습니다.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+## 2026-05-26 - Discord Webhook 메시지 예약 삭제
+
+### 변경 내용
+- `schema.sql`에 `discord_sent_messages` 테이블과 due index를 추가했습니다.
+- `send-raid-discord`가 Discord Webhook 전송 시 `wait=true`로 message id를 받아 저장하도록 변경했습니다.
+  - `kind='raid'`
+  - 삭제 예정 시각: 다음 화요일 22:00 KST
+- `send-homework-discord`도 각 메시지 chunk의 Discord message id를 저장하도록 변경했습니다.
+  - `kind='homework'`
+  - 삭제 예정 시각: 다음 수요일 06:00 KST
+- `supabase/functions/delete-discord-messages/index.ts`를 추가했습니다.
+  - `discord_sent_messages`에서 `delete_after <= now()`이고 아직 삭제되지 않은 메시지를 조회합니다.
+  - 저장된 `webhook_env` 기준으로 Webhook Secret을 읽고 Discord Webhook Message DELETE API를 호출합니다.
+  - 삭제 성공 또는 Discord 404는 `deleted_at` 처리하고, 실패는 `delete_attempts`/`last_error`에 기록합니다.
+- `supabase/functions/delete-discord-messages/cron.sql`을 추가했습니다.
+  - 레이드 메시지 삭제: 화요일 22:00 KST (`0 13 * * 2` UTC)
+  - 숙제 메시지 삭제: 수요일 06:00 KST (`0 21 * * 2` UTC)
+- `DB_MIGRATION_LOG.md`에 테이블 SQL, Cron SQL, 필요한 배포/Secret 정보를 기록했습니다.
+
+### 운영 메모
+- 새 `delete-discord-messages` Edge Function 배포가 필요합니다.
+- 수정된 `send-raid-discord`, `send-homework-discord`도 재배포해야 새 메시지 id 저장이 동작합니다.
+- Supabase SQL Editor에서 `discord_sent_messages` 테이블 SQL과 Cron SQL을 실행해야 자동 삭제가 활성화됩니다.
+- Discord 문서 기준 Webhook execute는 `wait=true`일 때 생성된 message body를 반환하고, Webhook message delete endpoint로 해당 Webhook이 보낸 메시지를 삭제할 수 있습니다.
+
+### 검증
+- 5개 주요 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 5개 주요 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 경고만 있음.
+- 변경/추가 파일 BOM 없음 확인.
+- `deno`가 설치되어 있지 않아 Edge Function 타입 체크는 실행하지 못했습니다.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.

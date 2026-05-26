@@ -348,3 +348,82 @@ select cron.schedule(
 
 ### 적용 여부
 - 수동 확인 필요.
+
+## 2026-05-26 - Discord 전송 메시지 예약 삭제
+
+### 목적
+- `send-raid-discord`로 보낸 레이드 일정 메시지는 매주 화요일 22:00(KST)에 삭제.
+- `send-homework-discord`로 보낸 미완료 숙제 메시지는 매주 수요일 06:00(KST)에 삭제.
+- Discord Webhook 메시지 삭제를 위해 전송 시 message id를 저장.
+
+### SQL
+
+```sql
+create table if not exists discord_sent_messages(
+  id uuid default uuid_generate_v4() primary key,
+  kind text not null,
+  webhook_env text not null,
+  message_id text not null,
+  delete_after timestamptz not null,
+  deleted_at timestamptz,
+  delete_attempts int default 0,
+  last_error text,
+  content_preview text,
+  created_at timestamptz default now()
+);
+
+alter table discord_sent_messages disable row level security;
+
+create index if not exists idx_discord_sent_messages_due
+on discord_sent_messages(kind, delete_after)
+where deleted_at is null;
+```
+
+### Cron SQL
+
+```sql
+create extension if not exists pg_cron with schema extensions;
+create extension if not exists pg_net with schema extensions;
+
+-- 화요일 22:00 KST = 화요일 13:00 UTC
+select cron.schedule(
+  'delete-raid-discord-messages-tue-22-kst',
+  '0 13 * * 2',
+  $$
+  select net.http_post(
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'project_url') || '/functions/v1/delete-discord-messages',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'publishable_key')
+    ),
+    body := '{"kind":"raid"}'::jsonb
+  ) as request_id;
+  $$
+);
+
+-- 수요일 06:00 KST = 화요일 21:00 UTC
+select cron.schedule(
+  'delete-homework-discord-messages-wed-06-kst',
+  '0 21 * * 2',
+  $$
+  select net.http_post(
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'project_url') || '/functions/v1/delete-discord-messages',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'publishable_key')
+    ),
+    body := '{"kind":"homework"}'::jsonb
+  ) as request_id;
+  $$
+);
+```
+
+### 적용 파일
+- `schema.sql`
+- `supabase/functions/send-raid-discord/index.ts`
+- `supabase/functions/send-homework-discord/index.ts`
+- `supabase/functions/delete-discord-messages/index.ts`
+- `supabase/functions/delete-discord-messages/cron.sql`
+
+### 적용 여부
+- 수동 확인 필요.

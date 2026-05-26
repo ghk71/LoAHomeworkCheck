@@ -81,6 +81,53 @@ function raidLabel(preset: any) {
   return diff ? `${name} ${diff}` : name;
 }
 
+function waitWebhookUrl(webhookUrl: string) {
+  return webhookUrl.includes("?") ? `${webhookUrl}&wait=true` : `${webhookUrl}?wait=true`;
+}
+
+function nextDeleteAfterKst(kind: "raid" | "homework") {
+  const spec = kind === "homework" ? { day: 3, hour: 6 } : { day: 2, hour: 22 };
+  const now = new Date();
+  const kst = new Date(now.getTime() + 9 * 3600000);
+  let addDays = (spec.day - kst.getUTCDay() + 7) % 7;
+  let target = new Date(Date.UTC(
+    kst.getUTCFullYear(),
+    kst.getUTCMonth(),
+    kst.getUTCDate() + addDays,
+    spec.hour - 9,
+    0,
+    0,
+  ));
+  if (target <= now) {
+    addDays += 7;
+    target = new Date(Date.UTC(
+      kst.getUTCFullYear(),
+      kst.getUTCMonth(),
+      kst.getUTCDate() + addDays,
+      spec.hour - 9,
+      0,
+      0,
+    ));
+  }
+  return target.toISOString();
+}
+
+async function trackDiscordMessage(sb: any, message: any, content: string) {
+  if (!message?.id) return false;
+  const { error } = await sb.from("discord_sent_messages").insert({
+    kind: "raid",
+    webhook_env: "DISCORD_RAID_WEBHOOK_URL",
+    message_id: String(message.id),
+    delete_after: nextDeleteAfterKst("raid"),
+    content_preview: content.slice(0, 500),
+  });
+  if (error) {
+    console.warn("[discord-message-track]", error);
+    return false;
+  }
+  return true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -272,7 +319,7 @@ Deno.serve(async (req) => {
     shareUrl ? `일정 참조: ${shareUrl}` : "",
   ].filter((line, idx, arr) => line || idx < arr.length - 1).join("\n");
 
-  const discordRes = await fetch(webhookUrl, {
+  const discordRes = await fetch(waitWebhookUrl(webhookUrl), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content, allowed_mentions: { parse: [] } }),
@@ -282,6 +329,8 @@ Deno.serve(async (req) => {
     const text = await discordRes.text().catch(() => "");
     return json({ error: `Discord 전송 실패: ${discordRes.status} ${text}` }, 502);
   }
+  const message = await discordRes.json().catch(() => null);
+  const tracked = await trackDiscordMessage(sb, message, content);
 
-  return json({ ok: true, sentLines: scheduleLines.length, content });
+  return json({ ok: true, sentLines: scheduleLines.length, content, tracked });
 });
