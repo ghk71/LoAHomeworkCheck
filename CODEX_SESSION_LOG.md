@@ -2521,3 +2521,36 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 변경/추가 파일 BOM 없음 확인.
 - `deno`가 설치되어 있지 않아 Edge Function 타입 체크는 실행하지 못했습니다.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+## 2026-05-26 - 레이드 일정 자동 전송 체크
+
+### 변경 내용
+- `supabase/functions/auto-send-raid-discord/index.ts`를 추가했습니다.
+  - 이번 주 `raid` 메시지가 이미 전송되었는지 `discord_sent_messages.kind='raid'` + `week_start_date`로 확인합니다.
+  - 아직 전송 기록이 없으면 `raid.html` 우측 `미배치 파티`와 같은 기준으로 이번 주 미배치 파티 수를 계산합니다.
+  - 미배치 파티가 1개라도 있으면 전송하지 않고 `reason='unplaced-parties'`로 반환합니다.
+  - 미배치 파티가 0개면 `send-raid-discord` Edge Function을 호출해 메시지를 전송합니다.
+- `supabase/functions/auto-send-raid-discord/cron.sql`을 추가했습니다.
+  - 수요일 10:00 KST 체크: `0 1 * * 3` UTC
+  - 수요일 18:00 KST 체크: `0 9 * * 3` UTC
+- `discord_sent_messages.week_start_date` 컬럼과 `idx_discord_sent_messages_week` 인덱스를 `schema.sql`에 추가했습니다.
+- `send-raid-discord`가 전송 기록 저장 시 현재 레이드 주차 `week_start_date`를 함께 저장하도록 변경했습니다.
+- `send-homework-discord`도 추적 기록에 현재 주차 `week_start_date`를 저장하도록 정리했습니다.
+- `DB_MIGRATION_LOG.md`에 자동 전송 체크 Cron SQL과 판정 기준을 기록했습니다.
+
+### 판정 기준
+- `raid.html`의 `unplacedPartiesForWeek()`와 동일하게, 이번 주 유효한 `raid_parties` 중 `raid_schedules`에 배치되지 않은 파티가 하나라도 있으면 전송하지 않습니다.
+- 임시 파티는 `temp_week_start_date`가 이번 주인 경우만 이번 주 파티로 봅니다.
+- 고정 일정은 배치 완료로 보고, 비고정 일정은 이번 주 생성된 일정만 배치 완료로 봅니다.
+
+### 운영 메모
+- 새 `auto-send-raid-discord` Edge Function 배포가 필요합니다.
+- 수정된 `send-raid-discord`, `send-homework-discord`도 재배포해야 `week_start_date` 저장이 동작합니다.
+- Supabase SQL Editor에서 `discord_sent_messages.week_start_date` 컬럼/인덱스 SQL과 `auto-send-raid-discord/cron.sql`을 적용해야 자동 체크가 활성화됩니다.
+
+### 검증
+- 5개 주요 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 5개 주요 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 경고만 있음.
+- 변경/추가 파일 BOM 없음 확인.
+- `deno`가 설치되어 있지 않아 Edge Function 타입 체크는 실행하지 못했습니다.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.

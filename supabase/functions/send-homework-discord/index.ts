@@ -193,10 +193,21 @@ function nextDeleteAfterKst(kind: "raid" | "homework") {
   return target.toISOString();
 }
 
+function weekKey() {
+  const kst = new Date(Date.now() + 9 * 3600000);
+  let back = (kst.getUTCDay() - 3 + 7) % 7;
+  if (back === 0 && kst.getUTCHours() < 6) back = 7;
+  const ws = new Date(kst);
+  ws.setUTCDate(ws.getUTCDate() - back);
+  ws.setUTCHours(6, 0, 0, 0);
+  return `${ws.getUTCFullYear()}-${String(ws.getUTCMonth() + 1).padStart(2, "0")}-${String(ws.getUTCDate()).padStart(2, "0")}`;
+}
+
 async function trackDiscordMessage(sb: any, message: any, webhookEnv: string, content: string) {
   if (!message?.id) return false;
   const { error } = await sb.from("discord_sent_messages").insert({
     kind: "homework",
+    week_start_date: weekKey(),
     webhook_env: webhookEnv,
     message_id: String(message.id),
     delete_after: nextDeleteAfterKst("homework"),

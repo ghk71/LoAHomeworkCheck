@@ -220,6 +220,7 @@ create table if not exists share_links(
 create table if not exists discord_sent_messages(
   id uuid default uuid_generate_v4() primary key,
   kind text not null,
+  week_start_date text,
   webhook_env text not null,
   message_id text not null,
   delete_after timestamptz not null,
@@ -337,6 +338,7 @@ alter table raid_schedule_overrides add column if not exists temp_changes jsonb 
 create table if not exists discord_sent_messages(
   id uuid default uuid_generate_v4() primary key,
   kind text not null,
+  week_start_date text,
   webhook_env text not null,
   message_id text not null,
   delete_after timestamptz not null,
@@ -346,6 +348,7 @@ create table if not exists discord_sent_messages(
   content_preview text,
   created_at timestamptz default now()
 );
+alter table discord_sent_messages add column if not exists week_start_date text;
 alter table discord_sent_messages disable row level security;
 
 -- 성능 최적화용 인덱스 (중복 실행 안전)
@@ -366,3 +369,4 @@ create index if not exists idx_raid_schedules_party_day_sort on raid_schedules(p
 create index if not exists idx_raid_schedule_overrides_week on raid_schedule_overrides(week_start_date);
 create index if not exists idx_raid_notice_comments_week_created on raid_notice_comments(week_start_date, created_at);
 create index if not exists idx_discord_sent_messages_due on discord_sent_messages(kind, delete_after) where deleted_at is null;
+create index if not exists idx_discord_sent_messages_week on discord_sent_messages(kind, week_start_date, created_at);

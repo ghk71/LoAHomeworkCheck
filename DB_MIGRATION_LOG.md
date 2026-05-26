@@ -362,6 +362,7 @@ select cron.schedule(
 create table if not exists discord_sent_messages(
   id uuid default uuid_generate_v4() primary key,
   kind text not null,
+  week_start_date text,
   webhook_env text not null,
   message_id text not null,
   delete_after timestamptz not null,
@@ -377,6 +378,9 @@ alter table discord_sent_messages disable row level security;
 create index if not exists idx_discord_sent_messages_due
 on discord_sent_messages(kind, delete_after)
 where deleted_at is null;
+
+create index if not exists idx_discord_sent_messages_week
+on discord_sent_messages(kind, week_start_date, created_at);
 ```
 
 ### Cron SQL
@@ -424,6 +428,79 @@ select cron.schedule(
 - `supabase/functions/send-homework-discord/index.ts`
 - `supabase/functions/delete-discord-messages/index.ts`
 - `supabase/functions/delete-discord-messages/cron.sql`
+
+### 적용 여부
+- 수동 확인 필요.
+
+## 2026-05-26 - 레이드 일정 자동 전송 체크 Cron
+
+### 목적
+- 매주 수요일 10:00(KST)에 이번 주 레이드 일정 메시지를 보냈는지 확인.
+- 아직 보내지 않았고, `raid.html` 우측 `미배치 파티` 목록이 비어 있으면 `send-raid-discord` 자동 호출.
+- 10:00에 미배치 파티가 하나라도 있으면 보내지 않고, 수요일 18:00(KST)에 같은 조건을 다시 확인.
+
+### 판정 기준
+- `raid.html`의 `unplacedPartiesForWeek()`와 같은 기준입니다.
+- 이번 주에 유효한 `raid_parties` 중 `raid_schedules`에 배치되지 않은 파티가 1개라도 있으면 전송하지 않습니다.
+- 임시 파티는 `temp_week_start_date = 이번 주`인 경우만 이번 주 파티로 봅니다.
+- 고정 일정은 항상 배치된 일정으로 봅니다.
+- 비고정 일정은 이번 주 생성된 일정만 배치된 일정으로 봅니다.
+
+### 추가/변경
+- `discord_sent_messages.week_start_date` 컬럼으로 이번 주 레이드 메시지를 이미 보냈는지 판정합니다.
+
+```sql
+alter table discord_sent_messages add column if not exists week_start_date text;
+
+create index if not exists idx_discord_sent_messages_week
+on discord_sent_messages(kind, week_start_date, created_at);
+```
+
+### Cron SQL
+
+```sql
+create extension if not exists pg_cron with schema extensions;
+create extension if not exists pg_net with schema extensions;
+
+-- 수요일 10:00 KST = 수요일 01:00 UTC
+select cron.schedule(
+  'auto-send-raid-discord-wed-10-kst',
+  '0 1 * * 3',
+  $$
+  select net.http_post(
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'project_url') || '/functions/v1/auto-send-raid-discord',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'publishable_key')
+    ),
+    body := '{"source":"cron-wed-10"}'::jsonb
+  ) as request_id;
+  $$
+);
+
+-- 수요일 18:00 KST = 수요일 09:00 UTC
+select cron.schedule(
+  'auto-send-raid-discord-wed-18-kst',
+  '0 9 * * 3',
+  $$
+  select net.http_post(
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'project_url') || '/functions/v1/auto-send-raid-discord',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'publishable_key')
+    ),
+    body := '{"source":"cron-wed-18"}'::jsonb
+  ) as request_id;
+  $$
+);
+```
+
+### 적용 파일
+- `schema.sql`
+- `supabase/functions/auto-send-raid-discord/index.ts`
+- `supabase/functions/auto-send-raid-discord/cron.sql`
+- `supabase/functions/send-raid-discord/index.ts`
+- `supabase/functions/send-homework-discord/index.ts`
 
 ### 적용 여부
 - 수동 확인 필요.

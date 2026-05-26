@@ -112,10 +112,11 @@ function nextDeleteAfterKst(kind: "raid" | "homework") {
   return target.toISOString();
 }
 
-async function trackDiscordMessage(sb: any, message: any, content: string) {
+async function trackDiscordMessage(sb: any, message: any, content: string, weekStartDate: string) {
   if (!message?.id) return false;
   const { error } = await sb.from("discord_sent_messages").insert({
     kind: "raid",
+    week_start_date: weekStartDate,
     webhook_env: "DISCORD_RAID_WEBHOOK_URL",
     message_id: String(message.id),
     delete_after: nextDeleteAfterKst("raid"),
@@ -330,7 +331,7 @@ Deno.serve(async (req) => {
     return json({ error: `Discord 전송 실패: ${discordRes.status} ${text}` }, 502);
   }
   const message = await discordRes.json().catch(() => null);
-  const tracked = await trackDiscordMessage(sb, message, content);
+  const tracked = await trackDiscordMessage(sb, message, content, wk);
 
   return json({ ok: true, sentLines: scheduleLines.length, content, tracked });
 });
