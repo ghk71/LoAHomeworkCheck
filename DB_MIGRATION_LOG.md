@@ -305,3 +305,46 @@ ALTER TABLE raid_schedule_overrides ADD COLUMN IF NOT EXISTS schedule_overrides 
 - `raid.html`
 - `supabase/functions/create-share-link/index.ts`
 - `supabase/functions/resolve-share/index.ts`
+
+## 2026-05-26 - 미완료 숙제 Discord 자동 전송 Cron
+
+### 목적
+- 매주 화요일 오후 8시(KST)에 `send-homework-discord` Edge Function을 호출해 미완료 캐릭터 숙제 / 주간·월간 숙제 / 계정 숙제 요약을 Discord Webhook으로 전송.
+
+### 사전 준비
+- `supabase/functions/send-homework-discord/index.ts` 배포.
+- Supabase Edge Function Secret 설정:
+  - `DISCORD_HOMEWORK_WEBHOOK_URL` 또는 기존 `DISCORD_RAID_WEBHOOK_URL`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+- Supabase Vault Secret 설정:
+
+```sql
+select vault.create_secret('https://프로젝트-ref.supabase.co', 'project_url');
+select vault.create_secret('프로젝트 anon/publishable key', 'publishable_key');
+```
+
+### SQL
+
+```sql
+create extension if not exists pg_cron with schema extensions;
+create extension if not exists pg_net with schema extensions;
+
+select cron.schedule(
+  'send-homework-discord-tue-20-kst',
+  '0 11 * * 2',
+  $$
+  select
+    net.http_post(
+      url := (select decrypted_secret from vault.decrypted_secrets where name = 'project_url') || '/functions/v1/send-homework-discord',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'publishable_key')
+      ),
+      body := '{"source":"cron","includeFilterHidden":false}'::jsonb
+    ) as request_id;
+  $$
+);
+```
+
+### 적용 여부
+- 수동 확인 필요.

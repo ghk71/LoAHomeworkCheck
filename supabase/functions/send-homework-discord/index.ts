@@ -1,0 +1,249 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function kstNow() {
+  return new Date();
+}
+
+function getLastResetUTC(type: string, day = 3) {
+  const now = kstNow();
+  let result: Date;
+  if (type === "daily") {
+    result = new Date(now);
+    result.setUTCHours(21, 0, 0, 0);
+    if (now < result) result.setUTCDate(result.getUTCDate() - 1);
+  } else if (type === "monthly") {
+    const kst = new Date(now.getTime() + 9 * 3600000);
+    result = new Date(Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), 0, 21, 0, 0));
+    if (now < result) result = new Date(Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth() - 1, 0, 21, 0, 0));
+  } else {
+    const rDay = (Number(day) + 6) % 7;
+    result = new Date(now);
+    result.setUTCHours(21, 0, 0, 0);
+    let back = (now.getUTCDay() - rDay + 7) % 7;
+    if (back === 0 && now < result) back = 7;
+    result.setUTCDate(result.getUTCDate() - back);
+  }
+  return result;
+}
+
+function getPreviousResetBoundary(type: string, boundary: Date) {
+  const prev = new Date(boundary);
+  if (type === "daily") {
+    prev.setUTCDate(prev.getUTCDate() - 1);
+    return prev;
+  }
+  if (type === "monthly") {
+    const kst = new Date(prev.getTime() + 9 * 3600000);
+    return new Date(Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth() - 1, 0, 21, 0, 0));
+  }
+  prev.setUTCDate(prev.getUTCDate() - 7);
+  return prev;
+}
+
+function getResetBoundariesSince(task: any, latest: Date) {
+  const type = String(task.reset_type || "daily");
+  const created = task.created_at ? new Date(task.created_at) : latest;
+  const cursor = task.rest_last_processed_at ? new Date(task.rest_last_processed_at) : new Date(created.getTime() - 1000);
+  const stack: Date[] = [];
+  let b = new Date(latest);
+  while (b > cursor && stack.length < 62) {
+    stack.unshift(new Date(b));
+    b = getPreviousResetBoundary(type, b);
+  }
+  return stack.filter((x) => x > cursor && x <= latest);
+}
+
+function effectiveRestCurrent(task: any) {
+  if (!task.rest_enabled) return Number(task.rest_current || 0);
+  const latest = getLastResetUTC(String(task.reset_type || "daily"), Number(task.reset_day ?? 3));
+  let cur = Math.max(0, Number(task.rest_current) || 0);
+  const max = Math.max(1, Number(task.rest_max) || 200);
+  const charge = Math.max(0, Number(task.rest_charge) || 0);
+  const completedAt = task.last_completed_at ? new Date(task.last_completed_at) : null;
+  for (const b of getResetBoundariesSince(task, latest)) {
+    const prev = getPreviousResetBoundary(String(task.reset_type || "daily"), b);
+    const completedInCycle = !!(completedAt && completedAt > prev && completedAt <= b);
+    if (!completedInCycle) cur = Math.min(max, cur + charge);
+  }
+  return cur;
+}
+
+function countIsCurrent(task: any) {
+  return !!(task.last_completed_at && new Date(task.last_completed_at) > getLastResetUTC(String(task.reset_type || "daily"), Number(task.reset_day ?? 3)));
+}
+
+function isDone(task: any) {
+  const current = countIsCurrent(task);
+  if (task.rest_enabled) {
+    const max = Math.max(1, Number(task.rest_daily_limit) || 1);
+    if (current && Number(task.count_current || 0) >= max) return true;
+  }
+  if (task.count_max != null && current && Number(task.count_current || 0) >= Number(task.count_max || 0)) return true;
+  return !!(task.is_completed && task.last_completed_at && new Date(task.last_completed_at) > getLastResetUTC(String(task.reset_type || "daily"), Number(task.reset_day ?? 3)));
+}
+
+function isActive(task: any) {
+  if (task.rest_enabled && effectiveRestCurrent(task) < Number(task.rest_threshold || 0)) return false;
+  if (task.activate_day == null) return true;
+  return getLastResetUTC("weekly", Number(task.activate_day)) >= getLastResetUTC(String(task.reset_type || "daily"), Number(task.reset_day ?? 3));
+}
+
+function isDaily(task: any) {
+  return String(task.reset_type || "daily") === "daily";
+}
+
+function isWeeklyMonthly(task: any) {
+  return !isDaily(task);
+}
+
+function sortRows(rows: any[]) {
+  return [...rows].sort((a, b) => {
+    const sort = Number(a.sort_order || 0) - Number(b.sort_order || 0);
+    if (sort) return sort;
+    return String(a.created_at || "").localeCompare(String(b.created_at || ""));
+  });
+}
+
+function incompleteRootLabels(rows: any[], predicate: (task: any) => boolean) {
+  const filtered = rows.filter(predicate);
+  const childrenByParent = new Map<string, any[]>();
+  for (const task of filtered) {
+    if (!task.parent_id) continue;
+    if (!childrenByParent.has(task.parent_id)) childrenByParent.set(task.parent_id, []);
+    childrenByParent.get(task.parent_id)!.push(task);
+  }
+  const labels: string[] = [];
+  for (const root of sortRows(filtered.filter((task) => !task.parent_id))) {
+    if (!isActive(root) || isDone(root)) continue;
+    const children = sortRows((childrenByParent.get(root.id) || []).filter(isActive));
+    const incompleteChildren = children.filter((child) => !isDone(child));
+    if (children.length && incompleteChildren.length) {
+      labels.push(`${root.name}(${incompleteChildren.map((child) => child.name).join(", ")})`);
+    } else {
+      labels.push(String(root.name || "이름 없음"));
+    }
+  }
+  return labels;
+}
+
+async function fetchAll(sb: any, table: string, select = "*") {
+  const pageSize = 1000;
+  const rows: any[] = [];
+  for (let from = 0;; from += pageSize) {
+    const to = from + pageSize - 1;
+    const { data, error } = await sb.from(table).select(select).range(from, to);
+    if (error) throw error;
+    const page = data || [];
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return rows;
+}
+
+function pushChunks(chunks: string[], block: string) {
+  const max = 1800;
+  if (!chunks.length || `${chunks[chunks.length - 1]}\n\n${block}`.length > max) {
+    chunks.push(block);
+  } else {
+    chunks[chunks.length - 1] += `\n\n${block}`;
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const webhookUrl = Deno.env.get("DISCORD_HOMEWORK_WEBHOOK_URL") || Deno.env.get("DISCORD_RAID_WEBHOOK_URL");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!webhookUrl) return json({ error: "DISCORD_HOMEWORK_WEBHOOK_URL 또는 DISCORD_RAID_WEBHOOK_URL Secret이 없습니다." }, 500);
+  if (!supabaseUrl || !serviceRoleKey) return json({ error: "Supabase 기본 Secret이 없습니다." }, 500);
+
+  const body = await req.json().catch(() => ({}));
+  const hiddenAccountIds = new Set<string>(Array.isArray(body.hiddenAccountIds) ? body.hiddenAccountIds.map(String) : []);
+  const includeFilterHidden = body.includeFilterHidden === true;
+
+  const sb = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+
+  try {
+    const [accountsRaw, charsRaw, tasksRaw, expeditionTasksRaw] = await Promise.all([
+      fetchAll(sb, "accounts"),
+      fetchAll(sb, "characters"),
+      fetchAll(sb, "tasks"),
+      fetchAll(sb, "expedition_tasks"),
+    ]);
+
+    const accounts = sortRows(accountsRaw).filter((account) => !hiddenAccountIds.has(account.id) && (includeFilterHidden || account.hide_from_filters !== true));
+    const accountIds = new Set(accounts.map((account) => account.id));
+    const chars = sortRows(charsRaw).filter((ch) => accountIds.has(ch.account_id));
+    const tasksByChar = new Map<string, any[]>();
+    const expByAccount = new Map<string, any[]>();
+    for (const ch of chars) tasksByChar.set(ch.id, []);
+    for (const acc of accounts) expByAccount.set(acc.id, []);
+    for (const task of tasksRaw) {
+      if (!tasksByChar.has(task.character_id)) continue;
+      tasksByChar.get(task.character_id)!.push(task);
+    }
+    for (const task of expeditionTasksRaw) {
+      if (!expByAccount.has(task.account_id)) continue;
+      expByAccount.get(task.account_id)!.push(task);
+    }
+
+    const charsByAccount = new Map<string, any[]>();
+    for (const acc of accounts) charsByAccount.set(acc.id, []);
+    for (const ch of chars) charsByAccount.get(ch.account_id)?.push(ch);
+
+    let incompleteCount = 0;
+    const chunks: string[] = [];
+    for (const account of accounts) {
+      const lines: string[] = [`[${account.name || "계정"}]`];
+      const accountChars = charsByAccount.get(account.id) || [];
+      for (const ch of accountChars) {
+        const rows = tasksByChar.get(ch.id) || [];
+        const daily = incompleteRootLabels(rows, isDaily);
+        const weekly = incompleteRootLabels(rows, isWeeklyMonthly);
+        if (!daily.length && !weekly.length) continue;
+        incompleteCount += daily.length + weekly.length;
+        lines.push(`- ${ch.name || "캐릭터"}: ${daily.length ? daily.join(", ") : "없음"} / ${weekly.length ? weekly.join(", ") : "없음"}`);
+      }
+      const expMissing = incompleteRootLabels(expByAccount.get(account.id) || [], () => true);
+      if (expMissing.length) {
+        incompleteCount += expMissing.length;
+        lines.push(`- 완료하지 않은 계정 숙제: ${expMissing.join(", ")}`);
+      }
+      if (lines.length === 1) continue;
+      pushChunks(chunks, lines.join("\n"));
+    }
+
+    if (!chunks.length) chunks.push("모든 숙제가 완료되었습니다.");
+
+    for (const content of chunks) {
+      const discordRes = await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, allowed_mentions: { parse: [] } }),
+      });
+      if (!discordRes.ok) {
+        const text = await discordRes.text().catch(() => "");
+        return json({ error: `Discord 전송 실패: ${discordRes.status} ${text}` }, 502);
+      }
+    }
+
+    return json({ ok: true, accountCount: accounts.length, incompleteCount, chunks: chunks.length });
+  } catch (error) {
+    return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+  }
+});

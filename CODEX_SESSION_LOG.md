@@ -2459,3 +2459,33 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 5개 주요 HTML의 CSS var 정의 누락 없음 확인.
 - `git diff --check` 통과. CRLF 경고만 있음.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+## 2026-05-26 - 미완료 숙제 Discord 전송 및 전체 계정 완료 표시
+
+### 변경 내용
+- `index.html`에 `디스코드 전송` 버튼을 추가하고 `send-homework-discord` Edge Function을 호출하도록 구현했습니다.
+- `supabase/functions/send-homework-discord/index.ts`를 추가했습니다.
+  - Discord 메시지 형식:
+    - `[계정명]`
+    - `- 캐릭터명: 미완료 일일 숙제 / 미완료 주간·월간 숙제`
+    - `- 완료하지 않은 계정 숙제: ...`
+  - 오전 6시 기준 일일/주간/월간 완료 판정과 휴식 게이지 활성 판정을 서버에서 계산합니다.
+  - 메시지가 길어질 경우 Discord 제한을 피하기 위해 계정 블록 단위로 나누어 전송합니다.
+- `supabase/functions/send-homework-discord/cron.sql`을 추가했습니다.
+  - 매주 화요일 20:00 KST 실행용 Supabase Cron SQL입니다.
+- `DB_MIGRATION_LOG.md`에 Cron 등록 SQL과 필요한 Secret/Vault 설정을 기록했습니다.
+- `index.html` 계정 탭 마지막에 `전체` 탭을 추가했습니다.
+- `전체` 탭에서만 `완료 캐릭 숨김` 토글을 표시하고, 활성 숙제가 모두 완료된 캐릭터를 숨길 수 있게 했습니다.
+- 캐릭터 숙제 / 주간·월간 숙제 모드의 계정 탭에서 해당 계정 캐릭터들의 활성 숙제가 모두 완료되면 완료 색상과 체크 표시를 적용했습니다.
+- `전체` 탭에서는 캐릭터 카드 드래그 정렬을 비활성화해 여러 계정이 섞인 상태에서 정렬이 꼬이지 않게 했습니다.
+
+### 운영 메모
+- 버튼 전송과 Cron 자동 전송을 쓰려면 `send-homework-discord` Edge Function 재배포가 필요합니다.
+- Discord Webhook Secret은 `DISCORD_HOMEWORK_WEBHOOK_URL`을 우선 사용하고, 없으면 기존 `DISCORD_RAID_WEBHOOK_URL`을 사용합니다.
+- Cron 자동 전송은 Edge Function 배포 후 `supabase/functions/send-homework-discord/cron.sql` 또는 `DB_MIGRATION_LOG.md`의 SQL을 Supabase SQL Editor에서 실행해야 활성화됩니다.
+
+### 검증
+- 5개 주요 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 5개 주요 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 경고만 있음.
+- `deno`가 설치되어 있지 않아 Edge Function 타입 체크는 실행하지 못했습니다.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.

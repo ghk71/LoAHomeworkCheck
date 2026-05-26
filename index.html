@@ -66,10 +66,16 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .mode-tabs{margin-bottom:9px}
 .mode-tab,.pill{border:1px solid var(--line);background:rgba(31,36,44,.78);color:var(--muted);border-radius:999px;padding:7px 12px;font-weight:850;font-size:.8rem}
 .mode-tab.active,.pill.active{background:linear-gradient(135deg,#e8fbff,#dcd6ff);color:#081018;border-color:transparent}
+.pill.complete{border-color:rgba(40,229,154,.5);color:#a8ffd0;background:rgba(40,229,154,.13)}
+.pill.complete.active{background:linear-gradient(135deg,#d6ffe9,#bff6ff);color:#07130d}
 .test-badge{display:none;align-items:center;height:26px;border:1px solid rgba(244,199,107,.42);background:rgba(244,199,107,.12);color:#ffe1a1;border-radius:999px;padding:0 9px;font-size:.72rem;font-weight:950}
 .test-badge.on{display:inline-flex}
 .pill.hidden-account{opacity:.5;border-style:dashed}
 .account-chip{display:inline-flex;align-items:center;gap:7px}
+.all-account-tools{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:rgba(255,255,255,.035);border-radius:999px;padding:4px 6px 4px 9px;color:var(--muted);font-size:.72rem;font-weight:850}
+.all-account-tools .switch{width:34px;height:20px}
+.all-account-tools .switch::after{width:14px;height:14px}
+.all-account-tools .switch.on::after{left:16px}
 .account-eye{height:22px;min-width:36px;padding:0 7px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted);font-size:.68rem;font-weight:820}
 .account-settings-list,.copy-list,.bulk-list{display:grid;gap:8px}
 .setting-row,.copy-row,.bulk-row{display:flex;align-items:center;gap:10px;justify-content:space-between;border:1px solid var(--line);background:rgba(255,255,255,.025);border-radius:8px;padding:9px 10px}
@@ -350,6 +356,7 @@ body.manage-active .mode-done{display:inline-flex}
         </div>
         <button class="btn green mode-done" id="mode-done-btn" onclick="finishActionMode()">모드 완료</button>
         <button class="btn gold daily-tool" onclick="openCharacterApiUpdateModal()">캐릭 업데이트</button>
+        <button class="btn" id="homework-discord-btn" onclick="sendDiscordHomeworkSummary()">디스코드 전송</button>
         <button class="btn" onclick="toggleGlobalMemo()">메모</button>
         <button class="btn" onclick="reloadAll()">새로고침</button>
         <button class="btn" onclick="openSettings()" title="설정">⚙️</button>
@@ -670,6 +677,7 @@ const {createClient}=supabase;
 let sb=null;
 const DAYS=['일','월','화','수','목','금','토'];
 const LAST_ACCOUNT_KEY='la_redesign_selected_account';
+const ALL_ACCOUNTS_ID='__all__';
 function safeJson(key,fallback){
   try{
     const raw=localStorage.getItem(key);
@@ -695,6 +703,7 @@ const state={
   presets:{},
   raidGroupSettings:{},
   hiddenAccounts:new Set(safeJson('la_hidden_accs',[])),
+  hideCompleteCharsAll:localStorage.getItem('la_hide_complete_chars_all')==='1',
   showHiddenAccounts:false,
   collapsedCurrency:new Set(safeJson('la_redesign_collapsed_currency',[])),
   collapsedRaid:new Set(safeJson('la_redesign_collapsed_raid',[])),
@@ -900,12 +909,34 @@ async function reloadAll(){
   state.accounts=accRes.data||[];
   state.chars=charRes.data||[];
   const firstVisible=visibleAccounts()[0]||state.accounts[0]||null;
-  if(!state.selectedAccount||!state.accounts.some(a=>a.id===state.selectedAccount)||(!state.showHiddenAccounts&&state.hiddenAccounts.has(state.selectedAccount)))state.selectedAccount=firstVisible?.id||null;
+  if(state.selectedAccount!==ALL_ACCOUNTS_ID&&(!state.selectedAccount||!state.accounts.some(a=>a.id===state.selectedAccount)||(!state.showHiddenAccounts&&state.hiddenAccounts.has(state.selectedAccount))))state.selectedAccount=firstVisible?.id||null;
   if(state.selectedAccount)localStorage.setItem(LAST_ACCOUNT_KEY,state.selectedAccount);
   await loadAccountData();
   state.lastResetBoundaryKey=getOpenPageResetBoundaryKey();
   render();
   toast('불러왔습니다');
+}
+
+async function sendDiscordHomeworkSummary(){
+  if(!sb)return;
+  if(!confirm('완료하지 않은 캐릭터 숙제 / 주간·월간 숙제 / 계정 숙제를 디스코드로 전송하시겠습니까?'))return;
+  const btn=document.getElementById('homework-discord-btn');
+  const oldText=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='전송 중...';}
+  try{
+    const {data,error}=await sb.functions.invoke('send-homework-discord',{body:{
+      hiddenAccountIds:[...state.hiddenAccounts],
+      includeFilterHidden:false
+    }});
+    if(error)throw error;
+    if(data?.error)throw new Error(data.error);
+    toast(`디스코드 전송 완료 (${data?.accountCount??0}계정, ${data?.incompleteCount??0}개 미완료)`);
+  }catch(err){
+    console.error(err);
+    toast('디스코드 전송 실패: '+(err?.message||err));
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=oldText||'디스코드 전송';}
+  }
 }
 
 async function loadAccountData(){
@@ -967,8 +998,29 @@ function targetCharLabel(c){
   const level=c.item_level?`Lv.${Number(c.item_level).toLocaleString()}`:'';
   return`<span class="target-main">${esc(c.name)}</span>${level?`<span class="target-level">${level}</span>`:''}${c.class_name?`<span class="target-class">${esc(c.class_name)}</span>`:''}`;
 }
-function selectedCharsForAccount(){return state.chars.filter(c=>c.account_id===state.selectedAccount);}
-function visibleChars(){return selectedCharsForAccount();}
+function selectedCharsForAccount(){
+  if(state.selectedAccount===ALL_ACCOUNTS_ID){
+    const accIds=new Set(visibleAccounts().map(a=>a.id));
+    return state.chars.filter(c=>accIds.has(c.account_id));
+  }
+  return state.chars.filter(c=>c.account_id===state.selectedAccount);
+}
+function charActiveRootsForMode(ch,mode=state.mode){
+  const list=state.tasks[ch.id]||[];
+  const predicate=mode==='weekly'?isWeeklyMonthly:isDaily;
+  return activeTaskRoots(list,predicate);
+}
+function isCharCompleteForMode(ch,mode=state.mode){
+  const roots=charActiveRootsForMode(ch,mode);
+  return taskProgress(roots).complete;
+}
+function visibleChars(){
+  const chars=selectedCharsForAccount();
+  if(state.selectedAccount===ALL_ACCOUNTS_ID&&state.hideCompleteCharsAll&&(state.mode==='daily'||state.mode==='weekly')){
+    return chars.filter(ch=>!isCharCompleteForMode(ch,state.mode));
+  }
+  return chars;
+}
 function setMode(mode){if(mode===state.mode)return;saveViewScroll(state.mode);state.mode=mode;state.selectedChar='all';render();}
 async function selectAccount(id){state.selectedAccount=id;state.selectedChar='all';if(id)localStorage.setItem(LAST_ACCOUNT_KEY,id);await loadRaidMetaForCurrent();render();}
 function selectChar(id){state.selectedChar=id;render();}
@@ -1456,12 +1508,29 @@ function render(){
   restoreViewScroll(state.mode);
   state.lastRenderedMode=state.mode;
 }
+function accountCompleteForMode(accountId,mode=state.mode){
+  if(mode!=='daily'&&mode!=='weekly')return false;
+  const chars=state.chars.filter(c=>c.account_id===accountId);
+  if(!chars.length)return false;
+  return chars.every(ch=>isCharCompleteForMode(ch,mode));
+}
+function toggleHideCompleteCharsAll(){
+  state.hideCompleteCharsAll=!state.hideCompleteCharsAll;
+  localStorage.setItem('la_hide_complete_chars_all',state.hideCompleteCharsAll?'1':'0');
+  render();
+}
 function renderAccountTabs(){
   const el=document.getElementById('account-tabs');
   if(state.mode==='account'){el.classList.add('hidden');return;}
   el.classList.remove('hidden');
   const accounts=visibleAccounts();
-  el.innerHTML=accounts.map((a,i)=>`<span class="account-chip"><button class="pill ${a.id===state.selectedAccount?'active':''} ${isAccountHidden(a.id)?'hidden-account':''}" draggable="true" ondragstart="dragStart(event,'accounts','${a.id}','')" ondragover="allowDrop(event)" ondrop="dropOn(event,'accounts','${a.id}','')" onclick="selectAccount('${a.id}')">${esc(a.name)}${a.parent_account_id?'<span class="sub-account-mark" title="부계정">↳</span>':''}</button></span>`).join('');
+  const accountHtml=accounts.map((a,i)=>{
+    const complete=accountCompleteForMode(a.id,state.mode);
+    return`<span class="account-chip"><button class="pill ${a.id===state.selectedAccount?'active':''} ${complete?'complete':''} ${isAccountHidden(a.id)?'hidden-account':''}" draggable="true" ondragstart="dragStart(event,'accounts','${a.id}','')" ondragover="allowDrop(event)" ondrop="dropOn(event,'accounts','${a.id}','')" onclick="selectAccount('${a.id}')">${esc(a.name)}${complete?'<span title="활성 숙제 완료"> ✓</span>':''}${a.parent_account_id?'<span class="sub-account-mark" title="부계정">↳</span>':''}</button></span>`;
+  }).join('');
+  const allSelected=state.selectedAccount===ALL_ACCOUNTS_ID;
+  const allTools=allSelected?`<span class="all-account-tools">완료 캐릭 숨김 <button class="switch ${state.hideCompleteCharsAll?'on':''}" onclick="toggleHideCompleteCharsAll()" title="전체 보기에서 완료 캐릭터 숨김"></button></span>`:'';
+  el.innerHTML=`${accountHtml}<span class="account-chip"><button class="pill ${allSelected?'active':''}" onclick="selectAccount('${ALL_ACCOUNTS_ID}')">전체</button>${allTools}</span>`;
 }
 function renderCharTabs(){
   const el=document.getElementById('character-tabs');
@@ -1526,7 +1595,8 @@ function renderDailyCard(ch){
   const curr=state.currencies[ch.id]||[];
   const currCollapsed=state.collapsedCurrency.has(ch.id);
   const showCurr=ch.show_currencies!==false;
-  return`<section class="char-card ${progress.hot?'hot':''} ${progress.complete?'done':''}" data-scroll-key="daily:${ch.id}"${heldCardStyle(`daily:${ch.id}`)} draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')">
+  const dragAttrs=state.selectedAccount===ALL_ACCOUNTS_ID?'':` draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')"`;
+  return`<section class="char-card ${progress.hot?'hot':''} ${progress.complete?'done':''}" data-scroll-key="daily:${ch.id}"${heldCardStyle(`daily:${ch.id}`)}${dragAttrs}>
     ${charHeader(ch,activeRoots,progress.hot,progress.complete)}
     <div class="card-body">
       <div class="card-section">
@@ -1552,7 +1622,8 @@ function renderWeeklyCard(ch){
   const raidCollapsed=state.collapsedRaid.has(ch.id);
   const notesCollapsed=state.collapsedNotes.has(ch.id);
   const showRaid=ch.show_raid_tasks!==false,showNotes=ch.show_custom_notes!==false;
-  return`<section class="char-card ${progress.hot?'hot':''} ${progress.complete?'done':''}" data-scroll-key="weekly:${ch.id}"${heldCardStyle(`weekly:${ch.id}`)} draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')">
+  const dragAttrs=state.selectedAccount===ALL_ACCOUNTS_ID?'':` draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')"`;
+  return`<section class="char-card ${progress.hot?'hot':''} ${progress.complete?'done':''}" data-scroll-key="weekly:${ch.id}"${heldCardStyle(`weekly:${ch.id}`)}${dragAttrs}>
     ${charHeader(ch,activeRoots,progress.hot,progress.complete)}
     <div class="card-body">
       <div class="card-section">
