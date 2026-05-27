@@ -163,11 +163,42 @@ async function fetchAll(sb: any, table: string, select = "*") {
 
 function pushChunks(chunks: string[], block: string) {
   const max = 1800;
-  if (!chunks.length || `${chunks[chunks.length - 1]}\n\n${block}`.length > max) {
-    chunks.push(block);
-  } else {
-    chunks[chunks.length - 1] += `\n\n${block}`;
+  const append = (text: string) => {
+    if (!text) return;
+    if (!chunks.length) {
+      chunks.push(text);
+      return;
+    }
+    const merged = `${chunks[chunks.length - 1]}\n\n${text}`;
+    if (merged.length <= max) chunks[chunks.length - 1] = merged;
+    else chunks.push(text);
+  };
+
+  let current = "";
+  const pushCurrent = () => {
+    append(current);
+    current = "";
+  };
+
+  const safeLines: string[] = [];
+  for (const line of block.split("\n")) {
+    if (line.length <= max) {
+      safeLines.push(line);
+      continue;
+    }
+    for (let i = 0; i < line.length; i += max) safeLines.push(line.slice(i, i + max));
   }
+
+  for (const line of safeLines) {
+    const next = current ? `${current}\n${line}` : line;
+    if (next.length > max) {
+      pushCurrent();
+      current = line;
+    } else {
+      current = next;
+    }
+  }
+  pushCurrent();
 }
 
 function waitWebhookUrl(webhookUrl: string) {

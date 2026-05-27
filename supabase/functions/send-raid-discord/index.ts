@@ -11,8 +11,8 @@ const DKO = ["일", "월", "화", "수", "목", "금", "토"];
 const FIXED_SHARE_URL =
   "https://ghk71.github.io/LoAHomeworkCheck/raid.html?s=8msPYgSM2CUB&u=https%3A%2F%2Fwmritejklhggnzcwoxse.supabase.co";
 const TARGET_ACCOUNT_GROUPS = [
-  ["겊삶", "슈빙츄", "해용이", "무려억"],
-  ["겊삶", "슈빙츄", "해용이"],
+  ["겊삶", "슈빙츄", "블노마", "무새"],
+  ["겊삶", "슈빙츄", "블노마"],
 ];
 
 function json(body: unknown, status = 200) {

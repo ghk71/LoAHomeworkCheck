@@ -76,6 +76,7 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceRoleKey) return json({ error: "Supabase 기본 Secret이 없습니다." }, 500);
+  const functionInvokeKey = Deno.env.get("SUPABASE_ANON_KEY") || serviceRoleKey;
 
   const body = await req.json().catch(() => ({}));
   const nowMs = parseNowMs(body.testNow);
@@ -133,7 +134,8 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${serviceRoleKey}`,
+        "Authorization": `Bearer ${functionInvokeKey}`,
+        "apikey": functionInvokeKey,
       },
       body: JSON.stringify({ weekOffset: off, testNow: body.testNow || null, source: "auto-send-raid-discord" }),
     });

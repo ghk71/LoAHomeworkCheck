@@ -2520,6 +2520,42 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 ### 운영 메모
 - `auto-send-raid-discord`의 already-sent 판정과 동일하게, 해당 주차에 `discord_sent_messages` 행이 있으면 전송 완료로 봅니다.
 - 자동 전송 테스트를 다시 하려면 해당 주차의 `kind='raid'` 행을 삭제해야 합니다.
+
+## 2026-05-27 - auto-send 내부 send-raid 호출 401 수정
+
+### 변경 내용
+- `auto-send-raid-discord`가 내부에서 `send-raid-discord`를 호출할 때 Authorization 헤더에 `SUPABASE_SERVICE_ROLE_KEY` 대신 `SUPABASE_ANON_KEY`를 우선 사용하도록 변경했습니다.
+- DB 조회는 기존처럼 service role key로 유지합니다.
+- Supabase Edge Function의 `Verify JWT with legacy secret`가 켜진 함수 호출에는 JWT 형식 키가 필요하므로, legacy anon key를 우선 사용하는 방식입니다.
+
+### 원인
+- `auto-send-raid-discord` 자체 호출은 성공했지만, 내부 `send-raid-discord` 호출이 Edge Gateway에서 `401 Invalid JWT`로 차단되었습니다.
+- 로그의 `{"error":"send-raid-discord 호출 실패: 401"}`가 이 케이스입니다.
+
+### 운영 메모
+- 수정된 `auto-send-raid-discord` Edge Function 재배포가 필요합니다.
+
+## 2026-05-27 - 레이드 디스코드 대상 계정명 수정
+
+### 변경 내용
+- `send-raid-discord`의 대상 계정 조합을 실제 계정명 기준으로 수정했습니다.
+  - 4계정 조합: `겊삶`, `슈빙츄`, `블노마`, `무새`
+  - 3계정 조합: `겊삶`, `슈빙츄`, `블노마`
+- 계정 숨김(`hide_from_filters`)은 레이드 디스코드 조합 판정에서 제외 조건으로 사용하지 않습니다.
+
+### 원인
+- 이전 함수에는 과거 계정명인 `해용이`, `무려억`이 들어 있어 현재 계정 조합이 매칭되지 않았습니다.
+- 그래서 메시지는 전송되지만 `조건에 맞는 레이드 일정이 없습니다.`로 표시되었습니다.
+
+## 2026-05-27 - 숙제 디스코드 메시지 2000자 제한 대응
+
+### 변경 내용
+- `send-homework-discord`의 메시지 chunk 분할 로직을 보강했습니다.
+- 기존에는 계정 단위 block 하나가 1800자를 넘으면 그대로 Discord에 보내져 `Must be 2000 or fewer in length` 오류가 날 수 있었습니다.
+- 이제 긴 계정 block도 줄 단위로 나누고, 한 줄 자체가 긴 경우에도 안전하게 잘라 각 Discord 메시지가 제한을 넘지 않도록 했습니다.
+
+### 운영 메모
+- 수정된 `send-homework-discord` Edge Function 재배포가 필요합니다.
 ## 2026-05-26 - Discord Webhook 메시지 예약 삭제
 
 ### 변경 내용
