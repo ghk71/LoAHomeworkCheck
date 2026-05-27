@@ -2556,6 +2556,14 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 
 ### 운영 메모
 - 수정된 `send-homework-discord` Edge Function 재배포가 필요합니다.
+
+## 2026-05-27 - index 재화 현황 위치 이동
+
+### 변경 내용
+- `index.html`의 재화 현황 섹션을 캐릭터 숙제(일일) 카드에서 제거했습니다.
+- 재화 현황을 주간/월간 숙제 카드의 레이드 현황 바로 위로 이동했습니다.
+- 캐릭터별 `재화 현황 표시` 비활성화 설정, 접기/펼치기 상태, 재화 추가/수정/삭제 동작은 그대로 유지했습니다.
+- 상단 도움말 문구도 변경된 배치에 맞게 수정했습니다.
 ## 2026-05-26 - Discord Webhook 메시지 예약 삭제
 
 ### 변경 내용
