@@ -2508,6 +2508,18 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
   - `alter table raid_presets add column if not exists short_name text;`
   - `alter table characters add column if not exists short_name text;`
 - SQL 적용 전에도 저장 시도는 fallback 처리되지만, 줄임말 값은 DB에 남지 않습니다.
+
+## 2026-05-27 - 레이드 디스코드 전송 완료 버튼 상태
+
+### 변경 내용
+- `raid.html` 주간 일정의 `디스코드 전송` 버튼이 현재 주차의 `discord_sent_messages.kind='raid'` 기록을 확인하도록 변경했습니다.
+- 이미 전송 기록이 있으면 버튼 문구를 `완료`로 바꾸고 비활성화합니다.
+- 주차 이동 시 해당 주차 기준으로 버튼 상태를 다시 확인합니다.
+- 전송 버튼을 누를 때도 다시 한 번 전송 기록을 확인해 중복 클릭/중복 전송을 막습니다.
+
+### 운영 메모
+- `auto-send-raid-discord`의 already-sent 판정과 동일하게, 해당 주차에 `discord_sent_messages` 행이 있으면 전송 완료로 봅니다.
+- 자동 전송 테스트를 다시 하려면 해당 주차의 `kind='raid'` 행을 삭제해야 합니다.
 ## 2026-05-26 - Discord Webhook 메시지 예약 삭제
 
 ### 변경 내용

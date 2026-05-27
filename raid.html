@@ -1843,6 +1843,7 @@ async function cleanupRaidPartyLinksForViewerTask(t){
 }
 let sb,accounts=[],allChars=[],raids=[],parties=[],schedules=[],overrides={},notices={},noticeComments={},noticeCommentsAvailable=true,noticeCommentsCollapsed=localStorage.getItem('la_notice_comments_collapsed')!=='0',unplacedPanelCollapsed=localStorage.getItem('la_unplaced_panel_collapsed')==='1',unplacedPreviewPartyId=null,raidTasksAll={},raidGroupSettings={},raidGroupSettingsAvailable=true;
 let selPartyId=null,selGroupName=null,weekOffset=0,partySize=4,selPresetId=null;
+let raidDiscordSentCache={};
 let pickCtx={mode:'party',partyId:null,slotIndex:null,scheduleId:null,tempSlot:null};
 let tempPartyDraft=[];
 let ovrEditSchId=null;
@@ -1901,7 +1902,7 @@ async function init(){
     await loadNoticeCommentsData(getWeekKey(0));
   }catch(err){toast('❗ 로딩 오류: '+err.message);console.error(err);return;}
   await autoResetNonFixed();
-  updateWeekLabel();renderPresetList();initSchFilter();renderSchedule();loadNotice();
+  updateWeekLabel();renderPresetList();initSchFilter();renderSchedule();loadNotice();refreshDiscordSendButton(true);
   applyViewer();
   if(isViewer&&!viewerSelectedAccount(accounts))await switchViewerTab('ov');
   else switchTab('schedule'); // 기본 탭: 주간 일정
@@ -1917,8 +1918,8 @@ function getWeekStart(off=0){const now=appNow(),kst=new Date(now.getTime()+9*360
 function getWeekKey(off=0){const ws=getWeekStart(off);return`${ws.getUTCFullYear()}-${String(ws.getUTCMonth()+1).padStart(2,'0')}-${String(ws.getUTCDate()).padStart(2,'0')}`;}
 function getWeekDays(off=0){const s=getWeekStart(off);return WEEK_DAY_NUMS.map((_,i)=>{const d=new Date(s);d.setUTCDate(d.getUTCDate()+i);return d;});}
 function updateWeekLabel(){const d=getWeekDays(weekOffset),f=x=>`${x.getUTCMonth()+1}/${x.getUTCDate()}`,l=`${f(d[0])} (수) ~ ${f(d[6])} (화)`;document.getElementById('week-label').textContent=l;document.getElementById('header-week').textContent=l;}
-function moveWeek(n){weekOffset+=n;updateWeekLabel();renderSchedule();loadNotice();}
-function goToCurrentWeek(){weekOffset=0;updateWeekLabel();renderSchedule();loadNotice();}
+function moveWeek(n){weekOffset+=n;updateWeekLabel();renderSchedule();loadNotice();refreshDiscordSendButton();}
+function goToCurrentWeek(){weekOffset=0;updateWeekLabel();renderSchedule();loadNotice();refreshDiscordSendButton();}
 async function autoResetNonFixed(){
   const ws=getWeekStart(0);
   const curWk=getWeekKey(0);
@@ -3715,8 +3716,36 @@ async function openShareModal(){
 }
 function copyShareLink(){navigator.clipboard.writeText(document.getElementById('share-link-text').textContent).then(()=>toast('📋 링크 복사됨!'));}
 async function getShareUrl(){try{return await createShortShareUrl();}catch(err){console.warn(err);return longShareUrl();}}
+function setDiscordSendButton(sent=false,loading=false){
+  const btn=document.getElementById('discord-send-btn');
+  if(!btn)return;
+  if(isViewer){btn.disabled=true;return;}
+  btn.disabled=!!(sent||loading);
+  btn.textContent=loading?'확인 중...':(sent?'완료':'디스코드 전송');
+  btn.title=sent?'이미 이 주차의 레이드 일정 메시지를 보냈습니다.':'현재 주차 레이드 일정을 디스코드로 전송합니다.';
+}
+async function isRaidDiscordSentForWeek(wk=getWeekKey(weekOffset),force=false){
+  if(!sb)return false;
+  if(!force&&Object.prototype.hasOwnProperty.call(raidDiscordSentCache,wk))return raidDiscordSentCache[wk];
+  const {data,error}=await sb.from('discord_sent_messages').select('id').eq('kind','raid').eq('week_start_date',wk).limit(1);
+  if(error){console.warn('discord_sent_messages check failed:',error.message);raidDiscordSentCache[wk]=false;return false;}
+  const sent=(data||[]).length>0;
+  raidDiscordSentCache[wk]=sent;
+  return sent;
+}
+async function refreshDiscordSendButton(force=false){
+  const btn=document.getElementById('discord-send-btn');
+  if(!btn||isViewer)return;
+  const wk=getWeekKey(weekOffset);
+  setDiscordSendButton(false,true);
+  const sent=await isRaidDiscordSentForWeek(wk,force);
+  if(wk!==getWeekKey(weekOffset))return;
+  setDiscordSendButton(sent,false);
+}
 async function sendDiscordSchedule(){
   if(isViewer)return;
+  const wk=getWeekKey(weekOffset);
+  if(await isRaidDiscordSentForWeek(wk,true)){setDiscordSendButton(true,false);toast('이미 이 주차의 레이드 일정 메시지를 보냈습니다');return;}
   if(!confirm('현재 선택된 주차의 레이드 일정을 디스코드 채널로 전송하시겠습니까?'))return;
   const btn=document.getElementById('discord-send-btn');
   const oldText=btn?btn.textContent:'';
@@ -3725,12 +3754,14 @@ async function sendDiscordSchedule(){
     const {data,error}=await sb.functions.invoke('send-raid-discord',{body:{weekOffset,testNow:isTestMode()?appNowIso():null}});
     if(error)throw error;
     if(data?.error)throw new Error(data.error);
+    raidDiscordSentCache[wk]=true;
+    setDiscordSendButton(true,false);
     toast(`✅ 디스코드 전송 완료${Number.isFinite(Number(data?.sentLines))?` (${data.sentLines}줄)`:''}`);
   }catch(err){
     console.error(err);
     toast('❗ 디스코드 전송 실패: '+(err?.message||err));
   }finally{
-    if(btn){btn.disabled=false;btn.textContent=oldText||'디스코드 전송';}
+    if(btn&&!raidDiscordSentCache[wk]){btn.disabled=false;btn.textContent=oldText||'디스코드 전송';}
   }
 }
 
