@@ -89,11 +89,12 @@ function isNonRaidName(name: unknown) {
   return !text || text.includes("교환");
 }
 
-function raidShortLabel(preset: any, groupSettingByName: Map<string, any>) {
+function raidShortLabel(preset: any) {
   const name = cleanText(preset?.name);
   const diff = cleanText(preset?.difficulty);
-  const shortName = cleanText(groupSettingByName.get(name)?.short_name) || name;
-  return diff ? `${shortName} ${diff}` : shortName;
+  const shortName = cleanText(preset?.short_name);
+  if (shortName) return shortName;
+  return diff ? `${name} ${diff}` : name;
 }
 
 function waitWebhookUrl(webhookUrl: string) {
@@ -157,7 +158,7 @@ function buildAccountCombo(charIds: string[], charById: Map<string, any>, accoun
     const ch: any = charById.get(charId);
     const account = topAccountForCharacter(ch, accountById);
     const accountName = cleanText(account?.name);
-    const charName = cleanText(ch?.name);
+    const charName = cleanText(ch?.short_name) || cleanText(ch?.name);
     if (!accountName || !charName) continue;
     if (!byAccount.has(accountName)) byAccount.set(accountName, []);
     byAccount.get(accountName)!.push({ accountName, charName });
@@ -205,7 +206,6 @@ Deno.serve(async (req) => {
     schedulesRes,
     overridesRes,
     noticeRes,
-    groupSettingsRes,
   ] = await Promise.all([
     sb.from("accounts").select("*").order("sort_order").order("created_at"),
     sb.from("characters").select("*").order("sort_order").order("created_at"),
@@ -215,7 +215,6 @@ Deno.serve(async (req) => {
     sb.from("raid_schedules").select("*").order("sort_order").order("created_at"),
     sb.from("raid_schedule_overrides").select("*").eq("week_start_date", wk),
     sb.from("raid_notices").select("*").eq("week_start_date", wk).maybeSingle(),
-    sb.from("raid_group_settings").select("*"),
   ]);
 
   const firstError = [
@@ -229,7 +228,6 @@ Deno.serve(async (req) => {
     noticeRes,
   ].find((r) => r.error)?.error;
   if (firstError) return json({ error: firstError.message }, 500);
-  if (groupSettingsRes.error) console.warn("[raid-group-settings]", groupSettingsRes.error.message);
 
   const accounts = accountsRes.data || [];
   const chars = charsRes.data || [];
@@ -239,7 +237,6 @@ Deno.serve(async (req) => {
   const schedules = schedulesRes.data || [];
   const overrides = overridesRes.data || [];
   const notice = cleanText(noticeRes.data?.content) || "없음";
-  const groupSettingByName = new Map((groupSettingsRes.error ? [] : groupSettingsRes.data || []).map((r: any) => [r.name, r]));
 
   const accountById = new Map(accounts.map((a: any) => [a.id, a]));
   const charById = new Map(chars.map((c: any) => [c.id, c]));
@@ -331,7 +328,7 @@ Deno.serve(async (req) => {
     rows.get(rowLabel)!.items.push({
       timeSort: sortTime(effectiveTime(schedule)),
       sort: effectiveSort(schedule),
-      text: `- ${raidShortLabel(preset, groupSettingByName)}: ${combo.chars.join(", ")}`,
+      text: `- ${raidShortLabel(preset)}: ${combo.chars.join(", ")}`,
     });
   }
 

@@ -20,6 +20,7 @@ create table if not exists characters(
   account_id uuid references accounts(id) on delete cascade,
   name text not null,
   class_name text default '',
+  short_name text,
   item_level numeric default 0,
   combat_power numeric default 0,
   azena_blessing boolean default false,
@@ -88,6 +89,7 @@ create table if not exists raid_tasks(
   character_id uuid references characters(id) on delete cascade,
   name text not null,
   difficulty text default '',
+  short_name text,
   entry_level numeric default 0,
   clear_gold numeric default 0,
   bound_gold numeric default 0,
@@ -144,7 +146,6 @@ create table if not exists raid_presets(
 create table if not exists raid_group_settings(
   name text primary key,
   icon_url text,
-  short_name text,
   color text default '#4caf50',
   updated_at timestamptz default now()
 );
@@ -310,12 +311,14 @@ alter table raid_tasks add column if not exists receive_bonus boolean default tr
 
 -- 이미지 아이콘 URL
 alter table characters add column if not exists icon_url text;
+alter table characters add column if not exists short_name text;
 alter table characters add column if not exists combat_power numeric default 0;
 alter table characters add column if not exists azena_blessing boolean default false;
 alter table characters add column if not exists show_raid_tasks boolean default true;
 alter table characters add column if not exists show_currencies boolean default true;
 alter table characters add column if not exists show_custom_notes boolean default true;
 alter table raid_presets add column if not exists icon_url text;
+alter table raid_presets add column if not exists short_name text;
 alter table expedition_tasks add column if not exists icon_url text;
 alter table tasks add column if not exists icon_url text;
 alter table currencies add column if not exists icon_url text;
@@ -324,11 +327,9 @@ alter table currencies add column if not exists icon_url text;
 create table if not exists raid_group_settings(
   name text primary key,
   icon_url text,
-  short_name text,
   color text default '#4caf50',
   updated_at timestamptz default now()
 );
-alter table raid_group_settings add column if not exists short_name text;
 alter table raid_group_settings disable row level security;
 
 -- 재화 마지막 수정일

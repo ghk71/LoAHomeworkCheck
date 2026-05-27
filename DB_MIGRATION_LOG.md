@@ -377,8 +377,24 @@ select vault.create_secret('<legacy anon key 또는 publishable key>', 'publisha
 - JWT를 끈 상태로 운영하려면 공개 호출 가능성이 생기므로, 별도 Cron Secret 헤더 검증을 추가하는 것이 더 안전합니다.
 
 ### 적용 여부
-- `raid_group_settings.short_name` SQL 적용 필요.
+- `raid_group_settings.short_name`은 이후 난이도 기준 줄임말로 대체되어 현재 기능에서는 사용하지 않습니다.
 - Vault Secret 적용 필요.
+
+## 2026-05-27 - 디스코드 전송 줄임말 기준 변경
+
+### 변경
+- 레이드 디스코드 전송 줄임말 기준을 레이드 그룹(`raid_group_settings`)이 아니라 난이도(`raid_presets`) 기준으로 변경했습니다.
+- 캐릭터별 디스코드 전송 줄임말을 `characters.short_name`에 저장합니다.
+- 줄임말이 없으면 기존 이름을 그대로 사용합니다.
+
+```sql
+alter table raid_presets add column if not exists short_name text;
+alter table characters add column if not exists short_name text;
+```
+
+### 메모
+- 이전에 `raid_group_settings.short_name`을 적용했다면 남아 있어도 현재 기능에서는 사용하지 않습니다.
+- 새 메시지 생성은 `raid_presets.short_name`을 우선 사용하고, 없으면 `레이드명 + 난이도`를 사용합니다.
 
 ## 2026-05-26 - Discord 전송 메시지 예약 삭제
 

@@ -549,6 +549,7 @@ body.manage-active .mode-done{display:inline-flex}
       <div class="form-grid">
         <div class="field full"><label>캐릭터 아이콘</label><div class="icon-control"><div class="icon-preview" id="character-icon-preview">없음</div><button class="btn" type="button" onclick="openCharacterIconPicker()">선택</button><button class="btn" type="button" onclick="setCharacterIcon(null)">제거</button></div></div>
         <div class="field"><label>캐릭터명</label><input id="character-name" class="input"></div>
+        <div class="field"><label>디스코드 전송 줄임말</label><input id="character-short-name" class="input" placeholder="없으면 캐릭터명 사용" maxlength="24"></div>
         <div class="field"><label>직업</label><input id="character-class" class="input"></div>
         <div class="field"><label>아이템 레벨</label><input id="character-ilvl" class="input" type="number" step="0.01"></div>
         <div class="field"><label>전투력</label><input id="character-combat" class="input" type="number" step="1"></div>
@@ -2018,6 +2019,7 @@ function openCharacterModal(id=null){
   document.getElementById('character-modal-title').textContent=id?'캐릭터 정보 수정':'캐릭터 추가';
   document.getElementById('character-modal-sub').textContent=id?'':`대상 계정: ${selected?.name||''}`;
   document.getElementById('character-name').value=ch?.name||'';
+  document.getElementById('character-short-name').value=ch?.short_name||'';
   document.getElementById('character-class').value=ch?.class_name||'';
   document.getElementById('character-ilvl').value=ch?.item_level||'';
   document.getElementById('character-combat').value=ch?.combat_power||'';
@@ -2038,6 +2040,7 @@ function openCharacterIconPicker(){openImagePicker(url=>setCharacterIcon(url));}
 async function saveCharacter(){
   const rec={
     name:document.getElementById('character-name').value.trim(),
+    short_name:(document.getElementById('character-short-name').value||'').trim()||null,
     class_name:document.getElementById('character-class').value.trim(),
     item_level:Number(document.getElementById('character-ilvl').value)||0,
     combat_power:Number(document.getElementById('character-combat').value)||0,
@@ -2048,23 +2051,34 @@ async function saveCharacter(){
     show_custom_notes:document.getElementById('character-show-note').checked
   };
   if(!rec.name){toast('캐릭터명을 입력하세요');return;}
-  const saveRec={...rec};
-  if(state.editCharacterId){
-    let {error}=await sb.from('characters').update(saveRec).eq('id',state.editCharacterId);
-    if(error&&/azena_blessing|schema cache|column/i.test(error.message||'')){
-      delete saveRec.azena_blessing;
-      ({error}=await sb.from('characters').update(saveRec).eq('id',state.editCharacterId));
-      if(!error)toast('캐릭터 저장 완료. 아제나 체크 저장은 schema.sql 적용 후 가능합니다.');
+  const persistCharacter=payload=>state.editCharacterId
+    ? sb.from('characters').update(payload).eq('id',state.editCharacterId)
+    : sb.from('characters').insert(payload);
+  const saveCharacterPayload=async(payload)=>{
+    const missing=[];
+    for(let i=0;i<4;i++){
+      const {error}=await persistCharacter(payload);
+      if(!error){
+        if(missing.length)toast(`캐릭터 저장 완료. ${missing.join(', ')} 컬럼은 schema.sql 적용 후 저장됩니다.`);
+        return null;
+      }
+      const msg=error.message||'';
+      if(/short_name|schema cache|column/i.test(msg)&&Object.prototype.hasOwnProperty.call(payload,'short_name')){
+        delete payload.short_name;missing.push('short_name');continue;
+      }
+      if(/azena_blessing|schema cache|column/i.test(msg)&&Object.prototype.hasOwnProperty.call(payload,'azena_blessing')){
+        delete payload.azena_blessing;missing.push('azena_blessing');continue;
+      }
+      return error;
     }
+    return new Error('지원되지 않는 캐릭터 컬럼이 있습니다.');
+  };
+  if(state.editCharacterId){
+    const error=await saveCharacterPayload({...rec});
     if(error){toast('캐릭터 저장 실패');return;}
   }else{
     rec.account_id=state.selectedAccount;rec.sort_order=selectedCharsForAccount().length;
-    let {error}=await sb.from('characters').insert(rec);
-    if(error&&/azena_blessing|schema cache|column/i.test(error.message||'')){
-      const fallback={...rec};delete fallback.azena_blessing;
-      ({error}=await sb.from('characters').insert(fallback));
-      if(!error)toast('캐릭터 추가 완료. 아제나 체크 저장은 schema.sql 적용 후 가능합니다.');
-    }
+    const error=await saveCharacterPayload({...rec});
     if(error){toast('캐릭터 추가 실패');return;}
   }
   closeModal('modal-character');await reloadAll();

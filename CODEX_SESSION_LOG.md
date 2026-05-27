@@ -2489,6 +2489,25 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - `git diff --check` 통과. CRLF 경고만 있음.
 - `deno`가 설치되어 있지 않아 Edge Function 타입 체크는 실행하지 못했습니다.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-05-27 - 디스코드 전송 줄임말을 난이도/캐릭터 기준으로 변경
+
+### 변경 내용
+- `raid.html` 레이드 그룹 모달에 있던 디스코드 줄임말 입력을 제거했습니다.
+- `raid.html` 난이도 추가/수정 모달에 디스코드 전송 줄임말 입력칸을 추가했습니다.
+  - 저장 위치: `raid_presets.short_name`
+  - 줄임말이 없으면 `레이드명 + 난이도`로 전송합니다.
+- `index.html` 캐릭터 추가/수정 모달에 디스코드 전송 줄임말 입력칸을 추가했습니다.
+  - 저장 위치: `characters.short_name`
+  - 줄임말이 없으면 캐릭터명을 그대로 전송합니다.
+- `send-raid-discord` Edge Function이 난이도 줄임말과 캐릭터 줄임말을 우선 사용하도록 변경했습니다.
+- `schema.sql`, `DB_MIGRATION_LOG.md`에 `raid_presets.short_name`, `characters.short_name` 컬럼을 추가했습니다.
+
+### 운영 메모
+- Supabase SQL Editor에서 아래 SQL 적용이 필요합니다.
+  - `alter table raid_presets add column if not exists short_name text;`
+  - `alter table characters add column if not exists short_name text;`
+- SQL 적용 전에도 저장 시도는 fallback 처리되지만, 줄임말 값은 DB에 남지 않습니다.
 ## 2026-05-26 - Discord Webhook 메시지 예약 삭제
 
 ### 변경 내용

@@ -1308,9 +1308,6 @@ body::before{background:none;}
   <div class="form-group"><label class="form-label">레이드 이름</label>
     <input class="form-input" id="rn-name" lang="ko" inputmode="text" placeholder="에키드나, 베히모스, 카멘..." maxlength="30">
   </div>
-  <div class="form-group"><label class="form-label">디스코드 전송 줄임말 <span style="font-size:.7rem;color:var(--muted);">(선택)</span></label>
-    <input class="form-input" id="rn-short-name" lang="ko" inputmode="text" placeholder="예: 성당, 세르카, 종막" maxlength="20">
-  </div>
   <div class="form-group">
     <label class="form-label">레이드 아이콘</label>
     <div style="display:flex;align-items:center;gap:10px;">
@@ -1336,6 +1333,10 @@ body::before{background:none;}
   <div class="form-row">
   <div class="form-group"><label class="form-label">난이도</label><input class="form-input" id="diff-difficulty" lang="ko" inputmode="text" placeholder="노말, 하드, 싱글..."></div>
     <div class="form-group"><label class="form-label">입장 레벨</label><input class="form-input" id="diff-ilvl" type="number" placeholder="1620" min="0"></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label class="form-label">디스코드 전송 줄임말 <span style="font-size:.7rem;color:var(--muted);">(선택)</span></label><input class="form-input" id="diff-short-name" lang="ko" inputmode="text" placeholder="예: 성당 3, 세르카 나메" maxlength="24"></div>
+    <div class="form-group"></div>
   </div>
   <div class="form-row">
     <div class="form-group"><label class="form-label">클리어 골드 (전체)</label><input class="form-input" id="diff-gold" type="number" placeholder="0" min="0"></div>
@@ -2036,19 +2037,11 @@ async function saveRaidGroupSetting(name,patch){
     name,
     color:patch.color??raidGroupSettings[name]?.color??'#4caf50',
     icon_url:patch.icon_url??null,
-    short_name:patch.short_name??raidGroupSettings[name]?.short_name??null,
     updated_at:new Date().toISOString()
   };
-  let {data,error}=await sb.from('raid_group_settings').upsert(rec,{onConflict:'name'}).select().single();
-  if(error&&/short_name/i.test(error.message||'')){
-    const fallback={name:rec.name,color:rec.color,icon_url:rec.icon_url,updated_at:rec.updated_at};
-    const retry=await sb.from('raid_group_settings').upsert(fallback,{onConflict:'name'}).select().single();
-    data=retry.data;error=retry.error;
-    if(!error)toast('⚠️ raid_group_settings.short_name SQL 적용 후 줄임말이 저장됩니다');
-  }
+  const {data,error}=await sb.from('raid_group_settings').upsert(rec,{onConflict:'name'}).select().single();
   if(error){toast('❗ '+error.message);console.error(error);return false;}
   raidGroupSettings[name]=data||rec;
-  if(!('short_name' in raidGroupSettings[name]))raidGroupSettings[name].short_name=rec.short_name;
   return true;
 }
 async function deleteRaidGroupSetting(name){
@@ -2535,7 +2528,6 @@ function openEditRaidGroup(groupName){
   document.getElementById('raid-name-modal-title').textContent='레이드 이름 수정';
   document.getElementById('rn-submit-btn').textContent='저장';
   document.getElementById('rn-name').value=groupName;document.getElementById('rn-old-name').value=groupName;
-  const sn=document.getElementById('rn-short-name');if(sn)sn.value=raidGroupSettings[groupName]?.short_name||'';
   const c=getGroupColor(groupName);document.getElementById('rn-color').value=c;document.getElementById('rn-color-preview').textContent='● '+c;document.getElementById('rn-color-preview').style.color=c;
   _rnIconUrl=getGroupIcon(groupName)||null;
   const rp=document.getElementById('rn-icon-preview');
@@ -2545,7 +2537,6 @@ function openEditRaidGroup(groupName){
 function openAddPreset(){
   document.getElementById('raid-name-modal-title').textContent='레이드 추가';document.getElementById('rn-submit-btn').textContent='추가';
   document.getElementById('rn-name').value='';document.getElementById('rn-old-name').value='';
-  const sn=document.getElementById('rn-short-name');if(sn)sn.value='';
   _rnIconUrl=null;
   const p=document.getElementById('rn-icon-preview');if(p)p.innerHTML='<span style="color:var(--dim);font-size:.7rem;">없음</span>';
   resetRnColor();openModal('modal-raid-name');setTimeout(()=>document.getElementById('rn-name').focus(),80);
@@ -2555,8 +2546,7 @@ async function submitRaidName(){
   const oldName=document.getElementById('rn-old-name').value;
   const color=document.getElementById('rn-color').value||'#4caf50';
   const iconUrl=typeof _rnIconUrl!=='undefined'?_rnIconUrl:null;
-  const shortName=(document.getElementById('rn-short-name')?.value||'').trim()||null;
-  const savedSetting=await saveRaidGroupSetting(name,{color,icon_url:iconUrl,short_name:shortName});
+  const savedSetting=await saveRaidGroupSetting(name,{color,icon_url:iconUrl});
   if(!savedSetting)return;
   if(oldName){
     // 수정: 해당 이름의 모든 presets 이름 변경
@@ -2603,7 +2593,7 @@ function openAddDifficulty(groupName){
   document.getElementById('diff-modal-title').textContent='난이도 추가';
   document.getElementById('diff-submit-btn').textContent='추가';
   document.getElementById('diff-parent-label').textContent=`레이드: ${groupName}`;
-  ['diff-difficulty','diff-ilvl','diff-gold','diff-bound','diff-bonus'].forEach(id=>document.getElementById(id).value='');
+  ['diff-difficulty','diff-short-name','diff-ilvl','diff-gold','diff-bound','diff-bonus'].forEach(id=>document.getElementById(id).value='');
 
   document.getElementById('diff-preset-id').value='';document.getElementById('diff-group-name').value=groupName;
   openModal('modal-difficulty');setTimeout(()=>document.getElementById('diff-difficulty').focus(),80);
@@ -2614,6 +2604,7 @@ function openEditDifficulty(id){
   document.getElementById('diff-submit-btn').textContent='저장';
   document.getElementById('diff-parent-label').textContent=`레이드: ${r.name}`;
   document.getElementById('diff-difficulty').value=r.difficulty||'';
+  document.getElementById('diff-short-name').value=r.short_name||'';
   document.getElementById('diff-ilvl').value=r.entry_level||'';
   document.getElementById('diff-gold').value=r.clear_gold||'';
   document.getElementById('diff-bound').value=r.bound_gold||'';
@@ -2626,6 +2617,7 @@ async function submitDifficulty(){
   if(!difficulty){toast('❗ 난이도를 입력하세요');return;}
   const rec={
     difficulty,
+    short_name:(document.getElementById('diff-short-name').value||'').trim()||null,
     entry_level:parseFloat(document.getElementById('diff-ilvl').value)||0,
     clear_gold:parseFloat(document.getElementById('diff-gold').value)||0,
     bound_gold:parseFloat(document.getElementById('diff-bound').value)||0,
@@ -2633,12 +2625,25 @@ async function submitDifficulty(){
   };
   const editId=document.getElementById('diff-preset-id').value,groupName=document.getElementById('diff-group-name').value;
   if(editId){
-    const res=await sb.from('raid_presets').update(rec).eq('id',editId);
+    let res=await sb.from('raid_presets').update(rec).eq('id',editId);
+    if(res.error&&/short_name|schema cache|column/i.test(res.error.message||'')){
+      const fallback={...rec};delete fallback.short_name;
+      res=await sb.from('raid_presets').update(fallback).eq('id',editId);
+      if(!res.error)toast('⚠️ raid_presets.short_name SQL 적용 후 줄임말이 저장됩니다');
+    }
     if(supaErr(res,'난이도 수정 실패'))return;
     const r=raids.find(x=>x.id===editId);if(r)Object.assign(r,rec);toast('✅ 수정됨');
   } else {
     rec.name=groupName;rec.sort_order=raids.filter(r=>r.name===groupName).length;
-    const{data,error}=await sb.from('raid_presets').insert(rec).select().single();if(error){toast('❗ '+error.message);return;}
+    let{data,error}=await sb.from('raid_presets').insert(rec).select().single();
+    if(error&&/short_name|schema cache|column/i.test(error.message||'')){
+      const fallback={...rec};delete fallback.short_name;
+      const retry=await sb.from('raid_presets').insert(fallback).select().single();
+      data=retry.data;error=retry.error;
+      if(!error)toast('⚠️ raid_presets.short_name SQL 적용 후 줄임말이 저장됩니다');
+    }
+    if(error){toast('❗ '+error.message);return;}
+    if(data&&!('short_name' in data))data.short_name=rec.short_name;
     raids.push(data);selPresetId=data.id;
     const extras=safeJson('la_raid_groups',[]).filter(n=>n!==groupName);
     localStorage.setItem('la_raid_groups',JSON.stringify(extras));
