@@ -15,8 +15,14 @@ function json(body: unknown, status = 200) {
   });
 }
 
-function getWeekStartKst(off = 0) {
-  const kst = new Date(Date.now() + 9 * 3600000);
+function parseNowMs(value: unknown) {
+  if (value == null || value === "") return Date.now();
+  const ms = typeof value === "number" ? value : new Date(String(value)).getTime();
+  return Number.isFinite(ms) ? ms : Date.now();
+}
+
+function getWeekStartKst(off = 0, nowMs = Date.now()) {
+  const kst = new Date(nowMs + 9 * 3600000);
   let back = (kst.getUTCDay() - 3 + 7) % 7;
   if (back === 0 && kst.getUTCHours() < 6) back = 7;
   const ws = new Date(kst);
@@ -25,13 +31,13 @@ function getWeekStartKst(off = 0) {
   return ws;
 }
 
-function weekKey(off = 0) {
-  const ws = getWeekStartKst(off);
+function weekKey(off = 0, nowMs = Date.now()) {
+  const ws = getWeekStartKst(off, nowMs);
   return `${ws.getUTCFullYear()}-${String(ws.getUTCMonth() + 1).padStart(2, "0")}-${String(ws.getUTCDate()).padStart(2, "0")}`;
 }
 
-function weekWindow(off = 0) {
-  const ws = getWeekStartKst(off);
+function weekWindow(off = 0, nowMs = Date.now()) {
+  const ws = getWeekStartKst(off, nowMs);
   const wsMs = ws.getTime() - 9 * 3600000;
   return { wsMs, weMs: wsMs + 7 * 24 * 3600000 };
 }
@@ -72,9 +78,10 @@ Deno.serve(async (req) => {
   if (!supabaseUrl || !serviceRoleKey) return json({ error: "Supabase 기본 Secret이 없습니다." }, 500);
 
   const body = await req.json().catch(() => ({}));
+  const nowMs = parseNowMs(body.testNow);
   const off = Number.isFinite(Number(body.weekOffset)) ? Number(body.weekOffset) : 0;
-  const wk = weekKey(off);
-  const { wsMs, weMs } = weekWindow(off);
+  const wk = weekKey(off, nowMs);
+  const { wsMs, weMs } = weekWindow(off, nowMs);
   const sb = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 
   try {
@@ -128,7 +135,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${serviceRoleKey}`,
       },
-      body: JSON.stringify({ weekOffset: off, source: "auto-send-raid-discord" }),
+      body: JSON.stringify({ weekOffset: off, testNow: body.testNow || null, source: "auto-send-raid-discord" }),
     });
     const result = await invokeRes.json().catch(() => ({}));
     if (!invokeRes.ok || result?.error) {

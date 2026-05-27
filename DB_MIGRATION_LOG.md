@@ -349,6 +349,37 @@ select cron.schedule(
 ### 적용 여부
 - 수동 확인 필요.
 
+## 2026-05-26 - 레이드 디스코드 전송 줄임말 및 Cron Vault 점검
+
+### 변경
+- `raid_group_settings.short_name` 컬럼을 추가했습니다.
+- `raid.html` 레이드 그룹 추가/수정 모달에서 디스코드 전송용 줄임말을 직접 입력할 수 있습니다.
+- `send-raid-discord`는 레이드 그룹의 `short_name`을 우선 사용하고, 값이 없으면 기존 레이드명을 사용합니다.
+
+```sql
+alter table raid_group_settings add column if not exists short_name text;
+```
+
+### Cron 장애 확인
+- `send-homework-discord-tue-20-kst` Cron 실패 원인은 JWT 체크보다 먼저 `project_url`, `publishable_key` Vault Secret 조회 결과가 `null`인 것입니다.
+- `pg_net` 오류의 핵심은 `url := null` 및 `Authorization := null`입니다.
+- Supabase SQL Editor 또는 Vault 화면에서 아래 두 Secret을 먼저 채워야 합니다.
+
+```sql
+-- 값은 실제 프로젝트 값으로 교체해서 적용
+select vault.create_secret('https://wmritejklhggnzcwoxse.supabase.co', 'project_url');
+select vault.create_secret('<legacy anon key 또는 publishable key>', 'publishable_key');
+```
+
+### JWT 설정 메모
+- Edge Function의 `Verify JWT with legacy secret`을 끄면 Cron 요청에서 Authorization 헤더가 없어도 호출은 가능해질 수 있습니다.
+- 다만 현재 실패는 URL 자체가 `null`이라서, JWT 설정을 바꾸기 전에 `project_url` Vault Secret은 반드시 필요합니다.
+- JWT를 끈 상태로 운영하려면 공개 호출 가능성이 생기므로, 별도 Cron Secret 헤더 검증을 추가하는 것이 더 안전합니다.
+
+### 적용 여부
+- `raid_group_settings.short_name` SQL 적용 필요.
+- Vault Secret 적용 필요.
+
 ## 2026-05-26 - Discord 전송 메시지 예약 삭제
 
 ### 목적

@@ -1308,6 +1308,9 @@ body::before{background:none;}
   <div class="form-group"><label class="form-label">레이드 이름</label>
     <input class="form-input" id="rn-name" lang="ko" inputmode="text" placeholder="에키드나, 베히모스, 카멘..." maxlength="30">
   </div>
+  <div class="form-group"><label class="form-label">디스코드 전송 줄임말 <span style="font-size:.7rem;color:var(--muted);">(선택)</span></label>
+    <input class="form-input" id="rn-short-name" lang="ko" inputmode="text" placeholder="예: 성당, 세르카, 종막" maxlength="20">
+  </div>
   <div class="form-group">
     <label class="form-label">레이드 아이콘</label>
     <div style="display:flex;align-items:center;gap:10px;">
@@ -2029,10 +2032,23 @@ async function migrateLegacyRaidGroupSettings(){
 }
 async function saveRaidGroupSetting(name,patch){
   if(!raidGroupSettingsAvailable){toast('❗ raid_group_settings 테이블을 먼저 적용하세요');return false;}
-  const rec={name,color:patch.color??raidGroupSettings[name]?.color??'#4caf50',icon_url:patch.icon_url??null,updated_at:new Date().toISOString()};
-  const {data,error}=await sb.from('raid_group_settings').upsert(rec,{onConflict:'name'}).select().single();
+  const rec={
+    name,
+    color:patch.color??raidGroupSettings[name]?.color??'#4caf50',
+    icon_url:patch.icon_url??null,
+    short_name:patch.short_name??raidGroupSettings[name]?.short_name??null,
+    updated_at:new Date().toISOString()
+  };
+  let {data,error}=await sb.from('raid_group_settings').upsert(rec,{onConflict:'name'}).select().single();
+  if(error&&/short_name/i.test(error.message||'')){
+    const fallback={name:rec.name,color:rec.color,icon_url:rec.icon_url,updated_at:rec.updated_at};
+    const retry=await sb.from('raid_group_settings').upsert(fallback,{onConflict:'name'}).select().single();
+    data=retry.data;error=retry.error;
+    if(!error)toast('⚠️ raid_group_settings.short_name SQL 적용 후 줄임말이 저장됩니다');
+  }
   if(error){toast('❗ '+error.message);console.error(error);return false;}
   raidGroupSettings[name]=data||rec;
+  if(!('short_name' in raidGroupSettings[name]))raidGroupSettings[name].short_name=rec.short_name;
   return true;
 }
 async function deleteRaidGroupSetting(name){
@@ -2519,6 +2535,7 @@ function openEditRaidGroup(groupName){
   document.getElementById('raid-name-modal-title').textContent='레이드 이름 수정';
   document.getElementById('rn-submit-btn').textContent='저장';
   document.getElementById('rn-name').value=groupName;document.getElementById('rn-old-name').value=groupName;
+  const sn=document.getElementById('rn-short-name');if(sn)sn.value=raidGroupSettings[groupName]?.short_name||'';
   const c=getGroupColor(groupName);document.getElementById('rn-color').value=c;document.getElementById('rn-color-preview').textContent='● '+c;document.getElementById('rn-color-preview').style.color=c;
   _rnIconUrl=getGroupIcon(groupName)||null;
   const rp=document.getElementById('rn-icon-preview');
@@ -2528,6 +2545,7 @@ function openEditRaidGroup(groupName){
 function openAddPreset(){
   document.getElementById('raid-name-modal-title').textContent='레이드 추가';document.getElementById('rn-submit-btn').textContent='추가';
   document.getElementById('rn-name').value='';document.getElementById('rn-old-name').value='';
+  const sn=document.getElementById('rn-short-name');if(sn)sn.value='';
   _rnIconUrl=null;
   const p=document.getElementById('rn-icon-preview');if(p)p.innerHTML='<span style="color:var(--dim);font-size:.7rem;">없음</span>';
   resetRnColor();openModal('modal-raid-name');setTimeout(()=>document.getElementById('rn-name').focus(),80);
@@ -2537,7 +2555,8 @@ async function submitRaidName(){
   const oldName=document.getElementById('rn-old-name').value;
   const color=document.getElementById('rn-color').value||'#4caf50';
   const iconUrl=typeof _rnIconUrl!=='undefined'?_rnIconUrl:null;
-  const savedSetting=await saveRaidGroupSetting(name,{color,icon_url:iconUrl});
+  const shortName=(document.getElementById('rn-short-name')?.value||'').trim()||null;
+  const savedSetting=await saveRaidGroupSetting(name,{color,icon_url:iconUrl,short_name:shortName});
   if(!savedSetting)return;
   if(oldName){
     // 수정: 해당 이름의 모든 presets 이름 변경
@@ -3698,7 +3717,7 @@ async function sendDiscordSchedule(){
   const oldText=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='전송 중...';}
   try{
-    const {data,error}=await sb.functions.invoke('send-raid-discord',{body:{weekOffset,shareUrl:await getShareUrl()}});
+    const {data,error}=await sb.functions.invoke('send-raid-discord',{body:{weekOffset,testNow:isTestMode()?appNowIso():null}});
     if(error)throw error;
     if(data?.error)throw new Error(data.error);
     toast(`✅ 디스코드 전송 완료${Number.isFinite(Number(data?.sentLines))?` (${data.sentLines}줄)`:''}`);

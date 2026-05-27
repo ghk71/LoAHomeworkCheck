@@ -29,6 +29,12 @@ function webhookUrlFromEnv(name: string) {
   return value;
 }
 
+function parseNowIso(value: unknown) {
+  if (value == null || value === "") return new Date().toISOString();
+  const ms = typeof value === "number" ? value : new Date(String(value)).getTime();
+  return new Date(Number.isFinite(ms) ? ms : Date.now()).toISOString();
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -39,13 +45,14 @@ Deno.serve(async (req) => {
 
   const body = await req.json().catch(() => ({}));
   const kind = String(body.kind || "").trim();
+  const nowIso = parseNowIso(body.testNow);
   const sb = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 
   let query = sb
     .from("discord_sent_messages")
     .select("*")
     .is("deleted_at", null)
-    .lte("delete_after", new Date().toISOString())
+    .lte("delete_after", nowIso)
     .order("delete_after", { ascending: true })
     .limit(100);
   if (kind) query = query.eq("kind", kind);
@@ -61,7 +68,7 @@ Deno.serve(async (req) => {
       const res = await fetch(webhookDeleteUrl(webhookUrl, row.message_id), { method: "DELETE" });
       if (res.ok || res.status === 404) {
         await sb.from("discord_sent_messages").update({
-          deleted_at: new Date().toISOString(),
+          deleted_at: nowIso,
           delete_attempts: Number(row.delete_attempts || 0) + 1,
           last_error: null,
         }).eq("id", row.id);

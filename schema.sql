@@ -144,6 +144,7 @@ create table if not exists raid_presets(
 create table if not exists raid_group_settings(
   name text primary key,
   icon_url text,
+  short_name text,
   color text default '#4caf50',
   updated_at timestamptz default now()
 );
@@ -323,9 +324,11 @@ alter table currencies add column if not exists icon_url text;
 create table if not exists raid_group_settings(
   name text primary key,
   icon_url text,
+  short_name text,
   color text default '#4caf50',
   updated_at timestamptz default now()
 );
+alter table raid_group_settings add column if not exists short_name text;
 alter table raid_group_settings disable row level security;
 
 -- 재화 마지막 수정일

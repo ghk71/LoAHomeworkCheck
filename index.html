@@ -926,7 +926,8 @@ async function sendDiscordHomeworkSummary(){
   try{
     const {data,error}=await sb.functions.invoke('send-homework-discord',{body:{
       hiddenAccountIds:[...state.hiddenAccounts],
-      includeFilterHidden:false
+      includeFilterHidden:false,
+      testNow:isTestMode()?appNowIso():null
     }});
     if(error)throw error;
     if(data?.error)throw new Error(data.error);

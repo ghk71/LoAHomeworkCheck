@@ -829,8 +829,12 @@ function updateWeekLabel(){
   document.getElementById('week-label').textContent=label;
   document.getElementById('hdr-week').textContent=`${f(s)} ~ ${f(e)}`;
 }
-function moveWeek(n){weekOffset+=n;updateWeekLabel();render();}
-function goCurrentWeek(){weekOffset=0;updateWeekLabel();render();}
+async function refreshWeekScopedRaidState(){
+  await loadTempRaidTaskIds();
+  await markPartyLinkedRaidTasks();
+}
+async function moveWeek(n){weekOffset+=n;updateWeekLabel();await refreshWeekScopedRaidState();render();}
+async function goCurrentWeek(){weekOffset=0;updateWeekLabel();await refreshWeekScopedRaidState();render();}
 async function autoReset(){
   const lr=getWeekStart(0);
   const toReset=raidTasks.filter(t=>t.is_completed&&t.last_completed_at&&new Date(t.last_completed_at)<=lr);
@@ -840,7 +844,8 @@ async function autoReset(){
   toReset.forEach(t=>{t.is_completed=false;t.last_completed_at=null;});
 }
 async function loadTempRaidTaskIds(){
-  const{data,error}=await sb.from('raid_schedule_overrides').select('schedule_id,temp_changes').eq('week_start_date',getWeekKey(0));
+  const wk=getWeekKey(weekOffset);
+  const{data,error}=await sb.from('raid_schedule_overrides').select('schedule_id,temp_changes').eq('week_start_date',wk);
   if(error){tempRaidTaskIds=new Set();tempRemovedRaidTaskIds=new Set();tempRemovedPresetByTask={};return;}
   const ids=[],removedBySchedule=[],removedRecords=[];
   (data||[]).forEach(o=>{
@@ -849,7 +854,7 @@ async function loadTempRaidTaskIds(){
     Object.values(added).forEach(v=>{if(v&&v.taskId)ids.push(v.taskId);});
     Object.values(removed).forEach(v=>{if(v&&v.taskId)removedRecords.push({taskId:v.taskId,scheduleId:o.schedule_id});});
   });
-  const{data:tempParties}=await sb.from('raid_parties').select('id,preset_id').eq('is_temporary',true).eq('temp_week_start_date',getWeekKey(0));
+  const{data:tempParties}=await sb.from('raid_parties').select('id,preset_id').eq('is_temporary',true).eq('temp_week_start_date',wk);
   if(tempParties?.length){
     const tempPartyIds=tempParties.map(p=>p.id);
     const{data:tempMembers}=await sb.from('raid_party_members').select('party_id,character_id').in('party_id',tempPartyIds);
@@ -889,7 +894,7 @@ async function loadRaidGroupSettings(){
 async function markPartyLinkedRaidTasks(){
   const pids=[...new Set(raidTasks.filter(t=>t.preset_id).map(t=>t.preset_id))];
   if(!pids.length){raidTasks.forEach(t=>t.has_party_link=false);return;}
-  const wk=getWeekKey(0);
+  const wk=getWeekKey(weekOffset);
   const{data:partyRows}=await sb.from('raid_parties').select('id,preset_id,is_temporary,temp_week_start_date').in('preset_id',pids);
   const activePartyRows=(partyRows||[]).filter(p=>!p.is_temporary||p.temp_week_start_date===wk);
   const partyPreset={};activePartyRows.forEach(p=>{partyPreset[p.id]=p.preset_id;});
@@ -1088,7 +1093,7 @@ async function showOvPartyPopup(presetId,charId,taskId=''){
     ]);
     if(presetErr)throw presetErr;if(partyErr)throw partyErr;
     if(!preset){el.innerHTML='<span style="color:var(--muted);">정보 없음</span>';return;}
-    const wk=getWeekKey(0);
+    const wk=getWeekKey(weekOffset);
     const activeParties=(partiesData||[]).filter(p=>!p.is_temporary||p.temp_week_start_date===wk);
     const pIds=activeParties.map(p=>p.id);
     const[{data:members,error:mErr},{data:schData,error:sErr}]=await Promise.all([

@@ -2521,6 +2521,37 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 변경/추가 파일 BOM 없음 확인.
 - `deno`가 설치되어 있지 않아 Edge Function 타입 체크는 실행하지 못했습니다.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-05-26 - 레이드 디스코드 전송 조합 규칙/주차별 임시 상태 수정
+
+### 변경 내용
+- `send-raid-discord` 메시지 생성 규칙을 변경했습니다.
+  - 고정 공유 링크를 사용하도록 변경했습니다.
+  - 메시지에서 시간 표시는 제거하고, `월/일 (요일)` 아래에 레이드별 줄을 출력합니다.
+  - 레이드 조건은 상위 계정 기준으로 `[겊삶, 슈빙츄, 해용이, 무려억]` 4계정 조합을 우선 판정하고, 없으면 `[겊삶, 슈빙츄, 해용이]` 3계정 조합을 판정합니다.
+  - 각 대상 계정은 한 파티 안에 정확히 1캐릭터만 있어야 조합으로 인정합니다.
+  - 카제로스 익스트림 교환처럼 이름에 `교환`이 포함된 항목은 전송 대상에서 제외합니다.
+- `raid_group_settings.short_name` 컬럼을 추가하고, `raid.html` 레이드 그룹 추가/수정 모달에 디스코드 전송용 줄임말 입력칸을 추가했습니다.
+- `overview.html`에서 다음주/이전주 이동 시 임시 파티/임시 해제 상태를 현재 화면 주차 기준으로 다시 로드하도록 변경했습니다.
+  - `index.html`, `parties.html`은 기존처럼 현재 주차 기준 임시 상태만 반영합니다.
+- Edge Function 테스트용으로 `testNow` body 값을 일부 함수에 반영했습니다.
+  - `send-raid-discord`, `auto-send-raid-discord`, `send-homework-discord`, `delete-discord-messages`
+  - 브라우저 테스트 모드에서 수동 버튼 전송 시 `testNow`를 함께 보냅니다.
+
+### 운영 메모
+- Supabase SQL Editor에서 아래 SQL을 적용해야 레이드 줄임말이 DB에 저장됩니다.
+  - `alter table raid_group_settings add column if not exists short_name text;`
+- 오늘 확인된 Cron 실패는 `project_url`, `publishable_key` Vault Secret이 `null`이라 생긴 문제입니다.
+  - JWT 체크 해제만으로는 `url := null` 문제를 해결할 수 없습니다.
+  - `project_url` Vault Secret은 반드시 먼저 채워야 합니다.
+- 자동 Cron은 서버에서 실행되므로 브라우저 localStorage 테스트 모드를 직접 읽을 수 없습니다. 테스트가 필요하면 Cron SQL body 또는 수동 invoke body에 `testNow`를 넣어야 합니다.
+
+### 검증
+- 5개 주요 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 5개 주요 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 경고만 있음.
+- `deno`가 설치되어 있지 않아 Edge Function 타입 체크는 실행하지 못했습니다.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
 ## 2026-05-26 - 레이드 일정 자동 전송 체크
 
 ### 변경 내용

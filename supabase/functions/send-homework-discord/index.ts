@@ -13,8 +13,16 @@ function json(body: unknown, status = 200) {
   });
 }
 
+let requestNowMs = Date.now();
+
+function parseNowMs(value: unknown) {
+  if (value == null || value === "") return Date.now();
+  const ms = typeof value === "number" ? value : new Date(String(value)).getTime();
+  return Number.isFinite(ms) ? ms : Date.now();
+}
+
 function kstNow() {
-  return new Date();
+  return new Date(requestNowMs);
 }
 
 function getLastResetUTC(type: string, day = 3) {
@@ -168,7 +176,7 @@ function waitWebhookUrl(webhookUrl: string) {
 
 function nextDeleteAfterKst(kind: "raid" | "homework") {
   const spec = kind === "homework" ? { day: 3, hour: 6 } : { day: 2, hour: 22 };
-  const now = new Date();
+  const now = kstNow();
   const kst = new Date(now.getTime() + 9 * 3600000);
   let addDays = (spec.day - kst.getUTCDay() + 7) % 7;
   let target = new Date(Date.UTC(
@@ -194,7 +202,7 @@ function nextDeleteAfterKst(kind: "raid" | "homework") {
 }
 
 function weekKey() {
-  const kst = new Date(Date.now() + 9 * 3600000);
+  const kst = new Date(requestNowMs + 9 * 3600000);
   let back = (kst.getUTCDay() - 3 + 7) % 7;
   if (back === 0 && kst.getUTCHours() < 6) back = 7;
   const ws = new Date(kst);
@@ -233,6 +241,7 @@ Deno.serve(async (req) => {
   if (!supabaseUrl || !serviceRoleKey) return json({ error: "Supabase 기본 Secret이 없습니다." }, 500);
 
   const body = await req.json().catch(() => ({}));
+  requestNowMs = parseNowMs(body.testNow);
   const hiddenAccountIds = new Set<string>(Array.isArray(body.hiddenAccountIds) ? body.hiddenAccountIds.map(String) : []);
   const includeFilterHidden = body.includeFilterHidden === true;
 

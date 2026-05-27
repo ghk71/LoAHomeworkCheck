@@ -8,6 +8,12 @@ const corsHeaders = {
 
 const WEEK_DAY_NUMS = [3, 4, 5, 6, 0, 1, 2];
 const DKO = ["일", "월", "화", "수", "목", "금", "토"];
+const FIXED_SHARE_URL =
+  "https://ghk71.github.io/LoAHomeworkCheck/raid.html?s=8msPYgSM2CUB&u=https%3A%2F%2Fwmritejklhggnzcwoxse.supabase.co";
+const TARGET_ACCOUNT_GROUPS = [
+  ["겊삶", "슈빙츄", "해용이", "무려억"],
+  ["겊삶", "슈빙츄", "해용이"],
+];
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -16,8 +22,14 @@ function json(body: unknown, status = 200) {
   });
 }
 
-function getWeekStartKst(off = 0) {
-  const kst = new Date(Date.now() + 9 * 3600000);
+function parseNowMs(value: unknown) {
+  if (value == null || value === "") return Date.now();
+  const ms = typeof value === "number" ? value : new Date(String(value)).getTime();
+  return Number.isFinite(ms) ? ms : Date.now();
+}
+
+function getWeekStartKst(off = 0, nowMs = Date.now()) {
+  const kst = new Date(nowMs + 9 * 3600000);
   let back = (kst.getUTCDay() - 3 + 7) % 7;
   if (back === 0 && kst.getUTCHours() < 6) back = 7;
   const ws = new Date(kst);
@@ -26,13 +38,13 @@ function getWeekStartKst(off = 0) {
   return ws;
 }
 
-function weekKey(off = 0) {
-  const ws = getWeekStartKst(off);
+function weekKey(off = 0, nowMs = Date.now()) {
+  const ws = getWeekStartKst(off, nowMs);
   return `${ws.getUTCFullYear()}-${String(ws.getUTCMonth() + 1).padStart(2, "0")}-${String(ws.getUTCDate()).padStart(2, "0")}`;
 }
 
-function weekWindow(off = 0) {
-  const ws = getWeekStartKst(off);
+function weekWindow(off = 0, nowMs = Date.now()) {
+  const ws = getWeekStartKst(off, nowMs);
   const wsMs = ws.getTime() - 9 * 3600000;
   return { ws, wsMs, weMs: wsMs + 7 * 24 * 3600000 };
 }
@@ -41,20 +53,18 @@ function formatDate(d: Date) {
   return `${d.getUTCFullYear()}년 ${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`;
 }
 
-function weekRangeLabel(off = 0) {
-  const start = getWeekStartKst(off);
+function weekRangeLabel(off = 0, nowMs = Date.now()) {
+  const start = getWeekStartKst(off, nowMs);
   const end = new Date(start);
   end.setUTCDate(end.getUTCDate() + 6);
   return `${formatDate(start)} ~ ${formatDate(end)} 레이드 일정`;
 }
 
-function normalizeTime(v: unknown) {
-  const raw = String(v || "").trim();
-  if (!raw) return "";
-  const m = raw.match(/^(\d{1,2}):(\d{2})$/);
-  if (!m) return raw;
-  const h = Number(m[1]);
-  return m[2] === "00" ? `${h}시` : `${h}:${m[2]}`;
+function dateLabelForDay(dayOfWeek: number, off = 0, nowMs = Date.now()) {
+  const idx = WEEK_DAY_NUMS.indexOf(dayOfWeek);
+  const d = getWeekStartKst(off, nowMs);
+  d.setUTCDate(d.getUTCDate() + (idx >= 0 ? idx : 0));
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()} (${DKO[dayOfWeek] || ""})`;
 }
 
 function sortTime(v: unknown) {
@@ -70,24 +80,29 @@ function asInt(v: unknown, fallback = 0) {
   return Number.isInteger(n) ? n : fallback;
 }
 
+function cleanText(v: unknown) {
+  return String(v || "").trim();
+}
+
 function isNonRaidName(name: unknown) {
-  const text = String(name || "").trim();
+  const text = cleanText(name);
   return !text || text.includes("교환");
 }
 
-function raidLabel(preset: any) {
-  const name = String(preset?.name || "").trim();
-  const diff = String(preset?.difficulty || "").trim();
-  return diff ? `${name} ${diff}` : name;
+function raidShortLabel(preset: any, groupSettingByName: Map<string, any>) {
+  const name = cleanText(preset?.name);
+  const diff = cleanText(preset?.difficulty);
+  const shortName = cleanText(groupSettingByName.get(name)?.short_name) || name;
+  return diff ? `${shortName} ${diff}` : shortName;
 }
 
 function waitWebhookUrl(webhookUrl: string) {
   return webhookUrl.includes("?") ? `${webhookUrl}&wait=true` : `${webhookUrl}?wait=true`;
 }
 
-function nextDeleteAfterKst(kind: "raid" | "homework") {
+function nextDeleteAfterKst(kind: "raid" | "homework", nowMs = Date.now()) {
   const spec = kind === "homework" ? { day: 3, hour: 6 } : { day: 2, hour: 22 };
-  const now = new Date();
+  const now = new Date(nowMs);
   const kst = new Date(now.getTime() + 9 * 3600000);
   let addDays = (spec.day - kst.getUTCDay() + 7) % 7;
   let target = new Date(Date.UTC(
@@ -112,14 +127,14 @@ function nextDeleteAfterKst(kind: "raid" | "homework") {
   return target.toISOString();
 }
 
-async function trackDiscordMessage(sb: any, message: any, content: string, weekStartDate: string) {
+async function trackDiscordMessage(sb: any, message: any, content: string, weekStartDate: string, nowMs: number) {
   if (!message?.id) return false;
   const { error } = await sb.from("discord_sent_messages").insert({
     kind: "raid",
     week_start_date: weekStartDate,
     webhook_env: "DISCORD_RAID_WEBHOOK_URL",
     message_id: String(message.id),
-    delete_after: nextDeleteAfterKst("raid"),
+    delete_after: nextDeleteAfterKst("raid", nowMs),
     content_preview: content.slice(0, 500),
   });
   if (error) {
@@ -127,6 +142,41 @@ async function trackDiscordMessage(sb: any, message: any, content: string, weekS
     return false;
   }
   return true;
+}
+
+function topAccountForCharacter(ch: any, accountById: Map<string, any>) {
+  const account: any = accountById.get(ch?.account_id);
+  if (!account) return null;
+  if (account.parent_account_id) return accountById.get(account.parent_account_id) || account;
+  return account;
+}
+
+function buildAccountCombo(charIds: string[], charById: Map<string, any>, accountById: Map<string, any>) {
+  const byAccount = new Map<string, { accountName: string; charName: string }[]>();
+  for (const charId of charIds) {
+    const ch: any = charById.get(charId);
+    const account = topAccountForCharacter(ch, accountById);
+    const accountName = cleanText(account?.name);
+    const charName = cleanText(ch?.name);
+    if (!accountName || !charName) continue;
+    if (!byAccount.has(accountName)) byAccount.set(accountName, []);
+    byAccount.get(accountName)!.push({ accountName, charName });
+  }
+
+  for (const group of TARGET_ACCOUNT_GROUPS) {
+    const chars: string[] = [];
+    let ok = true;
+    for (const accountName of group) {
+      const list = byAccount.get(accountName) || [];
+      if (list.length !== 1) {
+        ok = false;
+        break;
+      }
+      chars.push(list[0].charName);
+    }
+    if (ok) return { accounts: group, chars };
+  }
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -140,10 +190,10 @@ Deno.serve(async (req) => {
   if (!supabaseUrl || !serviceRoleKey) return json({ error: "Supabase 기본 Secret이 없습니다." }, 500);
 
   const body = await req.json().catch(() => ({}));
+  const nowMs = parseNowMs(body.testNow);
   const off = Number.isFinite(Number(body.weekOffset)) ? Number(body.weekOffset) : 0;
-  const shareUrl = String(body.shareUrl || "").trim();
-  const wk = weekKey(off);
-  const { wsMs, weMs } = weekWindow(off);
+  const wk = weekKey(off, nowMs);
+  const { wsMs, weMs } = weekWindow(off, nowMs);
   const sb = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 
   const [
@@ -155,6 +205,7 @@ Deno.serve(async (req) => {
     schedulesRes,
     overridesRes,
     noticeRes,
+    groupSettingsRes,
   ] = await Promise.all([
     sb.from("accounts").select("*").order("sort_order").order("created_at"),
     sb.from("characters").select("*").order("sort_order").order("created_at"),
@@ -164,6 +215,7 @@ Deno.serve(async (req) => {
     sb.from("raid_schedules").select("*").order("sort_order").order("created_at"),
     sb.from("raid_schedule_overrides").select("*").eq("week_start_date", wk),
     sb.from("raid_notices").select("*").eq("week_start_date", wk).maybeSingle(),
+    sb.from("raid_group_settings").select("*"),
   ]);
 
   const firstError = [
@@ -177,6 +229,7 @@ Deno.serve(async (req) => {
     noticeRes,
   ].find((r) => r.error)?.error;
   if (firstError) return json({ error: firstError.message }, 500);
+  if (groupSettingsRes.error) console.warn("[raid-group-settings]", groupSettingsRes.error.message);
 
   const accounts = accountsRes.data || [];
   const chars = charsRes.data || [];
@@ -185,9 +238,11 @@ Deno.serve(async (req) => {
   const members = membersRes.data || [];
   const schedules = schedulesRes.data || [];
   const overrides = overridesRes.data || [];
-  const notice = noticeRes.data?.content || "없음";
+  const notice = cleanText(noticeRes.data?.content) || "없음";
+  const groupSettingByName = new Map((groupSettingsRes.error ? [] : groupSettingsRes.data || []).map((r: any) => [r.name, r]));
 
   const accountById = new Map(accounts.map((a: any) => [a.id, a]));
+  const charById = new Map(chars.map((c: any) => [c.id, c]));
   const presetById = new Map(presets.map((p: any) => [p.id, p]));
 
   const parties = partiesAll.filter((p: any) => !p.is_temporary || p.temp_week_start_date === wk);
@@ -202,20 +257,6 @@ Deno.serve(async (req) => {
   for (const list of memberByParty.values()) list.sort((a, b) => (a.slot_index ?? 0) - (b.slot_index ?? 0));
 
   const overrideBySchedule = new Map(overrides.map((o: any) => [o.schedule_id, o]));
-
-  const targetTopAccounts = accounts.filter((a: any) => !a.parent_account_id && a.hide_from_filters !== true);
-  const groupCharSets = targetTopAccounts.map((acc: any) => {
-    const ids = new Set<string>();
-    for (const ch of chars) {
-      const chAcc: any = accountById.get(ch.account_id);
-      if (ch.account_id === acc.id || chAcc?.parent_account_id === acc.id) ids.add(ch.id);
-    }
-    return ids;
-  }).filter((ids) => ids.size > 0);
-
-  if (!groupCharSets.length) {
-    return json({ error: "전송 대상 계정/캐릭터가 없습니다." }, 400);
-  }
 
   const scheduleOverride = (schedule: any) => {
     const override: any = overrideBySchedule.get(schedule.id);
@@ -239,6 +280,7 @@ Deno.serve(async (req) => {
 
   const isScheduleInWeek = (schedule: any) => {
     if (!partyById.has(schedule.party_id)) return false;
+    if (!WEEK_DAY_NUMS.includes(effectiveDay(schedule))) return false;
     if (schedule.is_fixed) return true;
     const t = new Date(schedule.created_at).getTime();
     return t >= wsMs && t < weMs;
@@ -263,62 +305,59 @@ Deno.serve(async (req) => {
     return [...new Set(ids)];
   };
 
-  const rows = new Map<string, { dayOrder: number; timeSort: string; sort: number; labels: string[] }>();
-  for (const dn of WEEK_DAY_NUMS) {
-    const daySchedules = schedules
-      .filter((s: any) => isScheduleInWeek(s) && effectiveDay(s) === dn)
-      .sort((a: any, b: any) => {
-        const timeCmp = sortTime(effectiveTime(a)).localeCompare(sortTime(effectiveTime(b)));
-        if (timeCmp) return timeCmp;
-        return effectiveSort(a) - effectiveSort(b);
-      });
+  const rows = new Map<string, {
+    dayOrder: number;
+    items: { timeSort: string; sort: number; text: string }[];
+  }>();
+  const seen = new Set<string>();
 
-    for (const schedule of daySchedules) {
-      const party: any = partyById.get(schedule.party_id);
-      const preset: any = party ? presetById.get(party.preset_id) : null;
-      if (!preset || isNonRaidName(preset.name)) continue;
+  for (const schedule of schedules.filter(isScheduleInWeek)) {
+    const party: any = partyById.get(schedule.party_id);
+    const preset: any = party ? presetById.get(party.preset_id) : null;
+    if (!preset || isNonRaidName(preset.name)) continue;
 
-      const charIds = effectiveCharIds(schedule);
-      const includesAllGroups = groupCharSets.every((ids) => charIds.some((id) => ids.has(id)));
-      if (!includesAllGroups) continue;
+    const dayOfWeek = effectiveDay(schedule);
+    const combo = buildAccountCombo(effectiveCharIds(schedule), charById, accountById);
+    if (!combo) continue;
 
-      const dayLabel = `${DKO[dn]}요일`;
-      const timeValue = effectiveTime(schedule);
-      const timeLabel = normalizeTime(timeValue);
-      const rowKey = timeLabel ? `${dayLabel} ${timeLabel}` : dayLabel;
-      if (!rows.has(rowKey)) {
-        rows.set(rowKey, {
-          dayOrder: WEEK_DAY_NUMS.indexOf(dn),
-          timeSort: sortTime(timeValue),
-          sort: effectiveSort(schedule),
-          labels: [],
-        });
-      }
-      const row = rows.get(rowKey)!;
-      row.sort = Math.min(row.sort, effectiveSort(schedule));
-      row.labels.push(raidLabel(preset));
+    const key = `${schedule.id}:${combo.accounts.join("/")}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const rowLabel = dateLabelForDay(dayOfWeek, off, nowMs);
+    if (!rows.has(rowLabel)) {
+      rows.set(rowLabel, { dayOrder: WEEK_DAY_NUMS.indexOf(dayOfWeek), items: [] });
     }
+    rows.get(rowLabel)!.items.push({
+      timeSort: sortTime(effectiveTime(schedule)),
+      sort: effectiveSort(schedule),
+      text: `- ${raidShortLabel(preset, groupSettingByName)}: ${combo.chars.join(", ")}`,
+    });
   }
 
-  const scheduleLines = [...rows.entries()]
-    .sort(([, a], [, b]) => {
-      if (a.dayOrder !== b.dayOrder) return a.dayOrder - b.dayOrder;
-      const timeCmp = a.timeSort.localeCompare(b.timeSort);
-      if (timeCmp) return timeCmp;
-      return a.sort - b.sort;
-    })
-    .map(([label, row]) => `${label}: ${row.labels.join(", ")}`);
+  const scheduleLines: string[] = [];
+  for (const [label, row] of [...rows.entries()].sort(([, a], [, b]) => a.dayOrder - b.dayOrder)) {
+    scheduleLines.push(label);
+    row.items
+      .sort((a, b) => {
+        const timeCmp = a.timeSort.localeCompare(b.timeSort);
+        if (timeCmp) return timeCmp;
+        return a.sort - b.sort;
+      })
+      .forEach((item) => scheduleLines.push(item.text));
+    scheduleLines.push("");
+  }
+  while (scheduleLines[scheduleLines.length - 1] === "") scheduleLines.pop();
 
   const content = [
-    weekRangeLabel(off),
+    weekRangeLabel(off, nowMs),
     "",
-    `**공지사항:** ${notice || "없음"}`,
+    `공지사항: ${notice}`,
     "",
-    "4명 모두 포함 레이드 일정",
     scheduleLines.length ? scheduleLines.join("\n") : "조건에 맞는 레이드 일정이 없습니다.",
     "",
-    shareUrl ? `일정 참조: ${shareUrl}` : "",
-  ].filter((line, idx, arr) => line || idx < arr.length - 1).join("\n");
+    `일정 참조: ${FIXED_SHARE_URL}`,
+  ].join("\n");
 
   const discordRes = await fetch(waitWebhookUrl(webhookUrl), {
     method: "POST",
@@ -331,7 +370,7 @@ Deno.serve(async (req) => {
     return json({ error: `Discord 전송 실패: ${discordRes.status} ${text}` }, 502);
   }
   const message = await discordRes.json().catch(() => null);
-  const tracked = await trackDiscordMessage(sb, message, content, wk);
+  const tracked = await trackDiscordMessage(sb, message, content, wk, nowMs);
 
-  return json({ ok: true, sentLines: scheduleLines.length, content, tracked });
+  return json({ ok: true, sentLines: scheduleLines.filter((line) => line.startsWith("- ")).length, content, tracked, weekStartDate: wk });
 });
