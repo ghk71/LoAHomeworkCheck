@@ -211,6 +211,15 @@ create table if not exists raid_notice_comments(
   created_at timestamptz default now()
 );
 
+-- 파티 생성 작업안
+create table if not exists party_generation_drafts(
+  id uuid default uuid_generate_v4() primary key,
+  name text default '기본 파티 생성안',
+  data jsonb default '{}'::jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
 -- 짧은 공유 링크
 create table if not exists share_links(
   token text primary key,
@@ -249,6 +258,7 @@ alter table raid_schedules    disable row level security;
 alter table raid_schedule_overrides disable row level security;
 alter table raid_notices      disable row level security;
 alter table raid_notice_comments disable row level security;
+alter table party_generation_drafts disable row level security;
 alter table discord_sent_messages disable row level security;
 
 -- ★ 기존 설치 업데이트용 (이미 있는 DB에서 실행 시)
@@ -338,6 +348,16 @@ alter table currencies add column if not exists updated_at timestamptz;
 -- 임시 파티 변경사항 추적 (주 초기화 시 복원용)
 alter table raid_schedule_overrides add column if not exists temp_changes jsonb default '{}';
 
+-- 파티 생성 작업안
+create table if not exists party_generation_drafts(
+  id uuid default uuid_generate_v4() primary key,
+  name text default '기본 파티 생성안',
+  data jsonb default '{}'::jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+alter table party_generation_drafts disable row level security;
+
 -- Discord Webhook 전송 메시지 삭제 예약
 create table if not exists discord_sent_messages(
   id uuid default uuid_generate_v4() primary key,
@@ -372,5 +392,6 @@ create index if not exists idx_raid_party_members_party_slot on raid_party_membe
 create index if not exists idx_raid_schedules_party_day_sort on raid_schedules(party_id, day_of_week, sort_order, created_at);
 create index if not exists idx_raid_schedule_overrides_week on raid_schedule_overrides(week_start_date);
 create index if not exists idx_raid_notice_comments_week_created on raid_notice_comments(week_start_date, created_at);
+create index if not exists idx_party_generation_drafts_updated on party_generation_drafts(updated_at desc);
 create index if not exists idx_discord_sent_messages_due on discord_sent_messages(kind, delete_after) where deleted_at is null;
 create index if not exists idx_discord_sent_messages_week on discord_sent_messages(kind, week_start_date, created_at);

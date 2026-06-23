@@ -551,3 +551,33 @@ select cron.schedule(
 
 ### 적용 여부
 - 수동 확인 필요.
+
+## 2026-06-23 - 파티 생성 작업안 저장 테이블
+
+### 목적
+- `party_generation.html`에서 raid.html 파티 구성을 불러와 수동 배치 작업안을 만들고, 적용 전 작업안을 DB에 저장/불러오기 위해 사용합니다.
+- 실제 raid/preset 삭제가 아니라 파티 생성 화면의 작업안 JSON만 저장합니다.
+
+### SQL
+
+```sql
+create table if not exists party_generation_drafts(
+  id uuid default uuid_generate_v4() primary key,
+  name text default '기본 파티 생성안',
+  data jsonb default '{}'::jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table party_generation_drafts disable row level security;
+
+create index if not exists idx_party_generation_drafts_updated
+on party_generation_drafts(updated_at desc);
+```
+
+### 적용 파일
+- `schema.sql`
+- `party_generation.html`
+
+### 적용 여부
+- 수동 확인 필요.

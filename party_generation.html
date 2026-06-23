@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>로스트아크 파티 생성</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --bg:#0f1115;
+  --panel:#191d24;
+  --panel-2:#20252d;
+  --panel-3:#272d36;
+  --line:rgba(197,207,220,.15);
+  --line-2:rgba(210,219,232,.24);
+  --text:#f4f6f8;
+  --muted:#aeb6c2;
+  --dim:#7c8593;
+  --accent:#22d3ee;
+  --green:#28e59a;
+  --gold:#f4c76b;
+  --orange:#f59e0b;
+  --purple:#b89cff;
+  --red:#ff5d6c;
+  --shadow:0 14px 30px rgba(0,0,0,.24);
+  --r:8px;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{margin:0;background:linear-gradient(180deg,#12161d 0%,var(--bg) 260px);color:var(--text);font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;line-height:1.42;font-weight:560}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+.page-nav{position:sticky;top:0;z-index:60;height:42px;background:rgba(18,21,27,.92);border-bottom:1px solid var(--line);display:flex;align-items:stretch;backdrop-filter:blur(16px)}
+.pnav-item{padding:0 18px;display:flex;align-items:center;gap:6px;color:var(--muted);text-decoration:none;border-right:1px solid var(--line);font-size:.8rem;font-weight:850;white-space:nowrap}
+.pnav-item:hover,.pnav-item.active{color:var(--text);background:rgba(255,255,255,.045)}
+.pnav-item.active{box-shadow:inset 0 -2px 0 var(--accent);color:#eefcff}
+.setup{min-height:calc(100vh - 42px);display:flex;align-items:center;justify-content:center;padding:24px}
+.setup-card{width:min(560px,100%);background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:28px;box-shadow:var(--shadow)}
+.setup-card h1{margin:0 0 8px;font-size:1.2rem}
+.setup-card p{margin:0 0 18px;color:var(--muted)}
+.app{display:none;min-height:calc(100vh - 42px)}
+.app.active{display:block}
+.topbar{position:sticky;top:42px;z-index:40;background:rgba(18,21,27,.9);border-bottom:1px solid var(--line);backdrop-filter:blur(18px);padding:11px 14px;display:grid;gap:9px}
+.title-row{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.page-title{font-size:1.05rem;font-weight:1000}
+.toolbar,.filters,.chips{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.filters{justify-content:space-between}
+.btn{border:1px solid var(--line-2);background:linear-gradient(180deg,#252b34,#1c222a);color:var(--text);border-radius:7px;padding:8px 11px;font-weight:820;line-height:1;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:hover{background:#2d3440;border-color:rgba(34,211,238,.32)}
+.btn.primary{background:linear-gradient(135deg,#06b6d4,#7c3aed);border-color:rgba(34,211,238,.55);color:white}
+.btn.green{background:rgba(24,214,107,.14);border-color:rgba(24,214,107,.32);color:#8df8b8}
+.btn.gold{background:rgba(243,180,63,.12);border-color:rgba(243,180,63,.36);color:#ffd985}
+.btn.danger{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);color:#ff9a9a}
+.btn.ghost{background:rgba(255,255,255,.035);color:var(--muted)}
+.btn.icon{width:27px;height:27px;padding:0;border-radius:50%}
+.btn.sm{padding:5px 8px;font-size:.74rem}
+.input,.select{background:#171c23;border:1px solid var(--line-2);color:var(--text);border-radius:7px;padding:8px 10px;outline:none}
+.input:focus,.select:focus{border-color:rgba(34,211,238,.55);box-shadow:0 0 0 3px rgba(34,211,238,.1)}
+.pill{border:1px solid var(--line);background:rgba(31,36,44,.78);color:var(--muted);border-radius:999px;padding:7px 11px;font-weight:850;font-size:.78rem}
+.pill.active{background:linear-gradient(135deg,#e8fbff,#dcd6ff);color:#081018;border-color:transparent}
+.pill.hidden-account{opacity:.48;border-style:dashed}
+.main-layout{display:grid;grid-template-columns:minmax(330px,35vw) minmax(0,1fr);gap:14px;padding:14px;max-width:1920px;margin:0 auto}
+.panel{background:linear-gradient(180deg,rgba(29,34,42,.98),rgba(24,28,35,.98));border:1px solid var(--line);border-radius:8px;box-shadow:0 1px 0 rgba(255,255,255,.045) inset;min-height:calc(100vh - 158px);overflow:hidden;display:flex;flex-direction:column}
+.panel-head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(39,47,58,.72)}
+.panel-title{font-weight:1000;color:#dbeafe}
+.panel-sub{color:var(--muted);font-size:.74rem}
+.panel-body{padding:12px;overflow:auto;display:grid;gap:10px;align-content:start}
+.account-block,.raid-block,.preset-block,.party-card{border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.025);overflow:hidden}
+.account-head,.raid-head,.preset-head,.party-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.025)}
+.account-name,.raid-name,.preset-name,.party-name{font-weight:950}
+.account-name{color:var(--gold)}
+.char-list{display:grid;gap:8px;padding:10px}
+.char-card{border:1px solid rgba(197,207,220,.13);background:linear-gradient(180deg,rgba(31,36,44,.92),rgba(25,30,37,.92));border-radius:8px;padding:10px;display:grid;gap:8px}
+.char-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.char-main{min-width:0}
+.char-name{font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.char-meta{color:var(--muted);font-size:.72rem;display:flex;gap:6px;flex-wrap:wrap}
+.candidate-list{display:flex;gap:6px;flex-wrap:wrap}
+.candidate{display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(34,211,238,.25);background:rgba(34,211,238,.07);color:#c9f7ff;border-radius:999px;padding:5px 8px;font-size:.72rem;font-weight:850;max-width:100%;user-select:none}
+.candidate.done{border-color:rgba(40,229,154,.48);background:rgba(40,229,154,.14);color:#a8ffd0;text-decoration:line-through;opacity:.9}
+.candidate.warn{border-color:rgba(244,199,107,.44);background:rgba(244,199,107,.10);color:#ffe1a1}
+.candidate.dragging{opacity:.4}
+.candidate-empty,.empty{padding:14px;border:1px dashed var(--line-2);border-radius:8px;color:var(--dim);text-align:center;font-size:.82rem}
+.raid-list{display:grid;gap:12px}
+.preset-list{display:grid;gap:9px;padding:10px}
+.preset-head{background:rgba(18,24,32,.74)}
+.preset-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;color:var(--muted);font-size:.72rem}
+.tag{border:1px solid var(--line);border-radius:999px;padding:2px 7px;color:var(--muted);background:#20252d;font-weight:850}
+.tag.gold{border-color:rgba(243,180,63,.35);color:#ffd985}
+.tag.green{border-color:rgba(24,214,107,.3);color:#8df8b8}
+.tag.red{border-color:rgba(255,93,108,.35);color:#ffb3bb}
+.registered{display:flex;gap:6px;flex-wrap:wrap;padding:0 10px 10px}
+.reg-chip{border:1px solid rgba(255,255,255,.08);background:#0e141d;border-radius:999px;padding:4px 8px;color:var(--muted);font-size:.7rem;font-weight:850}
+.reg-chip b{color:var(--text)}
+.party-list{display:grid;gap:8px;padding:0 10px 10px}
+.party-card{background:rgba(11,17,25,.56)}
+.party-head{padding:8px 10px;background:rgba(255,255,255,.03)}
+.party-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.party-title-input{width:120px;background:#111720;border:1px solid var(--line);border-radius:6px;color:var(--text);padding:5px 7px;font-weight:850}
+.slot-grid{display:grid;gap:6px;padding:9px}
+.slot{display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.025);padding:7px 8px;min-height:38px}
+.slot.drop{border-color:rgba(34,211,238,.58);background:rgba(34,211,238,.09)}
+.slot-num{color:var(--dim);font-size:.72rem;text-align:center}
+.slot-empty{color:var(--dim);font-size:.78rem}
+.slot-char{min-width:0}
+.slot-name{font-weight:920;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot-meta{color:var(--muted);font-size:.69rem}
+.status-line{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.74rem}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#0f1217;border:1px solid var(--line-2);border-radius:999px;padding:9px 14px;color:var(--text);box-shadow:var(--shadow);z-index:200;opacity:0;pointer-events:none;transition:.18s}
+.toast.show{opacity:1;bottom:26px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:100;padding:18px}
+.overlay.open{display:flex}
+.modal{width:min(780px,100%);max-height:90vh;overflow:auto;background:#15171b;border:1px solid var(--line-2);border-radius:12px;box-shadow:var(--shadow)}
+.modal-head{padding:17px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center}
+.modal-title{font-size:1.05rem;font-weight:1000}
+.modal-body{padding:16px 20px;display:grid;gap:10px}
+.modal-foot{padding:13px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+.edit-row{display:grid;grid-template-columns:auto 1fr 220px;gap:10px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:9px;background:rgba(255,255,255,.025)}
+.edit-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent)}
+.edit-title{font-weight:900}
+.edit-sub{color:var(--muted);font-size:.72rem}
+.hidden{display:none!important}
+@media(max-width:980px){.main-layout{grid-template-columns:1fr}.panel{min-height:auto;max-height:none}.topbar{position:static}.page-nav{overflow-x:auto}}
+</style>
+</head>
+<body>
+<nav class="page-nav">
+  <a href="index.html" class="pnav-item">⚔️ 숙제</a>
+  <a href="core.html" class="pnav-item">🔮 코어현황</a>
+  <a href="raid.html" class="pnav-item">🏰 레이드</a>
+  <a href="party_generation.html" class="pnav-item active">🧩 파티 생성</a>
+  <a href="overview.html" class="pnav-item">📊 레이드 현황</a>
+  <a href="parties.html" class="pnav-item">👥 파티 현황</a>
+</nav>
+
+<section class="setup" id="setup">
+  <div class="setup-card">
+    <h1>Supabase 연결 정보가 필요합니다</h1>
+    <p>기존 페이지와 같은 `la_url`, `la_key` localStorage 값을 사용합니다.</p>
+    <div style="display:grid;gap:10px;">
+      <input id="setup-url" class="input" type="url" placeholder="https://xxxx.supabase.co">
+      <input id="setup-key" class="input" type="password" placeholder="anon key">
+      <button class="btn primary" onclick="saveConfig()">저장 후 시작</button>
+    </div>
+  </div>
+</section>
+
+<main class="app" id="app">
+  <div class="topbar">
+    <div class="title-row">
+      <div>
+        <div class="page-title">파티 생성</div>
+        <div class="panel-sub">현재 raid.html 파티 구성을 불러온 뒤, 후보를 배치하고 적용합니다.</div>
+      </div>
+      <div class="toolbar">
+        <button class="btn ghost sm" onclick="loadLatestDraft()">저장안 불러오기</button>
+        <button class="btn gold sm" onclick="uploadDraft()">업로드</button>
+        <button class="btn green sm" onclick="applyDraft()">적용</button>
+        <button class="btn sm" onclick="reloadFromDb()">DB 다시 불러오기</button>
+      </div>
+    </div>
+    <div class="filters">
+      <div class="chips" id="account-filter"></div>
+      <div class="toolbar">
+        <input class="input" id="char-search" placeholder="캐릭터 검색" oninput="state.search=this.value.trim();render()">
+        <button class="btn ghost sm" id="hidden-toggle" onclick="toggleHiddenAccounts()">숨김 계정 보기</button>
+        <button class="btn ghost sm" onclick="clearHiddenPresets()">숨김 초기화</button>
+      </div>
+    </div>
+    <div class="status-line" id="status-line"></div>
+  </div>
+  <div class="main-layout">
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">계정 / 캐릭터 후보</div>
+          <div class="panel-sub">체크된 후보만 표시됩니다. 배치되면 완료 스타일로 표시됩니다.</div>
+        </div>
+      </div>
+      <div class="panel-body" id="left-panel"></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">레이드 / 난이도 / 파티</div>
+          <div class="panel-sub">raid.html 순서 기준. 같은 파티 안 계정 중복은 차단됩니다.</div>
+        </div>
+      </div>
+      <div class="panel-body"><div class="raid-list" id="right-panel"></div></div>
+    </section>
+  </div>
+</main>
+
+<div class="overlay" id="modal-candidate">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="candidate-title">캐릭터 후보 수정</div>
+        <div class="panel-sub" id="candidate-sub"></div>
+      </div>
+      <button class="btn ghost" onclick="closeModal('modal-candidate')">닫기</button>
+    </div>
+    <div class="modal-body" id="candidate-edit-list"></div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeModal('modal-candidate')">취소</button>
+      <button class="btn primary" onclick="saveCandidateEdit()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const {createClient}=supabase;
+let sb=null;
+const ALL='all';
+const state={
+  accounts:[],chars:[],raids:[],raidTasks:[],parties:[],members:[],
+  partyDrafts:[],originalPartyIds:new Set(),candidateMap:{},hiddenPresets:new Set(),
+  selectedAccount:ALL,showHiddenAccounts:false,search:'',drag:null,editCharId:null,draftId:null
+};
+
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2200);}
+function getConfig(){const url=localStorage.getItem('la_url'),key=localStorage.getItem('la_key');return url&&key?{url,key}:null;}
+function saveConfig(){const u=document.getElementById('setup-url').value.trim(),k=document.getElementById('setup-key').value.trim();if(!u||!k){toast('URL과 key를 입력하세요');return;}localStorage.setItem('la_url',u);localStorage.setItem('la_key',k);location.reload();}
+function openModal(id){document.getElementById(id)?.classList.add('open');}
+function closeModal(id){document.getElementById(id)?.classList.remove('open');}
+function sortRows(rows){return [...(rows||[])].sort((a,b)=>(Number(a.sort_order)||0)-(Number(b.sort_order)||0)||String(a.created_at||'').localeCompare(String(b.created_at||'')));}
+function raidLabel(r){return `${r?.name||'레이드'}${r?.difficulty?` ${r.difficulty}`:''}`;}
+function topAccountId(charId){const ch=state.chars.find(c=>c.id===charId);if(!ch)return '';const acc=state.accounts.find(a=>a.id===ch.account_id);return acc?.parent_account_id||acc?.id||ch.account_id;}
+function accountNameById(id){return state.accounts.find(a=>a.id===id)?.name||'계정';}
+function charById(id){return state.chars.find(c=>c.id===id);}
+function raidById(id){return state.raids.find(r=>r.id===id);}
+function partyById(id){return state.partyDrafts.find(p=>p.id===id);}
+function groupNames(){const names=[];for(const r of sortedRaids()){if(!names.includes(r.name))names.push(r.name);}return names;}
+function sortedRaids(){return sortRows(state.raids);}
+function groupPresets(name){return sortedRaids().filter(r=>r.name===name);}
+function presetsByGroup(){const out={};for(const name of groupNames())out[name]=groupPresets(name);return out;}
+
+function getWeekStart(off=0){
+  const now=new Date(),kst=new Date(now.getTime()+9*3600000);
+  let b=(kst.getUTCDay()-3+7)%7;if(b===0&&kst.getUTCHours()<6)b=7;
+  const ws=new Date(kst);ws.setUTCDate(ws.getUTCDate()-b+off*7);ws.setUTCHours(6,0,0,0);return ws;
+}
+function getWeekKey(off=0){const ws=getWeekStart(off);return`${ws.getUTCFullYear()}-${String(ws.getUTCMonth()+1).padStart(2,'0')}-${String(ws.getUTCDate()).padStart(2,'0')}`;}
+
+async function init(){
+  const cfg=getConfig();
+  if(!cfg){document.getElementById('setup').style.display='flex';document.getElementById('app').classList.remove('active');return;}
+  document.getElementById('setup').style.display='none';document.getElementById('app').classList.add('active');
+  sb=createClient(cfg.url,cfg.key);
+  await loadData();
+}
+
+async function loadData(){
+  const wk=getWeekKey(0);
+  const [a,c,r,p,m,t]=await Promise.all([
+    sb.from('accounts').select('*').order('sort_order').order('created_at'),
+    sb.from('characters').select('*').order('sort_order').order('created_at'),
+    sb.from('raid_presets').select('*').order('sort_order').order('created_at'),
+    sb.from('raid_parties').select('*').order('sort_order').order('created_at'),
+    sb.from('raid_party_members').select('*').order('slot_index'),
+    sb.from('raid_tasks').select('*').order('sort_order').order('created_at')
+  ]);
+  const err=[a,c,r,p,m,t].find(x=>x.error)?.error;if(err){toast('로드 실패: '+err.message);throw err;}
+  state.accounts=a.data||[];state.chars=c.data||[];state.raids=r.data||[];state.raidTasks=t.data||[];
+  state.parties=(p.data||[]).filter(x=>!x.is_temporary||x.temp_week_start_date===wk);
+  const activePartyIds=new Set(state.parties.map(x=>x.id));
+  state.members=(m.data||[]).filter(x=>activePartyIds.has(x.party_id));
+  buildInitialDraft();
+  render();
+}
+
+async function reloadFromDb(){
+  if(!confirm('현재 작업 중인 배치를 버리고 DB의 raid.html 파티 구성을 다시 불러옵니까?'))return;
+  state.hiddenPresets=new Set();state.candidateMap={};await loadData();toast('DB 구성을 다시 불러왔습니다');
+}
+
+function buildInitialDraft(){
+  state.originalPartyIds=new Set(state.parties.map(p=>p.id));
+  state.partyDrafts=sortRows(state.parties).map(p=>{
+    const slots=Array.from({length:Number(p.party_size)||4},(_,i)=>null);
+    state.members.filter(m=>m.party_id===p.id).forEach(m=>{if(m.slot_index>=0&&m.slot_index<slots.length)slots[m.slot_index]=m.character_id;});
+    return{id:p.id,preset_id:p.preset_id,name:p.name||'파티',party_size:Number(p.party_size)||4,sort_order:Number(p.sort_order)||0,color:p.color||'',slots,fromDb:true};
+  });
+  buildDefaultCandidates();
+}
+
+function buildDefaultCandidates(){
+  const groups=presetsByGroup();
+  const raidTaskByCharGroup={};
+  for(const task of state.raidTasks){
+    const preset=raidById(task.preset_id);
+    const group=preset?.name||task.name;
+    if(!task.character_id||!group)continue;
+    if(!raidTaskByCharGroup[task.character_id])raidTaskByCharGroup[task.character_id]={};
+    if(preset)raidTaskByCharGroup[task.character_id][group]=preset.id;
+  }
+  for(const ch of state.chars){
+    if(!state.candidateMap[ch.id])state.candidateMap[ch.id]={};
+    for(const [name,list] of Object.entries(groups)){
+      if(state.candidateMap[ch.id][name])continue;
+      const fromTask=raidTaskByCharGroup[ch.id]?.[name];
+      const eligible=list.filter(r=>Number(ch.item_level||0)>=Number(r.entry_level||0));
+      const presetId=fromTask||(eligible[0]?.id||list[0]?.id||null);
+      state.candidateMap[ch.id][name]={checked:!!presetId,presetId};
+    }
+  }
+}
+
+function render(){
+  renderAccountFilter();
+  renderStatus();
+  renderLeft();
+  renderRight();
+}
+function renderStatus(){
+  const total=state.partyDrafts.length,filled=state.partyDrafts.reduce((n,p)=>n+p.slots.filter(Boolean).length,0);
+  const hidden=state.hiddenPresets.size;
+  document.getElementById('status-line').innerHTML=`<span>파티 ${total}개</span><span>배치 ${filled}명</span>${hidden?`<span>숨김 난이도 ${hidden}개</span>`:''}${state.draftId?`<span>저장안 ${esc(state.draftId.slice(0,8))}</span>`:''}`;
+}
+function renderAccountFilter(){
+  const el=document.getElementById('account-filter');
+  const accounts=sortRows(state.accounts);
+  const chips=[`<button class="pill ${state.selectedAccount===ALL?'active':''}" onclick="setAccount('${ALL}')">전체</button>`];
+  for(const a of accounts){
+    if(a.hide_from_filters&&!state.showHiddenAccounts)continue;
+    chips.push(`<button class="pill ${state.selectedAccount===a.id?'active':''} ${a.hide_from_filters?'hidden-account':''}" onclick="setAccount('${a.id}')">${esc(a.name)}</button>`);
+  }
+  el.innerHTML=chips.join('');
+  document.getElementById('hidden-toggle').textContent=state.showHiddenAccounts?'숨김 계정 끄기':'숨김 계정 보기';
+}
+function setAccount(id){state.selectedAccount=id;render();}
+function toggleHiddenAccounts(){state.showHiddenAccounts=!state.showHiddenAccounts;render();}
+
+function visibleAccounts(){
+  return sortRows(state.accounts).filter(a=>(state.showHiddenAccounts||!a.hide_from_filters)&&(state.selectedAccount===ALL||a.id===state.selectedAccount||a.parent_account_id===state.selectedAccount));
+}
+function visibleCharsForAccount(accId){
+  const q=state.search.toLowerCase();
+  return sortRows(state.chars).filter(ch=>{
+    const acc=state.accounts.find(a=>a.id===ch.account_id);
+    const top=acc?.parent_account_id||acc?.id;
+    if(accId&&ch.account_id!==accId)return false;
+    if(state.selectedAccount!==ALL&&top!==state.selectedAccount&&ch.account_id!==state.selectedAccount)return false;
+    if(q&&!String(ch.name||'').toLowerCase().includes(q)&&!String(ch.class_name||'').toLowerCase().includes(q))return false;
+    return true;
+  });
+}
+
+function renderLeft(){
+  const el=document.getElementById('left-panel');
+  const html=[];
+  for(const acc of visibleAccounts()){
+    const chars=visibleCharsForAccount(acc.id);
+    if(!chars.length)continue;
+    html.push(`<div class="account-block"><div class="account-head"><div class="account-name">${esc(acc.name)}</div><span class="tag">${chars.length}명</span></div><div class="char-list">${chars.map(charCard).join('')}</div></div>`);
+  }
+  el.innerHTML=html.join('')||'<div class="empty">표시할 캐릭터가 없습니다</div>';
+}
+
+function charCard(ch){
+  const candidates=visibleCandidatesForChar(ch);
+  return`<div class="char-card">
+    <div class="char-top">
+      <div class="char-main">
+        <div class="char-name">${esc(ch.name)}</div>
+        <div class="char-meta"><span>${esc(ch.class_name||'')}</span>${ch.item_level?`<span>레벨 ${Number(ch.item_level).toLocaleString()}</span>`:''}${ch.combat_power?`<span>투력 ${Number(ch.combat_power).toLocaleString()}</span>`:''}</div>
+      </div>
+      <button class="btn ghost sm" onclick="openCandidateEdit('${ch.id}')">수정</button>
+    </div>
+    <div class="candidate-list">${candidates.length?candidates.map(c=>candidateChip(ch,c)).join(''):'<div class="candidate-empty">표시할 레이드 후보가 없습니다</div>'}</div>
+  </div>`;
+}
+function visibleCandidatesForChar(ch){
+  const out=[];
+  const map=state.candidateMap[ch.id]||{};
+  for(const name of groupNames()){
+    const c=map[name];if(!c?.checked||!c.presetId)continue;
+    if(state.hiddenPresets.has(c.presetId))continue;
+    const preset=raidById(c.presetId);if(!preset)continue;
+    out.push({group:name,preset});
+  }
+  return out;
+}
+function candidateChip(ch,c){
+  const done=isCharAssignedToPreset(ch.id,c.preset.id);
+  const warn=Number(ch.item_level||0)<Number(c.preset.entry_level||0);
+  return`<span class="candidate ${done?'done':''} ${warn?'warn':''}" draggable="true" ondragstart="dragCandidate(event,'${ch.id}','${c.preset.id}')" ondragend="endDragCandidate(event)">
+    ${esc(raidLabel(c.preset))}${done?' · 완료':''}${warn?' · 레벨부족':''}
+  </span>`;
+}
+function isCharAssignedToPreset(charId,presetId){
+  return state.partyDrafts.some(p=>p.preset_id===presetId&&p.slots.includes(charId));
+}
+
+function renderRight(){
+  const el=document.getElementById('right-panel');
+  const html=[];
+  for(const group of groupNames()){
+    const presets=groupPresets(group).filter(r=>!state.hiddenPresets.has(r.id));
+    if(!presets.length)continue;
+    html.push(`<div class="raid-block">
+      <div class="raid-head"><div class="raid-name">${esc(group)}</div><span class="tag">${presets.length}개 난이도</span></div>
+      <div class="preset-list">${presets.map(presetBlock).join('')}</div>
+    </div>`);
+  }
+  el.innerHTML=html.join('')||'<div class="empty">표시할 레이드가 없습니다</div>';
+}
+function presetBlock(preset){
+  const parties=state.partyDrafts.filter(p=>p.preset_id===preset.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const regs=registeredByAccount(preset.id);
+  return`<div class="preset-block">
+    <div class="preset-head">
+      <div>
+        <div class="preset-name">${esc(preset.difficulty||'기본')}</div>
+        <div class="preset-meta"><span>${esc(preset.name)}</span>${preset.entry_level?`<span>입장 ${preset.entry_level}</span>`:''}</div>
+      </div>
+      <div class="toolbar">
+        <button class="btn icon" title="파티 추가" onclick="addParty('${preset.id}')">+</button>
+        <button class="btn ghost sm" title="파티 생성 화면에서 숨김" onclick="hidePreset('${preset.id}')">숨김</button>
+      </div>
+    </div>
+    <div class="registered">${regs.length?regs.map(r=>`<span class="reg-chip"><b>${esc(r.account)}</b> ${esc(r.names.join(', '))}</span>`).join(''):'<span class="reg-chip">등록 캐릭터 없음</span>'}</div>
+    <div class="party-list">${parties.length?parties.map(p=>partyCard(p,preset)).join(''):'<div class="candidate-empty">파티가 없습니다. + 버튼으로 생성하세요.</div>'}</div>
+  </div>`;
+}
+function registeredByAccount(presetId){
+  const rows=[];
+  const by={};
+  for(const p of state.partyDrafts.filter(x=>x.preset_id===presetId)){
+    for(const cid of p.slots.filter(Boolean)){
+      const ch=charById(cid);if(!ch)continue;
+      const accName=accountNameById(topAccountId(cid));
+      if(!by[accName])by[accName]=[];
+      if(!by[accName].includes(ch.name))by[accName].push(ch.name);
+    }
+  }
+  Object.keys(by).sort().forEach(account=>rows.push({account,names:by[account]}));
+  return rows;
+}
+function partyCard(p,preset){
+  return`<div class="party-card">
+    <div class="party-head">
+      <div class="party-controls">
+        <input class="party-title-input" value="${esc(p.name)}" onchange="renameParty('${p.id}',this.value)">
+        <select class="select" onchange="resizeParty('${p.id}',this.value)">
+          ${[4,8].map(n=>`<option value="${n}" ${Number(p.party_size)===n?'selected':''}>${n}인</option>`).join('')}
+        </select>
+      </div>
+      <button class="btn danger sm" onclick="removeParty('${p.id}')">삭제</button>
+    </div>
+    <div class="slot-grid">${p.slots.map((cid,i)=>slotHtml(p,preset,cid,i)).join('')}</div>
+  </div>`;
+}
+function slotHtml(p,preset,charId,i){
+  const ch=charById(charId);
+  return`<div class="slot" ondragover="allowDrop(event)" ondragleave="this.classList.remove('drop')" ondrop="dropOnSlot(event,'${p.id}',${i})">
+    <span class="slot-num">${i+1}</span>
+    ${ch?`<div class="slot-char"><div class="slot-name">${esc(ch.name)}</div><div class="slot-meta">${esc(accountNameById(topAccountId(ch.id)))} · ${esc(ch.class_name||'')}</div></div><button class="btn icon danger" onclick="clearSlot('${p.id}',${i})">×</button>`:`<div class="slot-empty">여기에 ${esc(preset.difficulty||'캐릭터')} 후보 드롭</div><span></span>`}
+  </div>`;
+}
+
+function dragCandidate(e,charId,presetId){state.drag={charId,presetId};e.dataTransfer.effectAllowed='move';e.currentTarget.classList.add('dragging');}
+function endDragCandidate(e){state.drag=null;e.currentTarget.classList.remove('dragging');}
+function allowDrop(e){e.preventDefault();e.currentTarget.classList.add('drop');}
+function dropOnSlot(e,partyId,slotIndex){
+  e.preventDefault();e.currentTarget.classList.remove('drop');
+  const d=state.drag;if(!d)return;
+  assignToSlot(d.charId,d.presetId,partyId,slotIndex);
+  state.drag=null;render();
+}
+function assignToSlot(charId,presetId,partyId,slotIndex){
+  const party=partyById(partyId);if(!party)return;
+  if(party.preset_id!==presetId){toast('다른 난이도 파티에는 배치할 수 없습니다');return;}
+  const accountId=topAccountId(charId);
+  const duplicate=party.slots.some((cid,i)=>cid&&i!==slotIndex&&topAccountId(cid)===accountId);
+  if(duplicate){toast('같은 파티에 같은 계정 캐릭터는 2명 넣을 수 없습니다');return;}
+  const group=raidById(presetId)?.name;
+  if(group){
+    for(const p of state.partyDrafts){
+      const r=raidById(p.preset_id);
+      if(r?.name!==group)continue;
+      p.slots=p.slots.map(cid=>cid===charId?null:cid);
+    }
+  }
+  party.slots[slotIndex]=charId;
+}
+function clearSlot(partyId,slotIndex){const p=partyById(partyId);if(!p)return;p.slots[slotIndex]=null;render();}
+function renameParty(partyId,name){const p=partyById(partyId);if(p)p.name=name.trim()||'파티';renderStatus();}
+function resizeParty(partyId,sizeRaw){const p=partyById(partyId);if(!p)return;const size=Number(sizeRaw)||4;if(size<p.slots.filter(Boolean).length&&!confirm('슬롯 수보다 배치 인원이 많습니다. 뒤쪽 인원이 해제됩니다.')){render();return;}p.party_size=size;p.slots=Array.from({length:size},(_,i)=>p.slots[i]||null);render();}
+function addParty(presetId){
+  const list=state.partyDrafts.filter(p=>p.preset_id===presetId);
+  state.partyDrafts.push({id:'new_'+crypto.randomUUID(),preset_id:presetId,name:`${list.length+1}파티`,party_size:4,sort_order:list.length,slots:[null,null,null,null],fromDb:false});
+  render();
+}
+function removeParty(partyId){if(!confirm('이 파티를 현재 작업안에서 제거합니다. 적용 시 DB에서도 제거됩니다.'))return;state.partyDrafts=state.partyDrafts.filter(p=>p.id!==partyId);render();}
+function hidePreset(presetId){state.hiddenPresets.add(presetId);render();}
+function clearHiddenPresets(){state.hiddenPresets=new Set();render();}
+
+function openCandidateEdit(charId){
+  state.editCharId=charId;
+  const ch=charById(charId);if(!ch)return;
+  document.getElementById('candidate-title').textContent=`${ch.name} 후보 수정`;
+  document.getElementById('candidate-sub').textContent=`기본은 레벨 기준 최고 난이도이며, 체크 해제한 레이드는 좌측 후보에서 제외됩니다.`;
+  const map=state.candidateMap[charId]||{};
+  const names=groupNames();
+  const rows=names.map((name,idx)=>{
+    const c=map[name]||{checked:false,presetId:null};
+    const list=groupPresets(name);
+    const selected=c.presetId||list[0]?.id||'';
+    return`<div class="edit-row">
+      <input type="checkbox" id="cand-check-${idx}" data-group="${esc(name)}" ${c.checked?'checked':''}>
+      <div><div class="edit-title">${esc(name)}</div><div class="edit-sub">${list.length}개 난이도 · 레벨 부족 선택도 가능</div></div>
+      <select class="select" id="cand-preset-${idx}">${list.map(r=>`<option value="${r.id}" ${r.id===selected?'selected':''}>${esc(r.difficulty||'기본')}${r.entry_level?` · ${r.entry_level}`:''}</option>`).join('')}</select>
+    </div>`;
+  }).join('');
+  document.getElementById('candidate-edit-list').innerHTML=rows||'<div class="empty">레이드가 없습니다</div>';
+  openModal('modal-candidate');
+}
+function saveCandidateEdit(){
+  const charId=state.editCharId;if(!charId)return;
+  const next={};
+  const names=groupNames();
+  for(const [idx,name] of names.entries()){
+    const check=document.getElementById(`cand-check-${idx}`);
+    const sel=document.getElementById(`cand-preset-${idx}`);
+    next[name]={checked:!!check?.checked,presetId:sel?.value||null};
+  }
+  state.candidateMap[charId]=next;
+  closeModal('modal-candidate');render();
+}
+
+function draftPayload(){
+  return{
+    version:1,
+    savedAt:new Date().toISOString(),
+    candidateMap:state.candidateMap,
+    hiddenPresets:[...state.hiddenPresets],
+    parties:state.partyDrafts.map(p=>({...p}))
+  };
+}
+async function uploadDraft(){
+  const payload=draftPayload();
+  try{
+    if(state.draftId){
+      const {error}=await sb.from('party_generation_drafts').update({name:'기본 파티 생성안',data:payload,updated_at:new Date().toISOString()}).eq('id',state.draftId);
+      if(error)throw error;
+    }else{
+      const {data,error}=await sb.from('party_generation_drafts').insert({name:'기본 파티 생성안',data:payload}).select().single();
+      if(error)throw error;state.draftId=data.id;
+    }
+    toast('저장안을 업로드했습니다');
+    renderStatus();
+  }catch(err){console.error(err);toast('업로드 실패: party_generation_drafts SQL 적용이 필요할 수 있습니다');}
+}
+async function loadLatestDraft(){
+  const {data,error}=await sb.from('party_generation_drafts').select('*').order('updated_at',{ascending:false}).limit(1);
+  if(error){toast('저장안 로드 실패: SQL 적용을 확인하세요');return;}
+  const row=(data||[])[0];if(!row){toast('저장된 작업안이 없습니다');return;}
+  if(!confirm(`저장안 "${row.name||'기본'}"을 불러옵니까? 현재 화면 작업은 교체됩니다.`))return;
+  applyDraftPayload(row.data||{});state.draftId=row.id;toast('저장안을 불러왔습니다');render();
+}
+function applyDraftPayload(data){
+  state.candidateMap=data.candidateMap||state.candidateMap;
+  state.hiddenPresets=new Set(data.hiddenPresets||[]);
+  state.partyDrafts=(data.parties||[]).map(p=>({...p,slots:Array.from({length:Number(p.party_size)||4},(_,i)=>p.slots?.[i]||null)}));
+  buildDefaultCandidates();
+}
+
+async function applyDraft(){
+  if(!confirm('현재 작업안을 raid.html 파티 구성 DB에 반영합니다. 계속할까요?'))return;
+  const nonEmpty=state.partyDrafts.filter(p=>p.slots.some(Boolean));
+  const keptIds=new Set(nonEmpty.filter(p=>!String(p.id).startsWith('new_')).map(p=>p.id));
+  const deleteIds=[...state.originalPartyIds].filter(id=>!keptIds.has(id));
+  try{
+    if(deleteIds.length){
+      const {error}=await sb.from('raid_parties').delete().in('id',deleteIds);
+      if(error)throw error;
+    }
+    for(const [idx,p] of nonEmpty.entries()){
+      let partyId=p.id;
+      const rec={preset_id:p.preset_id,name:p.name||'파티',party_size:p.party_size||4,sort_order:idx};
+      if(String(p.id).startsWith('new_')){
+        const {data,error}=await sb.from('raid_parties').insert(rec).select().single();
+        if(error)throw error;partyId=data.id;p.id=partyId;p.fromDb=true;
+      }else{
+        const {error}=await sb.from('raid_parties').update(rec).eq('id',partyId);
+        if(error)throw error;
+        const {error:memberDeleteError}=await sb.from('raid_party_members').delete().eq('party_id',partyId);
+        if(memberDeleteError)throw memberDeleteError;
+      }
+      const rows=p.slots.map((cid,i)=>cid?{party_id:partyId,character_id:cid,slot_index:i}:null).filter(Boolean);
+      if(rows.length){const {error}=await sb.from('raid_party_members').insert(rows);if(error)throw error;}
+    }
+    await ensureRaidTasks();
+    toast('raid.html 파티 구성에 적용했습니다');
+    await loadData();
+  }catch(err){console.error(err);toast('적용 실패: '+(err.message||err));}
+}
+
+async function ensureRaidTasks(){
+  const existing=new Set(state.raidTasks.filter(t=>t.preset_id&&t.character_id).map(t=>`${t.character_id}:${t.preset_id}`));
+  const toEnsure=[];
+  for(const ch of state.chars){
+    const map=state.candidateMap[ch.id]||{};
+    for(const c of Object.values(map)){if(c.checked&&c.presetId)toEnsure.push({charId:ch.id,presetId:c.presetId});}
+  }
+  for(const p of state.partyDrafts){
+    for(const cid of p.slots.filter(Boolean))toEnsure.push({charId:cid,presetId:p.preset_id});
+  }
+  const rows=[];
+  const seen=new Set();
+  for(const item of toEnsure){
+    const key=`${item.charId}:${item.presetId}`;
+    if(existing.has(key)||seen.has(key))continue;
+    const preset=raidById(item.presetId);if(!preset)continue;
+    seen.add(key);
+    rows.push({
+      character_id:item.charId,preset_id:item.presetId,name:raidLabel(preset),difficulty:preset.difficulty||'',
+      entry_level:Number(preset.entry_level)||0,clear_gold:Number(preset.clear_gold)||0,bound_gold:Number(preset.bound_gold)||0,
+      bonus_gold:Number(preset.bonus_gold)||0,reset_day:3,sort_order:99,receive_gold:true,receive_bonus:true
+    });
+  }
+  if(rows.length){const {error}=await sb.from('raid_tasks').insert(rows);if(error)console.warn('raid_tasks ensure failed:',error.message);}
+}
+
+init();
+</script>
+</body>
+</html>

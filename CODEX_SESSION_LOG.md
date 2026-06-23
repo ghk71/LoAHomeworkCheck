@@ -2660,3 +2660,31 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 변경/추가 파일 BOM 없음 확인.
 - `deno`가 설치되어 있지 않아 Edge Function 타입 체크는 실행하지 못했습니다.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-06-23 - 파티 생성 화면 추가
+
+### 변경 내용
+- `party_generation.html`을 추가했습니다.
+  - 현재 `raid.html` 파티 구성을 초기값으로 불러와 좌측 계정/캐릭터 후보와 우측 레이드/난이도/파티 작업 영역으로 표시합니다.
+  - 좌측 후보는 배치 후에도 목록에서 빠지지 않고 완료 CSS로 표시됩니다.
+  - 캐릭터 후보 수정 모달에서 레이드별 포함/제외와 난이도를 바꿀 수 있으며, 제외한 레이드만 좌측 후보에서 사라집니다.
+  - 기본 후보는 `index.html` 레이드 숙제의 `preset_id`를 우선 사용하고, 없으면 레이드 설정 순서 기준 기본 난이도를 체크 상태로 만듭니다.
+  - 같은 파티 안에 같은 상위 계정 캐릭터가 2명 이상 들어가는 경우를 차단합니다.
+  - 같은 캐릭터를 같은 레이드 그룹의 다른 파티에 배치하면 기존 배치를 해제하고 새 위치로 옮깁니다.
+  - 빈 파티는 적용 시 DB에 반영하지 않고, 기존 파티가 빈 상태 또는 삭제 상태가 되면 적용 시 제거됩니다.
+  - 적용 시 체크된 후보/배치된 멤버의 `raid_tasks`가 없으면 비파괴적으로 보강합니다.
+- `party_generation_drafts` 테이블을 `schema.sql`에 추가했습니다.
+  - 작업안 JSON 저장/불러오기 용도입니다.
+- 상단 탭에 `파티 생성` 링크를 추가했습니다.
+  - `index.html`, `core.html`, `raid.html`, `overview.html`, `parties.html`
+
+### 운영 메모
+- Supabase SQL Editor에서 `party_generation_drafts` 테이블 SQL을 적용해야 작업안 업로드/불러오기가 동작합니다.
+- `적용` 버튼은 `raid_parties`, `raid_party_members`, 필요한 경우 `raid_tasks`를 수정합니다.
+- 레이드 preset 자체는 삭제하지 않습니다.
+
+### 검증
+- `index.html`, `core.html`, `raid.html`, `overview.html`, `parties.html`, `party_generation.html`의 `</html>` 뒤 잔여 코드 없음 확인.
+- 위 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 경고만 있음.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
