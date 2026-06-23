@@ -2688,3 +2688,28 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 위 6개 HTML의 CSS var 정의 누락 없음 확인.
 - `git diff --check` 통과. CRLF 경고만 있음.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-06-23 - 파티 생성 화면 UI/후보 정렬 수정
+
+### 변경 내용
+- `party_generation.html`의 레이드 그룹 순서를 `raid.html`과 같은 기준으로 변경했습니다.
+  - `la_raid_group_order`가 있으면 그 순서를 우선 사용합니다.
+  - 저장된 그룹 순서가 없으면 DB에서 불러온 그룹 순서를 사용합니다.
+  - 난이도 순서는 각 레이드 그룹 안에서 `raid_presets.sort_order` 기준을 유지합니다.
+- 상단 필터를 `raid.html`/`overview.html` 스타일의 계정/캐릭터 필터로 바꿨습니다.
+  - 계정 버튼과 캐릭터 버튼을 함께 표시합니다.
+  - 전체/해제, 접기/펼치기, 숨김 계정 보기 토글을 지원합니다.
+  - 선택한 캐릭터만 좌측 후보와 우측 미배치 후보 풀에 표시됩니다.
+- 우측 패널을 레이드별 탭 구조로 변경했습니다.
+  - 한 번에 한 레이드 그룹의 난이도/파티만 보여줍니다.
+- 우측 난이도 아래 후보 영역을 “이미 배치된 캐릭터”가 아니라 “아직 해당 난이도에 배치되지 않은 후보 캐릭터”로 변경했습니다.
+  - 후보는 계정별로 크게 표시되며 여기서 바로 드래그 배치할 수 있습니다.
+- 파티 카드를 더 컴팩트하게 조정했습니다.
+  - 파티 카드가 자동 grid로 여러 열 배치됩니다.
+  - 슬롯/헤더/입력 폭을 줄여 한 화면에 더 많이 보이도록 했습니다.
+
+### 검증
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 경고만 있음.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.

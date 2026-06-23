@@ -45,7 +45,7 @@ button{cursor:pointer}
 .title-row{display:flex;align-items:center;gap:10px;justify-content:space-between}
 .page-title{font-size:1.05rem;font-weight:1000}
 .toolbar,.filters,.chips{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
-.filters{justify-content:space-between}
+.filters{align-items:flex-start;justify-content:space-between}
 .btn{border:1px solid var(--line-2);background:linear-gradient(180deg,#252b34,#1c222a);color:var(--text);border-radius:7px;padding:8px 11px;font-weight:820;line-height:1;display:inline-flex;align-items:center;justify-content:center;gap:6px}
 .btn:hover{background:#2d3440;border-color:rgba(34,211,238,.32)}
 .btn.primary{background:linear-gradient(135deg,#06b6d4,#7c3aed);border-color:rgba(34,211,238,.55);color:white}
@@ -60,6 +60,18 @@ button{cursor:pointer}
 .pill{border:1px solid var(--line);background:rgba(31,36,44,.78);color:var(--muted);border-radius:999px;padding:7px 11px;font-weight:850;font-size:.78rem}
 .pill.active{background:linear-gradient(135deg,#e8fbff,#dcd6ff);color:#081018;border-color:transparent}
 .pill.hidden-account{opacity:.48;border-style:dashed}
+.filter-box{flex:1 1 720px;border:1px solid var(--line);background:rgba(255,255,255,.025);border-radius:8px;overflow:hidden}
+.filter-head{display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,.025);cursor:pointer}
+.filter-title{font-weight:950;color:#dbeafe}
+.filter-summary{color:var(--muted);font-size:.73rem}
+.filter-spacer{flex:1}
+.filter-body{display:flex;flex-direction:column;gap:7px;padding:9px 10px;border-top:1px solid var(--line)}
+.filter-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.filter-row.sub{margin-left:16px}
+.filter-sep{width:1px;height:20px;background:var(--line);margin:0 2px;flex-shrink:0}
+.cf-btn{border:1px solid var(--line);background:rgba(31,36,44,.82);color:var(--muted);border-radius:999px;padding:4px 10px;font-size:.75rem;font-weight:850}
+.cf-btn.on{background:linear-gradient(135deg,#e8fbff,#dcd6ff);border-color:transparent;color:#081018}
+.cf-btn.partial{border-color:rgba(244,199,107,.38);color:#ffd985;background:rgba(244,199,107,.08)}
 .main-layout{display:grid;grid-template-columns:minmax(330px,35vw) minmax(0,1fr);gap:14px;padding:14px;max-width:1920px;margin:0 auto}
 .panel{background:linear-gradient(180deg,rgba(29,34,42,.98),rgba(24,28,35,.98));border:1px solid var(--line);border-radius:8px;box-shadow:0 1px 0 rgba(255,255,255,.045) inset;min-height:calc(100vh - 158px);overflow:hidden;display:flex;flex-direction:column}
 .panel-head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(39,47,58,.72)}
@@ -82,6 +94,9 @@ button{cursor:pointer}
 .candidate.warn{border-color:rgba(244,199,107,.44);background:rgba(244,199,107,.10);color:#ffe1a1}
 .candidate.dragging{opacity:.4}
 .candidate-empty,.empty{padding:14px;border:1px dashed var(--line-2);border-radius:8px;color:var(--dim);text-align:center;font-size:.82rem}
+.raid-tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
+.raid-tab{border:1px solid var(--line);background:rgba(31,36,44,.82);color:var(--muted);border-radius:999px;padding:7px 12px;font-weight:900;font-size:.78rem}
+.raid-tab.active{background:linear-gradient(135deg,#e8fbff,#dcd6ff);border-color:transparent;color:#081018}
 .raid-list{display:grid;gap:12px}
 .preset-list{display:grid;gap:9px;padding:10px}
 .preset-head{background:rgba(18,24,32,.74)}
@@ -90,16 +105,20 @@ button{cursor:pointer}
 .tag.gold{border-color:rgba(243,180,63,.35);color:#ffd985}
 .tag.green{border-color:rgba(24,214,107,.3);color:#8df8b8}
 .tag.red{border-color:rgba(255,93,108,.35);color:#ffb3bb}
-.registered{display:flex;gap:6px;flex-wrap:wrap;padding:0 10px 10px}
-.reg-chip{border:1px solid rgba(255,255,255,.08);background:#0e141d;border-radius:999px;padding:4px 8px;color:var(--muted);font-size:.7rem;font-weight:850}
-.reg-chip b{color:var(--text)}
-.party-list{display:grid;gap:8px;padding:0 10px 10px}
+.candidate-pool{display:grid;gap:7px;padding:0 10px 10px}
+.pool-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pool-account{min-width:54px;color:var(--gold);font-size:.72rem;font-weight:950}
+.pool-chip{border:1px solid rgba(34,211,238,.28);background:rgba(34,211,238,.08);border-radius:8px;padding:7px 9px;color:#d7fbff;font-size:.74rem;font-weight:900;display:inline-flex;flex-direction:column;gap:1px;min-width:118px;cursor:grab}
+.pool-chip.dragging{opacity:.45}
+.pool-chip.warn{border-color:rgba(244,199,107,.44);background:rgba(244,199,107,.10);color:#ffe1a1}
+.pool-chip small{color:var(--muted);font-size:.66rem;font-weight:750}
+.party-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));align-items:start;gap:8px;padding:0 10px 10px}
 .party-card{background:rgba(11,17,25,.56)}
-.party-head{padding:8px 10px;background:rgba(255,255,255,.03)}
+.party-head{padding:7px 8px;background:rgba(255,255,255,.03)}
 .party-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.party-title-input{width:120px;background:#111720;border:1px solid var(--line);border-radius:6px;color:var(--text);padding:5px 7px;font-weight:850}
-.slot-grid{display:grid;gap:6px;padding:9px}
-.slot{display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.025);padding:7px 8px;min-height:38px}
+.party-title-input{width:96px;background:#111720;border:1px solid var(--line);border-radius:6px;color:var(--text);padding:5px 7px;font-weight:850}
+.slot-grid{display:grid;gap:5px;padding:7px}
+.slot{display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:6px;border:1px solid var(--line);border-radius:7px;background:rgba(255,255,255,.025);padding:6px 7px;min-height:32px}
 .slot.drop{border-color:rgba(34,211,238,.58);background:rgba(34,211,238,.09)}
 .slot-num{color:var(--dim);font-size:.72rem;text-align:center}
 .slot-empty{color:var(--dim);font-size:.78rem}
@@ -161,7 +180,17 @@ button{cursor:pointer}
       </div>
     </div>
     <div class="filters">
-      <div class="chips" id="account-filter"></div>
+      <div class="filter-box">
+        <div class="filter-head" onclick="toggleCharacterFilter()">
+          <span class="filter-title">캐릭터 필터</span>
+          <span class="filter-summary" id="filter-summary"></span>
+          <span class="filter-spacer"></span>
+          <button class="btn ghost sm" onclick="event.stopPropagation();selectAllChars()">전체</button>
+          <button class="btn ghost sm" onclick="event.stopPropagation();deselectAllChars()">해제</button>
+          <span id="filter-toggle">▼</span>
+        </div>
+        <div class="filter-body" id="account-filter"></div>
+      </div>
       <div class="toolbar">
         <input class="input" id="char-search" placeholder="캐릭터 검색" oninput="state.search=this.value.trim();render()">
         <button class="btn ghost sm" id="hidden-toggle" onclick="toggleHiddenAccounts()">숨김 계정 보기</button>
@@ -218,10 +247,12 @@ const ALL='all';
 const state={
   accounts:[],chars:[],raids:[],raidTasks:[],parties:[],members:[],
   partyDrafts:[],originalPartyIds:new Set(),candidateMap:{},hiddenPresets:new Set(),
-  selectedAccount:ALL,showHiddenAccounts:false,search:'',drag:null,editCharId:null,draftId:null
+  selectedAccount:ALL,selectedChars:new Set(),filterOpen:localStorage.getItem('la_pg_filter_open')!=='0',
+  selectedRaidGroup:null,showHiddenAccounts:false,search:'',drag:null,editCharId:null,draftId:null
 };
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+function safeJson(key,fallback){try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback;}catch(e){console.warn('localStorage JSON parse failed:',key,e);return fallback;}}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2200);}
 function getConfig(){const url=localStorage.getItem('la_url'),key=localStorage.getItem('la_key');return url&&key?{url,key}:null;}
 function saveConfig(){const u=document.getElementById('setup-url').value.trim(),k=document.getElementById('setup-key').value.trim();if(!u||!k){toast('URL과 key를 입력하세요');return;}localStorage.setItem('la_url',u);localStorage.setItem('la_key',k);location.reload();}
@@ -234,7 +265,11 @@ function accountNameById(id){return state.accounts.find(a=>a.id===id)?.name||'�
 function charById(id){return state.chars.find(c=>c.id===id);}
 function raidById(id){return state.raids.find(r=>r.id===id);}
 function partyById(id){return state.partyDrafts.find(p=>p.id===id);}
-function groupNames(){const names=[];for(const r of sortedRaids()){if(!names.includes(r.name))names.push(r.name);}return names;}
+function groupNames(){
+  const dbNames=[];for(const r of state.raids){if(r.name&&!dbNames.includes(r.name))dbNames.push(r.name);}
+  const saved=safeJson('la_raid_group_order',[]);
+  return saved.length?[...saved.filter(n=>dbNames.includes(n)),...dbNames.filter(n=>!saved.includes(n))]:dbNames;
+}
 function sortedRaids(){return sortRows(state.raids);}
 function groupPresets(name){return sortedRaids().filter(r=>r.name===name);}
 function presetsByGroup(){const out={};for(const name of groupNames())out[name]=groupPresets(name);return out;}
@@ -270,6 +305,7 @@ async function loadData(){
   const activePartyIds=new Set(state.parties.map(x=>x.id));
   state.members=(m.data||[]).filter(x=>activePartyIds.has(x.party_id));
   buildInitialDraft();
+  initCharacterFilter();
   render();
 }
 
@@ -323,31 +359,80 @@ function renderStatus(){
 }
 function renderAccountFilter(){
   const el=document.getElementById('account-filter');
-  const accounts=sortRows(state.accounts);
-  const chips=[`<button class="pill ${state.selectedAccount===ALL?'active':''}" onclick="setAccount('${ALL}')">전체</button>`];
-  for(const a of accounts){
-    if(a.hide_from_filters&&!state.showHiddenAccounts)continue;
-    chips.push(`<button class="pill ${state.selectedAccount===a.id?'active':''} ${a.hide_from_filters?'hidden-account':''}" onclick="setAccount('${a.id}')">${esc(a.name)}</button>`);
+  const visibleAccs=filterVisibleAccounts();
+  const mainAccounts=visibleAccs.filter(a=>!a.parent_account_id);
+  const rows=[];
+  const renderRow=(label,chars,sub=false)=>{
+    if(!chars.length)return'';
+    const allOn=chars.every(c=>state.selectedChars.has(c.id));
+    const anyOn=chars.some(c=>state.selectedChars.has(c.id));
+    const ids=chars.map(c=>c.id);
+    return`<div class="filter-row ${sub?'sub':''}">
+      <button class="cf-btn ${allOn?'on':anyOn?'partial':''}" onclick="toggleCharGroup([${ids.map(id=>`'${id}'`).join(',')}])">${esc(label)}</button>
+      <span class="filter-sep"></span>
+      ${chars.map(c=>`<button class="cf-btn ${state.selectedChars.has(c.id)?'on':''}" onclick="toggleChar('${c.id}')">${esc(c.name)}${c.item_level?` <span style="opacity:.62;font-size:.66rem;">Lv.${c.item_level}</span>`:''}</button>`).join('')}
+    </div>`;
+  };
+  for(const acc of mainAccounts){
+    const mainChars=filterSelectableChars().filter(c=>c.account_id===acc.id);
+    const subAccs=visibleAccs.filter(a=>a.parent_account_id===acc.id);
+    const subChars=subAccs.flatMap(sa=>filterSelectableChars().filter(c=>c.account_id===sa.id));
+    const mainRow=renderRow(acc.name,mainChars,false);if(mainRow)rows.push(mainRow);
+    const subRow=renderRow(acc.name+'-부계정',subChars,true);if(subRow)rows.push(subRow);
   }
-  el.innerHTML=chips.join('');
+  visibleAccs.filter(a=>a.parent_account_id&&!visibleAccs.some(m=>m.id===a.parent_account_id)).forEach(acc=>{
+    const chars=filterSelectableChars().filter(c=>c.account_id===acc.id);
+    const row=renderRow(acc.name,chars,false);if(row)rows.push(row);
+  });
+  el.innerHTML=rows.join('')||'<span class="filter-summary">표시할 후보 캐릭터가 없습니다</span>';
+  el.style.display=state.filterOpen?'flex':'none';
+  document.getElementById('filter-toggle').textContent=state.filterOpen?'▲':'▼';
+  const total=filterSelectableChars().length,sel=filterSelectableChars().filter(c=>state.selectedChars.has(c.id)).length;
+  document.getElementById('filter-summary').textContent=`${sel}/${total}명 표시`;
   document.getElementById('hidden-toggle').textContent=state.showHiddenAccounts?'숨김 계정 끄기':'숨김 계정 보기';
 }
+function toggleCharacterFilter(){state.filterOpen=!state.filterOpen;localStorage.setItem('la_pg_filter_open',state.filterOpen?'1':'0');renderAccountFilter();}
+function saveCharFilter(){localStorage.setItem('la_pg_sel_chars',JSON.stringify([...state.selectedChars]));}
+function toggleChar(id){if(state.selectedChars.has(id))state.selectedChars.delete(id);else state.selectedChars.add(id);saveCharFilter();render();}
+function toggleCharGroup(ids){const allOn=ids.every(id=>state.selectedChars.has(id));ids.forEach(id=>{if(allOn)state.selectedChars.delete(id);else state.selectedChars.add(id);});saveCharFilter();render();}
+function selectAllChars(){state.selectedChars=new Set(filterSelectableChars().map(c=>c.id));saveCharFilter();render();}
+function deselectAllChars(){state.selectedChars.clear();saveCharFilter();render();}
 function setAccount(id){state.selectedAccount=id;render();}
-function toggleHiddenAccounts(){state.showHiddenAccounts=!state.showHiddenAccounts;render();}
+function toggleHiddenAccounts(){state.showHiddenAccounts=!state.showHiddenAccounts;initCharacterFilter(true);render();}
 
+function filterVisibleAccounts(){
+  return sortRows(state.accounts).filter(a=>state.showHiddenAccounts||!a.hide_from_filters);
+}
+function hasAnyVisibleCandidate(ch){
+  return visibleCandidatesForChar(ch,{ignoreFilter:true}).length>0;
+}
+function filterSelectableChars(){
+  const accIds=new Set(filterVisibleAccounts().map(a=>a.id));
+  return sortRows(state.chars).filter(ch=>accIds.has(ch.account_id)&&hasAnyVisibleCandidate(ch));
+}
+function initCharacterFilter(keepSaved=false){
+  const allowed=new Set(filterSelectableChars().map(c=>c.id));
+  const saved=safeJson('la_pg_sel_chars',null);
+  if(keepSaved&&state.selectedChars?.size){
+    state.selectedChars=new Set([...state.selectedChars].filter(id=>allowed.has(id)));
+    return;
+  }
+  state.selectedChars=new Set(Array.isArray(saved)?saved.filter(id=>allowed.has(id)):[...allowed]);
+}
 function visibleAccounts(){
-  return sortRows(state.accounts).filter(a=>(state.showHiddenAccounts||!a.hide_from_filters)&&(state.selectedAccount===ALL||a.id===state.selectedAccount||a.parent_account_id===state.selectedAccount));
+  const charAccs=new Set(filteredChars().map(c=>c.account_id));
+  return filterVisibleAccounts().filter(a=>charAccs.has(a.id));
 }
 function visibleCharsForAccount(accId){
   const q=state.search.toLowerCase();
-  return sortRows(state.chars).filter(ch=>{
-    const acc=state.accounts.find(a=>a.id===ch.account_id);
-    const top=acc?.parent_account_id||acc?.id;
+  return filteredChars().filter(ch=>{
     if(accId&&ch.account_id!==accId)return false;
-    if(state.selectedAccount!==ALL&&top!==state.selectedAccount&&ch.account_id!==state.selectedAccount)return false;
     if(q&&!String(ch.name||'').toLowerCase().includes(q)&&!String(ch.class_name||'').toLowerCase().includes(q))return false;
     return true;
   });
+}
+function filteredChars(){
+  return sortRows(state.chars).filter(ch=>state.selectedChars.has(ch.id));
 }
 
 function renderLeft(){
@@ -374,7 +459,7 @@ function charCard(ch){
     <div class="candidate-list">${candidates.length?candidates.map(c=>candidateChip(ch,c)).join(''):'<div class="candidate-empty">표시할 레이드 후보가 없습니다</div>'}</div>
   </div>`;
 }
-function visibleCandidatesForChar(ch){
+function visibleCandidatesForChar(ch,opt={}){
   const out=[];
   const map=state.candidateMap[ch.id]||{};
   for(const name of groupNames()){
@@ -398,20 +483,25 @@ function isCharAssignedToPreset(charId,presetId){
 
 function renderRight(){
   const el=document.getElementById('right-panel');
-  const html=[];
-  for(const group of groupNames()){
-    const presets=groupPresets(group).filter(r=>!state.hiddenPresets.has(r.id));
-    if(!presets.length)continue;
-    html.push(`<div class="raid-block">
+  const groups=groupNames().filter(group=>groupPresets(group).some(r=>!state.hiddenPresets.has(r.id)));
+  if(!groups.length){el.innerHTML='<div class="empty">표시할 레이드가 없습니다</div>';return;}
+  if(!state.selectedRaidGroup||!groups.includes(state.selectedRaidGroup))state.selectedRaidGroup=groups[0];
+  const group=state.selectedRaidGroup;
+  const presets=groupPresets(group).filter(r=>!state.hiddenPresets.has(r.id));
+  const tabs=`<div class="raid-tabs">${groups.map((g,i)=>`<button class="raid-tab ${g===group?'active':''}" onclick="setRaidTabIndex(${i})">${esc(g)}</button>`).join('')}</div>`;
+  el.innerHTML=tabs+`<div class="raid-block">
       <div class="raid-head"><div class="raid-name">${esc(group)}</div><span class="tag">${presets.length}개 난이도</span></div>
       <div class="preset-list">${presets.map(presetBlock).join('')}</div>
-    </div>`);
-  }
-  el.innerHTML=html.join('')||'<div class="empty">표시할 레이드가 없습니다</div>';
+    </div>`;
+}
+function setRaidTabIndex(idx){
+  const groups=groupNames().filter(group=>groupPresets(group).some(r=>!state.hiddenPresets.has(r.id)));
+  state.selectedRaidGroup=groups[idx]||groups[0]||null;
+  renderRight();
 }
 function presetBlock(preset){
   const parties=state.partyDrafts.filter(p=>p.preset_id===preset.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
-  const regs=registeredByAccount(preset.id);
+  const pool=unassignedByAccount(preset.id);
   return`<div class="preset-block">
     <div class="preset-head">
       <div>
@@ -423,23 +513,29 @@ function presetBlock(preset){
         <button class="btn ghost sm" title="파티 생성 화면에서 숨김" onclick="hidePreset('${preset.id}')">숨김</button>
       </div>
     </div>
-    <div class="registered">${regs.length?regs.map(r=>`<span class="reg-chip"><b>${esc(r.account)}</b> ${esc(r.names.join(', '))}</span>`).join(''):'<span class="reg-chip">등록 캐릭터 없음</span>'}</div>
+    <div class="candidate-pool">${pool.length?pool.map(r=>`<div class="pool-row"><span class="pool-account">${esc(r.account)}</span>${r.chars.map(ch=>poolChip(ch,preset)).join('')}</div>`).join(''):'<div class="candidate-empty">미배치 후보가 없습니다</div>'}</div>
     <div class="party-list">${parties.length?parties.map(p=>partyCard(p,preset)).join(''):'<div class="candidate-empty">파티가 없습니다. + 버튼으로 생성하세요.</div>'}</div>
   </div>`;
 }
-function registeredByAccount(presetId){
-  const rows=[];
-  const by={};
-  for(const p of state.partyDrafts.filter(x=>x.preset_id===presetId)){
-    for(const cid of p.slots.filter(Boolean)){
-      const ch=charById(cid);if(!ch)continue;
-      const accName=accountNameById(topAccountId(cid));
-      if(!by[accName])by[accName]=[];
-      if(!by[accName].includes(ch.name))by[accName].push(ch.name);
-    }
+function unassignedByAccount(presetId){
+  const rows=[],by={};
+  const preset=raidById(presetId);if(!preset)return rows;
+  for(const ch of filteredChars()){
+    const c=(state.candidateMap[ch.id]||{})[preset.name];
+    if(!c?.checked||c.presetId!==presetId)continue;
+    if(isCharAssignedToPreset(ch.id,presetId))continue;
+    const accName=accountNameById(topAccountId(ch.id));
+    if(!by[accName])by[accName]=[];
+    by[accName].push(ch);
   }
-  Object.keys(by).sort().forEach(account=>rows.push({account,names:by[account]}));
+  Object.keys(by).sort().forEach(account=>rows.push({account,chars:sortRows(by[account])}));
   return rows;
+}
+function poolChip(ch,preset){
+  const warn=Number(ch.item_level||0)<Number(preset.entry_level||0);
+  return`<span class="pool-chip ${warn?'warn':''}" draggable="true" ondragstart="dragCandidate(event,'${ch.id}','${preset.id}')" ondragend="endDragCandidate(event)">
+    ${esc(ch.name)}<small>${esc(ch.class_name||'')}${warn?' · 레벨부족':''}</small>
+  </span>`;
 }
 function partyCard(p,preset){
   return`<div class="party-card">
