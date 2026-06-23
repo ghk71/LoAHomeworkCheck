@@ -27,7 +27,7 @@
   --r:8px;
 }
 *{box-sizing:border-box}
-html,body{min-height:100%}
+html,body{height:100%;min-height:100%;overflow:hidden}
 body{margin:0;background:linear-gradient(180deg,#12161d 0%,var(--bg) 260px);color:var(--text);font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;line-height:1.42;font-weight:560}
 button,input,select,textarea{font:inherit}
 button{cursor:pointer}
@@ -39,9 +39,9 @@ button{cursor:pointer}
 .setup-card{width:min(560px,100%);background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:28px;box-shadow:var(--shadow)}
 .setup-card h1{margin:0 0 8px;font-size:1.2rem}
 .setup-card p{margin:0 0 18px;color:var(--muted)}
-.app{display:none;min-height:calc(100vh - 42px)}
-.app.active{display:block}
-.topbar{position:sticky;top:42px;z-index:40;background:rgba(18,21,27,.9);border-bottom:1px solid var(--line);backdrop-filter:blur(18px);padding:11px 14px;display:grid;gap:9px}
+.app{display:none;height:calc(100vh - 42px);min-height:0;overflow:hidden}
+.app.active{display:flex;flex-direction:column}
+.topbar{z-index:40;background:rgba(18,21,27,.9);border-bottom:1px solid var(--line);backdrop-filter:blur(18px);padding:11px 14px;display:grid;gap:9px;flex:0 0 auto}
 .title-row{display:flex;align-items:center;gap:10px;justify-content:space-between}
 .page-title{font-size:1.05rem;font-weight:1000}
 .toolbar,.filters,.chips{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
@@ -53,9 +53,11 @@ button{cursor:pointer}
 .btn.gold{background:rgba(243,180,63,.12);border-color:rgba(243,180,63,.36);color:#ffd985}
 .btn.danger{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);color:#ff9a9a}
 .btn.ghost{background:rgba(255,255,255,.035);color:var(--muted)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
 .btn.icon{width:27px;height:27px;padding:0;border-radius:50%}
 .btn.sm{padding:5px 8px;font-size:.74rem}
 .input,.select{background:#171c23;border:1px solid var(--line-2);color:var(--text);border-radius:7px;padding:8px 10px;outline:none}
+.field{display:grid;gap:6px}.field label{color:var(--muted);font-size:.76rem;font-weight:850}
 .input:focus,.select:focus{border-color:rgba(34,211,238,.55);box-shadow:0 0 0 3px rgba(34,211,238,.1)}
 .pill{border:1px solid var(--line);background:rgba(31,36,44,.78);color:var(--muted);border-radius:999px;padding:7px 11px;font-weight:850;font-size:.78rem}
 .pill.active{background:linear-gradient(135deg,#e8fbff,#dcd6ff);color:#081018;border-color:transparent}
@@ -72,12 +74,12 @@ button{cursor:pointer}
 .cf-btn{border:1px solid var(--line);background:rgba(31,36,44,.82);color:var(--muted);border-radius:999px;padding:4px 10px;font-size:.75rem;font-weight:850}
 .cf-btn.on{background:linear-gradient(135deg,#e8fbff,#dcd6ff);border-color:transparent;color:#081018}
 .cf-btn.partial{border-color:rgba(244,199,107,.38);color:#ffd985;background:rgba(244,199,107,.08)}
-.main-layout{display:grid;grid-template-columns:minmax(330px,35vw) minmax(0,1fr);gap:14px;padding:14px;max-width:1920px;margin:0 auto}
-.panel{background:linear-gradient(180deg,rgba(29,34,42,.98),rgba(24,28,35,.98));border:1px solid var(--line);border-radius:8px;box-shadow:0 1px 0 rgba(255,255,255,.045) inset;min-height:calc(100vh - 158px);overflow:hidden;display:flex;flex-direction:column}
+.main-layout{display:grid;grid-template-columns:minmax(330px,35vw) minmax(0,1fr);gap:14px;padding:14px;max-width:1920px;width:100%;margin:0 auto;flex:1 1 auto;min-height:0;overflow:hidden}
+.panel{background:linear-gradient(180deg,rgba(29,34,42,.98),rgba(24,28,35,.98));border:1px solid var(--line);border-radius:8px;box-shadow:0 1px 0 rgba(255,255,255,.045) inset;min-height:0;overflow:hidden;display:flex;flex-direction:column}
 .panel-head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(39,47,58,.72)}
 .panel-title{font-weight:1000;color:#dbeafe}
 .panel-sub{color:var(--muted);font-size:.74rem}
-.panel-body{padding:12px;overflow:auto;display:grid;gap:10px;align-content:start}
+.panel-body{padding:12px;overflow:auto;display:grid;gap:10px;align-content:start;min-height:0}
 .account-block,.raid-block,.preset-block,.party-card{border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.025);overflow:hidden}
 .account-head,.raid-head,.preset-head,.party-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.025)}
 .account-name,.raid-name,.preset-name,.party-name{font-weight:950}
@@ -97,6 +99,7 @@ button{cursor:pointer}
 .raid-tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
 .raid-tab{border:1px solid var(--line);background:rgba(31,36,44,.82);color:var(--muted);border-radius:999px;padding:7px 12px;font-weight:900;font-size:.78rem}
 .raid-tab.active{background:linear-gradient(135deg,#e8fbff,#dcd6ff);border-color:transparent;color:#081018}
+.left-tabs{display:flex;gap:7px;flex-wrap:wrap}
 .raid-list{display:grid;gap:12px}
 .preset-list{display:grid;gap:9px;padding:10px}
 .preset-head{background:rgba(18,24,32,.74)}
@@ -135,12 +138,39 @@ button{cursor:pointer}
 .modal-title{font-size:1.05rem;font-weight:1000}
 .modal-body{padding:16px 20px;display:grid;gap:10px}
 .modal-foot{padding:13px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
-.edit-row{display:grid;grid-template-columns:auto 1fr 220px;gap:10px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:9px;background:rgba(255,255,255,.025)}
+.edit-row{display:grid;grid-template-columns:auto 1fr 220px auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:9px;background:rgba(255,255,255,.025)}
 .edit-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent)}
 .edit-title{font-weight:900}
 .edit-sub{color:var(--muted);font-size:.72rem}
+.allow-low{display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-size:.72rem;font-weight:850;white-space:nowrap}
+.allow-low input{width:15px;height:15px;accent-color:var(--gold)}
+.switch{position:relative;width:42px;height:24px;border-radius:999px;border:1px solid var(--line-2);background:#0b1119;flex:none}
+.switch::after{content:"";position:absolute;width:18px;height:18px;left:2px;top:2px;border-radius:50%;background:var(--muted);transition:.16s}
+.switch.on{border-color:rgba(40,229,154,.42);background:rgba(40,229,154,.16)}
+.switch.on::after{left:20px;background:var(--green)}
+.tool-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--muted);font-size:.78rem;font-weight:820}
+.section-label{display:flex;align-items:center;justify-content:space-between;margin:0 0 8px;color:#b7d8fb;font-size:.86rem;font-weight:950}
+.modal-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.mini-btn{height:22px;min-width:34px;padding:0 6px;border-radius:6px;border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--muted);font-size:.7rem;font-weight:850}
+.mini-btn.danger{color:#ffb4b4}
+.target-group,.validation-section{border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.025);padding:9px;display:grid;gap:8px}
+.target-group-head,.validation-head{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--gold);font-weight:950}
+.target-chips,.validation-chips{display:flex;gap:7px;flex-wrap:wrap}
+.target-chip,.validation-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;background:#0c121b;color:var(--muted);padding:6px 9px;font-size:.76rem;font-weight:850;max-width:100%;white-space:normal;flex-wrap:wrap;line-height:1.25}
+.target-chip input{width:15px;height:15px;accent-color:var(--accent)}
+.target-chip.exclude-chip:has(input:checked){border-color:rgba(255,93,108,.48);color:#ffc5ca;background:rgba(255,93,108,.1)}
+.api-update-grid{display:grid;gap:12px}
+.api-update-note{border:1px solid rgba(244,199,107,.28);background:rgba(244,199,107,.08);border-radius:8px;padding:10px;color:#ffe1a1;font-size:.76rem;line-height:1.55}
+.api-update-list{display:grid;gap:9px;max-height:34vh;overflow:auto;padding-right:2px}
+.api-progress{display:grid;gap:7px;border:1px solid var(--line);background:rgba(255,255,255,.025);border-radius:8px;padding:10px}
+.api-progress-head{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--muted);font-size:.76rem;font-weight:850}
+.api-progress-bar{height:7px;border-radius:999px;background:#0b1119;overflow:hidden}.api-progress-fill{height:100%;width:0;background:linear-gradient(90deg,var(--green),#6ee7f9)}
+.api-log{max-height:160px;overflow:auto;display:grid;gap:5px;color:var(--muted);font-size:.74rem}
+.api-log-row{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid rgba(255,255,255,.05);padding-bottom:5px}
+.api-log-row.ok{color:#a7f3d0}.api-log-row.fail{color:#ffb4b4}
+.validation-list{display:grid;gap:10px}.validation-chip.warn{border-color:rgba(244,199,107,.42);color:#ffe1a1;background:rgba(244,199,107,.08)}.validation-chip.err{border-color:rgba(255,93,108,.45);color:#ffc5ca;background:rgba(255,93,108,.09)}
 .hidden{display:none!important}
-@media(max-width:980px){.main-layout{grid-template-columns:1fr}.panel{min-height:auto;max-height:none}.topbar{position:static}.page-nav{overflow-x:auto}}
+@media(max-width:980px){html,body{overflow:auto}.app{height:auto;overflow:visible}.main-layout{grid-template-columns:1fr;overflow:visible}.panel{min-height:auto;max-height:none}.topbar{position:static}.page-nav{overflow-x:auto}}
 </style>
 </head>
 <body>
@@ -175,8 +205,11 @@ button{cursor:pointer}
       <div class="toolbar">
         <button class="btn ghost sm" onclick="loadLatestDraft()">저장안 불러오기</button>
         <button class="btn gold sm" onclick="uploadDraft()">업로드</button>
+        <button class="btn sm" onclick="validateDraft(true)">검증</button>
+        <button class="btn danger sm" onclick="resetDraft()">초기화</button>
+        <button class="btn ghost sm" onclick="restoreFromDb()">원래대로</button>
+        <button class="btn gold sm" onclick="openCharacterApiUpdateModal()">캐릭 업데이트</button>
         <button class="btn green sm" onclick="applyDraft()">적용</button>
-        <button class="btn sm" onclick="reloadFromDb()">DB 다시 불러오기</button>
       </div>
     </div>
     <div class="filters">
@@ -238,6 +271,59 @@ button{cursor:pointer}
   </div>
 </div>
 
+<div class="overlay" id="modal-validation">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">파티 구성 검증</div>
+        <div class="panel-sub">배치 오류와 따로 가는 캐릭터를 확인합니다.</div>
+      </div>
+      <button class="btn ghost" onclick="closeModal('modal-validation')">닫기</button>
+    </div>
+    <div class="modal-body"><div class="validation-list" id="validation-list"></div></div>
+    <div class="modal-foot"><button class="btn primary" onclick="closeModal('modal-validation')">확인</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="modal-character-api-update">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">캐릭터 공식 API 업데이트</div>
+        <div class="panel-sub">공식 API 프로필에서 아이템 레벨과 전투력을 갱신합니다.</div>
+      </div>
+      <button class="btn ghost" onclick="closeModal('modal-character-api-update')">닫기</button>
+    </div>
+    <div class="modal-body">
+      <div class="api-update-grid">
+        <div class="api-update-note">API 키는 코드에 저장하지 않습니다. 저장을 선택하면 현재 브라우저 localStorage에만 보관됩니다.</div>
+        <div class="field">
+          <label>Lost Ark Open API Bearer Token</label>
+          <input id="lostark-api-token" class="input" type="password" placeholder="bearer 없이 토큰만 입력해도 됩니다">
+        </div>
+        <label class="tool-toggle-row"><span>이 브라우저에 API 키 저장</span><button class="switch" id="lostark-api-save-switch" onclick="toggleLostarkApiSave()"></button></label>
+        <div>
+          <div class="section-label"><span>업데이트 제외 캐릭터</span><span id="api-update-target-count"></span></div>
+          <div class="modal-tabs">
+            <button class="btn" onclick="setCharacterApiExcludeAll(false)">전체 제외 해제</button>
+            <button class="btn danger" onclick="setCharacterApiExcludeAll(true)">전체 제외</button>
+          </div>
+          <div class="api-update-list" id="api-update-exclude-list"></div>
+        </div>
+        <div class="api-progress hidden" id="api-update-progress">
+          <div class="api-progress-head"><span id="api-update-progress-label">대기 중</span><span id="api-update-progress-count">0/0</span></div>
+          <div class="api-progress-bar"><div class="api-progress-fill" id="api-update-progress-fill"></div></div>
+          <div class="api-log" id="api-update-log"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeModal('modal-character-api-update')">취소</button>
+      <button class="btn primary" id="api-update-run-btn" onclick="runCharacterApiUpdate()">업데이트 실행</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -248,7 +334,8 @@ const state={
   accounts:[],chars:[],raids:[],raidTasks:[],parties:[],members:[],
   partyDrafts:[],originalPartyIds:new Set(),candidateMap:{},hiddenPresets:new Set(),
   selectedAccount:ALL,selectedChars:new Set(),filterOpen:localStorage.getItem('la_pg_filter_open')!=='0',
-  selectedRaidGroup:null,showHiddenAccounts:false,search:'',drag:null,editCharId:null,draftId:null
+  selectedLeftAccount:ALL,selectedRaidGroup:null,showHiddenAccounts:false,search:'',drag:null,editCharId:null,draftId:null,
+  lostarkApiToken:'',lostarkApiSave:!!localStorage.getItem('la_lostark_api_token'),apiUpdateExcluded:new Set(safeJson('la_lostark_update_excluded',[]))
 };
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
@@ -273,6 +360,40 @@ function groupNames(){
 function sortedRaids(){return sortRows(state.raids);}
 function groupPresets(name){return sortedRaids().filter(r=>r.name===name);}
 function presetsByGroup(){const out={};for(const name of groupNames())out[name]=groupPresets(name);return out;}
+function entryLevelOf(p){return Number(p?.entry_level)||0;}
+function isNormalDifficulty(p){return /노말|normal/i.test(String(p?.difficulty||''));}
+function baselinePreset(list){
+  const source=list.filter(isNormalDifficulty);
+  const target=source.length?source:list;
+  return [...target].sort((a,b)=>entryLevelOf(a)-entryLevelOf(b)||(Number(a.sort_order)||0)-(Number(b.sort_order)||0))[0]||list[0]||null;
+}
+function highestEligiblePreset(list,itemLevel){
+  return [...list].filter(p=>!entryLevelOf(p)||Number(itemLevel||0)>=entryLevelOf(p))
+    .sort((a,b)=>entryLevelOf(b)-entryLevelOf(a)||(Number(a.sort_order)||0)-(Number(b.sort_order)||0))[0]||null;
+}
+function canUsePreset(ch,preset,allowLowLevel=false){return !!preset&&(allowLowLevel||!entryLevelOf(preset)||Number(ch?.item_level||0)>=entryLevelOf(preset));}
+function defaultCandidateFor(ch,name,list,fromTaskId){
+  const ilvl=Number(ch.item_level)||0;
+  const base=baselinePreset(list);
+  const canBaseline=!base||!entryLevelOf(base)||ilvl>=entryLevelOf(base);
+  const taskPreset=raidById(fromTaskId);
+  const taskAllowed=taskPreset&&canUsePreset(ch,taskPreset,false);
+  const eligible=highestEligiblePreset(list,ilvl);
+  const presetId=taskAllowed?taskPreset.id:(eligible?.id||base?.id||list[0]?.id||null);
+  return{checked:!!(canBaseline&&presetId),presetId,allowLowLevel:false,manual:false};
+}
+function candidateIsVisible(ch,c){
+  const preset=raidById(c?.presetId);
+  return !!(c?.checked&&preset&&!state.hiddenPresets.has(preset.id)&&canUsePreset(ch,preset,!!c.allowLowLevel));
+}
+function presetSortOrder(presetId){
+  let n=0;
+  for(const group of groupNames()){
+    const list=groupPresets(group);
+    for(let i=0;i<list.length;i++,n++)if(list[i].id===presetId)return n;
+  }
+  return 9999;
+}
 
 function getWeekStart(off=0){
   const now=new Date(),kst=new Date(now.getTime()+9*3600000);
@@ -309,9 +430,16 @@ async function loadData(){
   render();
 }
 
-async function reloadFromDb(){
+async function restoreFromDb(){
   if(!confirm('현재 작업 중인 배치를 버리고 DB의 raid.html 파티 구성을 다시 불러옵니까?'))return;
   state.hiddenPresets=new Set();state.candidateMap={};await loadData();toast('DB 구성을 다시 불러왔습니다');
+}
+async function reloadFromDb(){return restoreFromDb();}
+function resetDraft(){
+  if(!confirm('모든 파티 배치를 비우고 후보만 남깁니다. 적용하면 기존 파티가 제거됩니다. 계속할까요?'))return;
+  state.partyDrafts=[];
+  render();
+  toast('파티 배치를 초기화했습니다');
 }
 
 function buildInitialDraft(){
@@ -337,11 +465,9 @@ function buildDefaultCandidates(){
   for(const ch of state.chars){
     if(!state.candidateMap[ch.id])state.candidateMap[ch.id]={};
     for(const [name,list] of Object.entries(groups)){
-      if(state.candidateMap[ch.id][name])continue;
+      if(state.candidateMap[ch.id][name]?.manual)continue;
       const fromTask=raidTaskByCharGroup[ch.id]?.[name];
-      const eligible=list.filter(r=>Number(ch.item_level||0)>=Number(r.entry_level||0));
-      const presetId=fromTask||(eligible[0]?.id||list[0]?.id||null);
-      state.candidateMap[ch.id][name]={checked:!!presetId,presetId};
+      state.candidateMap[ch.id][name]=defaultCandidateFor(ch,name,list,fromTask);
     }
   }
 }
@@ -403,12 +529,9 @@ function toggleHiddenAccounts(){state.showHiddenAccounts=!state.showHiddenAccoun
 function filterVisibleAccounts(){
   return sortRows(state.accounts).filter(a=>state.showHiddenAccounts||!a.hide_from_filters);
 }
-function hasAnyVisibleCandidate(ch){
-  return visibleCandidatesForChar(ch,{ignoreFilter:true}).length>0;
-}
 function filterSelectableChars(){
   const accIds=new Set(filterVisibleAccounts().map(a=>a.id));
-  return sortRows(state.chars).filter(ch=>accIds.has(ch.account_id)&&hasAnyVisibleCandidate(ch));
+  return sortRows(state.chars).filter(ch=>accIds.has(ch.account_id));
 }
 function initCharacterFilter(keepSaved=false){
   const allowed=new Set(filterSelectableChars().map(c=>c.id));
@@ -437,14 +560,20 @@ function filteredChars(){
 
 function renderLeft(){
   const el=document.getElementById('left-panel');
+  const accounts=visibleAccounts();
+  if(!accounts.length){el.innerHTML='<div class="empty">표시할 캐릭터가 없습니다</div>';return;}
+  if(state.selectedLeftAccount!==ALL&&!accounts.some(a=>a.id===state.selectedLeftAccount))state.selectedLeftAccount=ALL;
+  const tabs=`<div class="left-tabs"><button class="raid-tab ${state.selectedLeftAccount===ALL?'active':''}" onclick="setLeftAccountTab('${ALL}')">전체</button>${accounts.map(a=>`<button class="raid-tab ${state.selectedLeftAccount===a.id?'active':''}" onclick="setLeftAccountTab('${a.id}')">${esc(a.name)}</button>`).join('')}</div>`;
   const html=[];
-  for(const acc of visibleAccounts()){
+  for(const acc of accounts){
+    if(state.selectedLeftAccount!==ALL&&acc.id!==state.selectedLeftAccount)continue;
     const chars=visibleCharsForAccount(acc.id);
     if(!chars.length)continue;
     html.push(`<div class="account-block"><div class="account-head"><div class="account-name">${esc(acc.name)}</div><span class="tag">${chars.length}명</span></div><div class="char-list">${chars.map(charCard).join('')}</div></div>`);
   }
-  el.innerHTML=html.join('')||'<div class="empty">표시할 캐릭터가 없습니다</div>';
+  el.innerHTML=tabs+(html.join('')||'<div class="empty">표시할 캐릭터가 없습니다</div>');
 }
+function setLeftAccountTab(id){state.selectedLeftAccount=id;renderLeft();}
 
 function charCard(ch){
   const candidates=visibleCandidatesForChar(ch);
@@ -463,8 +592,7 @@ function visibleCandidatesForChar(ch,opt={}){
   const out=[];
   const map=state.candidateMap[ch.id]||{};
   for(const name of groupNames()){
-    const c=map[name];if(!c?.checked||!c.presetId)continue;
-    if(state.hiddenPresets.has(c.presetId))continue;
+    const c=map[name];if(!candidateIsVisible(ch,c))continue;
     const preset=raidById(c.presetId);if(!preset)continue;
     out.push({group:name,preset});
   }
@@ -522,7 +650,7 @@ function unassignedByAccount(presetId){
   const preset=raidById(presetId);if(!preset)return rows;
   for(const ch of filteredChars()){
     const c=(state.candidateMap[ch.id]||{})[preset.name];
-    if(!c?.checked||c.presetId!==presetId)continue;
+    if(c?.presetId!==presetId||!candidateIsVisible(ch,c))continue;
     if(isCharAssignedToPreset(ch.id,presetId))continue;
     const accName=accountNameById(topAccountId(ch.id));
     if(!by[accName])by[accName]=[];
@@ -596,11 +724,73 @@ function removeParty(partyId){if(!confirm('이 파티를 현재 작업안에서 
 function hidePreset(presetId){state.hiddenPresets.add(presetId);render();}
 function clearHiddenPresets(){state.hiddenPresets=new Set();render();}
 
+function candidateItemsForChar(ch){
+  const out=[];
+  const map=state.candidateMap[ch.id]||{};
+  for(const group of groupNames()){
+    const c=map[group];
+    if(!candidateIsVisible(ch,c))continue;
+    out.push({charId:ch.id,presetId:c.presetId,group,preset:raidById(c.presetId),candidate:c});
+  }
+  return out;
+}
+function buildValidationReport(){
+  const errors=[],warnings=[],solo=[];
+  for(const p of state.partyDrafts){
+    const preset=raidById(p.preset_id);
+    const partyName=`${preset?raidLabel(preset):'알 수 없는 레이드'} · ${p.name||'파티'}`;
+    const accountSlots={};
+    p.slots.forEach((cid,i)=>{
+      if(!cid)return;
+      const ch=charById(cid);
+      if(!ch){errors.push(`${partyName} ${i+1}번 슬롯: 캐릭터 정보를 찾을 수 없습니다`);return;}
+      const accId=topAccountId(cid);
+      if(accountSlots[accId])errors.push(`${partyName}: 같은 계정 캐릭터가 중복 배치되었습니다 (${accountSlots[accId]}, ${ch.name})`);
+      accountSlots[accId]=ch.name;
+      const cand=(state.candidateMap[cid]||{})[preset?.name||''];
+      if(preset&&Number(ch.item_level||0)<entryLevelOf(preset)&&!cand?.allowLowLevel){
+        errors.push(`${partyName}: ${ch.name} 레벨이 부족하지만 수동 허용이 꺼져 있습니다`);
+      }
+      if(!state.selectedChars.has(cid))warnings.push(`${partyName}: ${ch.name} 캐릭터가 현재 필터에서 숨겨져 있습니다`);
+    });
+  }
+  const seenSolo=new Set();
+  for(const ch of filteredChars()){
+    for(const item of candidateItemsForChar(ch)){
+      const key=`${ch.id}:${item.presetId}`;
+      if(seenSolo.has(key)||isCharAssignedToPreset(ch.id,item.presetId))continue;
+      seenSolo.add(key);
+      solo.push({char:ch,preset:item.preset,account:accountNameById(topAccountId(ch.id))});
+    }
+  }
+  return{errors,warnings,solo};
+}
+function validateDraft(show=true){
+  const report=buildValidationReport();
+  if(show){
+    const box=document.getElementById('validation-list');
+    const blocks=[];
+    const chipList=(items,cls='')=>items.map(x=>`<span class="validation-chip ${cls}">${esc(x)}</span>`).join('');
+    blocks.push(`<div class="validation-section"><div class="validation-head"><span>요약</span><span>${report.errors.length?`${report.errors.length}개 오류`:'오류 없음'} · ${report.warnings.length}개 경고 · 따로 ${report.solo.length}개</span></div></div>`);
+    if(report.errors.length)blocks.push(`<div class="validation-section"><div class="validation-head">오류</div><div class="validation-chips">${chipList(report.errors,'err')}</div></div>`);
+    if(report.warnings.length)blocks.push(`<div class="validation-section"><div class="validation-head">경고</div><div class="validation-chips">${chipList(report.warnings,'warn')}</div></div>`);
+    const bySolo={};
+    report.solo.forEach(x=>{const label=raidLabel(x.preset);if(!bySolo[label])bySolo[label]=[];bySolo[label].push(`${x.account} · ${x.char.name}`);});
+    if(report.solo.length){
+      blocks.push(`<div class="validation-section"><div class="validation-head"><span>따로 가는 캐릭터</span><span>파티에 넣지 못했지만 레이드 숙제는 유지됩니다</span></div>${Object.entries(bySolo).map(([label,names])=>`<div><div class="panel-sub" style="margin:6px 0">${esc(label)}</div><div class="validation-chips">${chipList(names,'warn')}</div></div>`).join('')}</div>`);
+    }
+    if(!report.errors.length&&!report.warnings.length&&!report.solo.length)blocks.push('<div class="empty">검증할 문제가 없습니다</div>');
+    box.innerHTML=blocks.join('');
+    openModal('modal-validation');
+  }
+  return report;
+}
+
 function openCandidateEdit(charId){
   state.editCharId=charId;
   const ch=charById(charId);if(!ch)return;
   document.getElementById('candidate-title').textContent=`${ch.name} 후보 수정`;
-  document.getElementById('candidate-sub').textContent=`기본은 레벨 기준 최고 난이도이며, 체크 해제한 레이드는 좌측 후보에서 제외됩니다.`;
+  document.getElementById('candidate-sub').textContent=`기본은 최저 노말 입장 가능 레이드만 체크됩니다. 레벨 부족 허용을 켜면 부족 난이도도 후보로 표시됩니다.`;
   const map=state.candidateMap[charId]||{};
   const names=groupNames();
   const rows=names.map((name,idx)=>{
@@ -611,6 +801,7 @@ function openCandidateEdit(charId){
       <input type="checkbox" id="cand-check-${idx}" data-group="${esc(name)}" ${c.checked?'checked':''}>
       <div><div class="edit-title">${esc(name)}</div><div class="edit-sub">${list.length}개 난이도 · 레벨 부족 선택도 가능</div></div>
       <select class="select" id="cand-preset-${idx}">${list.map(r=>`<option value="${r.id}" ${r.id===selected?'selected':''}>${esc(r.difficulty||'기본')}${r.entry_level?` · ${r.entry_level}`:''}</option>`).join('')}</select>
+      <label class="allow-low"><input type="checkbox" id="cand-low-${idx}" ${c.allowLowLevel?'checked':''}>레벨 부족 허용</label>
     </div>`;
   }).join('');
   document.getElementById('candidate-edit-list').innerHTML=rows||'<div class="empty">레이드가 없습니다</div>';
@@ -623,7 +814,8 @@ function saveCandidateEdit(){
   for(const [idx,name] of names.entries()){
     const check=document.getElementById(`cand-check-${idx}`);
     const sel=document.getElementById(`cand-preset-${idx}`);
-    next[name]={checked:!!check?.checked,presetId:sel?.value||null};
+    const low=document.getElementById(`cand-low-${idx}`);
+    next[name]={checked:!!check?.checked,presetId:sel?.value||null,allowLowLevel:!!low?.checked,manual:true};
   }
   state.candidateMap[charId]=next;
   closeModal('modal-candidate');render();
@@ -666,7 +858,136 @@ function applyDraftPayload(data){
   buildDefaultCandidates();
 }
 
+function normalizeLostarkToken(v){return String(v||'').trim().replace(/^bearer\s+/i,'').trim();}
+function parseApiNumber(v){
+  const s=String(v??'').replace(/,/g,'').trim();
+  if(!s)return NaN;
+  return Number(s);
+}
+function apiExcludedFromDom(){
+  return new Set([...document.querySelectorAll('#api-update-exclude-list [data-api-exclude]:checked')].map(cb=>cb.dataset.apiExclude));
+}
+function updateApiTargetCount(){
+  const excluded=apiExcludedFromDom();
+  const total=state.chars.length;
+  const target=Math.max(0,total-excluded.size);
+  const el=document.getElementById('api-update-target-count');
+  if(el)el.textContent=`업데이트 ${target}/${total}`;
+}
+function toggleLostarkApiSave(){
+  state.lostarkApiSave=!state.lostarkApiSave;
+  document.getElementById('lostark-api-save-switch')?.classList.toggle('on',state.lostarkApiSave);
+}
+function renderCharacterApiExcludeList(){
+  const box=document.getElementById('api-update-exclude-list');if(!box)return;
+  if(!state.chars.length){box.innerHTML='<div class="empty">등록된 캐릭터가 없습니다</div>';updateApiTargetCount();return;}
+  box.innerHTML=sortRows(state.accounts).map(acc=>{
+    const chars=sortRows(state.chars).filter(c=>c.account_id===acc.id);
+    if(!chars.length)return '';
+    return`<div class="target-group">
+      <div class="target-group-head"><span>${esc(acc.name)}${acc.parent_account_id?' ↳':''}</span><span><button class="mini-btn danger" onclick="setCharacterApiExcludeAccount('${acc.id}',true)">계정 제외</button> <button class="mini-btn" onclick="setCharacterApiExcludeAccount('${acc.id}',false)">해제</button></span></div>
+      <div class="target-chips">${chars.map(ch=>`<label class="target-chip exclude-chip"><input type="checkbox" data-api-exclude="${ch.id}" ${state.apiUpdateExcluded.has(ch.id)?'checked':''} onchange="updateApiTargetCount()">제외 ${esc(ch.name)}</label>`).join('')}</div>
+    </div>`;
+  }).join('')||'<div class="empty">등록된 캐릭터가 없습니다</div>';
+  updateApiTargetCount();
+}
+function setCharacterApiExcludeAll(excluded){
+  document.querySelectorAll('#api-update-exclude-list [data-api-exclude]').forEach(cb=>{cb.checked=excluded;});
+  updateApiTargetCount();
+}
+function setCharacterApiExcludeAccount(accountId,excluded){
+  const ids=state.chars.filter(c=>c.account_id===accountId).map(c=>c.id);
+  document.querySelectorAll('#api-update-exclude-list [data-api-exclude]').forEach(cb=>{if(ids.includes(cb.dataset.apiExclude))cb.checked=excluded;});
+  updateApiTargetCount();
+}
+function openCharacterApiUpdateModal(){
+  if(!state.chars.length){toast('업데이트할 캐릭터가 없습니다');return;}
+  state.lostarkApiToken=state.lostarkApiToken||localStorage.getItem('la_lostark_api_token')||'';
+  const token=document.getElementById('lostark-api-token');if(token)token.value=state.lostarkApiToken;
+  document.getElementById('lostark-api-save-switch')?.classList.toggle('on',state.lostarkApiSave);
+  document.getElementById('api-update-progress')?.classList.add('hidden');
+  const log=document.getElementById('api-update-log');if(log)log.innerHTML='';
+  renderCharacterApiExcludeList();
+  openModal('modal-character-api-update');
+}
+async function fetchLostarkProfile(characterName,token){
+  const url=`https://developer-lostark.game.onstove.com/armories/characters/${encodeURIComponent(characterName)}?filters=profiles`;
+  let res;
+  try{res=await fetch(url,{headers:{accept:'application/json',authorization:`bearer ${token}`}});}
+  catch(e){throw new Error('공식 API 요청 실패');}
+  if(res.status===401||res.status===403)throw new Error('API 키 권한 확인 필요');
+  if(res.status===404)throw new Error('캐릭터 없음');
+  if(res.status===429)throw new Error('요청 제한');
+  if(!res.ok)throw new Error(`API 오류 ${res.status}`);
+  const data=await res.json();
+  const profile=data?.ArmoryProfile;
+  if(!profile)throw new Error('프로필 없음');
+  return profile;
+}
+function setApiProgress(done,total,label){
+  document.getElementById('api-update-progress')?.classList.remove('hidden');
+  const fill=document.getElementById('api-update-progress-fill');
+  const count=document.getElementById('api-update-progress-count');
+  const title=document.getElementById('api-update-progress-label');
+  if(fill)fill.style.width=total?`${Math.round(done/total*100)}%`:'0%';
+  if(count)count.textContent=`${done}/${total}`;
+  if(title)title.textContent=label||'업데이트 중';
+}
+function appendApiLog(name,status,detail,ok){
+  const log=document.getElementById('api-update-log');if(!log)return;
+  log.insertAdjacentHTML('beforeend',`<div class="api-log-row ${ok?'ok':'fail'}"><span>${esc(name)}</span><span>${esc(status)}${detail?` · ${esc(detail)}`:''}</span></div>`);
+  log.scrollTop=log.scrollHeight;
+}
+async function runCharacterApiUpdate(){
+  const token=normalizeLostarkToken(document.getElementById('lostark-api-token')?.value||'');
+  if(!token){toast('API 키를 입력하세요');return;}
+  state.lostarkApiToken=token;
+  if(state.lostarkApiSave)localStorage.setItem('la_lostark_api_token',token);else localStorage.removeItem('la_lostark_api_token');
+  state.apiUpdateExcluded=apiExcludedFromDom();
+  localStorage.setItem('la_lostark_update_excluded',JSON.stringify([...state.apiUpdateExcluded]));
+  const targets=state.chars.filter(ch=>!state.apiUpdateExcluded.has(ch.id));
+  if(!targets.length){toast('업데이트 대상이 없습니다');return;}
+  const btn=document.getElementById('api-update-run-btn');if(btn)btn.disabled=true;
+  const log=document.getElementById('api-update-log');if(log)log.innerHTML='';
+  let ok=0,fail=0;
+  setApiProgress(0,targets.length,'공식 API 업데이트 시작');
+  for(let i=0;i<targets.length;i++){
+    const ch=targets[i];
+    setApiProgress(i,targets.length,`${ch.name} 조회 중`);
+    try{
+      const profile=await fetchLostarkProfile(ch.name,token);
+      const apiName=String(profile.CharacterName||ch.name).trim();
+      const itemLevel=parseApiNumber(profile.ItemAvgLevel);
+      const combatPower=parseApiNumber(profile.CombatPower);
+      if(!Number.isFinite(itemLevel)||!Number.isFinite(combatPower))throw new Error('레벨/전투력 값 없음');
+      const target=state.chars.find(c=>String(c.name||'').trim()===apiName)||ch;
+      const payload={item_level:itemLevel,combat_power:combatPower};
+      const {error}=await sb.from('characters').update(payload).eq('id',target.id);
+      if(error)throw error;
+      Object.assign(target,payload);
+      appendApiLog(target.name,'완료',`Lv ${itemLevel.toLocaleString()} / ${combatPower.toLocaleString()}`,true);
+      ok++;
+    }catch(e){
+      appendApiLog(ch.name,'실패',e?.message||'알 수 없는 오류',false);
+      fail++;
+    }
+    setApiProgress(i+1,targets.length,`${i+1}/${targets.length} 처리`);
+  }
+  buildDefaultCandidates();
+  initCharacterFilter(true);
+  render();
+  setApiProgress(targets.length,targets.length,`완료: 성공 ${ok}, 실패 ${fail}`);
+  if(btn)btn.disabled=false;
+  toast(`캐릭터 업데이트 완료: 성공 ${ok}, 실패 ${fail}`);
+}
+
 async function applyDraft(){
+  const report=validateDraft(false);
+  if(report.errors.length){
+    validateDraft(true);
+    toast('검증 오류를 먼저 해결하세요');
+    return;
+  }
   if(!confirm('현재 작업안을 raid.html 파티 구성 DB에 반영합니다. 계속할까요?'))return;
   const nonEmpty=state.partyDrafts.filter(p=>p.slots.some(Boolean));
   const keptIds=new Set(nonEmpty.filter(p=>!String(p.id).startsWith('new_')).map(p=>p.id));
@@ -698,11 +1019,15 @@ async function applyDraft(){
 }
 
 async function ensureRaidTasks(){
-  const existing=new Set(state.raidTasks.filter(t=>t.preset_id&&t.character_id).map(t=>`${t.character_id}:${t.preset_id}`));
+  const existingByKey=new Map();
+  state.raidTasks.filter(t=>t.preset_id&&t.character_id).forEach(t=>{
+    const key=`${t.character_id}:${t.preset_id}`;
+    if(!existingByKey.has(key))existingByKey.set(key,[]);
+    existingByKey.get(key).push(t);
+  });
   const toEnsure=[];
   for(const ch of state.chars){
-    const map=state.candidateMap[ch.id]||{};
-    for(const c of Object.values(map)){if(c.checked&&c.presetId)toEnsure.push({charId:ch.id,presetId:c.presetId});}
+    for(const item of candidateItemsForChar(ch))toEnsure.push({charId:ch.id,presetId:item.presetId});
   }
   for(const p of state.partyDrafts){
     for(const cid of p.slots.filter(Boolean))toEnsure.push({charId:cid,presetId:p.preset_id});
@@ -711,16 +1036,31 @@ async function ensureRaidTasks(){
   const seen=new Set();
   for(const item of toEnsure){
     const key=`${item.charId}:${item.presetId}`;
-    if(existing.has(key)||seen.has(key))continue;
+    if(seen.has(key))continue;
     const preset=raidById(item.presetId);if(!preset)continue;
     seen.add(key);
-    rows.push({
-      character_id:item.charId,preset_id:item.presetId,name:raidLabel(preset),difficulty:preset.difficulty||'',
-      entry_level:Number(preset.entry_level)||0,clear_gold:Number(preset.clear_gold)||0,bound_gold:Number(preset.bound_gold)||0,
-      bonus_gold:Number(preset.bonus_gold)||0,reset_day:3,sort_order:99,receive_gold:true,receive_bonus:true
-    });
+    if(existingByKey.has(key))continue;
+    rows.push({...raidTaskPayloadForPreset(preset),character_id:item.charId,preset_id:item.presetId,receive_gold:true,receive_bound:true,receive_bonus:true});
+  }
+  const updateJobs=[];
+  const updatedIds=new Set();
+  for(const t of state.raidTasks){
+    const preset=raidById(t.preset_id);if(!preset||updatedIds.has(t.id))continue;
+    updatedIds.add(t.id);
+    updateJobs.push(sb.from('raid_tasks').update(raidTaskPayloadForPreset(preset)).eq('id',t.id));
+  }
+  if(updateJobs.length){
+    const res=await Promise.all(updateJobs);
+    const err=res.find(x=>x.error)?.error;if(err)console.warn('raid_tasks order update failed:',err.message);
   }
   if(rows.length){const {error}=await sb.from('raid_tasks').insert(rows);if(error)console.warn('raid_tasks ensure failed:',error.message);}
+}
+function raidTaskPayloadForPreset(preset){
+  return{
+    name:raidLabel(preset),difficulty:preset.difficulty||'',short_name:preset.short_name||null,
+    entry_level:Number(preset.entry_level)||0,clear_gold:Number(preset.clear_gold)||0,bound_gold:Number(preset.bound_gold)||0,
+    bonus_gold:Number(preset.bonus_gold)||0,reset_day:3,sort_order:presetSortOrder(preset.id)
+  };
 }
 
 init();
