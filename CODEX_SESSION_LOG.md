@@ -2785,3 +2785,15 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 6개 HTML의 CSS var 정의 누락 없음 확인.
 - `git diff --check` 통과. `party_generation.html` CRLF 변환 경고만 확인.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-06-24 - party_generation 패널 탭 sticky 고정
+
+### 변경 내용
+- `party_generation.html` 좌측 패널의 계정 탭과 우측 패널의 레이드 탭을 각 패널 내부 스크롤 상단에 sticky로 고정했습니다.
+- 패널 내용을 스크롤해도 현재 계정/레이드 전환 버튼이 계속 보이도록 배경, 하단 경계선, 그림자를 추가했습니다.
+
+### 검증
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. `party_generation.html` CRLF 변환 경고만 확인.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
