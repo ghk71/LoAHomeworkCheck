@@ -2350,6 +2350,7 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 ### 검증
 - fallback 검증 예정: 주요 HTML `</html>` 이후 코드 없음, CSS var 정의 누락 없음, `git diff --check`.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
 ## 2026-05-13 - index 레이드 현황 체크박스 UI 정리
 
 ### 변경 내용
@@ -2743,4 +2744,31 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
 - 6개 HTML의 CSS var 정의 누락 없음 확인.
 - `git diff --check` 통과. CRLF 경고만 있음.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+## 2026-06-23 - party_generation 좌측 패널 스크롤 잘림 수정
+
+### 변경 내용
+- `party_generation.html`의 좌측 후보 패널이 내부 스크롤 상태에서 아래쪽 콘텐츠를 잘라 보이는 문제를 수정했습니다.
+- 전체 작업 레이아웃과 좌/우 패널에 명시적인 높이 제약을 주고, 패널 본문을 flex 스크롤 영역으로 정리했습니다.
+- 좌측 계정 탭과 후보 목록 사이 간격을 고정해 탭 전환 후에도 목록이 패널 안에서 자연스럽게 스크롤되도록 조정했습니다.
+
+### 검증
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. `party_generation.html` CRLF 변환 경고만 확인.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-06-23 - party_generation 부계정 표시/캐릭터 아이콘 보강
+
+### 변경 내용
+- `party_generation.html`에서 계정 표시 순서를 상위계정 → 부계정 → 고아 부계정 순서로 공통화했습니다.
+- 우측 미배치 후보 풀의 계정/캐릭터 순서가 좌측 패널의 계정/캐릭터 순서를 그대로 따르도록 수정했습니다.
+- 부계정은 상단 필터, 좌측 계정 탭, 좌측 계정 헤더, 우측 후보 풀 계정명에서 다른 색상으로 표시되도록 했습니다.
+- 우측 후보 캐릭터 박스와 파티 배치 슬롯에 `characters.icon_url` 기반 캐릭터 아이콘을 표시하도록 추가했습니다.
+- 파티 슬롯의 계정 표시는 상위계정명이 아니라 실제 캐릭터 소속 계정명으로 표시되도록 바꿨습니다.
+
+### 검증
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 변환 경고만 확인.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.

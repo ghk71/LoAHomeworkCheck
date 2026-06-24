@@ -70,20 +70,23 @@ button{cursor:pointer}
 .filter-body{display:flex;flex-direction:column;gap:7px;padding:9px 10px;border-top:1px solid var(--line)}
 .filter-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .filter-row.sub{margin-left:16px}
+.filter-row.sub > .cf-btn:first-child{border-color:rgba(125,211,252,.28);color:#b9dcff;background:rgba(56,189,248,.07)}
+.filter-row.sub > .cf-btn:first-child.on{background:linear-gradient(135deg,#dff7ff,#e7e1ff);color:#07101b}
 .filter-sep{width:1px;height:20px;background:var(--line);margin:0 2px;flex-shrink:0}
 .cf-btn{border:1px solid var(--line);background:rgba(31,36,44,.82);color:var(--muted);border-radius:999px;padding:4px 10px;font-size:.75rem;font-weight:850}
 .cf-btn.on{background:linear-gradient(135deg,#e8fbff,#dcd6ff);border-color:transparent;color:#081018}
 .cf-btn.partial{border-color:rgba(244,199,107,.38);color:#ffd985;background:rgba(244,199,107,.08)}
-.main-layout{display:grid;grid-template-columns:minmax(330px,35vw) minmax(0,1fr);gap:14px;padding:14px;max-width:1920px;width:100%;margin:0 auto;flex:1 1 auto;min-height:0;overflow:hidden}
-.panel{background:linear-gradient(180deg,rgba(29,34,42,.98),rgba(24,28,35,.98));border:1px solid var(--line);border-radius:8px;box-shadow:0 1px 0 rgba(255,255,255,.045) inset;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.main-layout{display:grid;grid-template-columns:minmax(330px,35vw) minmax(0,1fr);gap:14px;padding:14px;max-width:1920px;width:100%;height:100%;margin:0 auto;flex:1 1 0;min-height:0;overflow:hidden;align-items:stretch}
+.panel{background:linear-gradient(180deg,rgba(29,34,42,.98),rgba(24,28,35,.98));border:1px solid var(--line);border-radius:8px;box-shadow:0 1px 0 rgba(255,255,255,.045) inset;height:100%;min-height:0;overflow:hidden;display:flex;flex-direction:column}
 .panel-head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(39,47,58,.72)}
 .panel-title{font-weight:1000;color:#dbeafe}
 .panel-sub{color:var(--muted);font-size:.74rem}
-.panel-body{padding:12px;overflow:auto;display:grid;gap:10px;align-content:start;min-height:0}
+.panel-body{padding:12px;overflow:auto;display:block;flex:1 1 0;min-height:0;overscroll-behavior:contain}
 .account-block,.raid-block,.preset-block,.party-card{border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.025);overflow:hidden}
 .account-head,.raid-head,.preset-head,.party-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.025)}
 .account-name,.raid-name,.preset-name,.party-name{font-weight:950}
 .account-name{color:var(--gold)}
+.account-name.sub-account-name{color:#a7d8ff}
 .char-list{display:grid;gap:8px;padding:10px}
 .char-card{border:1px solid rgba(197,207,220,.13);background:linear-gradient(180deg,rgba(31,36,44,.92),rgba(25,30,37,.92));border-radius:8px;padding:10px;display:grid;gap:8px}
 .char-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -99,8 +102,10 @@ button{cursor:pointer}
 .raid-tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
 .raid-tab{border:1px solid var(--line);background:rgba(31,36,44,.82);color:var(--muted);border-radius:999px;padding:7px 12px;font-weight:900;font-size:.78rem}
 .raid-tab.active{background:linear-gradient(135deg,#e8fbff,#dcd6ff);border-color:transparent;color:#081018}
-.left-tabs{display:flex;gap:7px;flex-wrap:wrap}
-.raid-list{display:grid;gap:12px}
+.raid-tab.sub-account-tab{border-color:rgba(125,211,252,.26);color:#b9dcff;background:rgba(56,189,248,.07)}
+.raid-tab.sub-account-tab.active{background:linear-gradient(135deg,#dff7ff,#e7e1ff);color:#07101b}
+.left-tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
+.raid-list{display:grid;gap:12px;min-height:0}
 .preset-list{display:grid;gap:9px;padding:10px}
 .preset-head{background:rgba(18,24,32,.74)}
 .preset-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;color:var(--muted);font-size:.72rem}
@@ -111,9 +116,12 @@ button{cursor:pointer}
 .candidate-pool{display:grid;gap:7px;padding:0 10px 10px}
 .pool-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .pool-account{min-width:54px;color:var(--gold);font-size:.72rem;font-weight:950}
-.pool-chip{border:1px solid rgba(34,211,238,.28);background:rgba(34,211,238,.08);border-radius:8px;padding:7px 9px;color:#d7fbff;font-size:.74rem;font-weight:900;display:inline-flex;flex-direction:column;gap:1px;min-width:118px;cursor:grab}
+.pool-account.sub-account-name{color:#a7d8ff}
+.pool-chip{border:1px solid rgba(34,211,238,.28);background:rgba(34,211,238,.08);border-radius:8px;padding:6px 7px 6px 9px;color:#d7fbff;font-size:.74rem;font-weight:900;display:inline-grid;grid-template-columns:minmax(0,1fr) 26px;align-items:center;gap:8px;min-width:138px;cursor:grab}
 .pool-chip.dragging{opacity:.45}
 .pool-chip.warn{border-color:rgba(244,199,107,.44);background:rgba(244,199,107,.10);color:#ffe1a1}
+.pool-chip-main{min-width:0;display:grid;gap:1px}
+.pool-char-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pool-chip small{color:var(--muted);font-size:.66rem;font-weight:750}
 .party-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));align-items:start;gap:8px;padding:0 10px 10px}
 .party-card{background:rgba(11,17,25,.56)}
@@ -121,13 +129,16 @@ button{cursor:pointer}
 .party-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .party-title-input{width:96px;background:#111720;border:1px solid var(--line);border-radius:6px;color:var(--text);padding:5px 7px;font-weight:850}
 .slot-grid{display:grid;gap:5px;padding:7px}
-.slot{display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:6px;border:1px solid var(--line);border-radius:7px;background:rgba(255,255,255,.025);padding:6px 7px;min-height:32px}
+.slot{display:grid;grid-template-columns:20px minmax(0,1fr) 26px auto;align-items:center;gap:6px;border:1px solid var(--line);border-radius:7px;background:rgba(255,255,255,.025);padding:6px 7px;min-height:32px}
 .slot.drop{border-color:rgba(34,211,238,.58);background:rgba(34,211,238,.09)}
 .slot-num{color:var(--dim);font-size:.72rem;text-align:center}
 .slot-empty{color:var(--dim);font-size:.78rem}
 .slot-char{min-width:0}
 .slot-name{font-weight:920;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .slot-meta{color:var(--muted);font-size:.69rem}
+.pg-char-icon{width:26px;height:26px;border-radius:6px;border:1px solid rgba(197,207,220,.22);background:#111720;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;color:var(--dim);font-size:.66rem;font-weight:950;justify-self:end;flex:none}
+.pg-char-icon img{width:100%;height:100%;object-fit:cover;display:block}
+.pg-char-icon.empty{opacity:.55}
 .status-line{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.74rem}
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#0f1217;border:1px solid var(--line-2);border-radius:999px;padding:9px 14px;color:var(--text);box-shadow:var(--shadow);z-index:200;opacity:0;pointer-events:none;transition:.18s}
 .toast.show{opacity:1;bottom:26px}
@@ -347,11 +358,29 @@ function openModal(id){document.getElementById(id)?.classList.add('open');}
 function closeModal(id){document.getElementById(id)?.classList.remove('open');}
 function sortRows(rows){return [...(rows||[])].sort((a,b)=>(Number(a.sort_order)||0)-(Number(b.sort_order)||0)||String(a.created_at||'').localeCompare(String(b.created_at||'')));}
 function raidLabel(r){return `${r?.name||'레이드'}${r?.difficulty?` ${r.difficulty}`:''}`;}
+function accountById(id){return state.accounts.find(a=>a.id===id)||null;}
 function topAccountId(charId){const ch=state.chars.find(c=>c.id===charId);if(!ch)return '';const acc=state.accounts.find(a=>a.id===ch.account_id);return acc?.parent_account_id||acc?.id||ch.account_id;}
-function accountNameById(id){return state.accounts.find(a=>a.id===id)?.name||'계정';}
+function accountNameById(id){return accountById(id)?.name||'계정';}
+function isSubAccount(acc){return !!acc?.parent_account_id;}
 function charById(id){return state.chars.find(c=>c.id===id);}
 function raidById(id){return state.raids.find(r=>r.id===id);}
 function partyById(id){return state.partyDrafts.find(p=>p.id===id);}
+function charIcon(ch,cls='pg-char-icon'){
+  if(ch?.icon_url)return`<span class="${cls}"><img src="${esc(ch.icon_url)}" alt="" loading="lazy" onerror="this.parentElement.classList.add('empty');this.remove();"></span>`;
+  return`<span class="${cls} empty">검</span>`;
+}
+function orderedAccounts(accounts=filterVisibleAccounts()){
+  const accs=sortRows(accounts);
+  const ids=new Set(accs.map(a=>a.id));
+  const out=[];
+  const mains=accs.filter(a=>!a.parent_account_id);
+  for(const acc of mains){
+    out.push(acc);
+    accs.filter(a=>a.parent_account_id===acc.id).forEach(sub=>out.push(sub));
+  }
+  accs.filter(a=>a.parent_account_id&&!ids.has(a.parent_account_id)).forEach(acc=>out.push(acc));
+  return out;
+}
 function groupNames(){
   const dbNames=[];for(const r of state.raids){if(r.name&&!dbNames.includes(r.name))dbNames.push(r.name);}
   const saved=safeJson('la_raid_group_order',[]);
@@ -502,13 +531,15 @@ function renderAccountFilter(){
   for(const acc of mainAccounts){
     const mainChars=filterSelectableChars().filter(c=>c.account_id===acc.id);
     const subAccs=visibleAccs.filter(a=>a.parent_account_id===acc.id);
-    const subChars=subAccs.flatMap(sa=>filterSelectableChars().filter(c=>c.account_id===sa.id));
     const mainRow=renderRow(acc.name,mainChars,false);if(mainRow)rows.push(mainRow);
-    const subRow=renderRow(acc.name+'-부계정',subChars,true);if(subRow)rows.push(subRow);
+    for(const subAcc of subAccs){
+      const subRow=renderRow(subAcc.name,filterSelectableChars().filter(c=>c.account_id===subAcc.id),true);
+      if(subRow)rows.push(subRow);
+    }
   }
   visibleAccs.filter(a=>a.parent_account_id&&!visibleAccs.some(m=>m.id===a.parent_account_id)).forEach(acc=>{
     const chars=filterSelectableChars().filter(c=>c.account_id===acc.id);
-    const row=renderRow(acc.name,chars,false);if(row)rows.push(row);
+    const row=renderRow(acc.name,chars,true);if(row)rows.push(row);
   });
   el.innerHTML=rows.join('')||'<span class="filter-summary">표시할 후보 캐릭터가 없습니다</span>';
   el.style.display=state.filterOpen?'flex':'none';
@@ -544,7 +575,7 @@ function initCharacterFilter(keepSaved=false){
 }
 function visibleAccounts(){
   const charAccs=new Set(filteredChars().map(c=>c.account_id));
-  return filterVisibleAccounts().filter(a=>charAccs.has(a.id));
+  return orderedAccounts(filterVisibleAccounts()).filter(a=>charAccs.has(a.id));
 }
 function visibleCharsForAccount(accId){
   const q=state.search.toLowerCase();
@@ -563,13 +594,13 @@ function renderLeft(){
   const accounts=visibleAccounts();
   if(!accounts.length){el.innerHTML='<div class="empty">표시할 캐릭터가 없습니다</div>';return;}
   if(state.selectedLeftAccount!==ALL&&!accounts.some(a=>a.id===state.selectedLeftAccount))state.selectedLeftAccount=ALL;
-  const tabs=`<div class="left-tabs"><button class="raid-tab ${state.selectedLeftAccount===ALL?'active':''}" onclick="setLeftAccountTab('${ALL}')">전체</button>${accounts.map(a=>`<button class="raid-tab ${state.selectedLeftAccount===a.id?'active':''}" onclick="setLeftAccountTab('${a.id}')">${esc(a.name)}</button>`).join('')}</div>`;
+  const tabs=`<div class="left-tabs"><button class="raid-tab ${state.selectedLeftAccount===ALL?'active':''}" onclick="setLeftAccountTab('${ALL}')">전체</button>${accounts.map(a=>`<button class="raid-tab ${state.selectedLeftAccount===a.id?'active':''} ${isSubAccount(a)?'sub-account-tab':''}" onclick="setLeftAccountTab('${a.id}')">${esc(a.name)}</button>`).join('')}</div>`;
   const html=[];
   for(const acc of accounts){
     if(state.selectedLeftAccount!==ALL&&acc.id!==state.selectedLeftAccount)continue;
     const chars=visibleCharsForAccount(acc.id);
     if(!chars.length)continue;
-    html.push(`<div class="account-block"><div class="account-head"><div class="account-name">${esc(acc.name)}</div><span class="tag">${chars.length}명</span></div><div class="char-list">${chars.map(charCard).join('')}</div></div>`);
+    html.push(`<div class="account-block"><div class="account-head"><div class="account-name ${isSubAccount(acc)?'sub-account-name':''}">${esc(acc.name)}</div><span class="tag">${chars.length}명</span></div><div class="char-list">${chars.map(charCard).join('')}</div></div>`);
   }
   el.innerHTML=tabs+(html.join('')||'<div class="empty">표시할 캐릭터가 없습니다</div>');
 }
@@ -641,28 +672,26 @@ function presetBlock(preset){
         <button class="btn ghost sm" title="파티 생성 화면에서 숨김" onclick="hidePreset('${preset.id}')">숨김</button>
       </div>
     </div>
-    <div class="candidate-pool">${pool.length?pool.map(r=>`<div class="pool-row"><span class="pool-account">${esc(r.account)}</span>${r.chars.map(ch=>poolChip(ch,preset)).join('')}</div>`).join(''):'<div class="candidate-empty">미배치 후보가 없습니다</div>'}</div>
+    <div class="candidate-pool">${pool.length?pool.map(r=>`<div class="pool-row"><span class="pool-account ${r.isSub?'sub-account-name':''}">${esc(r.account)}</span>${r.chars.map(ch=>poolChip(ch,preset)).join('')}</div>`).join(''):'<div class="candidate-empty">미배치 후보가 없습니다</div>'}</div>
     <div class="party-list">${parties.length?parties.map(p=>partyCard(p,preset)).join(''):'<div class="candidate-empty">파티가 없습니다. + 버튼으로 생성하세요.</div>'}</div>
   </div>`;
 }
 function unassignedByAccount(presetId){
-  const rows=[],by={};
+  const rows=[];
   const preset=raidById(presetId);if(!preset)return rows;
-  for(const ch of filteredChars()){
-    const c=(state.candidateMap[ch.id]||{})[preset.name];
-    if(c?.presetId!==presetId||!candidateIsVisible(ch,c))continue;
-    if(isCharAssignedToPreset(ch.id,presetId))continue;
-    const accName=accountNameById(topAccountId(ch.id));
-    if(!by[accName])by[accName]=[];
-    by[accName].push(ch);
+  for(const acc of visibleAccounts()){
+    const chars=visibleCharsForAccount(acc.id).filter(ch=>{
+      const c=(state.candidateMap[ch.id]||{})[preset.name];
+      return c?.presetId===presetId&&candidateIsVisible(ch,c)&&!isCharAssignedToPreset(ch.id,presetId);
+    });
+    if(chars.length)rows.push({account:acc.name,accountId:acc.id,isSub:isSubAccount(acc),chars});
   }
-  Object.keys(by).sort().forEach(account=>rows.push({account,chars:sortRows(by[account])}));
   return rows;
 }
 function poolChip(ch,preset){
   const warn=Number(ch.item_level||0)<Number(preset.entry_level||0);
   return`<span class="pool-chip ${warn?'warn':''}" draggable="true" ondragstart="dragCandidate(event,'${ch.id}','${preset.id}')" ondragend="endDragCandidate(event)">
-    ${esc(ch.name)}<small>${esc(ch.class_name||'')}${warn?' · 레벨부족':''}</small>
+    <span class="pool-chip-main"><span class="pool-char-name">${esc(ch.name)}</span><small>${esc(ch.class_name||'')}${warn?' · 레벨부족':''}</small></span>${charIcon(ch)}
   </span>`;
 }
 function partyCard(p,preset){
@@ -683,7 +712,7 @@ function slotHtml(p,preset,charId,i){
   const ch=charById(charId);
   return`<div class="slot" ondragover="allowDrop(event)" ondragleave="this.classList.remove('drop')" ondrop="dropOnSlot(event,'${p.id}',${i})">
     <span class="slot-num">${i+1}</span>
-    ${ch?`<div class="slot-char"><div class="slot-name">${esc(ch.name)}</div><div class="slot-meta">${esc(accountNameById(topAccountId(ch.id)))} · ${esc(ch.class_name||'')}</div></div><button class="btn icon danger" onclick="clearSlot('${p.id}',${i})">×</button>`:`<div class="slot-empty">여기에 ${esc(preset.difficulty||'캐릭터')} 후보 드롭</div><span></span>`}
+    ${ch?`<div class="slot-char"><div class="slot-name">${esc(ch.name)}</div><div class="slot-meta">${esc(accountNameById(ch.account_id))} · ${esc(ch.class_name||'')}</div></div>${charIcon(ch)}<button class="btn icon danger" onclick="clearSlot('${p.id}',${i})">×</button>`:`<div class="slot-empty">여기에 ${esc(preset.difficulty||'캐릭터')} 후보 드롭</div><span></span><span></span>`}
   </div>`;
 }
 
