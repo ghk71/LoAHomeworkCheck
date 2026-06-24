@@ -2797,3 +2797,18 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 6개 HTML의 CSS var 정의 누락 없음 확인.
 - `git diff --check` 통과. `party_generation.html` CRLF 변환 경고만 확인.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-06-24 - party_generation 숨김 난이도 숙제 보강 분리
+
+### 변경 내용
+- `party_generation.html`에서 우측 난이도 `숨김`이 좌측 후보 목록까지 숨기지 않도록 수정했습니다.
+- 숨김 난이도 후보는 좌측 패널에 `파티숨김`으로 표시하고, 우측 파티 배치 대상에서는 제외되도록 분리했습니다.
+- 적용 시 숨김 난이도의 기존/신규 파티는 DB에 반영하지 않아 파티연동이 남지 않도록 했습니다.
+- 숨김 난이도라도 체크된 후보는 `raid_tasks` 보강 대상에 포함해 `index.html` 주간/월간 숙제와 `overview.html`에서 파티연동 없는 레이드 숙제로 남도록 했습니다.
+- 검증/상단 상태 카운트도 숨김 난이도 파티를 제외한 실제 적용 대상 기준으로 계산하도록 조정했습니다.
+
+### 검증
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. `party_generation.html` CRLF 변환 경고만 확인.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
