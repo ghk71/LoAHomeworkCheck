@@ -220,7 +220,7 @@ button{cursor:pointer}
         <button class="btn danger sm" onclick="resetDraft()">초기화</button>
         <button class="btn ghost sm" onclick="restoreFromDb()">원래대로</button>
         <button class="btn gold sm" onclick="openCharacterApiUpdateModal()">캐릭 업데이트</button>
-        <button class="btn green sm" onclick="applyDraft()">적용</button>
+        <button class="btn green sm" id="apply-draft-btn" onclick="applyDraft()">적용</button>
       </div>
     </div>
     <div class="filters">
@@ -341,21 +341,46 @@ button{cursor:pointer}
 const {createClient}=supabase;
 let sb=null;
 const ALL='all';
+const WORKBENCH_STORAGE_KEY='la_party_generation_workbench';
 const state={
   accounts:[],chars:[],raids:[],raidTasks:[],parties:[],members:[],
   partyDrafts:[],originalPartyIds:new Set(),candidateMap:{},hiddenPresets:new Set(),
   selectedAccount:ALL,selectedChars:new Set(),filterOpen:localStorage.getItem('la_pg_filter_open')!=='0',
   selectedLeftAccount:ALL,selectedRaidGroup:null,showHiddenAccounts:false,search:'',drag:null,editCharId:null,draftId:null,
+  isApplying:false,applyStatus:'',
   lostarkApiToken:'',lostarkApiSave:!!localStorage.getItem('la_lostark_api_token'),apiUpdateExcluded:new Set(safeJson('la_lostark_update_excluded',[]))
 };
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 function safeJson(key,fallback){try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback;}catch(e){console.warn('localStorage JSON parse failed:',key,e);return fallback;}}
-function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2200);}
+function toast(msg,ms=2200){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),ms);}
 function getConfig(){const url=localStorage.getItem('la_url'),key=localStorage.getItem('la_key');return url&&key?{url,key}:null;}
 function saveConfig(){const u=document.getElementById('setup-url').value.trim(),k=document.getElementById('setup-key').value.trim();if(!u||!k){toast('URL과 key를 입력하세요');return;}localStorage.setItem('la_url',u);localStorage.setItem('la_key',k);location.reload();}
 function openModal(id){document.getElementById(id)?.classList.add('open');}
 function closeModal(id){document.getElementById(id)?.classList.remove('open');}
+function saveLocalWorkbenchState(){
+  try{
+    localStorage.setItem(WORKBENCH_STORAGE_KEY,JSON.stringify({
+      savedAt:new Date().toISOString(),
+      candidateMap:state.candidateMap,
+      hiddenPresets:[...state.hiddenPresets]
+    }));
+  }catch(e){console.warn('party_generation local workbench save failed:',e);}
+}
+function loadLocalWorkbenchState(){
+  const data=safeJson(WORKBENCH_STORAGE_KEY,null);
+  if(!data||typeof data!=='object')return;
+  if(data.candidateMap&&typeof data.candidateMap==='object')state.candidateMap=data.candidateMap;
+  state.hiddenPresets=new Set(Array.isArray(data.hiddenPresets)?data.hiddenPresets:[]);
+}
+function clearLocalWorkbenchState(){localStorage.removeItem(WORKBENCH_STORAGE_KEY);}
+function setApplyState(active,msg=''){
+  state.isApplying=active;
+  state.applyStatus=msg;
+  const btn=document.getElementById('apply-draft-btn');
+  if(btn){btn.disabled=active;btn.textContent=active?'적용 중...':'적용';}
+  renderStatus();
+}
 function sortRows(rows){return [...(rows||[])].sort((a,b)=>(Number(a.sort_order)||0)-(Number(b.sort_order)||0)||String(a.created_at||'').localeCompare(String(b.created_at||'')));}
 function raidLabel(r){return `${r?.name||'레이드'}${r?.difficulty?` ${r.difficulty}`:''}`;}
 function accountById(id){return state.accounts.find(a=>a.id===id)||null;}
@@ -441,7 +466,7 @@ async function init(){
   await loadData();
 }
 
-async function loadData(){
+async function loadData(opts={}){
   const wk=getWeekKey(0);
   const [a,c,r,p,m,t]=await Promise.all([
     sb.from('accounts').select('*').order('sort_order').order('created_at'),
@@ -456,6 +481,7 @@ async function loadData(){
   state.parties=(p.data||[]).filter(x=>!x.is_temporary||x.temp_week_start_date===wk);
   const activePartyIds=new Set(state.parties.map(x=>x.id));
   state.members=(m.data||[]).filter(x=>activePartyIds.has(x.party_id));
+  if(!opts.skipLocalWorkbench)loadLocalWorkbenchState();
   buildInitialDraft();
   initCharacterFilter();
   render();
@@ -463,7 +489,8 @@ async function loadData(){
 
 async function restoreFromDb(){
   if(!confirm('현재 작업 중인 배치를 버리고 DB의 raid.html 파티 구성을 다시 불러옵니까?'))return;
-  state.hiddenPresets=new Set();state.candidateMap={};await loadData();toast('DB 구성을 다시 불러왔습니다');
+  clearLocalWorkbenchState();
+  state.hiddenPresets=new Set();state.candidateMap={};await loadData({skipLocalWorkbench:true});toast('DB 구성을 다시 불러왔습니다');
 }
 async function reloadFromDb(){return restoreFromDb();}
 function resetDraft(){
@@ -513,7 +540,7 @@ function renderStatus(){
   const active=activePartyDrafts();
   const total=active.length,filled=active.reduce((n,p)=>n+p.slots.filter(Boolean).length,0);
   const hidden=state.hiddenPresets.size;
-  document.getElementById('status-line').innerHTML=`<span>파티 ${total}개</span><span>배치 ${filled}명</span>${hidden?`<span>숨김 난이도 ${hidden}개</span>`:''}${state.draftId?`<span>저장안 ${esc(state.draftId.slice(0,8))}</span>`:''}`;
+  document.getElementById('status-line').innerHTML=`<span>파티 ${total}개</span><span>배치 ${filled}명</span>${hidden?`<span>숨김 난이도 ${hidden}개</span>`:''}${state.applyStatus?`<span>${esc(state.applyStatus)}</span>`:''}${state.draftId?`<span>저장안 ${esc(state.draftId.slice(0,8))}</span>`:''}`;
 }
 function renderAccountFilter(){
   const el=document.getElementById('account-filter');
@@ -754,8 +781,8 @@ function addParty(presetId){
   render();
 }
 function removeParty(partyId){if(!confirm('이 파티를 현재 작업안에서 제거합니다. 적용 시 DB에서도 제거됩니다.'))return;state.partyDrafts=state.partyDrafts.filter(p=>p.id!==partyId);render();}
-function hidePreset(presetId){state.hiddenPresets.add(presetId);render();}
-function clearHiddenPresets(){state.hiddenPresets=new Set();render();}
+function hidePreset(presetId){state.hiddenPresets.add(presetId);saveLocalWorkbenchState();render();}
+function clearHiddenPresets(){state.hiddenPresets=new Set();saveLocalWorkbenchState();render();}
 
 function candidateItemsForChar(ch){
   const out=[];
@@ -851,7 +878,9 @@ function saveCandidateEdit(){
     next[name]={checked:!!check?.checked,presetId:sel?.value||null,allowLowLevel:!!low?.checked,manual:true};
   }
   state.candidateMap[charId]=next;
+  saveLocalWorkbenchState();
   closeModal('modal-candidate');render();
+  toast('후보 설정을 저장했습니다');
 }
 
 function draftPayload(){
@@ -889,6 +918,7 @@ function applyDraftPayload(data){
   state.hiddenPresets=new Set(data.hiddenPresets||[]);
   state.partyDrafts=(data.parties||[]).map(p=>({...p,slots:Array.from({length:Number(p.party_size)||4},(_,i)=>p.slots?.[i]||null)}));
   buildDefaultCandidates();
+  saveLocalWorkbenchState();
 }
 
 function normalizeLostarkToken(v){return String(v||'').trim().replace(/^bearer\s+/i,'').trim();}
@@ -1015,6 +1045,7 @@ async function runCharacterApiUpdate(){
 }
 
 async function applyDraft(){
+  if(state.isApplying){toast('이미 적용 중입니다',3000);return;}
   const report=validateDraft(false);
   if(report.errors.length){
     validateDraft(true);
@@ -1022,15 +1053,21 @@ async function applyDraft(){
     return;
   }
   if(!confirm('현재 작업안을 raid.html 파티 구성 DB에 반영합니다. 계속할까요?'))return;
+  saveLocalWorkbenchState();
+  const startedAt=performance.now();
+  setApplyState(true,'적용 준비 중');
+  toast('파티 구성을 적용 중입니다...',3000);
   const nonEmpty=activePartyDrafts().filter(p=>p.slots.some(Boolean));
   const keptIds=new Set(nonEmpty.filter(p=>!String(p.id).startsWith('new_')).map(p=>p.id));
   const deleteIds=[...state.originalPartyIds].filter(id=>!keptIds.has(id));
   try{
     if(deleteIds.length){
+      setApplyState(true,'기존 파티 정리 중');
       const {error}=await sb.from('raid_parties').delete().in('id',deleteIds);
       if(error)throw error;
     }
     for(const [idx,p] of nonEmpty.entries()){
+      setApplyState(true,`파티 저장 중 ${idx+1}/${nonEmpty.length}`);
       let partyId=p.id;
       const rec={preset_id:p.preset_id,name:p.name||'파티',party_size:p.party_size||4,sort_order:idx};
       if(String(p.id).startsWith('new_')){
@@ -1045,10 +1082,17 @@ async function applyDraft(){
       const rows=p.slots.map((cid,i)=>cid?{party_id:partyId,character_id:cid,slot_index:i}:null).filter(Boolean);
       if(rows.length){const {error}=await sb.from('raid_party_members').insert(rows);if(error)throw error;}
     }
+    setApplyState(true,'레이드 숙제 동기화 중');
     await ensureRaidTasks();
-    toast('raid.html 파티 구성에 적용했습니다');
+    setApplyState(true,'적용 결과 확인 중');
     await loadData();
-  }catch(err){console.error(err);toast('적용 실패: '+(err.message||err));}
+    const sec=((performance.now()-startedAt)/1000).toFixed(1);
+    toast(`적용 완료: 파티 ${nonEmpty.length}개, ${sec}초`,5200);
+  }catch(err){
+    console.error(err);toast('적용 실패: '+(err.message||err),5200);
+  }finally{
+    setApplyState(false,'');
+  }
 }
 
 async function ensureRaidTasks(){

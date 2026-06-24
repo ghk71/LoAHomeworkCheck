@@ -2812,3 +2812,20 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 6개 HTML의 CSS var 정의 누락 없음 확인.
 - `git diff --check` 통과. `party_generation.html` CRLF 변환 경고만 확인.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-06-24 - party_generation 적용 진행 표시 및 후보 숨김 유지
+
+### 변경 내용
+- `party_generation.html` 적용 버튼에 진행 상태를 추가했습니다.
+  - 적용 중에는 버튼이 `적용 중...`으로 바뀌고 중복 클릭을 막습니다.
+  - 상단 상태줄에 `기존 파티 정리 중`, `파티 저장 중`, `레이드 숙제 동기화 중`, `적용 결과 확인 중` 단계가 표시됩니다.
+  - 완료 후 반영 파티 수와 소요 시간을 toast로 길게 표시합니다.
+- 후보 수정 모달의 체크 해제/레벨 부족 허용 상태와 우측 난이도 숨김 상태를 `localStorage`에 자동 저장하도록 추가했습니다.
+- 페이지를 다시 열거나 다른 창을 갔다 와도 후보 숨김/난이도 숨김 상태가 유지되도록 로드 시 복원합니다.
+- `원래대로`는 로컬 작업 상태까지 지워 DB 기준 파티 구성으로 초기화되도록 했습니다.
+
+### 검증
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. `party_generation.html` CRLF 변환 경고만 확인.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
