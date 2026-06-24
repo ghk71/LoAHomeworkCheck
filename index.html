@@ -135,6 +135,8 @@ body.manage-active .mode-done{display:inline-flex}
 .card-body::-webkit-scrollbar{width:8px}
 .card-body::-webkit-scrollbar-thumb{background:rgba(174,182,194,.34);border-radius:999px;border:2px solid transparent;background-clip:padding-box}
 .card-body::-webkit-scrollbar-track{background:transparent}
+.card-body.with-onetime{grid-template-columns:minmax(0,1fr) minmax(128px,.42fr);align-items:start}
+.card-main{display:grid;gap:10px;min-width:0}
 .card-section,.currency-block,.collapse-block{border:1px solid rgba(197,207,220,.13);background:linear-gradient(180deg,rgba(27,32,39,.82),rgba(23,27,34,.82));border-radius:8px;padding:10px}
 .section-label{display:flex;align-items:center;justify-content:space-between;margin:0 0 8px;color:#b7d8fb;font-size:.86rem;font-weight:950;letter-spacing:.01em}
 .card-section .task-group,.account-card .task-group{position:relative;border:1px solid rgba(197,207,220,.13);background:linear-gradient(180deg,rgba(31,36,44,.92),rgba(25,30,37,.92));border-radius:8px;padding:10px;margin-bottom:8px;box-shadow:inset 3px 0 0 rgba(34,211,238,.18)}
@@ -185,6 +187,21 @@ body.manage-active .mode-done{display:inline-flex}
 .rest-box.rest-ready .rest-group::before{background:linear-gradient(90deg,#38bdf8,#818cf8)}
 .rest-hit{position:absolute;top:0;bottom:0;border:0;background:transparent;padding:0}
 .rest-hit:hover{background:rgba(255,255,255,.16)}
+.one-time-block{border:1px solid rgba(125,211,252,.22);background:linear-gradient(180deg,rgba(16,26,35,.94),rgba(15,21,29,.94));border-radius:8px;padding:9px;position:sticky;top:0;box-shadow:inset 2px 0 0 rgba(34,211,238,.25)}
+.one-time-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;color:#c9efff;font-size:.78rem;font-weight:950}
+.one-time-count{color:#9fb3c8;font-size:.68rem;font-weight:900}
+.one-time-input-row{display:flex;gap:5px;margin-bottom:8px}
+.one-time-input{min-width:0;width:100%;height:30px;border:1px solid rgba(159,180,205,.2);border-radius:7px;background:#0b1119;color:var(--text);padding:0 8px;font-size:.74rem;font-weight:800;outline:none}
+.one-time-input::placeholder{color:var(--dim)}
+.one-time-input:focus{border-color:rgba(34,211,238,.5);box-shadow:0 0 0 2px rgba(34,211,238,.08)}
+.one-time-list{display:grid;gap:6px}
+.one-time-row{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;border:1px solid rgba(197,207,220,.12);background:rgba(255,255,255,.035);border-radius:7px;padding:6px}
+.one-time-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e6f2ff;font-size:.74rem;font-weight:850}
+.one-time-actions{display:flex;align-items:center;gap:4px}
+.one-time-actions .check.square{min-width:22px;width:22px;height:22px}
+.one-time-delete{min-width:22px;width:22px;height:22px;border-radius:7px;border:1px solid rgba(255,93,108,.24);background:rgba(255,93,108,.07);color:#ffb4bd;font-size:.85rem;font-weight:950;display:flex;align-items:center;justify-content:center}
+.one-time-delete:hover{border-color:rgba(255,93,108,.5);background:rgba(255,93,108,.14)}
+.one-time-missing{border:1px dashed rgba(255,209,102,.35);background:rgba(255,209,102,.07);border-radius:7px;padding:7px;color:#ffd985;font-size:.7rem;line-height:1.35}
 .currency-row{grid-template-columns:1fr auto}
 .currency-block.collapsed .currency-items,.collapse-block.collapsed .collapse-items{display:none}
 .section-toggle{height:24px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--muted);font-size:.7rem;font-weight:860;padding:0 8px}
@@ -205,6 +222,8 @@ body.manage-active .mode-done{display:inline-flex}
 .link-badge[onclick]:active{transform:scale(.95)}
 .link-badge.temp{border-color:rgba(244,199,107,.34);background:rgba(244,199,107,.09);color:#ffd985}
 .link-badge.temp[onclick]:hover{background:rgba(244,199,107,.22);border-color:rgba(244,199,107,.65);color:#ffe5a8}
+.link-badge.unlinked{border-color:rgba(255,93,108,.72);background:rgba(255,93,108,.16);color:#ffd0d4;box-shadow:0 0 0 1px rgba(255,93,108,.14),0 0 18px rgba(255,93,108,.10)}
+.link-badge.unlinked[onclick]:hover{background:rgba(255,93,108,.26);border-color:rgba(255,93,108,.92);color:#fff0f2}
 .curr-updated{display:inline-block;margin-left:8px;padding:1px 7px;font-size:.65rem;font-weight:780;color:var(--muted);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:999px}
 .party-link-preset{padding:11px 12px;background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:9px;margin-bottom:10px}
 .party-link-preset-name{font-weight:880;display:flex;align-items:center;gap:7px}
@@ -219,7 +238,9 @@ body.manage-active .mode-done{display:inline-flex}
 .party-link-slot .slot-idx{color:var(--dim);font-size:.7rem;width:14px}
 .party-link-slot .slot-name{font-weight:820}
 .raid-row{border-radius:7px;padding:9px 8px;margin:0 -2px}
+.raid-row.unlinked{border:1px solid rgba(255,93,108,.32);background:linear-gradient(90deg,rgba(255,93,108,.13),rgba(255,255,255,.018));box-shadow:inset 3px 0 0 rgba(255,93,108,.78)}
 .raid-row:hover,.task-row:hover,.currency-row:hover,.note-row:hover{background:rgba(255,255,255,.025)}
+.raid-row.unlinked:hover{background:linear-gradient(90deg,rgba(255,93,108,.18),rgba(255,255,255,.035))}
 .preset-list{display:grid;gap:8px;max-height:58vh;overflow:auto}
 .preset-group{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:rgba(255,255,255,.025)}
 .preset-group-name{padding:8px 10px;color:var(--gold);font-weight:950;border-bottom:1px solid var(--line);background:rgba(244,199,107,.06)}
@@ -291,6 +312,8 @@ body.manage-active .mode-done{display:inline-flex}
   .create-grid{grid-template-columns:1fr}
   .form-grid.compact{grid-template-columns:1fr 1fr}
   .grid,.account-grid{grid-template-columns:1fr}
+  .card-body.with-onetime{grid-template-columns:1fr}
+  .one-time-block{position:static}
   .tool-row{align-items:flex-start;flex-direction:column}
 }
 </style>
@@ -298,11 +321,11 @@ body.manage-active .mode-done{display:inline-flex}
 <body>
 <nav class="page-nav">
   <a href="index.html" class="pnav-item active">⚔️ 숙제</a>
-  <a href="core.html" class="pnav-item">🔮 코어현황</a>
   <a href="raid.html" class="pnav-item">🏰 레이드</a>
-  <a href="party_generation.html" class="pnav-item">🧩 파티 생성</a>
   <a href="overview.html" class="pnav-item">📊 레이드 현황</a>
   <a href="parties.html" class="pnav-item">👥 파티 현황</a>
+  <a href="party_generation.html" class="pnav-item">🧩 파티 생성</a>
+  <a href="core.html" class="pnav-item">🔮 코어현황</a>
 </nav>
 
 <section class="setup" id="setup">
@@ -699,6 +722,8 @@ const state={
   chars:[],
   tasks:{},
   expTasks:{},
+  oneTimeTasks:{character:{},account:{}},
+  oneTimeAvailable:true,
   raidTasks:{},
   currencies:{},
   notes:{},
@@ -945,19 +970,24 @@ async function sendDiscordHomeworkSummary(){
 async function loadAccountData(){
   const charIds=state.chars.map(c=>c.id);
   const accIds=state.accounts.map(a=>a.id);
-  const [taskRes,raidRes,currencyRes,noteRes,expRes]=await Promise.all([
+  const [taskRes,raidRes,currencyRes,noteRes,expRes,oneCharRes,oneAccRes]=await Promise.all([
     fetchRowsByOwner('tasks','character_id',charIds),
     fetchRowsByOwner('raid_tasks','character_id',charIds),
     fetchRowsByOwner('currencies','character_id',charIds),
     fetchRowsByOwner('custom_popups','character_id',charIds),
-    fetchRowsByOwner('expedition_tasks','account_id',accIds)
+    fetchRowsByOwner('expedition_tasks','account_id',accIds),
+    fetchOneTimeRows('character',charIds),
+    fetchOneTimeRows('account',accIds)
   ]);
   state.tasks=taskRes.buckets;
   state.raidTasks=raidRes.buckets;
   state.currencies=currencyRes.buckets;
   state.notes=noteRes.buckets;
   state.expTasks=expRes.buckets;
+  state.oneTimeTasks={character:oneCharRes.buckets,account:oneAccRes.buckets};
+  state.oneTimeAvailable=oneCharRes.available&&oneAccRes.available;
   await checkRecentCreatedTasksPresence({tasks:taskRes.rows,expedition_tasks:expRes.rows});
+  await cleanupOneTimeTasks([...(oneCharRes.rows||[]),...(oneAccRes.rows||[])]);
   await Promise.all([
     autoResetTasks(taskRes.rows,'tasks'),
     autoResetRaidList(raidRes.rows),
@@ -991,6 +1021,47 @@ async function fetchRowsByOwner(table,ownerField,ownerIds){
     buckets[ownerId].push(row);
   });
   return{rows,buckets};
+}
+
+async function fetchOneTimeRows(ownerType,ownerIds){
+  const buckets={};
+  ownerIds.forEach(id=>{buckets[id]=[];});
+  if(!ownerIds.length)return{rows:[],buckets,available:true};
+  const rows=[];
+  const pageSize=1000;
+  for(let from=0;;from+=pageSize){
+    const to=from+pageSize-1;
+    const {data,error}=await sb.from('one_time_tasks')
+      .select('*')
+      .eq('owner_type',ownerType)
+      .in('owner_id',ownerIds)
+      .order('sort_order')
+      .order('created_at')
+      .range(from,to);
+    if(error){
+      console.warn('[one-time-tasks] load failed',error);
+      return{rows:[],buckets,available:false};
+    }
+    const page=data||[];
+    rows.push(...page);
+    if(page.length<pageSize)break;
+  }
+  rows.forEach(row=>{
+    const ownerId=row.owner_id;
+    if(!buckets[ownerId])buckets[ownerId]=[];
+    if(!row.is_completed)buckets[ownerId].push(row);
+  });
+  return{rows,buckets,available:true};
+}
+
+async function cleanupOneTimeTasks(rows){
+  if(!state.oneTimeAvailable||!rows?.length)return;
+  const boundary=getLastResetUTC('daily',3);
+  const stale=rows.filter(t=>t.is_completed&&t.completed_at&&new Date(t.completed_at)<=boundary);
+  if(!stale.length)return;
+  if(isTestMode())return;
+  const {error}=await sb.from('one_time_tasks').delete().in('id',stale.map(t=>t.id));
+  if(error)console.warn('[one-time-tasks] cleanup failed',error);
 }
 
 function selectedAccount(){return state.accounts.find(a=>a.id===state.selectedAccount)||null;}
@@ -1582,6 +1653,38 @@ function renderTaskGroups(list,isExp,ownerId,predicate){
   if(!roots.length)return '<div class="empty">숙제가 없습니다</div>';
   return roots.map((t,i)=>taskGroup(t,tree.children[t.id]||[],isExp,ownerId,i)).join('');
 }
+function oneTimeBucket(ownerType,ownerId){
+  const map=state.oneTimeTasks?.[ownerType]||{};
+  return map[ownerId]||[];
+}
+function renderOneTimeBlock(ownerType,ownerId){
+  const list=oneTimeBucket(ownerType,ownerId);
+  const safeType=ownerType==='account'?'account':'character';
+  const inputId=`one-time-input-${safeType}-${ownerId}`;
+  if(!state.oneTimeAvailable){
+    return`<aside class="one-time-block">
+      <div class="one-time-head"><span>일회용 숙제</span><span class="one-time-count">SQL 필요</span></div>
+      <div class="one-time-missing">Supabase SQL Editor에 <b>one_time_tasks</b> 테이블을 먼저 적용해야 합니다.</div>
+    </aside>`;
+  }
+  return`<aside class="one-time-block">
+    <div class="one-time-head"><span>일회용 숙제</span><span class="one-time-count">${list.length}</span></div>
+    <div class="one-time-input-row">
+      <input id="${inputId}" class="one-time-input" type="text" maxlength="80" placeholder="체크리스트 추가" onkeydown="if(event.key==='Enter')addOneTimeTask('${safeType}','${ownerId}')">
+      <button class="btn icon" title="일회용 숙제 추가" onclick="addOneTimeTask('${safeType}','${ownerId}')">+</button>
+    </div>
+    <div class="one-time-list">${list.length?list.map(t=>oneTimeRow(t,safeType,ownerId)).join(''):'<div class="empty">추가된 항목이 없습니다</div>'}</div>
+  </aside>`;
+}
+function oneTimeRow(t,ownerType,ownerId){
+  return`<div class="one-time-row">
+    <span class="one-time-name" title="${esc(t.name)}">${esc(t.name)}</span>
+    <span class="one-time-actions">
+      <button class="check square" title="완료 후 숨김" aria-label="일회용 숙제 완료" onclick="completeOneTimeTask('${t.id}','${ownerType}','${ownerId}')"></button>
+      <button class="one-time-delete" title="삭제" aria-label="일회용 숙제 삭제" onclick="deleteOneTimeTask('${t.id}','${ownerType}','${ownerId}')">&times;</button>
+    </span>
+  </div>`;
+}
 function taskGroup(t,children,isExp,ownerId,idx){
   const visibleChildren=applyTaskFilters(children);
   const childDone=children.filter(isDone).length;
@@ -1598,11 +1701,14 @@ function renderDailyCard(ch){
   const dragAttrs=state.selectedAccount===ALL_ACCOUNTS_ID?'':` draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')"`;
   return`<section class="char-card ${progress.hot?'hot':''} ${progress.complete?'done':''}" data-scroll-key="daily:${ch.id}"${heldCardStyle(`daily:${ch.id}`)}${dragAttrs}>
     ${charHeader(ch,activeRoots,progress.hot,progress.complete)}
-    <div class="card-body">
-      <div class="card-section">
-        <div class="section-label"><span>일일 숙제</span><span>${progress.done}/${progress.total}</span></div>
-        ${renderTaskGroups(allTasks,false,ch.id,isDaily)}
+    <div class="card-body with-onetime">
+      <div class="card-main">
+        <div class="card-section">
+          <div class="section-label"><span>일일 숙제</span><span>${progress.done}/${progress.total}</span></div>
+          ${renderTaskGroups(allTasks,false,ch.id,isDaily)}
+        </div>
       </div>
+      ${renderOneTimeBlock('character',ch.id)}
     </div>
   </section>`;
 }
@@ -1630,26 +1736,29 @@ function renderWeeklyCard(ch){
   const dragAttrs=state.selectedAccount===ALL_ACCOUNTS_ID?'':` draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')"`;
   return`<section class="char-card ${progress.hot?'hot':''} ${progress.complete?'done':''}" data-scroll-key="weekly:${ch.id}"${heldCardStyle(`weekly:${ch.id}`)}${dragAttrs}>
     ${charHeader(ch,activeRoots,progress.hot,progress.complete)}
-    <div class="card-body">
-      <div class="card-section">
-        <div class="section-label"><span>주간/월간 숙제</span><span>${progress.done}/${progress.total}</span></div>
-        ${renderTaskGroups(allTasks,false,ch.id,isWeeklyMonthly)}
+    <div class="card-body with-onetime">
+      <div class="card-main">
+        <div class="card-section">
+          <div class="section-label"><span>주간/월간 숙제</span><span>${progress.done}/${progress.total}</span></div>
+          ${renderTaskGroups(allTasks,false,ch.id,isWeeklyMonthly)}
+        </div>
+        ${renderCurrencyBlock(ch)}
+        ${showRaid?`<div class="collapse-block ${raidCollapsed?'collapsed':''}">
+          <div class="section-label">
+            <span>레이드 현황</span>
+            <span class="section-actions"><span>${raids.filter(isDone).length}/${raids.length}</span><button class="btn icon" title="레이드 추가" onclick="openAddRaidTask('${ch.id}')">+</button><button class="section-toggle" onclick="toggleSectionCollapse('raid','${ch.id}')">${raidCollapsed?'펼치기':'접기'}</button></span>
+          </div>
+          <div class="collapse-items">${raids.length?raids.map(t=>raidRow(t,ch.id)).join(''):'<div class="empty">레이드 숙제가 없습니다</div>'}</div>
+        </div>`:''}
+        ${showNotes?`<div class="collapse-block ${notesCollapsed?'collapsed':''}">
+          <div class="section-label">
+            <span>커스텀 노트</span>
+            <span class="section-actions"><span>${notes.length}</span><button class="btn icon action-only action-edit" title="노트 추가" onclick="openNoteEditor(null,'${ch.id}')">+</button><button class="section-toggle" onclick="toggleSectionCollapse('notes','${ch.id}')">${notesCollapsed?'펼치기':'접기'}</button></span>
+          </div>
+          <div class="collapse-items">${notes.length?notes.map((n,i)=>noteRow(n,ch.id,i)).join(''):'<div class="empty">노트가 없습니다</div>'}</div>
+        </div>`:''}
       </div>
-      ${renderCurrencyBlock(ch)}
-      ${showRaid?`<div class="collapse-block ${raidCollapsed?'collapsed':''}">
-        <div class="section-label">
-          <span>레이드 현황</span>
-          <span class="section-actions"><span>${raids.filter(isDone).length}/${raids.length}</span><button class="btn icon" title="레이드 추가" onclick="openAddRaidTask('${ch.id}')">+</button><button class="section-toggle" onclick="toggleSectionCollapse('raid','${ch.id}')">${raidCollapsed?'펼치기':'접기'}</button></span>
-        </div>
-        <div class="collapse-items">${raids.length?raids.map(t=>raidRow(t,ch.id)).join(''):'<div class="empty">레이드 숙제가 없습니다</div>'}</div>
-      </div>`:''}
-      ${showNotes?`<div class="collapse-block ${notesCollapsed?'collapsed':''}">
-        <div class="section-label">
-          <span>커스텀 노트</span>
-          <span class="section-actions"><span>${notes.length}</span><button class="btn icon action-only action-edit" title="노트 추가" onclick="openNoteEditor(null,'${ch.id}')">+</button><button class="section-toggle" onclick="toggleSectionCollapse('notes','${ch.id}')">${notesCollapsed?'펼치기':'접기'}</button></span>
-        </div>
-        <div class="collapse-items">${notes.length?notes.map((n,i)=>noteRow(n,ch.id,i)).join(''):'<div class="empty">노트가 없습니다</div>'}</div>
-      </div>`:''}
+      ${renderOneTimeBlock('character',ch.id)}
     </div>
   </section>`;
 }
@@ -1658,7 +1767,10 @@ function renderAccountCard(acc){
   const tasks=applyTaskFilters(all.filter(t=>!t.parent_id));
   return`<section class="account-card" data-scroll-key="account:${acc.id}"${heldCardStyle(`account:${acc.id}`)} draggable="true" ondragstart="dragStart(event,'accounts','${acc.id}','')" ondragover="allowDrop(event)" ondrop="dropOn(event,'accounts','${acc.id}','')">
     <div class="account-head"><div><div class="account-title">${esc(acc.name)}</div>${isAccountHidden(acc.id)?'<div class="tiny">숨김 처리된 계정</div>':''}</div><div class="card-tools"><span class="tag ${tasks.length&&tasks.every(isDone)?'green':''}">${tasks.filter(isDone).length}/${tasks.length}</span><button class="btn icon" onclick="openCreateTask('account','${acc.id}','weekly')">+</button></div></div>
-    <div class="card-body">${renderTaskGroups(all,true,acc.id,()=>true)}</div>
+    <div class="card-body with-onetime">
+      <div class="card-main">${renderTaskGroups(all,true,acc.id,()=>true)}</div>
+      ${renderOneTimeBlock('account',acc.id)}
+    </div>
   </section>`;
 }
 function taskRow(t,isExp,ownerId,isChild=false,idx=0,children=[]){
@@ -1712,11 +1824,13 @@ function raidRow(t,charId){
   const icon=preset.icon_url||state.raidGroupSettings[rn]?.icon_url||'';
   const flow=Math.max(0,(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0)),bound=Number(t.bound_gold)||0,bonus=Number(t.bonus_gold)||0;
   const isTemp=state.tempRaidTaskIds.has(t.id),isRemoved=state.tempRemovedRaidTaskIds.has(t.id);
-  const linkText=isRemoved?'임시해제':isTemp?'임시':t.has_party_link?'파티연동':'';
-  return`<div class="raid-row ${done?'done':''}" draggable="true" ondragstart="dragStart(event,'raid_tasks','${t.id}','${charId}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'raid_tasks','${t.id}','${charId}')">
+  const isUnlinked=!isRemoved&&!isTemp&&!t.has_party_link;
+  const linkText=isRemoved?'임시해제':isTemp?'임시':t.has_party_link?'파티연동':isUnlinked?'⚠ 파티연동 없음':'';
+  const linkClass=isRemoved||isTemp?'temp':isUnlinked?'unlinked':'';
+  return`<div class="raid-row ${done?'done':''} ${isUnlinked?'unlinked':''}" draggable="true" ondragstart="dragStart(event,'raid_tasks','${t.id}','${charId}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'raid_tasks','${t.id}','${charId}')">
     <div class="task-main">
       <div class="raid-title">${iconImg(icon)}<span class="raid-name">${esc(rn)}</span>${t.difficulty?`<span class="diff ${diffClass}">${esc(t.difficulty)}</span>`:''}<span class="title-actions"><button class="mini-btn danger action-only action-delete" onclick="deleteRaidTask('${t.id}','${charId}')">삭제</button></span></div>
-      <div class="task-meta">${t.entry_level?`<span class="tag">입장 ${t.entry_level}</span>`:''}${flow||bound?`<span class="tag gold">골드 ${flow.toLocaleString()} / 귀속 ${bound.toLocaleString()}</span>`:''}${bonus?`<span class="tag purple">더보기 ${bonus.toLocaleString()}</span>`:''}${linkText?`<span class="link-badge ${(isTemp||isRemoved)?'temp':''}" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id||''}','${t.id}','${charId}')" title="파티 정보 보기">${linkText}</span>`:''}</div>
+      <div class="task-meta">${t.entry_level?`<span class="tag">입장 ${t.entry_level}</span>`:''}${flow||bound?`<span class="tag gold">골드 ${flow.toLocaleString()} / 귀속 ${bound.toLocaleString()}</span>`:''}${bonus?`<span class="tag purple">더보기 ${bonus.toLocaleString()}</span>`:''}${linkText?`<span class="link-badge ${linkClass}" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id||''}','${t.id}','${charId}')" title="${isUnlinked?'현재 배치된 파티가 없습니다':'파티 정보 보기'}">${linkText}</span>`:''}</div>
     </div>
     <button class="check square ${done?'on':''}" aria-label="레이드 체크" aria-pressed="${done?'true':'false'}" onclick="toggleRaid('${t.id}','${charId}')"></button>
   </div>`;
@@ -1732,6 +1846,63 @@ function currencyRow(c,charId){
     <div class="curr-main">${c.icon_url?iconImg(c.icon_url,'task-icon'):`<span class="task-icon">${esc(c.icon||'돈')}</span>`}<span class="curr-name">${esc(c.name)}</span></div>
     <div class="curr-edit"><button class="btn icon" onclick="adjustCurrency('${c.id}','${charId}',-1)">-</button><span class="curr-amount">${Number(c.amount)||0}</span><button class="btn icon" onclick="adjustCurrency('${c.id}','${charId}',1)">+</button><span class="curr-actions"><button class="mini-btn action-only action-edit" onclick="openCurrencyModal('${charId}','${c.id}')">수정</button><button class="mini-btn danger action-only action-delete" onclick="deleteCurrency('${charId}','${c.id}')">삭제</button></span></div>
   </div>`;
+}
+
+function ensureOneTimeBucket(ownerType,ownerId){
+  if(!state.oneTimeTasks[ownerType])state.oneTimeTasks[ownerType]={};
+  if(!state.oneTimeTasks[ownerType][ownerId])state.oneTimeTasks[ownerType][ownerId]=[];
+  return state.oneTimeTasks[ownerType][ownerId];
+}
+function oneTimeInputId(ownerType,ownerId){return`one-time-input-${ownerType}-${ownerId}`;}
+async function addOneTimeTask(ownerType,ownerId){
+  if(!state.oneTimeAvailable){toast('one_time_tasks SQL을 먼저 적용해주세요');return;}
+  const input=document.getElementById(oneTimeInputId(ownerType,ownerId));
+  const name=(input?.value||'').trim();
+  if(!name){toast('일회용 숙제 내용을 입력하세요');return;}
+  const list=ensureOneTimeBucket(ownerType,ownerId);
+  const record={owner_type:ownerType,owner_id:ownerId,name,is_completed:false,completed_at:null,sort_order:list.length};
+  if(isTestMode()){
+    list.push({...record,id:`test-${Date.now()}-${Math.random().toString(36).slice(2)}`,created_at:appNowIso()});
+    if(input)input.value='';
+    render();
+    toast('테스트 모드: 임시로 추가했습니다');
+    return;
+  }
+  const {data,error}=await sb.from('one_time_tasks').insert(record).select().single();
+  if(error){console.error('[one-time-tasks] insert failed',error);toast('일회용 숙제 추가 실패');return;}
+  list.push(data);
+  if(input)input.value='';
+  render();
+}
+async function completeOneTimeTask(id,ownerType,ownerId){
+  const list=ensureOneTimeBucket(ownerType,ownerId);
+  const idx=list.findIndex(t=>t.id===id);
+  if(idx<0)return;
+  const [item]=list.splice(idx,1);
+  render();
+  if(isTestMode())return;
+  const {error}=await sb.from('one_time_tasks').update({is_completed:true,completed_at:appNowIso()}).eq('id',id);
+  if(error){
+    console.error('[one-time-tasks] complete failed',error);
+    list.splice(idx,0,item);
+    render();
+    toast('일회용 숙제 저장 실패');
+  }
+}
+async function deleteOneTimeTask(id,ownerType,ownerId){
+  const list=ensureOneTimeBucket(ownerType,ownerId);
+  const idx=list.findIndex(t=>t.id===id);
+  if(idx<0)return;
+  const [item]=list.splice(idx,1);
+  render();
+  if(isTestMode())return;
+  const {error}=await sb.from('one_time_tasks').delete().eq('id',id);
+  if(error){
+    console.error('[one-time-tasks] delete failed',error);
+    list.splice(idx,0,item);
+    render();
+    toast('일회용 숙제 삭제 실패');
+  }
 }
 
 async function toggleTask(id,isExp,ownerId){

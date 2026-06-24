@@ -2829,3 +2829,65 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 6개 HTML의 CSS var 정의 누락 없음 확인.
 - `git diff --check` 통과. `party_generation.html` CRLF 변환 경고만 확인.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-06-24 - index 파티 미연동 레이드 강조
+
+### 변경 내용
+- `index.html` 주간/월간 숙제의 레이드 숙제 중 파티에 배치되지 않은 항목을 강하게 표시하도록 수정했습니다.
+- 파티연동이 없는 레이드 행에 붉은 강조선, 경고 배경, `⚠ 파티연동 없음` 배지를 추가했습니다.
+- 임시/임시해제/파티연동 상태는 기존 표시를 유지하고, 순수 미연동 레이드에만 새 강조 스타일을 적용했습니다.
+
+### 검증
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. `index.html` CRLF 변환 경고만 확인.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-06-24 - index 일회용 숙제 체크리스트
+
+### 변경 내용
+- `index.html`의 캐릭터 숙제, 주간/월간 숙제, 계정 숙제 카드 우측에 `일회용 숙제` 패널을 추가했습니다.
+- 캐릭터 카드의 일회용 항목은 일일/주간 화면에서 같은 캐릭터 기준으로 공유되고, 계정 숙제는 계정 기준으로 따로 저장됩니다.
+- 항목 추가, 완료 체크 후 즉시 숨김, 수동 삭제 기능을 구현했습니다.
+- 완료된 일회용 항목은 대한민국 기준 오전 6시 일일 초기화 경계가 지난 뒤 로드 시 `one_time_tasks`에서 삭제되도록 했습니다.
+- `one_time_tasks` 테이블이 아직 Supabase에 없을 때는 기존 화면이 깨지지 않고 SQL 적용 안내만 표시되도록 처리했습니다.
+- `schema.sql`과 `DB_MIGRATION_LOG.md`에 `one_time_tasks` 테이블, RLS 비활성화, owner/completed 인덱스를 반영했습니다.
+
+### 검증
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 변환 경고만 확인.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-06-24 - party_generation 작업안 DB 자동 저장 및 패널 개선
+
+### 변경 내용
+- `party_generation.html`의 좌측 캐릭터별 레이드 후보 체크 상태와 우측 난이도 숨김 상태를 `party_generation_drafts` DB 작업안에 자동 저장하도록 변경했습니다.
+- 기존 localStorage 작업안이 있고 DB 작업안이 없으면 한 번 로드한 뒤 DB 작업안으로 승격하도록 했습니다.
+- 좌측 패널 상단에 `배치 완료 숙제 숨기기` 토글을 추가하고, 이 상태도 DB 작업안에 저장하도록 했습니다.
+- 우측 패널에 난이도 접기/펼치기와 파티 접기/펼치기를 추가하고, 접힘 상태도 DB 작업안에 저장하도록 했습니다.
+- 좌측 캐릭터 카드에 캐릭터 아이콘을 표시하고, 레이드 후보 카드에 `raid_group_settings.icon_url` 기반 레이드 아이콘을 표시하도록 했습니다.
+- 좌측 레이드 후보 chip을 더 큰 카드형 UI로 바꿔 남은 레이드/난이도/완료/숨김/레벨부족 상태가 더 잘 보이게 했습니다.
+- 파티 배치, 슬롯 해제, 파티명/인원 변경, 파티 추가/삭제도 DB 작업안에 debounce 자동 저장되도록 했습니다.
+
+### 검증
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 변환 경고만 확인.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-06-24 - party_generation 적용 숙제 동기화 및 레이드 목록 숨김
+
+### 변경 내용
+- `party_generation.html` 적용 시 현재 DB의 `raid_tasks`를 다시 조회해 파티 배치/후보 레이드 숙제를 확실히 보강하도록 수정했습니다.
+- 기존에 이름/난이도만 같고 `preset_id`가 비어 있던 레이드 숙제는 새로 중복 생성하지 않고 해당 `raid_presets.id`에 연결되도록 했습니다.
+- 레이드 숙제 보강 실패를 `console.warn`으로 삼키지 않고 적용 실패로 표시해 누락 원인을 즉시 확인할 수 있게 했습니다.
+- `raid.html` 파티 구성의 레이드 목록에 레이드 그룹/난이도 숨김 버튼과 `숨김 보기` 토글을 추가했습니다.
+- 숨김 상태 저장용 `raid_presets.hidden`, `raid_group_settings.hidden` 컬럼을 `schema.sql`과 `DB_MIGRATION_LOG.md`에 추가했습니다.
+- `index.html`, `raid.html`, `overview.html`, `parties.html`, `party_generation.html`, `core.html` 상단 네비게이션 순서를 `숙제 → 레이드 → 레이드 현황 → 파티 현황 → 파티 생성 → 코어 현황`으로 통일했습니다.
+
+### 검증
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 변환 경고만 확인.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.

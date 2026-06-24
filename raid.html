@@ -810,6 +810,10 @@ button,input,select,textarea{ font:inherit; }
   padding:14px 16px; font-size:.74rem; font-weight:700; letter-spacing:.6px; text-transform:uppercase;
   color:var(--text-2); border-bottom:1px solid rgba(255,255,255,.07);
 }
+.section-hd.raid-list-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.section-hd .section-actions{display:inline-flex;align-items:center;gap:6px;}
+.hidden-raid-item{opacity:.58;border-style:dashed!important;}
+.hidden-raid-badge{font-size:.66rem;font-weight:800;color:#a7b5c7;border:1px solid rgba(167,181,199,.35);border-radius:999px;padding:2px 6px;background:rgba(148,163,184,.08);}
 #preset-list,.preset-list{ flex:1; overflow-y:auto; padding:10px; }
 .party-detail-panel{ flex:1; min-width:0; overflow:auto; padding:14px; }
 .empty-state{ min-height:260px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; color:var(--text-2); }
@@ -1109,11 +1113,11 @@ body::before{background:none;}
 <body>
 <nav class="page-nav">
   <a href="index.html" class="pnav-item" id="nav-homework">⚔️ 숙제</a>
-  <a href="core.html" class="pnav-item" id="nav-core">🔮 코어현황</a>
   <a href="raid.html" class="pnav-item active" id="nav-raid">🏰 레이드</a>
-  <a href="party_generation.html" class="pnav-item">🧩 파티 생성</a>
   <a href="overview.html" class="pnav-item">📊 레이드 현황</a>
   <a href="parties.html" class="pnav-item">👥 파티 현황</a>
+  <a href="party_generation.html" class="pnav-item">🧩 파티 생성</a>
+  <a href="core.html" class="pnav-item" id="nav-core">🔮 코어현황</a>
 </nav>
 <div id="viewer-banner">👁 공유 모드 — 선택 계정 레이드 현황은 완료 처리 가능
   <span id="viewer-tab-btns" style="margin-left:16px;display:inline-flex;gap:4px;">
@@ -1139,7 +1143,7 @@ body::before{background:none;}
   <!-- ── PARTY TAB ── -->
   <div id="view-party">
     <div class="preset-panel">
-      <div class="section-hd">레이드 목록</div>
+      <div class="section-hd raid-list-hd"><span>레이드 목록</span><span class="section-actions"><button class="btn btn-sec btn-sm edit-only" id="hidden-raid-toggle" onclick="toggleHiddenRaidList()"></button></span></div>
       <div id="preset-list"></div>
       <button class="btn-outline edit-only" style="margin-top:6px;" onclick="openAddPreset()">＋ 레이드 추가</button>
     </div>
@@ -1850,6 +1854,7 @@ let tempPartyDraft=[];
 let ovrEditSchId=null;
 let openRaidGroups=new Set(safeJson('la_raid_open_groups',[]));
 let openRaidPresets=new Set(safeJson('la_raid_open_presets',[]));
+let showHiddenRaidList=localStorage.getItem('la_raid_show_hidden_list')==='1';
 const WEEK_DAY_NUMS=[3,4,5,6,0,1,2];
 const DKO=['일','월','화','수','목','금','토'];
 function saveRaidOpenState(){localStorage.setItem('la_raid_open_groups',JSON.stringify([...openRaidGroups]));localStorage.setItem('la_raid_open_presets',JSON.stringify([...openRaidPresets]));}
@@ -2035,15 +2040,13 @@ async function migrateLegacyRaidGroupSettings(){
 }
 async function saveRaidGroupSetting(name,patch){
   if(!raidGroupSettingsAvailable){toast('❗ raid_group_settings 테이블을 먼저 적용하세요');return false;}
-  const rec={
-    name,
-    color:patch.color??raidGroupSettings[name]?.color??'#4caf50',
-    icon_url:patch.icon_url??null,
-    updated_at:new Date().toISOString()
-  };
+  const rec={name,updated_at:new Date().toISOString()};
+  if(hasOwn(patch,'color')||!raidGroupSettings[name])rec.color=patch.color??raidGroupSettings[name]?.color??'#4caf50';
+  if(hasOwn(patch,'icon_url')||!raidGroupSettings[name])rec.icon_url=patch.icon_url??raidGroupSettings[name]?.icon_url??null;
+  if(hasOwn(patch,'hidden'))rec.hidden=!!patch.hidden;
   const {data,error}=await sb.from('raid_group_settings').upsert(rec,{onConflict:'name'}).select().single();
   if(error){toast('❗ '+error.message);console.error(error);return false;}
-  raidGroupSettings[name]=data||rec;
+  raidGroupSettings[name]={...(raidGroupSettings[name]||{}),...(data||rec)};
   return true;
 }
 async function deleteRaidGroupSetting(name){
@@ -2053,6 +2056,32 @@ async function deleteRaidGroupSetting(name){
   delete raidGroupSettings[name];
 }
 function hasOwn(obj,key){return Object.prototype.hasOwnProperty.call(obj||{},key);}
+function isGroupHidden(name){return raidGroupSettings[name]?.hidden===true;}
+function isPresetHidden(preset){return preset?.hidden===true;}
+function toggleHiddenRaidList(){
+  showHiddenRaidList=!showHiddenRaidList;
+  localStorage.setItem('la_raid_show_hidden_list',showHiddenRaidList?'1':'0');
+  renderPresetList();
+}
+async function toggleRaidGroupHidden(name,hidden){
+  const ok=await saveRaidGroupSetting(name,{hidden});
+  if(!ok)return;
+  if(!showHiddenRaidList&&hidden){
+    openRaidGroups.delete(name);
+    saveRaidOpenState();
+    if(selGroupName===name)selGroupName=null;
+  }
+  renderPresetList();
+}
+async function togglePresetHidden(id,hidden){
+  const r=raids.find(x=>x.id===id);if(!r)return;
+  const {data,error}=await sb.from('raid_presets').update({hidden:!!hidden}).eq('id',id).select().single();
+  if(error){toast('❗ '+error.message);console.error(error);return;}
+  Object.assign(r,data||{hidden:!!hidden});
+  if(!showHiddenRaidList&&hidden)openRaidPresets.delete(id);
+  saveRaidOpenState();
+  renderPresetList();
+}
 function overrideKey(schId,wk){return schId+'_'+wk;}
 function blankOverride(){return{id:null,slot_overrides:{},temp_changes:{added:{},removed:{}},schedule_overrides:{}};}
 function getOrCreateOverride(schId,wk){
@@ -2185,13 +2214,19 @@ async function rdDropOnDay(e,destDn){
 function renderPresetList(){
   const el=document.getElementById('preset-list');
   const allNames=getAllGroupNames();
+  const visibleNames=allNames.filter(name=>showHiddenRaidList||!isGroupHidden(name));
+  const toggleBtn=document.getElementById('hidden-raid-toggle');
+  if(toggleBtn)toggleBtn.textContent=showHiddenRaidList?'숨김 숨기기':'숨김 보기';
   openRaidGroups=new Set([...openRaidGroups].filter(n=>allNames.includes(n)));
   openRaidPresets=new Set([...openRaidPresets].filter(id=>raids.some(r=>r.id===id)));
-  if(!allNames.length){el.innerHTML='<div style="text-align:center;padding:20px;font-size:.82rem;color:var(--muted);">레이드를 추가하세요</div>';return;}
-  el.innerHTML=allNames.map((gname,gi)=>{
-    const gPresets=raids.filter(r=>r.name===gname).sort((a,b)=>a.sort_order-b.sort_order);
+  if(!visibleNames.length){el.innerHTML=`<div style="text-align:center;padding:20px;font-size:.82rem;color:var(--muted);">${allNames.length?'숨김 처리된 레이드만 있습니다':'레이드를 추가하세요'}</div>`;return;}
+  el.innerHTML=visibleNames.map((gname)=>{
+    const gi=allNames.indexOf(gname);
+    const fullGPresets=raids.filter(r=>r.name===gname).sort((a,b)=>a.sort_order-b.sort_order);
+    const gPresets=fullGPresets.filter(r=>showHiddenRaidList||!isPresetHidden(r));
+    const groupHidden=isGroupHidden(gname);
     const isGOpen=openRaidGroups.has(gname);
-    return`<div class="preset-card"
+    return`<div class="preset-card ${groupHidden?'hidden-raid-item':''}"
       draggable="${!isViewer}"
       ondragstart="rdStart(event,'group',${gi})"
       ondragend="rdEnd(event)"
@@ -2201,9 +2236,10 @@ function renderPresetList(){
       <div class="preset-header" onclick="toggleGroup('${esc(gname)}')">
         ${!isViewer?`<span class="rdnd-handle" onclick="event.stopPropagation()">⠿</span>`:''}
         <span class="preset-toggle">${isGOpen?'▼':'▶'}</span>
-        <div class="preset-name" style="flex:1;color:${getGroupColor(gname)};display:flex;align-items:center;gap:5px;">${iconImg(getGroupIcon(gname))}<span class="preset-title-text">${esc(gname)}</span></div>
+        <div class="preset-name" style="flex:1;color:${getGroupColor(gname)};display:flex;align-items:center;gap:5px;">${iconImg(getGroupIcon(gname))}<span class="preset-title-text">${esc(gname)}</span>${groupHidden?'<span class="hidden-raid-badge">숨김</span>':''}</div>
         <div class="preset-actions">
           ${!isViewer?`<button class="btn btn-icon edit-only" style="font-size:.7rem;padding:3px 7px;" onclick="event.stopPropagation();openAddDifficulty('${esc(gname)}')">+난이도</button>
+          <button class="btn btn-icon edit-only" style="font-size:.7rem;padding:3px 7px;" onclick="event.stopPropagation();toggleRaidGroupHidden('${esc(gname)}',${groupHidden?'false':'true'})">${groupHidden?'표시':'숨김'}</button>
           <button class="btn btn-icon edit-only" onclick="event.stopPropagation();openEditRaidGroup('${esc(gname)}')">✏️</button>
           <button class="btn-danger btn-icon" style="padding:3px 5px;font-size:.74rem;" onclick="event.stopPropagation();deleteGroup('${esc(gname)}')">🗑</button>`:''}
         </div>
@@ -2211,22 +2247,24 @@ function renderPresetList(){
       ${isGOpen?`<div style="padding:6px 10px 8px;">
         ${gPresets.length===0?'<div style="font-size:.78rem;color:var(--muted);padding:3px 0 6px;">난이도를 추가하세요</div>':''}
         ${gPresets.map((r,di)=>{
+          const fullDi=fullGPresets.findIndex(x=>x.id===r.id);
+          const presetHidden=isPresetHidden(r);
           const rParties=parties.filter(p=>p.preset_id===r.id).sort((a,b)=>a.sort_order-b.sort_order);
           const isPOpen=openRaidPresets.has(r.id);
           const cg=Number(r.clear_gold)||0,bg=Number(r.bound_gold)||0,bo=Number(r.bonus_gold)||0,tr=cg-bg;
           const diffType='diff_'+gname;
-          return`<div style="margin-bottom:6px;background:var(--s1);border:1px solid ${isPOpen?'rgba(200,168,75,.3)':'var(--border)'};border-radius:5px;overflow:hidden;"
+          return`<div class="${presetHidden?'hidden-raid-item':''}" style="margin-bottom:6px;background:var(--s1);border:1px solid ${isPOpen?'rgba(200,168,75,.3)':'var(--border)'};border-radius:5px;overflow:hidden;"
             draggable="${!isViewer}"
-            ondragstart="rdStart(event,'${diffType}',${di})"
+            ondragstart="rdStart(event,'${diffType}',${fullDi})"
             ondragend="rdEnd(event)"
             ondragover="rdOver(event,'${diffType}',false)"
             ondragleave="rdLeave(event,false)"
-            ondrop="rdDropDiff(event,'${esc(gname)}',${di})">
+            ondrop="rdDropDiff(event,'${esc(gname)}',${fullDi})">
             <div style="padding:7px 10px;display:flex;align-items:center;gap:6px;cursor:pointer;" onclick="togglePreset('${r.id}')">
               ${!isViewer?`<span class="rdnd-handle" onclick="event.stopPropagation()">⠿</span>`:''}
               <span style="font-size:.66rem;color:var(--muted);width:10px;">${isPOpen?'▼':'▶'}</span>
               <div style="flex:1;min-width:0;">
-                <div style="font-size:.83rem;font-weight:600;" class="${diffClass(r.difficulty||'')}${!diffClass(r.difficulty||'')?' ':''}">${esc(r.difficulty||'기본')}</div>
+                <div style="font-size:.83rem;font-weight:600;display:flex;align-items:center;gap:5px;flex-wrap:wrap;" class="${diffClass(r.difficulty||'')}${!diffClass(r.difficulty||'')?' ':''}"><span>${esc(r.difficulty||'기본')}</span>${presetHidden?'<span class="hidden-raid-badge">숨김</span>':''}</div>
                 <div style="font-size:.67rem;color:var(--muted);margin-top:1px;">
                   ${r.entry_level?`입장 ${r.entry_level} `:''}
                   ${cg?`💰 유통 ${tr.toLocaleString()}G `:''}
@@ -2234,7 +2272,8 @@ function renderPresetList(){
                   ${bo?`더보기 ${bo.toLocaleString()}G`:''}
                 </div>
               </div>
-              ${!isViewer?`<button class="btn btn-icon edit-only" onclick="event.stopPropagation();openEditDifficulty('${r.id}')">✏️</button>
+              ${!isViewer?`<button class="btn btn-icon edit-only" style="font-size:.7rem;padding:3px 7px;" onclick="event.stopPropagation();togglePresetHidden('${r.id}',${presetHidden?'false':'true'})">${presetHidden?'표시':'숨김'}</button>
+              <button class="btn btn-icon edit-only" onclick="event.stopPropagation();openEditDifficulty('${r.id}')">✏️</button>
               <button class="btn-danger btn-icon" style="padding:3px 5px;font-size:.72rem;" onclick="event.stopPropagation();deletePreset('${r.id}')">🗑</button>`:''}
             </div>
             ${isPOpen?`<div style="padding:4px 10px 8px;border-top:1px solid var(--border);">
@@ -2548,7 +2587,7 @@ async function submitRaidName(){
   const oldName=document.getElementById('rn-old-name').value;
   const color=document.getElementById('rn-color').value||'#4caf50';
   const iconUrl=typeof _rnIconUrl!=='undefined'?_rnIconUrl:null;
-  const savedSetting=await saveRaidGroupSetting(name,{color,icon_url:iconUrl});
+  const savedSetting=await saveRaidGroupSetting(name,{color,icon_url:iconUrl,hidden:oldName?isGroupHidden(oldName):false});
   if(!savedSetting)return;
   if(oldName){
     // 수정: 해당 이름의 모든 presets 이름 변경

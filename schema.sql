@@ -83,6 +83,18 @@ create table if not exists expedition_tasks(
   created_at timestamptz default now()
 );
 
+-- One-time checklist tasks for index.html right-side panels.
+create table if not exists one_time_tasks(
+  id uuid default uuid_generate_v4() primary key,
+  owner_type text not null check (owner_type in ('character','account')),
+  owner_id uuid not null,
+  name text not null,
+  is_completed boolean default false,
+  completed_at timestamptz,
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+
 -- 레이드 숙제 (index.html 용 — 캐릭터별 체크리스트)
 create table if not exists raid_tasks(
   id uuid default uuid_generate_v4() primary key,
@@ -139,6 +151,7 @@ create table if not exists raid_presets(
   clear_gold numeric default 0,
   bound_gold numeric default 0,
   sort_order int default 0,
+  hidden boolean default false,
   created_at timestamptz default now()
 );
 
@@ -147,6 +160,7 @@ create table if not exists raid_group_settings(
   name text primary key,
   icon_url text,
   color text default '#4caf50',
+  hidden boolean default false,
   updated_at timestamptz default now()
 );
 
@@ -246,6 +260,7 @@ alter table accounts          disable row level security;
 alter table characters        disable row level security;
 alter table tasks             disable row level security;
 alter table expedition_tasks  disable row level security;
+alter table one_time_tasks    disable row level security;
 alter table raid_tasks        disable row level security;
 alter table currencies        disable row level security;
 alter table custom_popups     disable row level security;
@@ -291,6 +306,23 @@ alter table expedition_tasks add column if not exists rest_daily_limit int defau
 alter table expedition_tasks add column if not exists rest_last_processed_at timestamptz;
 alter table expedition_tasks add column if not exists rest_consumed_current_cycle int default 0;
 -- raid_parties 기존 설치 업데이트
+create table if not exists one_time_tasks(
+  id uuid default uuid_generate_v4() primary key,
+  owner_type text not null check (owner_type in ('character','account')),
+  owner_id uuid not null,
+  name text not null,
+  is_completed boolean default false,
+  completed_at timestamptz,
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+alter table one_time_tasks add column if not exists owner_type text default 'character';
+alter table one_time_tasks add column if not exists owner_id uuid;
+alter table one_time_tasks add column if not exists name text;
+alter table one_time_tasks add column if not exists is_completed boolean default false;
+alter table one_time_tasks add column if not exists completed_at timestamptz;
+alter table one_time_tasks add column if not exists sort_order int default 0;
+alter table one_time_tasks disable row level security;
 alter table raid_parties     add column if not exists preset_id uuid references raid_presets(id) on delete cascade;
 alter table raid_parties     add column if not exists is_temporary boolean default false;
 alter table raid_parties     add column if not exists temp_week_start_date text;
@@ -329,6 +361,7 @@ alter table characters add column if not exists show_currencies boolean default 
 alter table characters add column if not exists show_custom_notes boolean default true;
 alter table raid_presets add column if not exists icon_url text;
 alter table raid_presets add column if not exists short_name text;
+alter table raid_presets add column if not exists hidden boolean default false;
 alter table expedition_tasks add column if not exists icon_url text;
 alter table tasks add column if not exists icon_url text;
 alter table currencies add column if not exists icon_url text;
@@ -338,9 +371,11 @@ create table if not exists raid_group_settings(
   name text primary key,
   icon_url text,
   color text default '#4caf50',
+  hidden boolean default false,
   updated_at timestamptz default now()
 );
 alter table raid_group_settings disable row level security;
+alter table raid_group_settings add column if not exists hidden boolean default false;
 
 -- 재화 마지막 수정일
 alter table currencies add column if not exists updated_at timestamptz;
@@ -381,6 +416,8 @@ create index if not exists idx_tasks_character_parent_sort on tasks(character_id
 create index if not exists idx_tasks_clone_group on tasks(clone_group_id);
 create index if not exists idx_expedition_tasks_account_parent_sort on expedition_tasks(account_id, parent_id, sort_order, created_at);
 create index if not exists idx_expedition_tasks_clone_group on expedition_tasks(clone_group_id);
+create index if not exists idx_one_time_tasks_owner_sort on one_time_tasks(owner_type, owner_id, sort_order, created_at);
+create index if not exists idx_one_time_tasks_completed on one_time_tasks(is_completed, completed_at);
 create index if not exists idx_raid_tasks_character_sort on raid_tasks(character_id, sort_order, created_at);
 create index if not exists idx_raid_tasks_character_preset on raid_tasks(character_id, preset_id);
 create index if not exists idx_currencies_character_sort on currencies(character_id, sort_order, created_at);

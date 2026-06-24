@@ -349,6 +349,42 @@ select cron.schedule(
 ### 적용 여부
 - 수동 확인 필요.
 
+## 2026-06-24 - index 일회용 숙제 테이블
+
+### 목적
+- `index.html`의 캐릭터 숙제, 주간/월간 숙제, 계정 숙제 카드 우측에 표시되는 일회용 체크리스트를 저장합니다.
+- 완료 체크한 항목은 즉시 숨기고, 다음 일일 초기화 시각(대한민국 기준 오전 6시) 이후 로드 시 DB에서 삭제합니다.
+
+### SQL
+
+```sql
+create table if not exists one_time_tasks(
+  id uuid default uuid_generate_v4() primary key,
+  owner_type text not null check (owner_type in ('character','account')),
+  owner_id uuid not null,
+  name text not null,
+  is_completed boolean default false,
+  completed_at timestamptz,
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+
+alter table one_time_tasks disable row level security;
+
+create index if not exists idx_one_time_tasks_owner_sort
+on one_time_tasks(owner_type, owner_id, sort_order, created_at);
+
+create index if not exists idx_one_time_tasks_completed
+on one_time_tasks(is_completed, completed_at);
+```
+
+### 적용 파일
+- `schema.sql`
+- `index.html`
+
+### 적용 여부
+- 수동 확인 필요.
+
 ## 2026-05-26 - 레이드 디스코드 전송 줄임말 및 Cron Vault 점검
 
 ### 변경
@@ -578,6 +614,26 @@ on party_generation_drafts(updated_at desc);
 ### 적용 파일
 - `schema.sql`
 - `party_generation.html`
+
+### 적용 여부
+- 수동 확인 필요.
+
+## 2026-06-24 - 레이드/난이도 숨김 컬럼
+
+### 목적
+- `raid.html` 파티 구성의 레이드 목록에서 레이드 그룹 또는 특정 난이도를 삭제하지 않고 숨김/표시 전환하기 위해 사용합니다.
+- 숨김은 목록 표시만 제어하며, 기존 파티/일정/레이드 숙제 데이터는 삭제하지 않습니다.
+
+### SQL
+
+```sql
+alter table raid_presets add column if not exists hidden boolean default false;
+alter table raid_group_settings add column if not exists hidden boolean default false;
+```
+
+### 적용 파일
+- `schema.sql`
+- `raid.html`
 
 ### 적용 여부
 - 수동 확인 필요.

@@ -88,17 +88,22 @@ button{cursor:pointer}
 .account-name{color:var(--gold)}
 .account-name.sub-account-name{color:#a7d8ff}
 .char-list{display:grid;gap:8px;padding:10px}
-.char-card{border:1px solid rgba(197,207,220,.13);background:linear-gradient(180deg,rgba(31,36,44,.92),rgba(25,30,37,.92));border-radius:8px;padding:10px;display:grid;gap:8px}
-.char-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.char-card{border:1px solid rgba(197,207,220,.13);background:linear-gradient(180deg,rgba(31,36,44,.92),rgba(25,30,37,.92));border-radius:8px;padding:12px;display:grid;gap:10px}
+.char-top{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:9px}
 .char-main{min-width:0}
 .char-name{font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .char-meta{color:var(--muted);font-size:.72rem;display:flex;gap:6px;flex-wrap:wrap}
 .candidate-list{display:flex;gap:6px;flex-wrap:wrap}
-.candidate{display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(34,211,238,.25);background:rgba(34,211,238,.07);color:#c9f7ff;border-radius:999px;padding:5px 8px;font-size:.72rem;font-weight:850;max-width:100%;user-select:none}
+.candidate{display:inline-grid;grid-template-columns:28px minmax(0,1fr);align-items:center;gap:8px;border:1px solid rgba(34,211,238,.25);background:rgba(34,211,238,.07);color:#c9f7ff;border-radius:8px;padding:8px 9px;font-size:.72rem;font-weight:850;min-width:152px;max-width:100%;min-height:48px;user-select:none}
 .candidate.done{border-color:rgba(40,229,154,.48);background:rgba(40,229,154,.14);color:#a8ffd0;text-decoration:line-through;opacity:.9}
 .candidate.warn{border-color:rgba(244,199,107,.44);background:rgba(244,199,107,.10);color:#ffe1a1}
 .candidate.party-hidden{border-color:rgba(167,216,255,.36);background:rgba(56,189,248,.08);color:#cfeeff;text-decoration:none}
 .candidate.dragging{opacity:.4}
+.candidate-main{display:grid;gap:2px;min-width:0}
+.candidate-title{font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.candidate-sub{color:var(--muted);font-size:.66rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.raid-candidate-icon{width:28px;height:28px;border-radius:6px;border:1px solid rgba(197,207,220,.22);background:#111720;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;color:var(--dim);font-size:.64rem;font-weight:950;flex:none}
+.raid-candidate-icon img{width:100%;height:100%;object-fit:cover;display:block}
 .candidate-empty,.empty{padding:14px;border:1px dashed var(--line-2);border-radius:8px;color:var(--dim);text-align:center;font-size:.82rem}
 .raid-tabs,.left-tabs{position:sticky;top:-12px;z-index:18;display:flex;gap:7px;flex-wrap:wrap;margin:-12px 0 10px;padding:12px 0 10px;background:linear-gradient(180deg,rgba(29,34,42,.98),rgba(29,34,42,.94));border-bottom:1px solid rgba(197,207,220,.10);box-shadow:0 8px 14px rgba(8,12,18,.18)}
 .raid-tab{border:1px solid var(--line);background:rgba(31,36,44,.82);color:var(--muted);border-radius:999px;padding:7px 12px;font-weight:900;font-size:.78rem}
@@ -109,6 +114,9 @@ button{cursor:pointer}
 .preset-list{display:grid;gap:9px;padding:10px}
 .preset-head{background:rgba(18,24,32,.74)}
 .preset-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;color:var(--muted);font-size:.72rem}
+.preset-body.collapsed,.party-body.collapsed{display:none}
+.collapse-btn{min-width:28px;height:27px;border-radius:7px;border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--muted);font-weight:950}
+.collapse-btn:hover{border-color:rgba(34,211,238,.34);color:#dffbff}
 .tag{border:1px solid var(--line);border-radius:999px;padding:2px 7px;color:var(--muted);background:#20252d;font-weight:850}
 .tag.gold{border-color:rgba(243,180,63,.35);color:#ffd985}
 .tag.green{border-color:rgba(24,214,107,.3);color:#8df8b8}
@@ -139,6 +147,7 @@ button{cursor:pointer}
 .pg-char-icon{width:26px;height:26px;border-radius:6px;border:1px solid rgba(197,207,220,.22);background:#111720;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;color:var(--dim);font-size:.66rem;font-weight:950;justify-self:end;flex:none}
 .pg-char-icon img{width:100%;height:100%;object-fit:cover;display:block}
 .pg-char-icon.empty{opacity:.55}
+.char-card-icon{width:34px;height:34px;border-radius:8px;justify-self:start}
 .status-line{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.74rem}
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#0f1217;border:1px solid var(--line-2);border-radius:999px;padding:9px 14px;color:var(--text);box-shadow:var(--shadow);z-index:200;opacity:0;pointer-events:none;transition:.18s}
 .toast.show{opacity:1;bottom:26px}
@@ -187,11 +196,11 @@ button{cursor:pointer}
 <body>
 <nav class="page-nav">
   <a href="index.html" class="pnav-item">⚔️ 숙제</a>
-  <a href="core.html" class="pnav-item">🔮 코어현황</a>
   <a href="raid.html" class="pnav-item">🏰 레이드</a>
-  <a href="party_generation.html" class="pnav-item active">🧩 파티 생성</a>
   <a href="overview.html" class="pnav-item">📊 레이드 현황</a>
   <a href="parties.html" class="pnav-item">👥 파티 현황</a>
+  <a href="party_generation.html" class="pnav-item active">🧩 파티 생성</a>
+  <a href="core.html" class="pnav-item">🔮 코어현황</a>
 </nav>
 
 <section class="setup" id="setup">
@@ -343,8 +352,9 @@ let sb=null;
 const ALL='all';
 const WORKBENCH_STORAGE_KEY='la_party_generation_workbench';
 const state={
-  accounts:[],chars:[],raids:[],raidTasks:[],parties:[],members:[],
+  accounts:[],chars:[],raids:[],raidTasks:[],parties:[],members:[],raidGroupSettings:{},
   partyDrafts:[],originalPartyIds:new Set(),candidateMap:{},hiddenPresets:new Set(),
+  collapsedPresets:new Set(),collapsedParties:new Set(),hideAssignedCandidates:false,workbenchSaveTimer:null,workbenchSaving:false,workbenchDirty:false,workbenchDbAvailable:true,workbenchChangeSeq:0,workbenchSavedSeq:0,
   selectedAccount:ALL,selectedChars:new Set(),filterOpen:localStorage.getItem('la_pg_filter_open')!=='0',
   selectedLeftAccount:ALL,selectedRaidGroup:null,showHiddenAccounts:false,search:'',drag:null,editCharId:null,draftId:null,
   isApplying:false,applyStatus:'',
@@ -358,22 +368,116 @@ function getConfig(){const url=localStorage.getItem('la_url'),key=localStorage.g
 function saveConfig(){const u=document.getElementById('setup-url').value.trim(),k=document.getElementById('setup-key').value.trim();if(!u||!k){toast('URL과 key를 입력하세요');return;}localStorage.setItem('la_url',u);localStorage.setItem('la_key',k);location.reload();}
 function openModal(id){document.getElementById(id)?.classList.add('open');}
 function closeModal(id){document.getElementById(id)?.classList.remove('open');}
-function saveLocalWorkbenchState(){
+function fallbackSaveWorkbenchState(){
   try{
     localStorage.setItem(WORKBENCH_STORAGE_KEY,JSON.stringify({
       savedAt:new Date().toISOString(),
       candidateMap:state.candidateMap,
-      hiddenPresets:[...state.hiddenPresets]
+      hiddenPresets:[...state.hiddenPresets],
+      collapsedPresets:[...state.collapsedPresets],
+      collapsedParties:[...state.collapsedParties],
+      hideAssignedCandidates:state.hideAssignedCandidates,
+      parties:state.partyDrafts.map(p=>({...p}))
     }));
   }catch(e){console.warn('party_generation local workbench save failed:',e);}
+}
+function applyWorkbenchPayload(data,opts={}){
+  if(!data||typeof data!=='object')return;
+  if(data.candidateMap&&typeof data.candidateMap==='object')state.candidateMap=data.candidateMap;
+  state.hiddenPresets=new Set(Array.isArray(data.hiddenPresets)?data.hiddenPresets:[]);
+  state.collapsedPresets=new Set(Array.isArray(data.collapsedPresets)?data.collapsedPresets:[]);
+  state.collapsedParties=new Set(Array.isArray(data.collapsedParties)?data.collapsedParties:[]);
+  state.hideAssignedCandidates=!!data.hideAssignedCandidates;
+  if(!opts.skipParties&&Array.isArray(data.parties)){
+    state.partyDrafts=data.parties.map(p=>({...p,slots:Array.from({length:Number(p.party_size)||4},(_,i)=>p.slots?.[i]||null)}));
+  }
 }
 function loadLocalWorkbenchState(){
   const data=safeJson(WORKBENCH_STORAGE_KEY,null);
   if(!data||typeof data!=='object')return;
-  if(data.candidateMap&&typeof data.candidateMap==='object')state.candidateMap=data.candidateMap;
-  state.hiddenPresets=new Set(Array.isArray(data.hiddenPresets)?data.hiddenPresets:[]);
+  applyWorkbenchPayload(data);
 }
-function clearLocalWorkbenchState(){localStorage.removeItem(WORKBENCH_STORAGE_KEY);}
+async function loadDbWorkbenchState(){
+  try{
+    const {data,error}=await sb.from('party_generation_drafts').select('*').order('updated_at',{ascending:false}).limit(1);
+    if(error)throw error;
+    const row=(data||[])[0];
+    if(row){state.draftId=row.id;applyWorkbenchPayload(row.data||{});state.workbenchDbAvailable=true;return true;}
+    const local=safeJson(WORKBENCH_STORAGE_KEY,null);
+    if(local&&typeof local==='object'){
+      applyWorkbenchPayload(local);
+      scheduleWorkbenchSave();
+      return true;
+    }
+  }catch(e){
+    state.workbenchDbAvailable=false;
+    console.warn('party_generation DB workbench load failed, using local fallback:',e);
+    loadLocalWorkbenchState();
+  }
+  return false;
+}
+function draftPayload(){
+  return{
+    version:2,
+    savedAt:new Date().toISOString(),
+    candidateMap:state.candidateMap,
+    hiddenPresets:[...state.hiddenPresets],
+    collapsedPresets:[...state.collapsedPresets],
+    collapsedParties:[...state.collapsedParties],
+    hideAssignedCandidates:state.hideAssignedCandidates,
+    parties:state.partyDrafts.map(p=>({...p}))
+  };
+}
+function saveLocalWorkbenchState(){scheduleWorkbenchSave();}
+function scheduleWorkbenchSave(){
+  state.workbenchChangeSeq++;
+  state.workbenchDirty=true;
+  fallbackSaveWorkbenchState();
+  clearTimeout(state.workbenchSaveTimer);
+  state.workbenchSaveTimer=setTimeout(()=>saveWorkbenchStateToDb(),650);
+}
+async function saveWorkbenchStateToDb(){
+  if(!sb)return;
+  if(state.workbenchSaving){
+    clearTimeout(state.workbenchSaveTimer);
+    state.workbenchSaveTimer=setTimeout(()=>saveWorkbenchStateToDb(),750);
+    return;
+  }
+  state.workbenchSaving=true;
+  const payload=draftPayload();
+  const saveSeq=state.workbenchChangeSeq;
+  try{
+    if(state.draftId){
+      const {error}=await sb.from('party_generation_drafts').update({name:'기본 파티 생성안',data:payload,updated_at:new Date().toISOString()}).eq('id',state.draftId);
+      if(error)throw error;
+    }else{
+      const {data,error}=await sb.from('party_generation_drafts').insert({name:'기본 파티 생성안',data:payload}).select().single();
+      if(error)throw error;
+      state.draftId=data.id;
+    }
+    state.workbenchSavedSeq=saveSeq;
+    state.workbenchDirty=state.workbenchChangeSeq!==saveSeq;
+    state.workbenchDbAvailable=true;
+    renderStatus();
+  }catch(e){
+    state.workbenchDbAvailable=false;
+    console.warn('party_generation DB workbench save failed:',e);
+    renderStatus();
+  }finally{
+    state.workbenchSaving=false;
+    if(state.workbenchDirty){
+      clearTimeout(state.workbenchSaveTimer);
+      state.workbenchSaveTimer=setTimeout(()=>saveWorkbenchStateToDb(),250);
+    }
+  }
+}
+async function clearLocalWorkbenchState(){
+  localStorage.removeItem(WORKBENCH_STORAGE_KEY);
+  if(state.draftId){
+    try{await sb.from('party_generation_drafts').delete().eq('id',state.draftId);}catch(e){console.warn('workbench DB clear failed:',e);}
+  }
+  state.draftId=null;
+}
 function setApplyState(active,msg=''){
   state.isApplying=active;
   state.applyStatus=msg;
@@ -393,6 +497,11 @@ function partyById(id){return state.partyDrafts.find(p=>p.id===id);}
 function charIcon(ch,cls='pg-char-icon'){
   if(ch?.icon_url)return`<span class="${cls}"><img src="${esc(ch.icon_url)}" alt="" loading="lazy" onerror="this.parentElement.classList.add('empty');this.remove();"></span>`;
   return`<span class="${cls} empty">검</span>`;
+}
+function raidIcon(group,cls='raid-candidate-icon'){
+  const url=state.raidGroupSettings?.[group]?.icon_url||'';
+  if(url)return`<span class="${cls}"><img src="${esc(url)}" alt="" loading="lazy" onerror="this.parentElement.classList.add('empty');this.remove();"></span>`;
+  return`<span class="${cls} empty">R</span>`;
 }
 function orderedAccounts(accounts=filterVisibleAccounts()){
   const accs=sortRows(accounts);
@@ -468,34 +577,40 @@ async function init(){
 
 async function loadData(opts={}){
   const wk=getWeekKey(0);
-  const [a,c,r,p,m,t]=await Promise.all([
+  const [a,c,r,p,m,t,g]=await Promise.all([
     sb.from('accounts').select('*').order('sort_order').order('created_at'),
     sb.from('characters').select('*').order('sort_order').order('created_at'),
     sb.from('raid_presets').select('*').order('sort_order').order('created_at'),
     sb.from('raid_parties').select('*').order('sort_order').order('created_at'),
     sb.from('raid_party_members').select('*').order('slot_index'),
-    sb.from('raid_tasks').select('*').order('sort_order').order('created_at')
+    sb.from('raid_tasks').select('*').order('sort_order').order('created_at'),
+    sb.from('raid_group_settings').select('*')
   ]);
   const err=[a,c,r,p,m,t].find(x=>x.error)?.error;if(err){toast('로드 실패: '+err.message);throw err;}
   state.accounts=a.data||[];state.chars=c.data||[];state.raids=r.data||[];state.raidTasks=t.data||[];
+  state.raidGroupSettings={};(g.data||[]).forEach(row=>{if(row.name)state.raidGroupSettings[row.name]=row;});
   state.parties=(p.data||[]).filter(x=>!x.is_temporary||x.temp_week_start_date===wk);
   const activePartyIds=new Set(state.parties.map(x=>x.id));
   state.members=(m.data||[]).filter(x=>activePartyIds.has(x.party_id));
-  if(!opts.skipLocalWorkbench)loadLocalWorkbenchState();
   buildInitialDraft();
+  if(!opts.skipLocalWorkbench){
+    await loadDbWorkbenchState();
+    buildDefaultCandidates();
+  }
   initCharacterFilter();
   render();
 }
 
 async function restoreFromDb(){
   if(!confirm('현재 작업 중인 배치를 버리고 DB의 raid.html 파티 구성을 다시 불러옵니까?'))return;
-  clearLocalWorkbenchState();
-  state.hiddenPresets=new Set();state.candidateMap={};await loadData({skipLocalWorkbench:true});toast('DB 구성을 다시 불러왔습니다');
+  await clearLocalWorkbenchState();
+  state.hiddenPresets=new Set();state.collapsedPresets=new Set();state.collapsedParties=new Set();state.hideAssignedCandidates=false;state.candidateMap={};await loadData({skipLocalWorkbench:true});toast('DB 구성을 다시 불러왔습니다');
 }
 async function reloadFromDb(){return restoreFromDb();}
 function resetDraft(){
   if(!confirm('모든 파티 배치를 비우고 후보만 남깁니다. 적용하면 기존 파티가 제거됩니다. 계속할까요?'))return;
   state.partyDrafts=[];
+  saveLocalWorkbenchState();
   render();
   toast('파티 배치를 초기화했습니다');
 }
@@ -540,7 +655,8 @@ function renderStatus(){
   const active=activePartyDrafts();
   const total=active.length,filled=active.reduce((n,p)=>n+p.slots.filter(Boolean).length,0);
   const hidden=state.hiddenPresets.size;
-  document.getElementById('status-line').innerHTML=`<span>파티 ${total}개</span><span>배치 ${filled}명</span>${hidden?`<span>숨김 난이도 ${hidden}개</span>`:''}${state.applyStatus?`<span>${esc(state.applyStatus)}</span>`:''}${state.draftId?`<span>저장안 ${esc(state.draftId.slice(0,8))}</span>`:''}`;
+  const saveText=state.workbenchSaving?'DB 저장 중':state.workbenchDirty?'DB 저장 대기':state.workbenchDbAvailable?'DB 저장됨':'DB 저장 실패';
+  document.getElementById('status-line').innerHTML=`<span>파티 ${total}개</span><span>배치 ${filled}명</span>${hidden?`<span>숨김 난이도 ${hidden}개</span>`:''}<span>${saveText}</span>${state.applyStatus?`<span>${esc(state.applyStatus)}</span>`:''}${state.draftId?`<span>저장안 ${esc(state.draftId.slice(0,8))}</span>`:''}`;
 }
 function renderAccountFilter(){
   const el=document.getElementById('account-filter');
@@ -624,22 +740,28 @@ function renderLeft(){
   const accounts=visibleAccounts();
   if(!accounts.length){el.innerHTML='<div class="empty">표시할 캐릭터가 없습니다</div>';return;}
   if(state.selectedLeftAccount!==ALL&&!accounts.some(a=>a.id===state.selectedLeftAccount))state.selectedLeftAccount=ALL;
-  const tabs=`<div class="left-tabs"><button class="raid-tab ${state.selectedLeftAccount===ALL?'active':''}" onclick="setLeftAccountTab('${ALL}')">전체</button>${accounts.map(a=>`<button class="raid-tab ${state.selectedLeftAccount===a.id?'active':''} ${isSubAccount(a)?'sub-account-tab':''}" onclick="setLeftAccountTab('${a.id}')">${esc(a.name)}</button>`).join('')}</div>`;
+  const tabs=`<div class="left-tabs"><button class="raid-tab ${state.selectedLeftAccount===ALL?'active':''}" onclick="setLeftAccountTab('${ALL}')">전체</button>${accounts.map(a=>`<button class="raid-tab ${state.selectedLeftAccount===a.id?'active':''} ${isSubAccount(a)?'sub-account-tab':''}" onclick="setLeftAccountTab('${a.id}')">${esc(a.name)}</button>`).join('')}<button class="raid-tab ${state.hideAssignedCandidates?'active':''}" onclick="toggleHideAssignedCandidates()">배치 완료 숙제 숨기기</button></div>`;
   const html=[];
   for(const acc of accounts){
     if(state.selectedLeftAccount!==ALL&&acc.id!==state.selectedLeftAccount)continue;
-    const chars=visibleCharsForAccount(acc.id);
+    const chars=visibleCharsForAccount(acc.id).filter(ch=>!state.hideAssignedCandidates||visibleCandidatesForChar(ch).length);
     if(!chars.length)continue;
     html.push(`<div class="account-block"><div class="account-head"><div class="account-name ${isSubAccount(acc)?'sub-account-name':''}">${esc(acc.name)}</div><span class="tag">${chars.length}명</span></div><div class="char-list">${chars.map(charCard).join('')}</div></div>`);
   }
   el.innerHTML=tabs+(html.join('')||'<div class="empty">표시할 캐릭터가 없습니다</div>');
 }
 function setLeftAccountTab(id){state.selectedLeftAccount=id;renderLeft();}
+function toggleHideAssignedCandidates(){
+  state.hideAssignedCandidates=!state.hideAssignedCandidates;
+  saveLocalWorkbenchState();
+  renderLeft();
+}
 
 function charCard(ch){
   const candidates=visibleCandidatesForChar(ch);
   return`<div class="char-card">
     <div class="char-top">
+      ${charIcon(ch,'pg-char-icon char-card-icon')}
       <div class="char-main">
         <div class="char-name">${esc(ch.name)}</div>
         <div class="char-meta"><span>${esc(ch.class_name||'')}</span>${ch.item_level?`<span>레벨 ${Number(ch.item_level).toLocaleString()}</span>`:''}${ch.combat_power?`<span>투력 ${Number(ch.combat_power).toLocaleString()}</span>`:''}</div>
@@ -655,6 +777,7 @@ function visibleCandidatesForChar(ch,opt={}){
   for(const name of groupNames()){
     const c=map[name];if(!candidateIsVisible(ch,c,{includeHidden:true}))continue;
     const preset=raidById(c.presetId);if(!preset)continue;
+    if(state.hideAssignedCandidates&&isCharAssignedToPreset(ch.id,preset.id))continue;
     out.push({group:name,preset});
   }
   return out;
@@ -664,7 +787,11 @@ function candidateChip(ch,c){
   const warn=Number(ch.item_level||0)<Number(c.preset.entry_level||0);
   const hidden=state.hiddenPresets.has(c.preset.id);
   return`<span class="candidate ${done?'done':''} ${warn?'warn':''} ${hidden?'party-hidden':''}" draggable="${hidden?'false':'true'}" ${hidden?'':`ondragstart="dragCandidate(event,'${ch.id}','${c.preset.id}')" ondragend="endDragCandidate(event)"`}>
-    ${esc(raidLabel(c.preset))}${done?' · 완료':''}${warn?' · 레벨부족':''}${hidden?' · 파티숨김':''}
+    ${raidIcon(c.group)}
+    <span class="candidate-main">
+      <span class="candidate-title">${esc(c.group)}</span>
+      <span class="candidate-sub">${esc(c.preset.difficulty||'기본')}${done?' · 완료':''}${warn?' · 레벨부족':''}${hidden?' · 파티숨김':''}</span>
+    </span>
   </span>`;
 }
 function isCharAssignedToPreset(charId,presetId){
@@ -689,9 +816,22 @@ function setRaidTabIndex(idx){
   state.selectedRaidGroup=groups[idx]||groups[0]||null;
   renderRight();
 }
+function togglePresetCollapse(presetId){
+  if(state.collapsedPresets.has(presetId))state.collapsedPresets.delete(presetId);
+  else state.collapsedPresets.add(presetId);
+  saveLocalWorkbenchState();
+  renderRight();
+}
+function togglePartyCollapse(partyId){
+  if(state.collapsedParties.has(partyId))state.collapsedParties.delete(partyId);
+  else state.collapsedParties.add(partyId);
+  saveLocalWorkbenchState();
+  renderRight();
+}
 function presetBlock(preset){
   const parties=state.partyDrafts.filter(p=>p.preset_id===preset.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
   const pool=unassignedByAccount(preset.id);
+  const collapsed=state.collapsedPresets.has(preset.id);
   return`<div class="preset-block">
     <div class="preset-head">
       <div>
@@ -699,12 +839,15 @@ function presetBlock(preset){
         <div class="preset-meta"><span>${esc(preset.name)}</span>${preset.entry_level?`<span>입장 ${preset.entry_level}</span>`:''}</div>
       </div>
       <div class="toolbar">
+        <button class="collapse-btn" title="난이도 접기/펼치기" onclick="togglePresetCollapse('${preset.id}')">${collapsed?'▸':'▾'}</button>
         <button class="btn icon" title="파티 추가" onclick="addParty('${preset.id}')">+</button>
         <button class="btn ghost sm" title="파티 생성 화면에서 숨김" onclick="hidePreset('${preset.id}')">숨김</button>
       </div>
     </div>
-    <div class="candidate-pool">${pool.length?pool.map(r=>`<div class="pool-row"><span class="pool-account ${r.isSub?'sub-account-name':''}">${esc(r.account)}</span>${r.chars.map(ch=>poolChip(ch,preset)).join('')}</div>`).join(''):'<div class="candidate-empty">미배치 후보가 없습니다</div>'}</div>
-    <div class="party-list">${parties.length?parties.map(p=>partyCard(p,preset)).join(''):'<div class="candidate-empty">파티가 없습니다. + 버튼으로 생성하세요.</div>'}</div>
+    <div class="preset-body ${collapsed?'collapsed':''}">
+      <div class="candidate-pool">${pool.length?pool.map(r=>`<div class="pool-row"><span class="pool-account ${r.isSub?'sub-account-name':''}">${esc(r.account)}</span>${r.chars.map(ch=>poolChip(ch,preset)).join('')}</div>`).join(''):'<div class="candidate-empty">미배치 후보가 없습니다</div>'}</div>
+      <div class="party-list">${parties.length?parties.map(p=>partyCard(p,preset)).join(''):'<div class="candidate-empty">파티가 없습니다. + 버튼으로 생성하세요.</div>'}</div>
+    </div>
   </div>`;
 }
 function unassignedByAccount(presetId){
@@ -726,6 +869,7 @@ function poolChip(ch,preset){
   </span>`;
 }
 function partyCard(p,preset){
+  const collapsed=state.collapsedParties.has(p.id);
   return`<div class="party-card">
     <div class="party-head">
       <div class="party-controls">
@@ -734,9 +878,12 @@ function partyCard(p,preset){
           ${[4,8].map(n=>`<option value="${n}" ${Number(p.party_size)===n?'selected':''}>${n}인</option>`).join('')}
         </select>
       </div>
-      <button class="btn danger sm" onclick="removeParty('${p.id}')">삭제</button>
+      <div class="toolbar">
+        <button class="collapse-btn" title="파티 접기/펼치기" onclick="togglePartyCollapse('${p.id}')">${collapsed?'▸':'▾'}</button>
+        <button class="btn danger sm" onclick="removeParty('${p.id}')">삭제</button>
+      </div>
     </div>
-    <div class="slot-grid">${p.slots.map((cid,i)=>slotHtml(p,preset,cid,i)).join('')}</div>
+    <div class="party-body ${collapsed?'collapsed':''}"><div class="slot-grid">${p.slots.map((cid,i)=>slotHtml(p,preset,cid,i)).join('')}</div></div>
   </div>`;
 }
 function slotHtml(p,preset,charId,i){
@@ -771,16 +918,18 @@ function assignToSlot(charId,presetId,partyId,slotIndex){
     }
   }
   party.slots[slotIndex]=charId;
+  saveLocalWorkbenchState();
 }
-function clearSlot(partyId,slotIndex){const p=partyById(partyId);if(!p)return;p.slots[slotIndex]=null;render();}
-function renameParty(partyId,name){const p=partyById(partyId);if(p)p.name=name.trim()||'파티';renderStatus();}
-function resizeParty(partyId,sizeRaw){const p=partyById(partyId);if(!p)return;const size=Number(sizeRaw)||4;if(size<p.slots.filter(Boolean).length&&!confirm('슬롯 수보다 배치 인원이 많습니다. 뒤쪽 인원이 해제됩니다.')){render();return;}p.party_size=size;p.slots=Array.from({length:size},(_,i)=>p.slots[i]||null);render();}
+function clearSlot(partyId,slotIndex){const p=partyById(partyId);if(!p)return;p.slots[slotIndex]=null;saveLocalWorkbenchState();render();}
+function renameParty(partyId,name){const p=partyById(partyId);if(p){p.name=name.trim()||'파티';saveLocalWorkbenchState();}renderStatus();}
+function resizeParty(partyId,sizeRaw){const p=partyById(partyId);if(!p)return;const size=Number(sizeRaw)||4;if(size<p.slots.filter(Boolean).length&&!confirm('슬롯 수보다 배치 인원이 많습니다. 뒤쪽 인원이 해제됩니다.')){render();return;}p.party_size=size;p.slots=Array.from({length:size},(_,i)=>p.slots[i]||null);saveLocalWorkbenchState();render();}
 function addParty(presetId){
   const list=state.partyDrafts.filter(p=>p.preset_id===presetId);
   state.partyDrafts.push({id:'new_'+crypto.randomUUID(),preset_id:presetId,name:`${list.length+1}파티`,party_size:4,sort_order:list.length,slots:[null,null,null,null],fromDb:false});
+  saveLocalWorkbenchState();
   render();
 }
-function removeParty(partyId){if(!confirm('이 파티를 현재 작업안에서 제거합니다. 적용 시 DB에서도 제거됩니다.'))return;state.partyDrafts=state.partyDrafts.filter(p=>p.id!==partyId);render();}
+function removeParty(partyId){if(!confirm('이 파티를 현재 작업안에서 제거합니다. 적용 시 DB에서도 제거됩니다.'))return;state.partyDrafts=state.partyDrafts.filter(p=>p.id!==partyId);state.collapsedParties.delete(partyId);saveLocalWorkbenchState();render();}
 function hidePreset(presetId){state.hiddenPresets.add(presetId);saveLocalWorkbenchState();render();}
 function clearHiddenPresets(){state.hiddenPresets=new Set();saveLocalWorkbenchState();render();}
 
@@ -793,6 +942,20 @@ function candidateItemsForChar(ch){
     out.push({charId:ch.id,presetId:c.presetId,group,preset:raidById(c.presetId),candidate:c});
   }
   return out;
+}
+function normalizeRaidText(v){return String(v||'').trim().replace(/\s+/g,' ').toLowerCase();}
+function isSamePresetTask(task,preset){
+  if(!task||!preset)return false;
+  if(task.preset_id===preset.id)return true;
+  if(task.preset_id)return false;
+  const taskName=normalizeRaidText(task.name);
+  const presetName=normalizeRaidText(preset.name);
+  const presetDiff=normalizeRaidText(preset.difficulty);
+  const taskDiff=normalizeRaidText(task.difficulty);
+  const combined=normalizeRaidText(`${preset.name||''} ${preset.difficulty||''}`);
+  if(taskName===combined)return true;
+  if(taskName!==presetName)return false;
+  return !presetDiff||!taskDiff||taskDiff===presetDiff;
 }
 function buildValidationReport(){
   const errors=[],warnings=[],solo=[];
@@ -883,15 +1046,6 @@ function saveCandidateEdit(){
   toast('후보 설정을 저장했습니다');
 }
 
-function draftPayload(){
-  return{
-    version:1,
-    savedAt:new Date().toISOString(),
-    candidateMap:state.candidateMap,
-    hiddenPresets:[...state.hiddenPresets],
-    parties:state.partyDrafts.map(p=>({...p}))
-  };
-}
 async function uploadDraft(){
   const payload=draftPayload();
   try{
@@ -902,6 +1056,9 @@ async function uploadDraft(){
       const {data,error}=await sb.from('party_generation_drafts').insert({name:'기본 파티 생성안',data:payload}).select().single();
       if(error)throw error;state.draftId=data.id;
     }
+    state.workbenchSavedSeq=state.workbenchChangeSeq;
+    state.workbenchDirty=false;
+    state.workbenchDbAvailable=true;
     toast('저장안을 업로드했습니다');
     renderStatus();
   }catch(err){console.error(err);toast('업로드 실패: party_generation_drafts SQL 적용이 필요할 수 있습니다');}
@@ -914,9 +1071,7 @@ async function loadLatestDraft(){
   applyDraftPayload(row.data||{});state.draftId=row.id;toast('저장안을 불러왔습니다');render();
 }
 function applyDraftPayload(data){
-  state.candidateMap=data.candidateMap||state.candidateMap;
-  state.hiddenPresets=new Set(data.hiddenPresets||[]);
-  state.partyDrafts=(data.parties||[]).map(p=>({...p,slots:Array.from({length:Number(p.party_size)||4},(_,i)=>p.slots?.[i]||null)}));
+  applyWorkbenchPayload(data);
   buildDefaultCandidates();
   saveLocalWorkbenchState();
 }
@@ -1096,41 +1251,58 @@ async function applyDraft(){
 }
 
 async function ensureRaidTasks(){
-  const existingByKey=new Map();
-  state.raidTasks.filter(t=>t.preset_id&&t.character_id).forEach(t=>{
-    const key=`${t.character_id}:${t.preset_id}`;
-    if(!existingByKey.has(key))existingByKey.set(key,[]);
-    existingByKey.get(key).push(t);
-  });
   const toEnsure=[];
-  for(const ch of state.chars){
-    for(const item of candidateItemsForChar(ch))toEnsure.push({charId:ch.id,presetId:item.presetId});
-  }
   for(const p of activePartyDrafts()){
     for(const cid of p.slots.filter(Boolean))toEnsure.push({charId:cid,presetId:p.preset_id});
   }
-  const rows=[];
+  for(const ch of state.chars){
+    for(const item of candidateItemsForChar(ch))toEnsure.push({charId:ch.id,presetId:item.presetId});
+  }
   const seen=new Set();
+  const uniq=[];
   for(const item of toEnsure){
     const key=`${item.charId}:${item.presetId}`;
     if(seen.has(key))continue;
     const preset=raidById(item.presetId);if(!preset)continue;
     seen.add(key);
-    if(existingByKey.has(key))continue;
-    rows.push({...raidTaskPayloadForPreset(preset),character_id:item.charId,preset_id:item.presetId,receive_gold:true,receive_bound:true,receive_bonus:true});
+    uniq.push(item);
   }
+  if(!uniq.length)return;
+  const charIds=[...new Set(uniq.map(x=>x.charId).filter(Boolean))];
+  const {data:freshTasks,error:loadError}=await sb.from('raid_tasks').select('*').in('character_id',charIds);
+  if(loadError)throw loadError;
+  const tasks=freshTasks||[];
+  const existingByKey=new Map();
+  tasks.filter(t=>t.preset_id&&t.character_id).forEach(t=>{
+    const key=`${t.character_id}:${t.preset_id}`;
+    if(!existingByKey.has(key))existingByKey.set(key,t);
+  });
   const updateJobs=[];
-  const updatedIds=new Set();
-  for(const t of state.raidTasks){
-    const preset=raidById(t.preset_id);if(!preset||updatedIds.has(t.id))continue;
-    updatedIds.add(t.id);
-    updateJobs.push(sb.from('raid_tasks').update(raidTaskPayloadForPreset(preset)).eq('id',t.id));
+  const insertRows=[];
+  const claimedTaskIds=new Set();
+  for(const item of uniq){
+    const preset=raidById(item.presetId);if(!preset)continue;
+    const payload=raidTaskPayloadForPreset(preset);
+    const key=`${item.charId}:${item.presetId}`;
+    const exact=existingByKey.get(key);
+    if(exact){
+      claimedTaskIds.add(exact.id);
+      updateJobs.push(sb.from('raid_tasks').update(payload).eq('id',exact.id));
+      continue;
+    }
+    const linkedByName=tasks.find(t=>t.character_id===item.charId&&!claimedTaskIds.has(t.id)&&isSamePresetTask(t,preset));
+    if(linkedByName){
+      claimedTaskIds.add(linkedByName.id);
+      updateJobs.push(sb.from('raid_tasks').update({...payload,preset_id:preset.id}).eq('id',linkedByName.id));
+      continue;
+    }
+    insertRows.push({...payload,character_id:item.charId,preset_id:preset.id,receive_gold:true,receive_bound:true,receive_bonus:true});
   }
   if(updateJobs.length){
     const res=await Promise.all(updateJobs);
-    const err=res.find(x=>x.error)?.error;if(err)console.warn('raid_tasks order update failed:',err.message);
+    const err=res.find(x=>x.error)?.error;if(err)throw err;
   }
-  if(rows.length){const {error}=await sb.from('raid_tasks').insert(rows);if(error)console.warn('raid_tasks ensure failed:',error.message);}
+  if(insertRows.length){const {error}=await sb.from('raid_tasks').insert(insertRows);if(error)throw error;}
 }
 function raidTaskPayloadForPreset(preset){
   return{
