@@ -2891,3 +2891,18 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 6개 HTML의 CSS var 정의 누락 없음 확인.
 - `git diff --check` 통과. CRLF 변환 경고만 확인.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-06-25 - 일회용 숙제 상단 탭 이동 및 파티 생성 버튼 위치 조정
+
+### 변경 내용
+- `index.html`의 최상단 모드 탭에 `일회용 숙제` 탭을 추가했습니다.
+- 기존 캐릭터 숙제, 주간/월간 숙제, 계정 숙제 카드 우측에 붙어 있던 일회용 숙제 패널을 제거했습니다.
+- `일회용 숙제` 탭에서는 선택 계정 기준으로 캐릭터별 일회용 숙제와 계정별 일회용 숙제를 한 화면에서 추가/완료/삭제할 수 있게 했습니다.
+- `party_generation.html`의 `배치 완료 숙제 숨기기` 버튼을 좌측 후보 탭 줄에서 제거하고, `계정 / 캐릭터 후보` 패널 헤더 우측으로 이동했습니다.
+- 배치 완료 숨김 상태에 따라 버튼 문구를 `배치 완료 숙제 숨기기` / `배치 완료 숙제 표시`로 바꾸도록 했습니다.
+
+### 검증
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 변환 경고만 확인.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.

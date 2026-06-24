@@ -135,7 +135,6 @@ body.manage-active .mode-done{display:inline-flex}
 .card-body::-webkit-scrollbar{width:8px}
 .card-body::-webkit-scrollbar-thumb{background:rgba(174,182,194,.34);border-radius:999px;border:2px solid transparent;background-clip:padding-box}
 .card-body::-webkit-scrollbar-track{background:transparent}
-.card-body.with-onetime{grid-template-columns:minmax(0,1fr) minmax(128px,.42fr);align-items:start}
 .card-main{display:grid;gap:10px;min-width:0}
 .card-section,.currency-block,.collapse-block{border:1px solid rgba(197,207,220,.13);background:linear-gradient(180deg,rgba(27,32,39,.82),rgba(23,27,34,.82));border-radius:8px;padding:10px}
 .section-label{display:flex;align-items:center;justify-content:space-between;margin:0 0 8px;color:#b7d8fb;font-size:.86rem;font-weight:950;letter-spacing:.01em}
@@ -187,8 +186,15 @@ body.manage-active .mode-done{display:inline-flex}
 .rest-box.rest-ready .rest-group::before{background:linear-gradient(90deg,#38bdf8,#818cf8)}
 .rest-hit{position:absolute;top:0;bottom:0;border:0;background:transparent;padding:0}
 .rest-hit:hover{background:rgba(255,255,255,.16)}
-.one-time-block{border:1px solid rgba(125,211,252,.22);background:linear-gradient(180deg,rgba(16,26,35,.94),rgba(15,21,29,.94));border-radius:8px;padding:9px;position:sticky;top:0;box-shadow:inset 2px 0 0 rgba(34,211,238,.25)}
+.one-time-page{display:grid;gap:16px}
+.one-time-section{display:grid;gap:10px}
+.one-time-section-title{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#dbeafe;font-size:.9rem;font-weight:950}
+.one-time-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.one-time-block{border:1px solid rgba(125,211,252,.22);background:linear-gradient(180deg,rgba(16,26,35,.94),rgba(15,21,29,.94));border-radius:8px;padding:12px;box-shadow:inset 2px 0 0 rgba(34,211,238,.25)}
 .one-time-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;color:#c9efff;font-size:.78rem;font-weight:950}
+.one-time-title{min-width:0;display:grid;gap:2px}
+.one-time-owner{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#eef8ff;font-size:.86rem}
+.one-time-sub{color:var(--muted);font-size:.68rem;font-weight:820}
 .one-time-count{color:#9fb3c8;font-size:.68rem;font-weight:900}
 .one-time-input-row{display:flex;gap:5px;margin-bottom:8px}
 .one-time-input{min-width:0;width:100%;height:30px;border:1px solid rgba(159,180,205,.2);border-radius:7px;background:#0b1119;color:var(--text);padding:0 8px;font-size:.74rem;font-weight:800;outline:none}
@@ -312,8 +318,7 @@ body.manage-active .mode-done{display:inline-flex}
   .create-grid{grid-template-columns:1fr}
   .form-grid.compact{grid-template-columns:1fr 1fr}
   .grid,.account-grid{grid-template-columns:1fr}
-  .card-body.with-onetime{grid-template-columns:1fr}
-  .one-time-block{position:static}
+  .one-time-grid{grid-template-columns:1fr}
   .tool-row{align-items:flex-start;flex-direction:column}
 }
 </style>
@@ -346,6 +351,7 @@ body.manage-active .mode-done{display:inline-flex}
       <button class="mode-tab active" data-mode="daily" onclick="setMode('daily')">캐릭터 숙제</button>
       <button class="mode-tab" data-mode="weekly" onclick="setMode('weekly')">주간/월간 숙제</button>
       <button class="mode-tab" data-mode="account" onclick="setMode('account')">계정 숙제</button>
+      <button class="mode-tab" data-mode="onetime" onclick="setMode('onetime')">일회용 숙제</button>
       <span class="tiny" id="clock"></span>
       <span class="test-badge" id="test-badge">TEST MODE</span>
     </div>
@@ -1578,7 +1584,8 @@ function render(){
   if(!state.accounts.length){content.innerHTML='<div class="empty">계정이 없습니다. 기존 index.html에서 계정을 먼저 추가하세요.</div>';state.lastRenderedMode=state.mode;return;}
   if(state.mode==='daily')renderDaily(content);
   else if(state.mode==='weekly')renderWeekly(content);
-  else renderAccountTasks(content);
+  else if(state.mode==='account')renderAccountTasks(content);
+  else renderOneTime(content);
   restoreViewScroll(state.mode);
   state.lastRenderedMode=state.mode;
 }
@@ -1603,7 +1610,7 @@ function renderAccountTabs(){
     return`<span class="account-chip"><button class="pill ${a.id===state.selectedAccount?'active':''} ${complete?'complete':''} ${isAccountHidden(a.id)?'hidden-account':''}" draggable="true" ondragstart="dragStart(event,'accounts','${a.id}','')" ondragover="allowDrop(event)" ondrop="dropOn(event,'accounts','${a.id}','')" onclick="selectAccount('${a.id}')">${esc(a.name)}${complete?'<span title="활성 숙제 완료"> ✓</span>':''}${a.parent_account_id?'<span class="sub-account-mark" title="부계정">↳</span>':''}</button></span>`;
   }).join('');
   const allSelected=state.selectedAccount===ALL_ACCOUNTS_ID;
-  const allTools=allSelected?`<span class="all-account-tools">완료 캐릭 숨김 <button class="switch ${state.hideCompleteCharsAll?'on':''}" onclick="toggleHideCompleteCharsAll()" title="전체 보기에서 완료 캐릭터 숨김"></button></span>`:'';
+  const allTools=allSelected&&(state.mode==='daily'||state.mode==='weekly')?`<span class="all-account-tools">완료 캐릭 숨김 <button class="switch ${state.hideCompleteCharsAll?'on':''}" onclick="toggleHideCompleteCharsAll()" title="전체 보기에서 완료 캐릭터 숨김"></button></span>`:'';
   el.innerHTML=`${accountHtml}<span class="account-chip"><button class="pill ${allSelected?'active':''}" onclick="selectAccount('${ALL_ACCOUNTS_ID}')">전체</button>${allTools}</span>`;
 }
 function renderCharTabs(){
@@ -1625,6 +1632,23 @@ function renderAccountTasks(content){
   document.getElementById('mode-help').textContent='원정대 숙제를 계정별로 모아 봅니다.';
   const accounts=visibleAccounts();
   content.innerHTML=`<div class="account-grid">${accounts.map(renderAccountCard).join('')||'<div class="empty">계정이 없습니다</div>'}</div>`;
+}
+function renderOneTime(content){
+  document.getElementById('mode-help').textContent='캐릭터별/계정별 일회용 체크리스트를 한 곳에서 관리합니다. 완료하면 숨겨지고 다음 일일 초기화 이후 삭제됩니다.';
+  const chars=visibleChars();
+  const accounts=state.selectedAccount===ALL_ACCOUNTS_ID?visibleAccounts():visibleAccounts().filter(a=>a.id===state.selectedAccount);
+  const charCards=chars.map(ch=>renderOneTimeOwnerBlock('character',ch.id,ch.name,[ch.class_name,ch.item_level?`Lv.${Number(ch.item_level).toLocaleString()}`:''].filter(Boolean).join(' · '))).join('');
+  const accountCards=accounts.map(acc=>renderOneTimeOwnerBlock('account',acc.id,acc.name,'계정 일회용 숙제')).join('');
+  content.innerHTML=`<div class="one-time-page">
+    <section class="one-time-section">
+      <div class="one-time-section-title"><span>캐릭터 일회용 숙제</span><span class="tag">${chars.length}</span></div>
+      <div class="one-time-grid">${charCards||'<div class="empty">표시할 캐릭터가 없습니다</div>'}</div>
+    </section>
+    <section class="one-time-section">
+      <div class="one-time-section-title"><span>계정 일회용 숙제</span><span class="tag">${accounts.length}</span></div>
+      <div class="one-time-grid">${accountCards||'<div class="empty">표시할 계정이 없습니다</div>'}</div>
+    </section>
+  </div>`;
 }
 
 function charHeader(ch,tasks,hot=false,complete=false){
@@ -1657,18 +1681,18 @@ function oneTimeBucket(ownerType,ownerId){
   const map=state.oneTimeTasks?.[ownerType]||{};
   return map[ownerId]||[];
 }
-function renderOneTimeBlock(ownerType,ownerId){
+function renderOneTimeOwnerBlock(ownerType,ownerId,title='일회용 숙제',subtitle=''){
   const list=oneTimeBucket(ownerType,ownerId);
   const safeType=ownerType==='account'?'account':'character';
   const inputId=`one-time-input-${safeType}-${ownerId}`;
   if(!state.oneTimeAvailable){
     return`<aside class="one-time-block">
-      <div class="one-time-head"><span>일회용 숙제</span><span class="one-time-count">SQL 필요</span></div>
+      <div class="one-time-head"><span class="one-time-title"><span class="one-time-owner">${esc(title)}</span>${subtitle?`<span class="one-time-sub">${esc(subtitle)}</span>`:''}</span><span class="one-time-count">SQL 필요</span></div>
       <div class="one-time-missing">Supabase SQL Editor에 <b>one_time_tasks</b> 테이블을 먼저 적용해야 합니다.</div>
     </aside>`;
   }
   return`<aside class="one-time-block">
-    <div class="one-time-head"><span>일회용 숙제</span><span class="one-time-count">${list.length}</span></div>
+    <div class="one-time-head"><span class="one-time-title"><span class="one-time-owner">${esc(title)}</span>${subtitle?`<span class="one-time-sub">${esc(subtitle)}</span>`:''}</span><span class="one-time-count">${list.length}</span></div>
     <div class="one-time-input-row">
       <input id="${inputId}" class="one-time-input" type="text" maxlength="80" placeholder="체크리스트 추가" onkeydown="if(event.key==='Enter')addOneTimeTask('${safeType}','${ownerId}')">
       <button class="btn icon" title="일회용 숙제 추가" onclick="addOneTimeTask('${safeType}','${ownerId}')">+</button>
@@ -1701,14 +1725,13 @@ function renderDailyCard(ch){
   const dragAttrs=state.selectedAccount===ALL_ACCOUNTS_ID?'':` draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')"`;
   return`<section class="char-card ${progress.hot?'hot':''} ${progress.complete?'done':''}" data-scroll-key="daily:${ch.id}"${heldCardStyle(`daily:${ch.id}`)}${dragAttrs}>
     ${charHeader(ch,activeRoots,progress.hot,progress.complete)}
-    <div class="card-body with-onetime">
+    <div class="card-body">
       <div class="card-main">
         <div class="card-section">
           <div class="section-label"><span>일일 숙제</span><span>${progress.done}/${progress.total}</span></div>
           ${renderTaskGroups(allTasks,false,ch.id,isDaily)}
         </div>
       </div>
-      ${renderOneTimeBlock('character',ch.id)}
     </div>
   </section>`;
 }
@@ -1736,7 +1759,7 @@ function renderWeeklyCard(ch){
   const dragAttrs=state.selectedAccount===ALL_ACCOUNTS_ID?'':` draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')"`;
   return`<section class="char-card ${progress.hot?'hot':''} ${progress.complete?'done':''}" data-scroll-key="weekly:${ch.id}"${heldCardStyle(`weekly:${ch.id}`)}${dragAttrs}>
     ${charHeader(ch,activeRoots,progress.hot,progress.complete)}
-    <div class="card-body with-onetime">
+    <div class="card-body">
       <div class="card-main">
         <div class="card-section">
           <div class="section-label"><span>주간/월간 숙제</span><span>${progress.done}/${progress.total}</span></div>
@@ -1758,7 +1781,6 @@ function renderWeeklyCard(ch){
           <div class="collapse-items">${notes.length?notes.map((n,i)=>noteRow(n,ch.id,i)).join(''):'<div class="empty">노트가 없습니다</div>'}</div>
         </div>`:''}
       </div>
-      ${renderOneTimeBlock('character',ch.id)}
     </div>
   </section>`;
 }
@@ -1767,9 +1789,8 @@ function renderAccountCard(acc){
   const tasks=applyTaskFilters(all.filter(t=>!t.parent_id));
   return`<section class="account-card" data-scroll-key="account:${acc.id}"${heldCardStyle(`account:${acc.id}`)} draggable="true" ondragstart="dragStart(event,'accounts','${acc.id}','')" ondragover="allowDrop(event)" ondrop="dropOn(event,'accounts','${acc.id}','')">
     <div class="account-head"><div><div class="account-title">${esc(acc.name)}</div>${isAccountHidden(acc.id)?'<div class="tiny">숨김 처리된 계정</div>':''}</div><div class="card-tools"><span class="tag ${tasks.length&&tasks.every(isDone)?'green':''}">${tasks.filter(isDone).length}/${tasks.length}</span><button class="btn icon" onclick="openCreateTask('account','${acc.id}','weekly')">+</button></div></div>
-    <div class="card-body with-onetime">
+    <div class="card-body">
       <div class="card-main">${renderTaskGroups(all,true,acc.id,()=>true)}</div>
-      ${renderOneTimeBlock('account',acc.id)}
     </div>
   </section>`;
 }

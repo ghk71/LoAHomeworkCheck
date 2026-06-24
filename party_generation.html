@@ -54,6 +54,7 @@ button{cursor:pointer}
 .btn.danger{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);color:#ff9a9a}
 .btn.ghost{background:rgba(255,255,255,.035);color:var(--muted)}
 .btn:disabled{opacity:.55;cursor:not-allowed}
+.btn.active{border-color:rgba(34,211,238,.48);background:rgba(34,211,238,.12);color:#c9f7ff}
 .btn.icon{width:27px;height:27px;padding:0;border-radius:50%}
 .btn.sm{padding:5px 8px;font-size:.74rem}
 .input,.select{background:#171c23;border:1px solid var(--line-2);color:var(--text);border-radius:7px;padding:8px 10px;outline:none}
@@ -81,6 +82,7 @@ button{cursor:pointer}
 .panel-head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(39,47,58,.72)}
 .panel-title{font-weight:1000;color:#dbeafe}
 .panel-sub{color:var(--muted);font-size:.74rem}
+.panel-head-actions{display:flex;align-items:center;gap:7px;flex-shrink:0}
 .panel-body{padding:12px;overflow:auto;display:block;flex:1 1 0;min-height:0;overscroll-behavior:contain}
 .account-block,.raid-block,.preset-block,.party-card{border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.025);overflow:hidden}
 .account-head,.raid-head,.preset-head,.party-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.025)}
@@ -258,6 +260,9 @@ button{cursor:pointer}
         <div>
           <div class="panel-title">계정 / 캐릭터 후보</div>
           <div class="panel-sub">체크된 후보만 표시됩니다. 배치되면 완료 스타일로 표시됩니다.</div>
+        </div>
+        <div class="panel-head-actions">
+          <button class="btn ghost sm" id="hide-assigned-btn" onclick="toggleHideAssignedCandidates()">배치 완료 숙제 숨기기</button>
         </div>
       </div>
       <div class="panel-body" id="left-panel"></div>
@@ -737,10 +742,11 @@ function filteredChars(){
 
 function renderLeft(){
   const el=document.getElementById('left-panel');
+  updateHideAssignedButton();
   const accounts=visibleAccounts();
   if(!accounts.length){el.innerHTML='<div class="empty">표시할 캐릭터가 없습니다</div>';return;}
   if(state.selectedLeftAccount!==ALL&&!accounts.some(a=>a.id===state.selectedLeftAccount))state.selectedLeftAccount=ALL;
-  const tabs=`<div class="left-tabs"><button class="raid-tab ${state.selectedLeftAccount===ALL?'active':''}" onclick="setLeftAccountTab('${ALL}')">전체</button>${accounts.map(a=>`<button class="raid-tab ${state.selectedLeftAccount===a.id?'active':''} ${isSubAccount(a)?'sub-account-tab':''}" onclick="setLeftAccountTab('${a.id}')">${esc(a.name)}</button>`).join('')}<button class="raid-tab ${state.hideAssignedCandidates?'active':''}" onclick="toggleHideAssignedCandidates()">배치 완료 숙제 숨기기</button></div>`;
+  const tabs=`<div class="left-tabs"><button class="raid-tab ${state.selectedLeftAccount===ALL?'active':''}" onclick="setLeftAccountTab('${ALL}')">전체</button>${accounts.map(a=>`<button class="raid-tab ${state.selectedLeftAccount===a.id?'active':''} ${isSubAccount(a)?'sub-account-tab':''}" onclick="setLeftAccountTab('${a.id}')">${esc(a.name)}</button>`).join('')}</div>`;
   const html=[];
   for(const acc of accounts){
     if(state.selectedLeftAccount!==ALL&&acc.id!==state.selectedLeftAccount)continue;
@@ -751,9 +757,16 @@ function renderLeft(){
   el.innerHTML=tabs+(html.join('')||'<div class="empty">표시할 캐릭터가 없습니다</div>');
 }
 function setLeftAccountTab(id){state.selectedLeftAccount=id;renderLeft();}
+function updateHideAssignedButton(){
+  const btn=document.getElementById('hide-assigned-btn');
+  if(!btn)return;
+  btn.classList.toggle('active',state.hideAssignedCandidates);
+  btn.textContent=state.hideAssignedCandidates?'배치 완료 숙제 표시':'배치 완료 숙제 숨기기';
+}
 function toggleHideAssignedCandidates(){
   state.hideAssignedCandidates=!state.hideAssignedCandidates;
   saveLocalWorkbenchState();
+  updateHideAssignedButton();
   renderLeft();
 }
 
