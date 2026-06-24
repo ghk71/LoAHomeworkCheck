@@ -2772,3 +2772,16 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 6개 HTML의 CSS var 정의 누락 없음 확인.
 - `git diff --check` 통과. CRLF 변환 경고만 확인.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-06-24 - party_generation 화면 전체 스크롤 복구
+
+### 변경 내용
+- `party_generation.html`에서 화면 전체 스크롤이 막히던 `html/body`, `.app`, `.main-layout`의 overflow/height 제약을 완화했습니다.
+- 좌/우 패널 내부 스크롤은 유지하되, 화면 자체도 필요한 경우 세로 스크롤될 수 있도록 조정했습니다.
+- 패널 높이는 `clamp()`로 제한해 너무 작거나 과하게 길어지지 않도록 정리했습니다.
+
+### 검증
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. `party_generation.html` CRLF 변환 경고만 확인.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
