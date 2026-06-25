@@ -2924,3 +2924,15 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 6개 HTML의 CSS var 정의 누락 없음 확인.
 - `git diff --check` 통과. CRLF 변환 경고만 확인.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-06-25 - party_generation 적용 시 raid_tasks short_name 오류 수정
+
+### 변경 내용
+- `party_generation.html`에서 적용 시 `raid_tasks`에 존재하지 않을 수 있는 `short_name` 컬럼을 PATCH payload에 포함하지 않도록 수정했습니다.
+- 난이도 줄임말은 기존처럼 `raid_presets.short_name` 기준으로만 관리하고, 캐릭터별 레이드 숙제 동기화는 `name`, `difficulty`, 골드, 입장 레벨, 정렬, `preset_id`만 사용하도록 정리했습니다.
+
+### 검증
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 변환 경고만 확인.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.

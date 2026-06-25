@@ -1319,7 +1319,7 @@ async function ensureRaidTasks(){
 }
 function raidTaskPayloadForPreset(preset){
   return{
-    name:raidLabel(preset),difficulty:preset.difficulty||'',short_name:preset.short_name||null,
+    name:raidLabel(preset),difficulty:preset.difficulty||'',
     entry_level:Number(preset.entry_level)||0,clear_gold:Number(preset.clear_gold)||0,bound_gold:Number(preset.bound_gold)||0,
     bonus_gold:Number(preset.bonus_gold)||0,reset_day:3,sort_order:presetSortOrder(preset.id)
   };
