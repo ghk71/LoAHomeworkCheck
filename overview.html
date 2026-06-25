@@ -411,6 +411,20 @@ body { overflow:hidden; }
 .gold-mini.bonus b { color:#c4b5fd; }
 .gold-mini-bar { width:100%; min-width:110px; height:4px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,.08); }
 .gold-mini-fill { display:block; height:100%; border-radius:4px; transition:width .3s; }
+.overview-toolbar{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin:-4px 0 14px;
+  padding:10px 12px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:8px;
+  background:var(--surface-2);
+}
+.overview-toolbar-label{font-size:.72rem;color:var(--text-3);font-weight:800;margin-right:auto;}
+.overview-toggle.on{border-color:rgba(16,185,129,.44);color:#bbf7d0;background:rgba(16,185,129,.12);}
+.overview-status-select{min-width:132px;padding:7px 10px;font-size:.76rem;}
 
 /* Account sections */
 .acc-section { margin-bottom:20px; }
@@ -478,12 +492,12 @@ body { overflow:hidden; }
 .rt-row:last-child { border-bottom:none; }
 .rt-row:hover { background:rgba(255,255,255,.04); }
 .rt-row.done {
-  background:linear-gradient(90deg,rgba(16,185,129,.20),rgba(16,185,129,.075));
-  border-color:rgba(16,185,129,.34);
-  box-shadow:inset 3px 0 0 rgba(16,185,129,.78);
+  background:linear-gradient(90deg,rgba(16,185,129,.30),rgba(16,185,129,.12));
+  border-color:rgba(16,185,129,.56);
+  box-shadow:inset 4px 0 0 rgba(16,185,129,.95),0 0 0 1px rgba(16,185,129,.16);
 }
-.rt-row.done:hover { background:linear-gradient(90deg,rgba(16,185,129,.25),rgba(16,185,129,.10)); }
-.rt-row.done .rt-name { color:#d1fae5; font-weight:850; }
+.rt-row.done:hover { background:linear-gradient(90deg,rgba(16,185,129,.36),rgba(16,185,129,.15)); }
+.rt-row.done .rt-name { color:#d1fae5; font-weight:900; text-decoration:line-through; text-decoration-thickness:2px; text-decoration-color:rgba(187,247,208,.52); }
 .rt-row.done .rt-info { opacity:.92; }
 .rt-row.done .ov-status-chip { opacity:.78; }
 .rt-check {
@@ -694,9 +708,9 @@ body::before{background:none;}
   <a href="index.html" class="pnav-item">⚔️ 숙제</a>
   <a href="raid.html" class="pnav-item">🏰 레이드</a>
   <a href="overview.html" class="pnav-item active">📊 레이드 현황</a>
-  <a href="parties.html" class="pnav-item">👥 파티 현황</a>
   <a href="party_generation.html" class="pnav-item">🧩 파티 생성</a>
-  <a href="core.html" class="pnav-item">🔮 코어현황</a>
+  <a href="parties.html" class="pnav-item">👥 파티 현황</a>
+  <a href="core.html" class="pnav-item">🔮 코어 현황</a>
 </nav>
 <div class="header">
   <span>📊</span>
@@ -725,6 +739,17 @@ body::before{background:none;}
       </div>
       <div class="cfb-body" id="cfb-body"></div>
     </div>
+    <div class="overview-toolbar">
+      <span class="overview-toolbar-label">보기 옵션</span>
+      <button class="btn btn-sec btn-sm overview-toggle" id="ov-incomplete-toggle" onclick="toggleIncompleteOnly()">미완료 중심</button>
+      <select class="form-select overview-status-select" id="ov-temp-filter" onchange="setTempStatusFilter(this.value)">
+        <option value="all">전체 상태</option>
+        <option value="normal">일반</option>
+        <option value="temp">임시</option>
+        <option value="removed">임시해제</option>
+        <option value="unlinked">파티 없음</option>
+      </select>
+    </div>
     <div id="summary-bar" class="summary-bar"></div>
     <div id="account-sections"></div>
   </div>
@@ -739,6 +764,8 @@ let weekOffset=0;
 let collapsedAccs=new Set(safeJson('la_ov_collapsed',[]));
 let selectedChars=new Set(); // selected character ids for filter
 let filterOpen=localStorage.getItem('la_ov_filter_open')==='1';
+let incompleteOnly=localStorage.getItem('la_ov_incomplete_only')==='1';
+let tempStatusFilter=localStorage.getItem('la_ov_temp_filter')||'all';
 
 const DAYS=['일','월','화','수','목','금','토'];
 function charsWithRaidTasks(){
@@ -948,11 +975,47 @@ function toggleChar(id){if(selectedChars.has(id))selectedChars.delete(id);else s
 function selectAllChars(){const ci=charsWithRaidTasks();selectedChars=new Set(ci.map(c=>c.id));saveFilter();renderFilterBar();render();}
 function deselectAllChars(){selectedChars.clear();saveFilter();renderFilterBar();render();}
 
+function raidTaskTempStatus(t){
+  if(tempRemovedRaidTaskIds.has(t.id))return'removed';
+  if(tempRaidTaskIds.has(t.id))return'temp';
+  if(!t.has_party_link)return'unlinked';
+  return'normal';
+}
+function passesOverviewFilters(t){
+  if(incompleteOnly&&isEffDone(t))return false;
+  if(tempStatusFilter==='all')return true;
+  return raidTaskTempStatus(t)===tempStatusFilter;
+}
+function getDisplayRaidTasksForChar(charId){
+  return getRaidTasksForChar(charId).filter(passesOverviewFilters);
+}
+function applyOverviewToolbar(){
+  const btn=document.getElementById('ov-incomplete-toggle');
+  if(btn){
+    btn.classList.toggle('on',incompleteOnly);
+    btn.textContent=incompleteOnly?'미완료 중심 ON':'미완료 중심';
+  }
+  const sel=document.getElementById('ov-temp-filter');
+  if(sel)sel.value=tempStatusFilter;
+}
+function toggleIncompleteOnly(){
+  incompleteOnly=!incompleteOnly;
+  localStorage.setItem('la_ov_incomplete_only',incompleteOnly?'1':'0');
+  applyOverviewToolbar();
+  render();
+}
+function setTempStatusFilter(v){
+  tempStatusFilter=v||'all';
+  localStorage.setItem('la_ov_temp_filter',tempStatusFilter);
+  applyOverviewToolbar();
+  render();
+}
+
 // ─── Render ───
 function goldBreakdownFor(charsOrIds){
   const ids=charsOrIds.map(x=>typeof x==='string'?x:x.id);
   const out={flow:0,bound:0,bonus:0,earnedFlow:0,earnedBound:0,earnedBonus:0};
-  ids.forEach(cid=>getRaidTasksForChar(cid).forEach(t=>{
+  ids.forEach(cid=>getDisplayRaidTasksForChar(cid).forEach(t=>{
     const flow=Math.max(0,(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0));
     const bound=Number(t.bound_gold)||0;
     const bonus=Number(t.bonus_gold)||0;
@@ -970,10 +1033,11 @@ function goldMiniHTML(label,earned,total,cls){
   return`<span class="gold-mini ${cls}">${label} <b>${earned.toLocaleString()} / ${total.toLocaleString()}G</b><span class="gold-mini-bar"><span class="gold-mini-fill" style="width:${pct}%;background:${color};"></span></span></span>`;
 }
 function render(){
+  applyOverviewToolbar();
   // Summary - only selected chars
   let totalRaids=0,doneRaids=0;
   [...selectedChars].forEach(cid=>{
-    getRaidTasksForChar(cid).forEach(t=>{
+    getDisplayRaidTasksForChar(cid).forEach(t=>{
       totalRaids++;
       if(isEffDone(t))doneRaids++;
     });
@@ -991,11 +1055,11 @@ function render(){
   const mainAccounts=visibleAccs.filter(a=>!a.parent_account_id);
   function accCharCards(acc){
     const allCharsOfAcc=filterVisibleChars(characters).filter(c=>c.account_id===acc.id);
-    return allCharsOfAcc.filter(c=>getRaidTasksForChar(c.id).length&&selectedChars.has(c.id));
+    return allCharsOfAcc.filter(c=>getDisplayRaidTasksForChar(c.id).length&&selectedChars.has(c.id));
   }
   function accStats(chars){
-    const total=chars.reduce((s,c)=>s+getRaidTasksForChar(c.id).length,0);
-    const done=chars.reduce((s,c)=>s+getRaidTasksForChar(c.id).filter(isEffDone).length,0);
+    const total=chars.reduce((s,c)=>s+getDisplayRaidTasksForChar(c.id).length,0);
+    const done=chars.reduce((s,c)=>s+getDisplayRaidTasksForChar(c.id).filter(isEffDone).length,0);
     return{total,done,...goldBreakdownFor(chars)};
   }
   function renderAccHeader(acc,chars,subLabel){
@@ -1033,7 +1097,7 @@ function render(){
 }
 
 function charCardHTML(c){
-  const tasks=getRaidTasksForChar(c.id).slice().sort((a,b)=>a.sort_order-b.sort_order);
+  const tasks=getDisplayRaidTasksForChar(c.id).slice().sort((a,b)=>a.sort_order-b.sort_order);
   if(!tasks.length)return'';
   const done=tasks.filter(t=>isEffDone(t)).length,tot=tasks.length;
   const allDone=done===tot;
@@ -1175,7 +1239,7 @@ async function toggleRaidTask(taskId){
 
 function renderSummary(){
   let totalRaids=0,doneRaids=0;
-  [...selectedChars].forEach(cid=>{getRaidTasksForChar(cid).forEach(t=>{totalRaids++;if(isEffDone(t))doneRaids++;});});
+  [...selectedChars].forEach(cid=>{getDisplayRaidTasksForChar(cid).forEach(t=>{totalRaids++;if(isEffDone(t))doneRaids++;});});
   const gsum=goldBreakdownFor([...selectedChars]);
   const pct=totalRaids?Math.round(doneRaids/totalRaids*100):0;
   const sb2=document.getElementById('summary-bar');

@@ -2906,3 +2906,21 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 6개 HTML의 CSS var 정의 누락 없음 확인.
 - `git diff --check` 통과. CRLF 변환 경고만 확인.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-06-25 - 전체 기능 보강 아이디어 반영
+
+### 변경 내용
+- `index.html` 숙제 탭에 오늘/이번주 요약바와 휴게 게이지 예측 요약을 추가했습니다.
+- `index.html` 상단 도구 영역에 `무결성 검사` 버튼을 추가하고, 고아 숙제/계정/캐릭터/파티연동 누락 등 주요 데이터 연결 문제를 모달에서 점검하도록 했습니다.
+- `core.html`에 캐릭터별 코어 메모 영역을 추가하고 `character_cores.cores.__memo`에 저장하도록 했습니다.
+- `raid.html`의 `디스코드 전송` 버튼을 즉시 발송이 아니라 Edge Function 기반 미리보기 후 전송 흐름으로 변경했습니다.
+- `supabase/functions/send-raid-discord`에 `previewOnly` 옵션을 추가해 실제 발송과 같은 파싱 로직으로 미리보기 내용을 반환하도록 했습니다.
+- `overview.html`에 `미완료 중심` 보기와 임시상태 필터를 추가하고, 완료 레이드 행의 하이라이트를 강화했습니다.
+- `parties.html`에 캐릭터 검색, 임시상태 필터, 파티 매트릭스 토글 뷰를 추가했습니다.
+- `index.html`, `raid.html`, `overview.html`, `party_generation.html`, `parties.html`, `core.html` 상단 네비게이션 순서를 `숙제 → 레이드 → 레이드 현황 → 파티 생성 → 파티 현황 → 코어 현황`으로 통일했습니다.
+
+### 검증
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 변환 경고만 확인.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.

@@ -184,13 +184,14 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
+  const body = await req.json().catch(() => ({}));
+  const previewOnly = body?.previewOnly === true;
   const webhookUrl = Deno.env.get("DISCORD_RAID_WEBHOOK_URL");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!webhookUrl) return json({ error: "DISCORD_RAID_WEBHOOK_URL Secret이 없습니다." }, 500);
+  if (!webhookUrl && !previewOnly) return json({ error: "DISCORD_RAID_WEBHOOK_URL Secret이 없습니다." }, 500);
   if (!supabaseUrl || !serviceRoleKey) return json({ error: "Supabase 기본 Secret이 없습니다." }, 500);
 
-  const body = await req.json().catch(() => ({}));
   const nowMs = parseNowMs(body.testNow);
   const off = Number.isFinite(Number(body.weekOffset)) ? Number(body.weekOffset) : 0;
   const wk = weekKey(off, nowMs);
@@ -346,6 +347,7 @@ Deno.serve(async (req) => {
   }
   while (scheduleLines[scheduleLines.length - 1] === "") scheduleLines.pop();
 
+  const sentLines = scheduleLines.filter((line) => line.startsWith("- ")).length;
   const content = [
     weekRangeLabel(off, nowMs),
     "",
@@ -355,6 +357,11 @@ Deno.serve(async (req) => {
     "",
     `일정 참조: ${FIXED_SHARE_URL}`,
   ].join("\n");
+
+  if (previewOnly) {
+    return json({ ok: true, preview: true, sentLines, content, weekStartDate: wk });
+  }
+  if (!webhookUrl) return json({ error: "DISCORD_RAID_WEBHOOK_URL Secret이 없습니다." }, 500);
 
   const discordRes = await fetch(waitWebhookUrl(webhookUrl), {
     method: "POST",
@@ -369,5 +376,5 @@ Deno.serve(async (req) => {
   const message = await discordRes.json().catch(() => null);
   const tracked = await trackDiscordMessage(sb, message, content, wk, nowMs);
 
-  return json({ ok: true, sentLines: scheduleLines.filter((line) => line.startsWith("- ")).length, content, tracked, weekStartDate: wk });
+  return json({ ok: true, sentLines, content, tracked, weekStartDate: wk });
 });

@@ -1107,6 +1107,21 @@ body::before{background:none;}
 .unplaced-slot-num{color:var(--text-3);font-size:.7rem;text-align:center;}
 .unplaced-member-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:850;color:var(--text);}
 .unplaced-member-class{color:var(--muted);font-size:.7rem;white-space:nowrap;}
+.discord-preview-box{
+  white-space:pre-wrap;
+  word-break:break-word;
+  min-height:220px;
+  max-height:55vh;
+  overflow:auto;
+  padding:12px;
+  border:1px solid var(--line-2);
+  border-radius:8px;
+  background:#0d131c;
+  color:var(--text);
+  font-size:.82rem;
+  line-height:1.55;
+}
+.discord-preview-meta{font-size:.74rem;color:var(--muted);margin-bottom:8px;}
 
 </style>
 </head>
@@ -1115,9 +1130,9 @@ body::before{background:none;}
   <a href="index.html" class="pnav-item" id="nav-homework">⚔️ 숙제</a>
   <a href="raid.html" class="pnav-item active" id="nav-raid">🏰 레이드</a>
   <a href="overview.html" class="pnav-item">📊 레이드 현황</a>
-  <a href="parties.html" class="pnav-item">👥 파티 현황</a>
   <a href="party_generation.html" class="pnav-item">🧩 파티 생성</a>
-  <a href="core.html" class="pnav-item" id="nav-core">🔮 코어현황</a>
+  <a href="parties.html" class="pnav-item">👥 파티 현황</a>
+  <a href="core.html" class="pnav-item" id="nav-core">🔮 코어 현황</a>
 </nav>
 <div id="viewer-banner">👁 공유 모드 — 선택 계정 레이드 현황은 완료 처리 가능
   <span id="viewer-tab-btns" style="margin-left:16px;display:inline-flex;gap:4px;">
@@ -1293,6 +1308,17 @@ body::before{background:none;}
   <div class="form-group"><label class="form-label">공유 링크 (클릭하여 복사)</label><div class="share-link-box" id="share-link-text" onclick="copyShareLink()"></div></div>
   <p style="font-size:.74rem;color:var(--muted);margin-top:6px;">⚠️ 링크에 DB 접근 키가 포함됩니다. 신뢰하는 사람에게만 공유하세요.</p>
   <div class="modal-footer"><button class="btn btn-teal" onclick="copyShareLink()">📋 링크 복사</button><button class="btn btn-sec" onclick="closeModal('modal-share')">닫기</button></div>
+</div></div>
+
+<!-- Discord preview modal -->
+<div class="overlay" id="modal-discord-preview"><div class="modal modal-wide">
+  <div class="modal-title">디스코드 전송 미리보기</div>
+  <div class="discord-preview-meta" id="discord-preview-meta">전송 전에 실제 발송될 문안을 확인합니다.</div>
+  <div class="discord-preview-box" id="discord-preview-content">미리보기 생성 중...</div>
+  <div class="modal-footer">
+    <button class="btn btn-sec" onclick="closeModal('modal-discord-preview')">취소</button>
+    <button class="btn btn-teal" id="discord-preview-send-btn" onclick="sendDiscordScheduleConfirmed()">전송</button>
+  </div>
 </div></div>
 
 <!-- Advance notice modal -->
@@ -3786,21 +3812,48 @@ async function sendDiscordSchedule(){
   if(isViewer)return;
   const wk=getWeekKey(weekOffset);
   if(await isRaidDiscordSentForWeek(wk,true)){setDiscordSendButton(true,false);toast('이미 이 주차의 레이드 일정 메시지를 보냈습니다');return;}
-  if(!confirm('현재 선택된 주차의 레이드 일정을 디스코드 채널로 전송하시겠습니까?'))return;
+  const meta=document.getElementById('discord-preview-meta');
+  const content=document.getElementById('discord-preview-content');
+  const sendBtn=document.getElementById('discord-preview-send-btn');
+  if(meta)meta.textContent='전송 전에 실제 발송될 문안을 확인합니다.';
+  if(content)content.textContent='미리보기 생성 중...';
+  if(sendBtn)sendBtn.disabled=true;
+  openModal('modal-discord-preview');
+  try{
+    const {data,error}=await sb.functions.invoke('send-raid-discord',{body:{weekOffset,testNow:isTestMode()?appNowIso():null,previewOnly:true}});
+    if(error)throw error;
+    if(data?.error)throw new Error(data.error);
+    if(content)content.textContent=data?.content||'미리보기 내용이 없습니다.';
+    if(meta)meta.textContent=`${data?.weekStartDate||wk} 주차 · ${Number.isFinite(Number(data?.sentLines))?`${data.sentLines}개 일정`:''}`;
+    if(sendBtn)sendBtn.disabled=false;
+  }catch(err){
+    console.error(err);
+    if(content)content.textContent='미리보기 생성 실패: '+(err?.message||err);
+    if(meta)meta.textContent='Edge Function 또는 Supabase 설정을 확인하세요.';
+  }
+}
+async function sendDiscordScheduleConfirmed(){
+  if(isViewer)return;
+  const wk=getWeekKey(weekOffset);
+  if(await isRaidDiscordSentForWeek(wk,true)){setDiscordSendButton(true,false);closeModal('modal-discord-preview');toast('이미 이 주차의 레이드 일정 메시지를 보냈습니다');return;}
   const btn=document.getElementById('discord-send-btn');
+  const sendBtn=document.getElementById('discord-preview-send-btn');
   const oldText=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='전송 중...';}
+  if(sendBtn){sendBtn.disabled=true;sendBtn.textContent='전송 중...';}
   try{
     const {data,error}=await sb.functions.invoke('send-raid-discord',{body:{weekOffset,testNow:isTestMode()?appNowIso():null}});
     if(error)throw error;
     if(data?.error)throw new Error(data.error);
     raidDiscordSentCache[wk]=true;
     setDiscordSendButton(true,false);
+    closeModal('modal-discord-preview');
     toast(`✅ 디스코드 전송 완료${Number.isFinite(Number(data?.sentLines))?` (${data.sentLines}줄)`:''}`);
   }catch(err){
     console.error(err);
     toast('❗ 디스코드 전송 실패: '+(err?.message||err));
   }finally{
+    if(sendBtn){sendBtn.disabled=false;sendBtn.textContent='전송';}
     if(btn&&!raidDiscordSentCache[wk]){btn.disabled=false;btn.textContent=oldText||'디스코드 전송';}
   }
 }

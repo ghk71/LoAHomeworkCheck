@@ -66,6 +66,13 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .mode-tabs{margin-bottom:9px}
 .mode-tab,.pill{border:1px solid var(--line);background:rgba(31,36,44,.78);color:var(--muted);border-radius:999px;padding:7px 12px;font-weight:850;font-size:.8rem}
 .mode-tab.active,.pill.active{background:linear-gradient(135deg,#e8fbff,#dcd6ff);color:#081018;border-color:transparent}
+.summary-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin:-2px 0 8px}
+.summary-card{border:1px solid rgba(197,207,220,.13);background:rgba(255,255,255,.035);border-radius:8px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:38px}
+.summary-card.hot{border-color:rgba(255,209,102,.34);background:rgba(255,209,102,.075)}
+.summary-card.good{border-color:rgba(40,229,154,.28);background:rgba(40,229,154,.07)}
+.summary-label{color:var(--muted);font-size:.72rem;font-weight:900}
+.summary-value{color:#edf6ff;font-size:.9rem;font-weight:1000}
+.summary-sub{color:var(--dim);font-size:.66rem;font-weight:820;margin-left:4px}
 .pill.complete{border-color:rgba(40,229,154,.5);color:#a8ffd0;background:rgba(40,229,154,.13)}
 .pill.complete.active{background:linear-gradient(135deg,#d6ffe9,#bff6ff);color:#07130d}
 .test-badge{display:none;align-items:center;height:26px;border:1px solid rgba(244,199,107,.42);background:rgba(244,199,107,.12);color:#ffe1a1;border-radius:999px;padding:0 9px;font-size:.72rem;font-weight:950}
@@ -208,6 +215,12 @@ body.manage-active .mode-done{display:inline-flex}
 .one-time-delete{min-width:22px;width:22px;height:22px;border-radius:7px;border:1px solid rgba(255,93,108,.24);background:rgba(255,93,108,.07);color:#ffb4bd;font-size:.85rem;font-weight:950;display:flex;align-items:center;justify-content:center}
 .one-time-delete:hover{border-color:rgba(255,93,108,.5);background:rgba(255,93,108,.14)}
 .one-time-missing{border:1px dashed rgba(255,209,102,.35);background:rgba(255,209,102,.07);border-radius:7px;padding:7px;color:#ffd985;font-size:.7rem;line-height:1.35}
+.integrity-list{display:grid;gap:8px}
+.integrity-row{border:1px solid rgba(197,207,220,.13);background:rgba(255,255,255,.035);border-radius:8px;padding:9px 10px;display:grid;gap:3px}
+.integrity-row.warn{border-color:rgba(255,209,102,.28);background:rgba(255,209,102,.07)}
+.integrity-row.err{border-color:rgba(255,93,108,.30);background:rgba(255,93,108,.075)}
+.integrity-title{font-weight:950;color:#edf6ff}
+.integrity-detail{color:var(--muted);font-size:.74rem;line-height:1.45}
 .currency-row{grid-template-columns:1fr auto}
 .currency-block.collapsed .currency-items,.collapse-block.collapsed .collapse-items{display:none}
 .section-toggle{height:24px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.035);color:var(--muted);font-size:.7rem;font-weight:860;padding:0 8px}
@@ -328,9 +341,9 @@ body.manage-active .mode-done{display:inline-flex}
   <a href="index.html" class="pnav-item active">⚔️ 숙제</a>
   <a href="raid.html" class="pnav-item">🏰 레이드</a>
   <a href="overview.html" class="pnav-item">📊 레이드 현황</a>
-  <a href="parties.html" class="pnav-item">👥 파티 현황</a>
   <a href="party_generation.html" class="pnav-item">🧩 파티 생성</a>
-  <a href="core.html" class="pnav-item">🔮 코어현황</a>
+  <a href="parties.html" class="pnav-item">👥 파티 현황</a>
+  <a href="core.html" class="pnav-item">🔮 코어 현황</a>
 </nav>
 
 <section class="setup" id="setup">
@@ -355,6 +368,7 @@ body.manage-active .mode-done{display:inline-flex}
       <span class="tiny" id="clock"></span>
       <span class="test-badge" id="test-badge">TEST MODE</span>
     </div>
+    <div class="summary-strip" id="summary-strip"></div>
     <div class="account-tabs" id="account-tabs"></div>
     <div class="filter-row" id="character-tabs"></div>
     <div class="tool-row">
@@ -387,6 +401,7 @@ body.manage-active .mode-done{display:inline-flex}
         <button class="btn green mode-done" id="mode-done-btn" onclick="finishActionMode()">모드 완료</button>
         <button class="btn gold daily-tool" onclick="openCharacterApiUpdateModal()">캐릭 업데이트</button>
         <button class="btn" id="homework-discord-btn" onclick="sendDiscordHomeworkSummary()">디스코드 전송</button>
+        <button class="btn" onclick="openIntegrityCheck()">무결성 검사</button>
         <button class="btn" onclick="toggleGlobalMemo()">메모</button>
         <button class="btn" onclick="reloadAll()">새로고침</button>
         <button class="btn" onclick="openSettings()" title="설정">⚙️</button>
@@ -1185,6 +1200,92 @@ async function showPartyLinkPopup(presetId,taskId,charId){
     el.innerHTML=html;
   }catch(err){console.error(err);el.innerHTML='<div class="empty">파티 정보를 불러오지 못했습니다.</div>';}
 }
+function ensureIntegrityModal(){
+  let modal=document.getElementById('modal-integrity');
+  if(modal)return modal;
+  modal=document.createElement('div');
+  modal.className='overlay';
+  modal.id='modal-integrity';
+  modal.innerHTML=`<div class="modal wide">
+    <div class="modal-head"><div><div class="modal-title">무결성 검사</div><div class="tiny">숙제, 레이드 프리셋, 파티 배치 간 연결 문제를 확인합니다.</div></div><button class="btn" onclick="closeModal('modal-integrity')">닫기</button></div>
+    <div class="modal-body"><div id="integrity-content" class="integrity-list"></div></div>
+    <div class="modal-foot"><button class="btn" onclick="openIntegrityCheck()">다시 검사</button><button class="btn primary" onclick="closeModal('modal-integrity')">확인</button></div>
+  </div>`;
+  document.body.appendChild(modal);
+  return modal;
+}
+function integrityRow(issue){
+  return`<div class="integrity-row ${issue.level==='error'?'err':'warn'}"><div class="integrity-title">${esc(issue.title)}</div><div class="integrity-detail">${esc(issue.detail)}</div></div>`;
+}
+async function collectIntegrityIssues(){
+  const issues=[];
+  const charIds=new Set(state.chars.map(c=>c.id));
+  const accIds=new Set(state.accounts.map(a=>a.id));
+  Object.entries(state.tasks).forEach(([cid,list])=>{
+    if(!charIds.has(cid)&&(list||[]).length)issues.push({level:'error',title:'고아 캐릭터 숙제',detail:`존재하지 않는 character_id ${cid}에 숙제 ${list.length}개가 연결되어 있습니다.`});
+  });
+  Object.entries(state.expTasks).forEach(([aid,list])=>{
+    if(!accIds.has(aid)&&(list||[]).length)issues.push({level:'error',title:'고아 계정 숙제',detail:`존재하지 않는 account_id ${aid}에 계정 숙제 ${list.length}개가 연결되어 있습니다.`});
+  });
+  const allRaidTasks=Object.values(state.raidTasks).flat();
+  allRaidTasks.filter(t=>!charIds.has(t.character_id)).forEach(t=>{
+    issues.push({level:'error',title:'고아 레이드 숙제',detail:`${t.name||t.id} 레이드 숙제의 캐릭터를 찾을 수 없습니다.`});
+  });
+  const presetIds=[...new Set(allRaidTasks.map(t=>t.preset_id).filter(Boolean))];
+  let presetMap=new Map();
+  if(presetIds.length){
+    const {data,error}=await sb.from('raid_presets').select('id,name,difficulty').in('id',presetIds);
+    if(error)issues.push({level:'error',title:'레이드 프리셋 조회 실패',detail:error.message});
+    else presetMap=new Map((data||[]).map(p=>[p.id,p]));
+  }
+  allRaidTasks.filter(t=>t.preset_id&&!presetMap.has(t.preset_id)).forEach(t=>{
+    issues.push({level:'error',title:'프리셋 누락 레이드 숙제',detail:`${t.name||t.id} 숙제가 없는 raid_presets(${t.preset_id})를 참조합니다.`});
+  });
+  allRaidTasks.filter(t=>!t.preset_id).forEach(t=>{
+    issues.push({level:'warn',title:'프리셋 미연결 레이드 숙제',detail:`${t.name||t.id} 숙제에 preset_id가 없어 파티 연동/정렬이 불안정할 수 있습니다.`});
+  });
+  const wk=getRaidWeekKey();
+  const {data:partyRows,error:partyErr}=await sb.from('raid_parties').select('id,preset_id,name,is_temporary,temp_week_start_date');
+  if(partyErr){issues.push({level:'error',title:'파티 조회 실패',detail:partyErr.message});return issues;}
+  const activeParties=(partyRows||[]).filter(p=>!p.is_temporary||p.temp_week_start_date===wk);
+  const partyIds=activeParties.map(p=>p.id);
+  const activePartyById=new Map(activeParties.map(p=>[p.id,p]));
+  activeParties.filter(p=>!p.preset_id).forEach(p=>issues.push({level:'error',title:'프리셋 없는 파티',detail:`${p.name||p.id} 파티에 preset_id가 없습니다.`}));
+  if(partyIds.length){
+    const {data:memberRows,error:memberErr}=await sb.from('raid_party_members').select('id,party_id,character_id,slot_index').in('party_id',partyIds);
+    if(memberErr)issues.push({level:'error',title:'파티 멤버 조회 실패',detail:memberErr.message});
+    else{
+      const raidTaskKey=new Set(allRaidTasks.filter(t=>t.character_id&&t.preset_id).map(t=>`${t.character_id}:${t.preset_id}`));
+      (memberRows||[]).forEach(m=>{
+        const party=activePartyById.get(m.party_id);
+        if(!party){issues.push({level:'error',title:'고아 파티 멤버',detail:`party_id ${m.party_id}를 찾을 수 없습니다.`});return;}
+        if(!charIds.has(m.character_id)){issues.push({level:'error',title:'없는 캐릭터가 파티에 배치됨',detail:`${party.name||party.id} ${Number(m.slot_index)+1}번 슬롯의 캐릭터를 찾을 수 없습니다.`});return;}
+        if(party.preset_id&&!raidTaskKey.has(`${m.character_id}:${party.preset_id}`)){
+          const ch=state.chars.find(c=>c.id===m.character_id);
+          const preset=presetMap.get(party.preset_id)||state.presets[party.preset_id];
+          issues.push({level:'error',title:'파티 배치와 레이드 숙제 불일치',detail:`${ch?.name||m.character_id} 캐릭터가 ${party.name||'파티'}에 있지만 ${preset?.name||party.preset_id} 레이드 숙제가 없습니다.`});
+        }
+      });
+    }
+  }
+  allRaidTasks.filter(t=>t.preset_id&&!t.has_party_link).forEach(t=>{
+    issues.push({level:'warn',title:'파티 미연동 레이드 숙제',detail:`${t.name||t.id} 숙제는 현재 주차 기준 배치된 파티가 없습니다.`});
+  });
+  return issues;
+}
+async function openIntegrityCheck(){
+  ensureIntegrityModal();
+  const el=document.getElementById('integrity-content');
+  el.innerHTML='<div class="empty">검사 중...</div>';
+  openModal('modal-integrity');
+  try{
+    const issues=await collectIntegrityIssues();
+    el.innerHTML=issues.length?issues.map(integrityRow).join(''):'<div class="empty">문제 없음. 데이터 연결 상태가 양호합니다.</div>';
+  }catch(err){
+    console.error(err);
+    el.innerHTML=`<div class="integrity-row err"><div class="integrity-title">검사 실패</div><div class="integrity-detail">${esc(err.message||err)}</div></div>`;
+  }
+}
 async function loadRaidMetaForCurrent(){
   const chars=visibleChars();
   const charIds=chars.map(c=>c.id);
@@ -1552,6 +1653,62 @@ function restInfo(t){
   const cellsPerUse=Math.max(1,consume?Math.round(consume/charge):1);
   return{max,cur,charge,consume,totalCells,cellsPerUse,threshold:Math.max(0,Number(t.rest_threshold)||0)};
 }
+function restPredictionText(t){
+  if(!t?.rest_enabled)return '';
+  const r=restInfo(t);
+  if(!r.threshold)return '항상 활성';
+  if(r.cur>=r.threshold)return '활성';
+  const cycles=Math.max(1,Math.ceil((r.threshold-r.cur)/Math.max(1,r.charge)));
+  return cycles===1?'다음 초기화 활성':`${cycles}회 충전 후 활성`;
+}
+function restPredictionSummary(chars){
+  const result={ready:0,next:0,later:0,total:0};
+  chars.forEach(ch=>(state.tasks[ch.id]||[]).forEach(t=>{
+    if(!t.rest_enabled||!isDaily(t))return;
+    const r=restInfo(t);
+    if(!r.threshold)return;
+    result.total++;
+    if(r.cur>=r.threshold)result.ready++;
+    else if(r.cur+r.charge>=r.threshold)result.next++;
+    else result.later++;
+  }));
+  return result;
+}
+function countListProgress(items,isDoneFn=isDone){
+  const total=items.length,done=items.filter(isDoneFn).length;
+  return{total,done,remain:Math.max(0,total-done)};
+}
+function selectedScopeAccounts(){
+  if(state.selectedAccount===ALL_ACCOUNTS_ID)return visibleAccounts();
+  const acc=state.accounts.find(a=>a.id===state.selectedAccount);
+  return acc?[acc]:[];
+}
+function selectedScopeChars(){
+  const accIds=new Set(selectedScopeAccounts().map(a=>a.id));
+  if(state.selectedAccount===ALL_ACCOUNTS_ID)return state.chars.filter(c=>accIds.has(c.account_id));
+  return state.chars.filter(c=>c.account_id===state.selectedAccount);
+}
+function summaryCard(label,value,sub='',cls=''){
+  return`<div class="summary-card ${cls}"><span class="summary-label">${esc(label)}</span><span><b class="summary-value">${esc(value)}</b>${sub?`<span class="summary-sub">${esc(sub)}</span>`:''}</span></div>`;
+}
+function renderSummaryStrip(){
+  const el=document.getElementById('summary-strip');if(!el)return;
+  const chars=selectedScopeChars();
+  const accs=selectedScopeAccounts();
+  const daily=countListProgress(chars.flatMap(ch=>activeTaskRoots(state.tasks[ch.id]||[],isDaily)));
+  const weekly=countListProgress(chars.flatMap(ch=>activeTaskRoots(state.tasks[ch.id]||[],isWeeklyMonthly)));
+  const raids=countListProgress(chars.flatMap(ch=>state.raidTasks[ch.id]||[]));
+  const exp=countListProgress(accs.flatMap(a=>activeTaskRoots(state.expTasks[a.id]||[],()=>true)));
+  const rest=restPredictionSummary(chars);
+  const cards=[
+    summaryCard('오늘 일일',`${daily.remain}개 남음`,`${daily.done}/${daily.total}`,daily.remain?'hot':'good'),
+    summaryCard('이번주 숙제',`${weekly.remain}개 남음`,`${weekly.done}/${weekly.total}`,weekly.remain?'hot':'good'),
+    summaryCard('레이드',`${raids.remain}개 남음`,`${raids.done}/${raids.total}`,raids.remain?'hot':'good'),
+    summaryCard('계정 숙제',`${exp.remain}개 남음`,`${exp.done}/${exp.total}`,exp.remain?'hot':'good'),
+    summaryCard('휴게 예측',`${rest.ready}개 활성`,rest.next?`다음 ${rest.next}개`:(rest.total?`${rest.later}개 대기`:'대상 없음'),rest.ready||rest.next?'hot':'')
+  ];
+  el.innerHTML=cards.join('');
+}
 
 function saveViewScroll(mode=state.mode){
   const cardScrolls={};
@@ -1577,6 +1734,7 @@ function render(){
   saveViewScroll(state.lastRenderedMode||state.mode);
   document.querySelectorAll('.mode-tab').forEach(b=>b.classList.toggle('active',b.dataset.mode===state.mode));
   applyActionMode();
+  renderSummaryStrip();
   if(document.getElementById('modal-account-settings')?.classList.contains('open'))renderAccountSettings();
   renderAccountTabs();
   renderCharTabs();
@@ -1827,7 +1985,8 @@ function restBox(t,isExp,ownerId){
     groups.push(`<div class="rest-group" style="--fill:${pct}%" title="${start} - ${end}" onclick="setRestFromGroup(event,'${t.id}',${isExp},'${ownerId}',${start},${end},${r.charge})"></div>`);
   }
   const ready=r.threshold>0&&r.cur>=r.threshold;
-  return`<div class="rest-box ${ready?'rest-ready':''}"><div class="rest-line"><span>${r.threshold>0?`강조 ${r.threshold} · `:''}충전 ${r.charge}</span><b>${r.cur}/${r.max}</b></div><div class="rest-segments">${groups.join('')}</div></div>`;
+  const prediction=restPredictionText(t);
+  return`<div class="rest-box ${ready?'rest-ready':''}"><div class="rest-line"><span>${r.threshold>0?`강조 ${r.threshold} · `:''}충전 ${r.charge}${prediction?` · ${prediction}`:''}</span><b>${r.cur}/${r.max}</b></div><div class="rest-segments">${groups.join('')}</div></div>`;
 }
 function setRestFromGroup(e,id,isExp,ownerId,start,end,charge){
   const rect=e.currentTarget.getBoundingClientRect();

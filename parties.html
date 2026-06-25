@@ -362,6 +362,30 @@ body { overflow:hidden; }
 .fb-char-btn { padding:4px 12px; border-radius:14px; border:1px solid rgba(255,255,255,.07); background:var(--surface-3); color:var(--text-3); cursor:pointer; font-size:.78rem; font-family:'Noto Sans KR',sans-serif; transition:all var(--t); }
 .fb-char-btn:hover { border-color:rgba(255,255,255,.15); color:var(--text); }
 .fb-char-btn.on { border-color:rgba(245,158,11,.45); color:var(--gold-text); background:rgba(245,158,11,.08); }
+.party-toolbar{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin:-4px 0 14px;
+  padding:10px 12px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:8px;
+  background:var(--surface-2);
+}
+.party-search{min-width:180px;max-width:260px;padding:7px 10px;font-size:.76rem;}
+.party-status-select{min-width:132px;padding:7px 10px;font-size:.76rem;}
+.party-view-toggle.on{border-color:rgba(20,184,166,.44);color:#99f6e4;background:rgba(20,184,166,.12);}
+.matrix-wrap{overflow:auto;border:1px solid rgba(255,255,255,.08);border-radius:8px;background:var(--surface-2);}
+.party-matrix{width:100%;min-width:760px;border-collapse:collapse;font-size:.78rem;}
+.party-matrix th,.party-matrix td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06);border-right:1px solid rgba(255,255,255,.05);vertical-align:top;}
+.party-matrix th{position:sticky;top:0;background:#111b31;color:var(--gold-text);z-index:1;text-align:left;}
+.party-matrix tr:last-child td{border-bottom:none;}
+.matrix-raid{min-width:220px;font-weight:850;color:var(--text);}
+.matrix-party{display:block;color:var(--text-3);font-size:.68rem;margin-top:2px;font-weight:650;}
+.matrix-char{display:inline-flex;align-items:center;gap:5px;margin:2px 4px 2px 0;padding:3px 7px;border:1px solid rgba(255,255,255,.08);border-radius:999px;background:rgba(255,255,255,.035);white-space:nowrap;}
+.matrix-char.temp{border-color:rgba(200,168,75,.38);color:var(--gold-text);background:rgba(200,168,75,.11);}
+.matrix-empty{color:var(--text-3);font-size:.72rem;}
 
 /* Character sections */
 .char-section { margin-bottom:22px; }
@@ -610,9 +634,9 @@ body::before{background:none;}
   <a href="index.html" class="pnav-item">⚔️ 숙제</a>
   <a href="raid.html" class="pnav-item">🏰 레이드</a>
   <a href="overview.html" class="pnav-item">📊 레이드 현황</a>
-  <a href="parties.html" class="pnav-item active">👥 파티 현황</a>
   <a href="party_generation.html" class="pnav-item">🧩 파티 생성</a>
-  <a href="core.html" class="pnav-item">🔮 코어현황</a>
+  <a href="parties.html" class="pnav-item active">👥 파티 현황</a>
+  <a href="core.html" class="pnav-item">🔮 코어 현황</a>
 </nav>
 <div class="header">
   <span>👥</span>
@@ -634,6 +658,17 @@ body::before{background:none;}
       </div>
       <div class="filter-bar-body" id="fb-body"></div>
     </div>
+    <div class="party-toolbar">
+      <input class="form-input party-search" id="party-char-search" placeholder="캐릭터 검색" oninput="setPartySearch(this.value)">
+      <select class="form-select party-status-select" id="party-temp-filter" onchange="setPartyTempFilter(this.value)">
+        <option value="all">전체 상태</option>
+        <option value="party">일반 파티</option>
+        <option value="temp">임시</option>
+        <option value="removed">임시해제</option>
+        <option value="none">파티 없음</option>
+      </select>
+      <button class="btn btn-sec btn-sm party-view-toggle" id="party-matrix-toggle" onclick="togglePartyMatrix()">파티 매트릭스</button>
+    </div>
     <div id="char-sections"></div>
   </div>
 </div>
@@ -647,6 +682,9 @@ let partyById=new Map(),raidById=new Map(),scheduleById=new Map(),membersByChar=
 let selectedChars=new Set();
 let filterOpen=localStorage.getItem('la_pt_filter_open')==='1';
 let partyOrderMode=localStorage.getItem('la_pt_order_mode')||'partyless_last';
+let partyTempFilter=localStorage.getItem('la_pt_temp_filter')||'all';
+let partySearch=localStorage.getItem('la_pt_search')||'';
+let partyMatrixMode=localStorage.getItem('la_pt_matrix')==='1';
 function appNowMs(){const t=Number(localStorage.getItem('la_test_now')||0);return Number.isFinite(t)&&t>0?t:Date.now();}
 function appNow(){return new Date(appNowMs());}
 function getWeekStart(){const now=appNow(),kst=new Date(now.getTime()+9*3600000);let b=(kst.getUTCDay()-3+7)%7;if(b===0&&kst.getUTCHours()<6)b=7;const ws=new Date(kst);ws.setUTCDate(ws.getUTCDate()-b);ws.setUTCHours(6,0,0,0);return ws;}
@@ -772,6 +810,100 @@ function toggleCharFilter(id){if(selectedChars.has(id))selectedChars.delete(id);
 function selectAll(){const ci=charsInPartyScope();selectedChars=new Set(ci.map(c=>c.id));saveFilter();renderFilter();render();}
 function deselectAll(){selectedChars.clear();saveFilter();renderFilter();render();}
 function togglePartyOrderMode(){partyOrderMode=partyOrderMode==='raid_order'?'partyless_last':'raid_order';localStorage.setItem('la_pt_order_mode',partyOrderMode);render();}
+function applyPartyToolbar(){
+  const searchEl=document.getElementById('party-char-search');
+  if(searchEl&&searchEl.value!==partySearch)searchEl.value=partySearch;
+  const statusEl=document.getElementById('party-temp-filter');
+  if(statusEl)statusEl.value=partyTempFilter;
+  const matrixBtn=document.getElementById('party-matrix-toggle');
+  if(matrixBtn){
+    matrixBtn.classList.toggle('on',partyMatrixMode);
+    matrixBtn.textContent=partyMatrixMode?'카드 보기':'파티 매트릭스';
+  }
+}
+function setPartySearch(v){
+  partySearch=(v||'').trim();
+  localStorage.setItem('la_pt_search',partySearch);
+  render();
+}
+function setPartyTempFilter(v){
+  partyTempFilter=v||'all';
+  localStorage.setItem('la_pt_temp_filter',partyTempFilter);
+  render();
+}
+function togglePartyMatrix(){
+  partyMatrixMode=!partyMatrixMode;
+  localStorage.setItem('la_pt_matrix',partyMatrixMode?'1':'0');
+  render();
+}
+function passesPartyTempFilter(type){
+  return partyTempFilter==='all'||partyTempFilter===type;
+}
+function accountForChar(c){return accounts.find(a=>a.id===c?.account_id)||null;}
+function topAccountForChar(c){
+  const acc=accountForChar(c);
+  if(!acc)return null;
+  return acc.parent_account_id?(accounts.find(a=>a.id===acc.parent_account_id)||acc):acc;
+}
+function charMatchesPartySearch(c){
+  const q=partySearch.toLowerCase();
+  if(!q)return true;
+  const acc=accountForChar(c);
+  const top=topAccountForChar(c);
+  return [c.name,c.class_name,c.item_level,c.combat_power,acc?.name,top?.name].some(v=>String(v||'').toLowerCase().includes(q));
+}
+function overridesForParty(partyId){
+  return scheduleOverrides.filter(ovr=>scheduleById.get(ovr.schedule_id)?.party_id===partyId);
+}
+function partyMatrixStatus(p){
+  if(p.is_temporary)return'temp';
+  const ovrs=overridesForParty(p.id);
+  if(ovrs.some(o=>Object.keys(o.slot_overrides||{}).length||Object.keys((o.temp_changes&&o.temp_changes.added)||{}).length))return'temp';
+  if(ovrs.some(o=>Object.keys((o.temp_changes&&o.temp_changes.removed)||{}).length))return'removed';
+  return'party';
+}
+function effectivePartySlots(p){
+  const size=Number(p.party_size)||4;
+  const slots=Array.from({length:size},(_,i)=>(p.members||[]).find(m=>m.slot_index===i)?.character_id||null);
+  overridesForParty(p.id).forEach(ovr=>{
+    const removed=(ovr.temp_changes&&ovr.temp_changes.removed)||{};
+    Object.keys(removed).forEach(cid=>{
+      for(let i=0;i<slots.length;i++){if(slots[i]===cid)slots[i]=null;}
+    });
+    const slotOverrides=ovr.slot_overrides||{};
+    Object.keys(slotOverrides).forEach(k=>{
+      const idx=Number(k);
+      if(Number.isInteger(idx)&&idx>=0&&idx<slots.length)slots[idx]=slotOverrides[k]||null;
+    });
+  });
+  return slots;
+}
+function renderPartyMatrix(visChars){
+  const visibleIds=new Set(visChars.map(c=>c.id));
+  const visibleTopIds=new Set(visChars.map(c=>topAccountForChar(c)?.id).filter(Boolean));
+  const topAccounts=filterVisibleAccounts(accounts).filter(a=>!a.parent_account_id&&visibleTopIds.has(a.id));
+  const orphanSubs=filterVisibleAccounts(accounts).filter(a=>a.parent_account_id&&!accounts.some(x=>x.id===a.parent_account_id)&&visibleTopIds.has(a.id));
+  const columns=[...topAccounts,...orphanSubs];
+  const rows=parties.map(p=>({party:p,status:partyMatrixStatus(p),slots:effectivePartySlots(p)}))
+    .filter(row=>passesPartyTempFilter(row.status))
+    .filter(row=>row.slots.some(cid=>cid&&visibleIds.has(cid)))
+    .sort((a,b)=>raidSortKeyByPresetId(a.party.preset_id)-raidSortKeyByPresetId(b.party.preset_id)||(a.party.name||'').localeCompare(b.party.name||''));
+  if(!rows.length)return'<div class="empty-state"><div class="empty-icon">👥</div><div>조건에 맞는 파티가 없습니다</div></div>';
+  const head=`<tr><th>레이드 / 파티</th>${columns.map(a=>`<th>${esc(a.name)}</th>`).join('')}</tr>`;
+  const body=rows.map(row=>{
+    const preset=raidById.get(row.party.preset_id);
+    const raidName=preset?.name||'?';
+    const diff=preset?.difficulty?` <span class="${diffClass(preset.difficulty)}">${esc(preset.difficulty)}</span>`:'';
+    const cells=columns.map(acc=>{
+      const chars=row.slots.map(cid=>characters.find(c=>c.id===cid)).filter(c=>c&&visibleIds.has(c.id)&&topAccountForChar(c)?.id===acc.id);
+      if(!chars.length)return'<td><span class="matrix-empty">-</span></td>';
+      return`<td>${chars.map(c=>`<span class="matrix-char ${row.status!=='party'?'temp':''}">${c.icon_url?`<img class="entity-icon-sm" src="${c.icon_url}" onerror="this.style.display='none'">`:''}${esc(c.name)}</span>`).join('')}</td>`;
+    }).join('');
+    const badge=row.status==='temp'?' · 임시':row.status==='removed'?' · 임시해제':'';
+    return`<tr><td class="matrix-raid">${iconImg(getGroupIcon(raidName),'entity-icon-sm')}${esc(raidName)}${diff}<span class="matrix-party">${esc(row.party.name||'파티')}${badge}${row.party._sched_days?` · ${esc(row.party._sched_days)}`:''}</span></td>${cells}</tr>`;
+  }).join('');
+  return`<div class="matrix-wrap"><table class="party-matrix">${head}${body}</table></div>`;
+}
 function raidSortKeyByPresetId(presetId){
   if(raidSortKeyCache.has(presetId))return raidSortKeyCache.get(presetId);
   const preset=raidById.get(presetId);
@@ -812,9 +944,11 @@ function getTempRemovedPartiesForChar(charId){
 
 // ─── Render ───
 function render(){
+  applyPartyToolbar();
   const el=document.getElementById('char-sections');
-  const visChars=characters.filter(c=>selectedChars.has(c.id));
+  const visChars=characters.filter(c=>selectedChars.has(c.id)&&charMatchesPartySearch(c));
   if(!visChars.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div><div>캐릭터를 선택하세요</div></div>';return;}
+  if(partyMatrixMode){el.innerHTML=renderPartyMatrix(visChars);return;}
   const visByAccount=new Map();
   visChars.forEach(c=>{
     if(!visByAccount.has(c.account_id))visByAccount.set(c.account_id,[]);
@@ -846,8 +980,15 @@ function render(){
         ...tempParties.map(x=>({type:'temp',key:raidSortKeyByPresetId(x.party.preset_id),html:partyCardHTML(x.party,c,{slot_index:x.slotIndex,character_id:c.id,id:''},true)})),
         ...displayRemovedParties.map(x=>({type:'removed',key:raidSortKeyByPresetId(x.party.preset_id),html:partyCardHTML(x.party,c,{slot_index:-1,character_id:c.id,id:''},false,true)})),
         ...partylessTasks.map(t=>({type:'none',key:raidSortKeyByPresetId(t.preset_id),html:noPartyCardHTML(t,c)}))
-      ];
+      ].filter(x=>passesPartyTempFilter(x.type));
+      if(!cards.length)return;
       if(partyOrderMode==='raid_order')cards.sort((a,b)=>a.key-b.key||(a.type==='none')-(b.type==='none'));
+      const cardCounts={
+        party:cards.filter(x=>x.type==='party').length,
+        temp:cards.filter(x=>x.type==='temp').length,
+        removed:cards.filter(x=>x.type==='removed').length,
+        none:cards.filter(x=>x.type==='none').length
+      };
       html+=`<div class="char-section">
         <div class="char-section-header">
           <div class="cs-name">${esc(c.name)}</div>
@@ -855,7 +996,7 @@ function render(){
           ${c.item_level?`<div class="cs-ilvl">Lv.${c.item_level}</div>`:''}
           ${c.combat_power?`<div class="cs-ilvl">전투력 ${Number(c.combat_power).toLocaleString()}</div>`:''}
           <button class="btn btn-sec btn-sm" onclick="togglePartyOrderMode()" title="파티 없음 위치/레이드 순서 정렬">${partyOrderMode==='raid_order'?'레이드 순서':'파티 없음 뒤'}</button>
-          <div class="cs-count">${charParties.length+tempParties.length}개 파티${tempParties.length?` · 임시 ${tempParties.length}`:''}${displayRemovedParties.length?` · 임시해제 ${displayRemovedParties.length}`:''}${partylessTasks.length?` · 파티 없음 ${partylessTasks.length}`:''}</div>
+          <div class="cs-count">${cardCounts.party+cardCounts.temp}개 파티${cardCounts.temp?` · 임시 ${cardCounts.temp}`:''}${cardCounts.removed?` · 임시해제 ${cardCounts.removed}`:''}${cardCounts.none?` · 파티 없음 ${cardCounts.none}`:''}</div>
         </div>
         <div class="party-cards">${cards.map(x=>x.html).join('')}</div>
       </div>`;

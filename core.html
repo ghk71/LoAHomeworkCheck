@@ -838,6 +838,11 @@ body::before{background:none;}
 .type-header,.section-hrow-td,.core-row-label-wrap{background:rgba(13,18,26,.92);border-color:var(--line);}
 .char-header{background:linear-gradient(135deg,rgba(34,211,238,.10),rgba(139,92,246,.08));color:var(--text);}
 .core-table th,.core-table td{border-color:rgba(159,180,205,.10);}
+.core-memo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin:0 0 12px}
+.core-memo-card{border:1px solid rgba(159,180,205,.14);background:linear-gradient(180deg,rgba(17,24,33,.92),rgba(12,17,24,.92));border-radius:8px;padding:10px;display:grid;gap:7px}
+.core-memo-head{display:flex;align-items:center;gap:7px;color:#dbeafe;font-weight:900;font-size:.82rem}
+.core-memo-text{width:100%;min-height:62px;resize:vertical;border:1px solid var(--line-2);background:#0d131c;color:var(--text);border-radius:7px;padding:8px;font:inherit;font-size:.78rem;line-height:1.45;outline:none}
+.core-memo-text:focus{border-color:rgba(245,158,11,.46);box-shadow:0 0 0 3px rgba(245,158,11,.08)}
 .combo-grade-row{background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:7px;}
 .cgr-prio{background:var(--panel-2);border:1px solid var(--line);border-radius:7px;}
 
@@ -848,13 +853,13 @@ body::before{background:none;}
   <a href="index.html" class="pnav-item">⚔️ 숙제</a>
   <a href="raid.html" class="pnav-item">🏰 레이드</a>
   <a href="overview.html" class="pnav-item">📊 레이드 현황</a>
-  <a href="parties.html" class="pnav-item">👥 파티 현황</a>
   <a href="party_generation.html" class="pnav-item">🧩 파티 생성</a>
-  <a href="core.html" class="pnav-item active">🔮 코어현황</a>
+  <a href="parties.html" class="pnav-item">👥 파티 현황</a>
+  <a href="core.html" class="pnav-item active">🔮 코어 현황</a>
 </nav>
 <div class="header">
   <span>🔮</span>
-  <div class="header-title">코어현황</div>
+  <div class="header-title">코어 현황</div>
   <div style="margin-left:auto;font-size:.75rem;color:var(--muted);">좌클릭: 등급 순환 &nbsp;|&nbsp; 우클릭: 제외 &nbsp;|&nbsp; ⭐: 필수 &nbsp;|&nbsp; 이름: 직접 입력</div>
 </div>
 <div class="main-content">
@@ -995,8 +1000,9 @@ const GB={
 const getGrade=(cid,k)=>(coreData[cid]?.cores[k]?.grade)||'none';
 const getPrio=(cid,k)=>!!(coreData[cid]?.cores[k]?.priority);
 const getCname=(cid,k)=>(coreData[cid]?.cores[k]?.name)||'';
+const getCoreMemo=(cid)=>(coreData[cid]?.cores?.__memo)||'';
 const coreDisplayName=(cid,k,fallback)=>getCname(cid,k).trim()||fallback;
-const getCombos=(cid)=>(coreData[cid]?.cores.__combos)||[];
+const getCombos=(cid)=>(coreData[cid]?.cores?.__combos)||[];
 const ck=(t,e,s)=>`${t}_${e}_${s}`;
 const sk=(t,e)=>`${t}_${e}`;
 async function init(){
@@ -1055,7 +1061,14 @@ function renderMain(){
   if(viewMode==='basic')renderBasic(vis,el);
   else if(viewMode==='numbered')renderNumbered(vis,el);
   else renderCombo(vis,el);
+  el.insertAdjacentHTML('afterbegin',coreMemoHTML(vis));
   applyLock();
+}
+function coreMemoHTML(vis){
+  return`<div class="core-memo-grid">${vis.map(c=>`<div class="core-memo-card">
+    <div class="core-memo-head">${iconImg(c.icon_url||'','entity-icon-sm')}${esc(c.name)} <span class="tiny">${esc(c.class_name||'')}</span></div>
+    <textarea class="core-memo-text" ${isLocked?'readonly':''} placeholder="코어 메모" oninput="saveCoreMemo('${c.id}',this.value)">${esc(getCoreMemo(c.id))}</textarea>
+  </div>`).join('')}</div>`;
 }
 function thead(vis){return`<thead><tr><th class="type-header">코어</th>${vis.map(c=>`<th class="char-header">${c.icon_url?`<img class="entity-icon-sm" src="${c.icon_url}" onerror="this.style.display='none'" style="display:block;margin:0 auto 2px;"><br>`:''}<span style="display:flex;align-items:center;justify-content:center;gap:3px;">${esc(c.name)}</span>${c.item_level?`<br><span style="font-size:.66rem;font-weight:400;color:var(--muted)">Lv.${c.item_level}</span>`:''}${c.combat_power?`<br><span style="font-size:.62rem;font-weight:400;color:var(--muted)">전투력 ${Number(c.combat_power).toLocaleString()}</span>`:''}</th>`).join('')}</tr></thead><tbody>`;
 }
@@ -1136,6 +1149,14 @@ function renderCombo(vis,el){
 // ─── Debounced DB save (최적화: 500ms 내 연속 클릭은 마지막만 저장) ───
 const _saveTimer={};
 function scheduleSave(cid){clearTimeout(_saveTimer[cid]);_saveTimer[cid]=setTimeout(()=>saveCores(cid),500);}
+const _memoTimer={};
+function saveCoreMemo(cid,value){
+  if(isLocked)return;
+  ensure(cid,null);
+  coreData[cid].cores.__memo=value;
+  clearTimeout(_memoTimer[cid]);
+  _memoTimer[cid]=setTimeout(()=>saveCores(cid),600);
+}
 // ─── 혼돈 코어 이름 편집 ───
 function getChaosName(charId,type,ek,slot){
   const data=coreData[charId]||{cores:{}};
@@ -1160,7 +1181,7 @@ function promptChaosName(charId,ek,slot,current){
 }
 async function saveCores(cid){const e=coreData[cid];if(!e)return;if(e.id){await sb.from('character_cores').update({cores:e.cores}).eq('id',e.id);}else{const{data}=await sb.from('character_cores').insert({character_id:cid,cores:e.cores}).select().single();if(data)coreData[cid].id=data.id;}}
 
-function ensure(cid,key){if(!coreData[cid])coreData[cid]={id:null,cores:{}};if(key&&!coreData[cid].cores[key])coreData[cid].cores[key]={grade:'none',priority:false,name:''};}
+function ensure(cid,key){if(!coreData[cid])coreData[cid]={id:null,cores:{}};if(!coreData[cid].cores)coreData[cid].cores={};if(key&&!coreData[cid].cores[key])coreData[cid].cores[key]={grade:'none',priority:false,name:''};}
 
 // 테이블 셀 클릭 - DOM 직접 업데이트 (re-render 없음)
 function cycleGrade(cid,key,el){
