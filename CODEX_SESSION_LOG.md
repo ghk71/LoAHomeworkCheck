@@ -2936,3 +2936,16 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 6개 HTML의 CSS var 정의 누락 없음 확인.
 - `git diff --check` 통과. CRLF 변환 경고만 확인.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-06-26 - index 커스텀 노트 표시 위치 변경
+
+### 변경 내용
+- `index.html`에서 캐릭터 정보의 `커스텀 노트 표시`가 켜진 경우 노트 블록이 `주간/월간 숙제` 탭이 아니라 `캐릭터 숙제` 탭의 일일 숙제 아래에 표시되도록 변경했습니다.
+- 주간/월간 숙제 탭에서는 커스텀 노트 블록을 제거하고, 도움말 문구도 현재 표시 항목에 맞게 수정했습니다.
+- 커스텀 노트 접기/펼치기, 추가/보기/수정/삭제, 드래그 정렬 로직은 기존 `custom_popups` 흐름을 그대로 유지했습니다.
+
+### 검증
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 변환 경고만 확인.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.

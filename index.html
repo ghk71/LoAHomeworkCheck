@@ -1777,12 +1777,12 @@ function renderCharTabs(){
   el.innerHTML='';
 }
 function renderDaily(content){
-  document.getElementById('mode-help').textContent='선택한 계정의 모든 캐릭터 일일 숙제를 한 화면에서 체크합니다.';
+  document.getElementById('mode-help').textContent='선택한 계정의 모든 캐릭터 일일 숙제와 커스텀 노트를 한 화면에서 봅니다.';
   const chars=visibleChars();
   content.innerHTML=`<div class="grid">${chars.map(renderDailyCard).join('')||'<div class="empty">표시할 캐릭터가 없습니다</div>'}</div>`;
 }
 function renderWeekly(content){
-  document.getElementById('mode-help').textContent='선택한 계정의 캐릭터별 주간/월간 숙제, 재화 현황, 레이드 현황, 커스텀 노트를 봅니다.';
+  document.getElementById('mode-help').textContent='선택한 계정의 캐릭터별 주간/월간 숙제, 재화 현황, 레이드 현황을 봅니다.';
   const chars=visibleChars();
   content.innerHTML=`<div class="grid">${chars.map(renderWeeklyCard).join('')||'<div class="empty">표시할 캐릭터가 없습니다</div>'}</div>`;
 }
@@ -1889,6 +1889,7 @@ function renderDailyCard(ch){
           <div class="section-label"><span>일일 숙제</span><span>${progress.done}/${progress.total}</span></div>
           ${renderTaskGroups(allTasks,false,ch.id,isDaily)}
         </div>
+        ${renderCustomNotesBlock(ch)}
       </div>
     </div>
   </section>`;
@@ -1905,15 +1906,25 @@ function renderCurrencyBlock(ch){
     <div class="currency-items">${curr.length?curr.map(c=>currencyRow(c,ch.id)).join(''):'<div class="empty">재화가 없습니다</div>'}</div>
   </div>`;
 }
+function renderCustomNotesBlock(ch){
+  if(ch.show_custom_notes===false)return '';
+  const notes=(state.notes[ch.id]||[]);
+  const notesCollapsed=state.collapsedNotes.has(ch.id);
+  return`<div class="collapse-block ${notesCollapsed?'collapsed':''}">
+    <div class="section-label">
+      <span>커스텀 노트</span>
+      <span class="section-actions"><span>${notes.length}</span><button class="btn icon action-only action-edit" title="노트 추가" onclick="openNoteEditor(null,'${ch.id}')">+</button><button class="section-toggle" onclick="toggleSectionCollapse('notes','${ch.id}')">${notesCollapsed?'펼치기':'접기'}</button></span>
+    </div>
+    <div class="collapse-items">${notes.length?notes.map((n,i)=>noteRow(n,ch.id,i)).join(''):'<div class="empty">노트가 없습니다</div>'}</div>
+  </div>`;
+}
 function renderWeeklyCard(ch){
   const allTasks=state.tasks[ch.id]||[];
   const activeRoots=activeTaskRoots(allTasks,isWeeklyMonthly);
   const progress=taskProgress(activeRoots);
   const raids=applyDoneFilter(state.raidTasks[ch.id]||[]);
-  const notes=(state.notes[ch.id]||[]);
   const raidCollapsed=state.collapsedRaid.has(ch.id);
-  const notesCollapsed=state.collapsedNotes.has(ch.id);
-  const showRaid=ch.show_raid_tasks!==false,showNotes=ch.show_custom_notes!==false;
+  const showRaid=ch.show_raid_tasks!==false;
   const dragAttrs=state.selectedAccount===ALL_ACCOUNTS_ID?'':` draggable="true" ondragstart="dragStart(event,'characters','${ch.id}','${state.selectedAccount}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'characters','${ch.id}','${state.selectedAccount}')"`;
   return`<section class="char-card ${progress.hot?'hot':''} ${progress.complete?'done':''}" data-scroll-key="weekly:${ch.id}"${heldCardStyle(`weekly:${ch.id}`)}${dragAttrs}>
     ${charHeader(ch,activeRoots,progress.hot,progress.complete)}
@@ -1930,13 +1941,6 @@ function renderWeeklyCard(ch){
             <span class="section-actions"><span>${raids.filter(isDone).length}/${raids.length}</span><button class="btn icon" title="레이드 추가" onclick="openAddRaidTask('${ch.id}')">+</button><button class="section-toggle" onclick="toggleSectionCollapse('raid','${ch.id}')">${raidCollapsed?'펼치기':'접기'}</button></span>
           </div>
           <div class="collapse-items">${raids.length?raids.map(t=>raidRow(t,ch.id)).join(''):'<div class="empty">레이드 숙제가 없습니다</div>'}</div>
-        </div>`:''}
-        ${showNotes?`<div class="collapse-block ${notesCollapsed?'collapsed':''}">
-          <div class="section-label">
-            <span>커스텀 노트</span>
-            <span class="section-actions"><span>${notes.length}</span><button class="btn icon action-only action-edit" title="노트 추가" onclick="openNoteEditor(null,'${ch.id}')">+</button><button class="section-toggle" onclick="toggleSectionCollapse('notes','${ch.id}')">${notesCollapsed?'펼치기':'접기'}</button></span>
-          </div>
-          <div class="collapse-items">${notes.length?notes.map((n,i)=>noteRow(n,ch.id,i)).join(''):'<div class="empty">노트가 없습니다</div>'}</div>
         </div>`:''}
       </div>
     </div>
