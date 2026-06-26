@@ -2949,3 +2949,16 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 6개 HTML의 CSS var 정의 누락 없음 확인.
 - `git diff --check` 통과. CRLF 변환 경고만 확인.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-06-26 - index 커스텀 노트 링크 새 탭 열기
+
+### 변경 내용
+- `index.html` 커스텀 노트 본문 렌더링에서 `http://`, `https://`, `www.` 형태의 URL을 자동 링크로 변환하도록 추가했습니다.
+- 링크 클릭 시 `target="_blank"`로 새 탭에서 열리고, `rel="noopener noreferrer"`를 붙여 외부 페이지 접근을 안전하게 처리했습니다.
+- 텍스트 블록뿐 아니라 표 헤더/셀 안의 URL도 같은 방식으로 링크 처리되도록 했습니다.
+
+### 검증
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 변환 경고만 확인.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.

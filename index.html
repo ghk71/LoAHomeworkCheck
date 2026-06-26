@@ -288,6 +288,8 @@ body.manage-active .mode-done{display:inline-flex}
 .api-log{max-height:160px;overflow:auto;display:grid;gap:5px;color:var(--muted);font-size:.74rem}
 .api-log-row{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid rgba(255,255,255,.05);padding-bottom:5px}
 .api-log-row.ok{color:#a7f3d0}.api-log-row.fail{color:#ffb4b4}
+.note-link{color:#8fdcff;text-decoration:underline;text-underline-offset:2px;font-weight:850}
+.note-link:hover{color:#c9f6ff}
 .modal-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .empty{padding:14px;border:1px dashed var(--line-2);border-radius:8px;color:var(--dim);text-align:center;font-size:.82rem}
 .account-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;align-items:start}
@@ -2635,14 +2637,28 @@ async function deleteCurrency(charId,id){
 function renderNoteContent(blocks){
   if(!blocks||!blocks.length)return '<div class="empty">내용이 없습니다. 수정 모드에서 내용을 추가하세요.</div>';
   return blocks.map(b=>{
-    if(b.type==='text')return`<div class="preview-card">${b.label?`<div class="section-label" style="margin-top:0">${esc(b.label)}</div>`:''}<div style="white-space:pre-wrap;color:var(--text)">${esc(b.content||'')}</div></div>`;
+    if(b.type==='text')return`<div class="preview-card">${b.label?`<div class="section-label" style="margin-top:0">${esc(b.label)}</div>`:''}<div style="white-space:pre-wrap;color:var(--text)">${linkifyNoteText(b.content||'')}</div></div>`;
     if(b.type==='table'){
       const heads=String(b.headers||'').split(',').map(x=>x.trim()).filter(Boolean);
       const rows=String(b.rows||'').split('\n').map(r=>r.split(',').map(c=>c.trim())).filter(r=>r.some(Boolean));
-      return`<div class="preview-card">${b.label?`<div class="section-label" style="margin-top:0">${esc(b.label)}</div>`:''}<div style="overflow:auto"><table style="width:100%;border-collapse:collapse">${rows.length?`<thead><tr>${heads.map(h=>`<th style="border:1px solid var(--line);padding:6px;text-align:left;color:var(--gold)">${esc(h)}</th>`).join('')}</tr></thead>`:''}<tbody>${rows.map(r=>`<tr>${heads.map((_,i)=>`<td style="border:1px solid var(--line);padding:6px">${esc(r[i]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+      return`<div class="preview-card">${b.label?`<div class="section-label" style="margin-top:0">${esc(b.label)}</div>`:''}<div style="overflow:auto"><table style="width:100%;border-collapse:collapse">${rows.length?`<thead><tr>${heads.map(h=>`<th style="border:1px solid var(--line);padding:6px;text-align:left;color:var(--gold)">${linkifyNoteText(h)}</th>`).join('')}</tr></thead>`:''}<tbody>${rows.map(r=>`<tr>${heads.map((_,i)=>`<td style="border:1px solid var(--line);padding:6px">${linkifyNoteText(r[i]||'')}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
     }
     return '<hr style="border:0;border-top:1px solid var(--line)">';
   }).join('');
+}
+function linkifyNoteText(value){
+  const text=String(value||'');
+  const urlRe=/(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/gi;
+  let out='',last=0,match;
+  while((match=urlRe.exec(text))){
+    out+=esc(text.slice(last,match.index));
+    let label=match[0],tail='';
+    while(/[.,!?;:)\]}]+$/.test(label)){tail=label.slice(-1)+tail;label=label.slice(0,-1);}
+    const href=label.toLowerCase().startsWith('www.')?`https://${label}`:label;
+    out+=`<a class="note-link" href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>${esc(tail)}`;
+    last=match.index+match[0].length;
+  }
+  return out+esc(text.slice(last));
 }
 function openNoteViewer(id,charId){
   const n=(state.notes[charId]||[]).find(x=>x.id===id);if(!n)return;
