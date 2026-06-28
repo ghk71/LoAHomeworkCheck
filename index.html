@@ -185,11 +185,16 @@ body.manage-active .mode-done{display:inline-flex}
 .step-wrap,.count-wrap{display:flex;gap:5px;align-items:center}
 .step-dot,.count-btn{min-width:24px;height:24px;border-radius:999px;border:1px solid var(--line-2);background:#0b1119;color:var(--muted);font-size:.7rem;font-weight:900;padding:0 8px}
 .step-dot.on,.count-btn.on{background:linear-gradient(135deg,var(--green),#5eead4);border-color:transparent;color:#07130b}
-.quota-wrap{display:grid;gap:5px;justify-items:end;min-width:116px}
-.quota-stats{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;color:var(--muted);font-size:.66rem;font-weight:850}
-.quota-stats span{border:1px solid var(--line);background:rgba(255,255,255,.03);border-radius:999px;padding:2px 6px;white-space:nowrap}
-.quota-stats b{color:#dffbff}
-.quota-actions{display:flex;gap:5px}
+.task-row.quota-task{grid-template-columns:minmax(0,1fr) minmax(176px,210px)}
+.quota-wrap{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;min-width:176px}
+.quota-meter{display:grid;gap:4px;min-width:0}
+.quota-line{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#b7c6d8;font-size:.68rem;font-weight:900}
+.quota-line b{color:#e6fbff;font-size:.74rem}
+.quota-line.today{font-size:.64rem;color:#93a4b8}
+.quota-bar{height:6px;border-radius:999px;background:#111923;overflow:hidden;border:1px solid rgba(159,180,205,.13)}
+.quota-bar>span{display:block;height:100%;width:var(--pct,0%);border-radius:inherit;background:linear-gradient(90deg,#22d3ee,#34d399)}
+.quota-bar.today>span{background:linear-gradient(90deg,#818cf8,#22d3ee)}
+.quota-actions{display:grid;gap:5px}
 .quota-btn{min-width:28px;height:24px;border-radius:999px;border:1px solid var(--line-2);background:#0b1119;color:var(--muted);font-weight:950}
 .quota-btn:hover:not(:disabled){border-color:rgba(34,211,238,.45);color:#c8f8ff}
 .quota-btn:disabled{opacity:.42;cursor:not-allowed}
@@ -486,8 +491,10 @@ body.manage-active .mode-done{display:inline-flex}
             <div class="form-grid">
               <div class="field"><label>주간 총 목표 횟수</label><input id="quota-total-max" class="input" type="number" value="9" min="1"></div>
               <div class="field"><label>일일 최대 횟수</label><input id="quota-daily-limit" class="input" type="number" value="3" min="1"></div>
+              <div class="field"><label>현재 주간 완료 횟수</label><input id="quota-total-current" class="input" type="number" value="0" min="0"></div>
+              <div class="field"><label>오늘 완료 횟수</label><input id="quota-daily-current" class="input" type="number" value="0" min="0"></div>
             </div>
-            <div class="preview-card"><div class="task-title">예: 주간 9회, 하루 3회 제한이면 3일 동안 채워 완료할 수 있습니다.</div></div>
+            <div class="preview-card"><div class="task-title">예: 주간 9회, 하루 3회 제한이면 3일 동안 채워 완료할 수 있습니다.</div><div class="tiny">수정 모드에서는 현재 완료 횟수도 함께 조정할 수 있습니다.</div></div>
           </div>
         </div>
       </div>
@@ -1645,8 +1652,8 @@ function isWeeklyMonthly(t){return (t.reset_type||'daily')!=='daily';}
 function resetText(t){const type=t.reset_type||'daily';if(type==='daily')return'매일 06시';if(type==='monthly')return'매월 1일 06시';return`매주 ${DAYS[t.reset_day||3]}요일`;}
 function taskMetaHTML(t){
   if(hasDailyQuota(t)){
-    const totalMax=Math.max(1,Number(t.count_max)||1),dailyMax=Math.max(1,Number(t.count_daily_limit)||1);
-    return`<div class="task-meta"><span class="tag">주간 ${effectiveCount(t)}/${totalMax}</span><span class="tag">오늘 ${effectiveDailyCount(t)}/${dailyMax}</span><span class="tag">${resetText(t)}</span></div>`;
+    const dailyMax=Math.max(1,Number(t.count_daily_limit)||1);
+    return`<div class="task-meta"><span class="tag">${resetText(t)}</span><span class="tag">하루 최대 ${dailyMax}회</span></div>`;
   }
   return '';
 }
@@ -2004,7 +2011,7 @@ function taskRow(t,isExp,ownerId,isChild=false,idx=0,children=[]){
   const done=isDone(t),quota=hasDailyQuota(t),step=t.count_max!=null&&!quota,rest=!!t.rest_enabled;
   const inactive=!isActive(t);
   const parentId=t.parent_id||'';
-  return`<div class="task-row ${done?'done':''} ${inactive?'inactive':''}" id="task-${t.id}" draggable="true" ondragstart="dragStart(event,'${isExp?'expedition_tasks':'tasks'}','${t.id}','${ownerId}','${parentId}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'${isExp?'expedition_tasks':'tasks'}','${t.id}','${ownerId}','${parentId}')">
+  return`<div class="task-row ${quota?'quota-task':''} ${done?'done':''} ${inactive?'inactive':''}" id="task-${t.id}" draggable="true" ondragstart="dragStart(event,'${isExp?'expedition_tasks':'tasks'}','${t.id}','${ownerId}','${parentId}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'${isExp?'expedition_tasks':'tasks'}','${t.id}','${ownerId}','${parentId}')">
     <div class="task-main ${isChild?'child':''}">
       <div class="task-title">${iconImg(t.icon_url)}<span>${esc(t.name)}</span>${children.length?`<span class="child-count">${children.filter(isDone).length}/${children.length}</span>`:''}<span class="title-actions"><button class="mini-btn action-only action-copy" title="복제" onclick="openCopyTask('${t.id}',${isExp},'${ownerId}')">복제</button><button class="mini-btn action-only action-edit" title="수정" onclick="openEditTask('${t.id}',${isExp},'${ownerId}')">수정</button>${!isChild?`<button class="mini-btn action-only action-edit" title="하위 숙제 추가" onclick="openCreateSubTask('${t.id}',${isExp},'${ownerId}')">하위</button>`:''}<button class="mini-btn danger action-only action-delete" title="삭제" onclick="smartDeleteTask('${t.id}',${isExp},'${ownerId}')">삭제</button></span></div>
       ${taskMetaHTML(t)}
@@ -2029,10 +2036,17 @@ function quotaControl(t,isExp,ownerId){
   const totalMax=Math.max(1,Number(t.count_max)||1),dailyMax=Math.max(1,Number(t.count_daily_limit)||1);
   const total=Math.max(0,Math.min(effectiveCount(t),totalMax));
   const daily=Math.max(0,Math.min(effectiveDailyCount(t),dailyMax));
+  const totalPct=Math.round((total/totalMax)*100);
+  const dailyPct=Math.round((daily/dailyMax)*100);
   const canMinus=total>0;
   const canPlus=total<totalMax&&daily<dailyMax;
   return`<div class="quota-wrap">
-    <div class="quota-stats"><span>총 <b>${total}/${totalMax}</b></span><span>오늘 <b>${daily}/${dailyMax}</b></span></div>
+    <div class="quota-meter">
+      <div class="quota-line"><span>이번 주</span><b>${total}/${totalMax}</b></div>
+      <div class="quota-bar" title="이번 주 ${total}/${totalMax}"><span style="--pct:${totalPct}%"></span></div>
+      <div class="quota-line today"><span>오늘</span><b>${daily}/${dailyMax}</b></div>
+      <div class="quota-bar today" title="오늘 ${daily}/${dailyMax}"><span style="--pct:${dailyPct}%"></span></div>
+    </div>
     <div class="quota-actions"><button class="quota-btn" ${canMinus?'':'disabled'} onclick="adjustQuotaTask('${t.id}',${isExp},'${ownerId}',-1)">-</button><button class="quota-btn" ${canPlus?'':'disabled'} onclick="adjustQuotaTask('${t.id}',${isExp},'${ownerId}',1)">+</button></div>
   </div>`;
 }
@@ -3079,6 +3093,8 @@ function openCreateTask(scope,id,resetType){
   document.getElementById('step-max').value='3';
   document.getElementById('quota-total-max').value='9';
   document.getElementById('quota-daily-limit').value='3';
+  document.getElementById('quota-total-current').value='0';
+  document.getElementById('quota-daily-current').value='0';
   document.getElementById('rest-max').value='200';
   document.getElementById('rest-current').value='0';
   document.getElementById('rest-charge').value='20';
@@ -3091,6 +3107,7 @@ function openCreateTask(scope,id,resetType){
   document.getElementById('create-target').textContent=`대상: ${name}`;
   document.getElementById('task-submit-btn').textContent='추가';
   renderRestPreview();
+  syncQuotaConfigInputs();
   openModal('modal-create');
 }
 function openCreateSubTask(parentId,isExp,ownerId){
@@ -3121,6 +3138,8 @@ function openEditTask(id,isExp,ownerId){
   document.getElementById('step-max').value=t.count_max??3;
   document.getElementById('quota-total-max').value=t.count_max??9;
   document.getElementById('quota-daily-limit').value=t.count_daily_limit??3;
+  document.getElementById('quota-total-current').value=hasDailyQuota(t)?effectiveCount(t):0;
+  document.getElementById('quota-daily-current').value=hasDailyQuota(t)?effectiveDailyCount(t):0;
   document.getElementById('rest-max').value=t.rest_max??100;
   document.getElementById('rest-current').value=t.rest_current??0;
   document.getElementById('rest-charge').value=t.rest_charge??10;
@@ -3133,6 +3152,7 @@ function openEditTask(id,isExp,ownerId){
   document.getElementById('create-target').textContent=`대상: ${name}`;
   document.getElementById('task-submit-btn').textContent='저장';
   renderRestPreview();
+  syncQuotaConfigInputs();
   openModal('modal-create');
 }
 function selectCreateType(type){
@@ -3155,8 +3175,25 @@ function renderRestPreview(){
   const fake={rest_enabled:true,rest_max:document.getElementById('rest-max').value,rest_current:document.getElementById('rest-current').value,rest_charge:document.getElementById('rest-charge').value,rest_consume:document.getElementById('rest-consume').value,rest_threshold:document.getElementById('rest-threshold').value};
   document.getElementById('rest-preview').innerHTML=`<div class="task-title">미리보기</div>${restBox(fake,false,'')}`;
 }
+function syncQuotaConfigInputs(){
+  const totalMaxEl=document.getElementById('quota-total-max'),dailyMaxEl=document.getElementById('quota-daily-limit');
+  const totalEl=document.getElementById('quota-total-current'),dailyEl=document.getElementById('quota-daily-current');
+  if(!totalMaxEl||!dailyMaxEl||!totalEl||!dailyEl)return;
+  const totalMax=Math.max(1,Number(totalMaxEl.value)||1);
+  const dailyMax=Math.max(1,Number(dailyMaxEl.value)||1);
+  const total=Math.max(0,Math.min(totalMax,Number(totalEl.value)||0));
+  const daily=Math.max(0,Math.min(dailyMax,total,Number(dailyEl.value)||0));
+  totalEl.max=String(totalMax);
+  dailyEl.max=String(Math.min(dailyMax,totalMax));
+  if(String(totalEl.value)!==String(total))totalEl.value=String(total);
+  if(String(dailyEl.value)!==String(daily))dailyEl.value=String(daily);
+}
 const REST_PREVIEW_INPUTS=new Set(['rest-max','rest-current','rest-charge','rest-consume','rest-threshold']);
-document.addEventListener('input',e=>{if(e.target&&REST_PREVIEW_INPUTS.has(e.target.id))renderRestPreview();});
+const QUOTA_CONFIG_INPUTS=new Set(['quota-total-max','quota-daily-limit','quota-total-current','quota-daily-current']);
+document.addEventListener('input',e=>{
+  if(e.target&&REST_PREVIEW_INPUTS.has(e.target.id))renderRestPreview();
+  if(e.target&&QUOTA_CONFIG_INPUTS.has(e.target.id))syncQuotaConfigInputs();
+});
 async function submitCreatedTask(){
   const target=state.createTarget;if(!target){toast('대상이 없습니다');return;}
   const name=document.getElementById('task-name').value.trim();if(!name){toast('숙제명을 입력하세요');return;}
@@ -3166,13 +3203,19 @@ async function submitCreatedTask(){
   const rec={name,icon_url:state.taskIconUrl||null,reset_type:resetType,reset_day:resetDay,activate_day:activateDay,count_max:null,rest_enabled:false,rest_current:0,rest_max:200,rest_charge:20,rest_consume:40,rest_threshold:40,rest_daily_limit:1,rest_last_processed_at:null,rest_consumed_current_cycle:0};
   if(state.createType==='step'){rec.count_max=Math.max(2,Number(document.getElementById('step-max').value)||3);rec.count_current=0;}
   if(state.createType==='weeklyQuota'){
+    const totalMax=Math.max(1,Number(document.getElementById('quota-total-max').value)||9);
+    const dailyMax=Math.max(1,Number(document.getElementById('quota-daily-limit').value)||3);
+    const totalCurrent=Math.max(0,Math.min(totalMax,Number(document.getElementById('quota-total-current').value)||0));
+    const dailyCurrent=Math.max(0,Math.min(dailyMax,totalCurrent,Number(document.getElementById('quota-daily-current').value)||0));
     rec.reset_type='weekly';
     rec.reset_day=resetDay;
-    rec.count_max=Math.max(1,Number(document.getElementById('quota-total-max').value)||9);
-    rec.count_current=0;
-    rec.count_daily_limit=Math.max(1,Number(document.getElementById('quota-daily-limit').value)||3);
-    rec.count_daily_current=0;
+    rec.count_max=totalMax;
+    rec.count_current=totalCurrent;
+    rec.count_daily_limit=dailyMax;
+    rec.count_daily_current=dailyCurrent;
     rec.count_daily_last_reset_at=getLastResetUTC('daily',3).toISOString();
+    rec.is_completed=totalCurrent>=totalMax;
+    rec.last_completed_at=totalCurrent>0?appNowIso():null;
   }
   if(state.createType==='rest'){
     rec.rest_enabled=true;

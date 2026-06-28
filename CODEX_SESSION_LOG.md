@@ -2980,3 +2980,19 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - `index.html` 내부 `<script>` 추출 후 `node --check` 문법 검사 통과.
 - `git diff --check` 통과. CRLF 변환 경고만 확인.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-06-28 - index 주간 누적 숙제 UI 및 진행도 수정 보강
+
+### 변경 내용
+- `index.html`의 `주간 누적 / 일일 제한` 숙제 카드 표시를 단순 숫자 배지에서 `이번 주`, `오늘` 진행바 형태로 변경해 현재 상태를 더 직관적으로 보이게 했습니다.
+- 중복으로 보이던 `주간 n/N`, `오늘 d/D` 메타는 줄이고, 카드 하단 메타에는 초기화 주기와 하루 최대 횟수만 남겼습니다.
+- 숙제 수정 모달에 `현재 주간 완료 횟수`, `오늘 완료 횟수` 입력칸을 추가했습니다.
+- 수정 저장 시 기존처럼 진행도가 0으로 초기화되지 않고, 입력한 주간/오늘 진행도가 `count_current`, `count_daily_current`에 저장되도록 수정했습니다.
+- 주간 목표/일일 제한/현재 진행도 입력값이 서로 모순되지 않도록 모달 입력 중 자동 보정하는 로직을 추가했습니다.
+
+### 검증
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `index.html` 내부 `<script>` 추출 후 `node --check` 문법 검사 통과.
+- `git diff --check` 통과. CRLF 변환 경고만 확인.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
