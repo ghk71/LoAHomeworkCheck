@@ -185,6 +185,14 @@ body.manage-active .mode-done{display:inline-flex}
 .step-wrap,.count-wrap{display:flex;gap:5px;align-items:center}
 .step-dot,.count-btn{min-width:24px;height:24px;border-radius:999px;border:1px solid var(--line-2);background:#0b1119;color:var(--muted);font-size:.7rem;font-weight:900;padding:0 8px}
 .step-dot.on,.count-btn.on{background:linear-gradient(135deg,var(--green),#5eead4);border-color:transparent;color:#07130b}
+.quota-wrap{display:grid;gap:5px;justify-items:end;min-width:116px}
+.quota-stats{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;color:var(--muted);font-size:.66rem;font-weight:850}
+.quota-stats span{border:1px solid var(--line);background:rgba(255,255,255,.03);border-radius:999px;padding:2px 6px;white-space:nowrap}
+.quota-stats b{color:#dffbff}
+.quota-actions{display:flex;gap:5px}
+.quota-btn{min-width:28px;height:24px;border-radius:999px;border:1px solid var(--line-2);background:#0b1119;color:var(--muted);font-weight:950}
+.quota-btn:hover:not(:disabled){border-color:rgba(34,211,238,.45);color:#c8f8ff}
+.quota-btn:disabled{opacity:.42;cursor:not-allowed}
 .rest-box{margin-top:5px}
 .rest-line{display:flex;justify-content:space-between;color:var(--muted);font-size:.68rem;margin-bottom:4px}
 .rest-segments{display:flex;gap:4px}
@@ -434,6 +442,7 @@ body.manage-active .mode-done{display:inline-flex}
             <button class="type-card active" data-type="rest" onclick="selectCreateType('rest')"><strong>휴식 게이지</strong><span>충전/소모/강조 포인트를 쓰는 숙제</span></button>
             <button class="type-card" data-type="check" onclick="selectCreateType('check')"><strong>체크박스</strong><span>완료 여부만 기록하는 기본 숙제</span></button>
             <button class="type-card" data-type="step" onclick="selectCreateType('step')"><strong>단계별 체크박스</strong><span>최대 단계까지 눌러서 진행하는 숙제</span></button>
+            <button class="type-card" data-type="weeklyQuota" onclick="selectCreateType('weeklyQuota')"><strong>주간 누적 / 일일 제한</strong><span>주간 목표와 하루 최대 횟수를 함께 관리</span></button>
           </div>
         </div>
         <div>
@@ -470,6 +479,15 @@ body.manage-active .mode-done{display:inline-flex}
             <div class="form-grid">
               <div class="field"><label>최대 단계</label><input id="step-max" class="input" type="number" value="3" min="2"></div>
             </div>
+          </div>
+
+          <div id="config-weekly-quota" class="hidden">
+            <div class="section-label">주간 누적 / 일일 제한 구성</div>
+            <div class="form-grid">
+              <div class="field"><label>주간 총 목표 횟수</label><input id="quota-total-max" class="input" type="number" value="9" min="1"></div>
+              <div class="field"><label>일일 최대 횟수</label><input id="quota-daily-limit" class="input" type="number" value="3" min="1"></div>
+            </div>
+            <div class="preview-card"><div class="task-title">예: 주간 9회, 하루 3회 제한이면 3일 동안 채워 완료할 수 있습니다.</div></div>
           </div>
         </div>
       </div>
@@ -1534,6 +1552,14 @@ async function autoResetTasks(list,table){
   for(const t of list){
     const latest=getLastResetUTC(t.reset_type||'daily',t.reset_day??3);
     const up={};
+    if(hasDailyQuota(t)){
+      const dailyLatest=getLastResetUTC('daily',3);
+      const dailyStamp=t.count_daily_last_reset_at?new Date(t.count_daily_last_reset_at):null;
+      if(!dailyStamp||dailyStamp<dailyLatest){
+        up.count_daily_current=0;
+        up.count_daily_last_reset_at=dailyLatest.toISOString();
+      }
+    }
     if(t.rest_enabled){
       let cur=Math.max(0,Number(t.rest_current)||0);
       const max=Math.max(1,Number(t.rest_max)||200);
@@ -1559,6 +1585,10 @@ async function autoResetTasks(list,table){
       up.is_completed=false;
       up.last_completed_at=null;
       up.count_current=0;
+      if(hasDailyQuota(t)){
+        up.count_daily_current=0;
+        up.count_daily_last_reset_at=getLastResetUTC('daily',3).toISOString();
+      }
       up.rest_consumed_current_cycle=0;
     }
     if(Object.keys(up).length)updates.push({t,up});
@@ -1586,10 +1616,18 @@ function countIsCurrent(t){
   return !!(t.last_completed_at&&new Date(t.last_completed_at)>getLastResetUTC(t.reset_type||'daily',t.reset_day||3));
 }
 function effectiveCount(t){return countIsCurrent(t)?Number(t.count_current)||0:0;}
+function hasDailyQuota(t){return t&&t.count_daily_limit!=null&&Number(t.count_daily_limit)>0&&t.count_max!=null&&!t.rest_enabled;}
+function dailyCountIsCurrent(t){
+  return !!(t.count_daily_last_reset_at&&new Date(t.count_daily_last_reset_at)>=getLastResetUTC('daily',3));
+}
+function effectiveDailyCount(t){return dailyCountIsCurrent(t)?Number(t.count_daily_current)||0:0;}
 function isRaidTaskRecord(t){return !!(t&&('preset_id' in t||'clear_gold' in t||'bound_gold' in t||'bonus_gold' in t));}
 function isDone(t){
   if(isRaidTaskRecord(t))return !!(t.is_completed&&t.last_completed_at&&new Date(t.last_completed_at)>getLastResetUTC('weekly',t.reset_day??3));
   const current=countIsCurrent(t);
+  if(hasDailyQuota(t)){
+    return current&&Number(t.count_current||0)>=Number(t.count_max||0);
+  }
   if(t.rest_enabled){
     const max=Math.max(1,Number(t.rest_daily_limit)||1);
     if(current&&Number(t.count_current||0)>=max)return true;
@@ -1606,6 +1644,10 @@ function isDaily(t){return (t.reset_type||'daily')==='daily';}
 function isWeeklyMonthly(t){return (t.reset_type||'daily')!=='daily';}
 function resetText(t){const type=t.reset_type||'daily';if(type==='daily')return'매일 06시';if(type==='monthly')return'매월 1일 06시';return`매주 ${DAYS[t.reset_day||3]}요일`;}
 function taskMetaHTML(t){
+  if(hasDailyQuota(t)){
+    const totalMax=Math.max(1,Number(t.count_max)||1),dailyMax=Math.max(1,Number(t.count_daily_limit)||1);
+    return`<div class="task-meta"><span class="tag">주간 ${effectiveCount(t)}/${totalMax}</span><span class="tag">오늘 ${effectiveDailyCount(t)}/${dailyMax}</span><span class="tag">${resetText(t)}</span></div>`;
+  }
   return '';
 }
 function taskCardKey(t,isExp,ownerId){
@@ -1959,7 +2001,7 @@ function renderAccountCard(acc){
   </section>`;
 }
 function taskRow(t,isExp,ownerId,isChild=false,idx=0,children=[]){
-  const done=isDone(t),step=t.count_max!=null,rest=!!t.rest_enabled;
+  const done=isDone(t),quota=hasDailyQuota(t),step=t.count_max!=null&&!quota,rest=!!t.rest_enabled;
   const inactive=!isActive(t);
   const parentId=t.parent_id||'';
   return`<div class="task-row ${done?'done':''} ${inactive?'inactive':''}" id="task-${t.id}" draggable="true" ondragstart="dragStart(event,'${isExp?'expedition_tasks':'tasks'}','${t.id}','${ownerId}','${parentId}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'${isExp?'expedition_tasks':'tasks'}','${t.id}','${ownerId}','${parentId}')">
@@ -1967,7 +2009,7 @@ function taskRow(t,isExp,ownerId,isChild=false,idx=0,children=[]){
       <div class="task-title">${iconImg(t.icon_url)}<span>${esc(t.name)}</span>${children.length?`<span class="child-count">${children.filter(isDone).length}/${children.length}</span>`:''}<span class="title-actions"><button class="mini-btn action-only action-copy" title="복제" onclick="openCopyTask('${t.id}',${isExp},'${ownerId}')">복제</button><button class="mini-btn action-only action-edit" title="수정" onclick="openEditTask('${t.id}',${isExp},'${ownerId}')">수정</button>${!isChild?`<button class="mini-btn action-only action-edit" title="하위 숙제 추가" onclick="openCreateSubTask('${t.id}',${isExp},'${ownerId}')">하위</button>`:''}<button class="mini-btn danger action-only action-delete" title="삭제" onclick="smartDeleteTask('${t.id}',${isExp},'${ownerId}')">삭제</button></span></div>
       ${taskMetaHTML(t)}
     </div>
-    <div class="task-control">${children.length?'<span class="parent-lock">하위 연동</span>':rest?restCountButtons(t,isExp,ownerId):step?stepDots(t,isExp,ownerId):`<button class="check square ${done?'on':''}" aria-label="숙제 체크" onclick="toggleTask('${t.id}',${isExp},'${ownerId}')"></button>`}</div>
+    <div class="task-control">${children.length?'<span class="parent-lock">하위 연동</span>':quota?quotaControl(t,isExp,ownerId):rest?restCountButtons(t,isExp,ownerId):step?stepDots(t,isExp,ownerId):`<button class="check square ${done?'on':''}" aria-label="숙제 체크" onclick="toggleTask('${t.id}',${isExp},'${ownerId}')"></button>`}</div>
     ${rest?`<div class="task-rest-span">${restBox(t,isExp,ownerId)}</div>`:''}
   </div>`;
 }
@@ -1982,6 +2024,17 @@ function restCountButtons(t,isExp,ownerId){
   let html='<div class="count-wrap">';
   for(let i=1;i<=max;i++){const next=cur===i?i-1:i;html+=`<button class="count-btn ${cur>=i?'on':''}" onclick="setRestTaskCount('${t.id}',${isExp},'${ownerId}',${next})">${i}</button>`;}
   return html+'</div>';
+}
+function quotaControl(t,isExp,ownerId){
+  const totalMax=Math.max(1,Number(t.count_max)||1),dailyMax=Math.max(1,Number(t.count_daily_limit)||1);
+  const total=Math.max(0,Math.min(effectiveCount(t),totalMax));
+  const daily=Math.max(0,Math.min(effectiveDailyCount(t),dailyMax));
+  const canMinus=total>0;
+  const canPlus=total<totalMax&&daily<dailyMax;
+  return`<div class="quota-wrap">
+    <div class="quota-stats"><span>총 <b>${total}/${totalMax}</b></span><span>오늘 <b>${daily}/${dailyMax}</b></span></div>
+    <div class="quota-actions"><button class="quota-btn" ${canMinus?'':'disabled'} onclick="adjustQuotaTask('${t.id}',${isExp},'${ownerId}',-1)">-</button><button class="quota-btn" ${canPlus?'':'disabled'} onclick="adjustQuotaTask('${t.id}',${isExp},'${ownerId}',1)">+</button></div>
+  </div>`;
 }
 function restBox(t,isExp,ownerId){
   const r=restInfo(t),groups=[];
@@ -2097,7 +2150,7 @@ async function toggleTask(id,isExp,ownerId){
   const t=list.find(x=>x.id===id);if(!t){clearBusy(key);return;}
   if(list.some(x=>x.parent_id===id)){clearBusy(key);toast('상위 숙제는 하위 숙제 완료로 자동 처리됩니다');return;}
   const done=!isDone(t),up={is_completed:done,last_completed_at:done?appNowIso():null};
-  if(t.count_max!=null)up.count_current=done?t.count_max:0;
+  if(t.count_max!=null&&!hasDailyQuota(t))up.count_current=done?t.count_max:0;
   const prev={is_completed:t.is_completed,last_completed_at:t.last_completed_at,count_current:t.count_current};
   Object.assign(t,up);
   if(done)holdTaskCardHeight(t,isExp,ownerId);else releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));
@@ -2114,9 +2167,50 @@ async function setTaskCount(id,isExp,ownerId,val){
   const list=isExp?(state.expTasks[ownerId]||[]):(state.tasks[ownerId]||[]);
   const t=list.find(x=>x.id===id);if(!t){clearBusy(key);return;}
   if(list.some(x=>x.parent_id===id)){clearBusy(key);toast('상위 숙제는 하위 숙제 완료로 자동 처리됩니다');return;}
+  if(hasDailyQuota(t)){clearBusy(key);return adjustQuotaTask(id,isExp,ownerId,Number(val)>effectiveCount(t)?1:-1);}
   const max=Number(t.count_max)||1,cur=Math.max(0,Math.min(Number(val)||0,max)),done=cur>=max;
   const up={count_current:cur,is_completed:done,last_completed_at:cur>0?appNowIso():null};
   const prev={count_current:t.count_current,is_completed:t.is_completed,last_completed_at:t.last_completed_at};
+  Object.assign(t,up);
+  if(done)holdTaskCardHeight(t,isExp,ownerId);else releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));
+  render();
+  if(isTestMode()){clearBusy(key);if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}return;}
+  const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
+  clearBusy(key);
+  if(error){Object.assign(t,prev);releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));render();}
+  if(error){toast('저장 실패');return;}
+  if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}
+}
+async function adjustQuotaTask(id,isExp,ownerId,delta){
+  const key=`task:${id}`;if(!withBusy(key))return;
+  const list=isExp?(state.expTasks[ownerId]||[]):(state.tasks[ownerId]||[]);
+  const t=list.find(x=>x.id===id);if(!t){clearBusy(key);return;}
+  if(list.some(x=>x.parent_id===id)){clearBusy(key);toast('상위 숙제는 하위 숙제 완료로 자동 처리됩니다');return;}
+  const totalMax=Math.max(1,Number(t.count_max)||1);
+  const dailyMax=Math.max(1,Number(t.count_daily_limit)||1);
+  const total=Math.max(0,Math.min(effectiveCount(t),totalMax));
+  const daily=Math.max(0,Math.min(effectiveDailyCount(t),dailyMax));
+  if(delta>0&&total>=totalMax){clearBusy(key);toast('주간 목표를 모두 채웠습니다');return;}
+  if(delta>0&&daily>=dailyMax){clearBusy(key);toast('오늘 가능한 횟수를 모두 채웠습니다');return;}
+  if(delta<0&&total<=0){clearBusy(key);return;}
+  const nextTotal=Math.max(0,Math.min(totalMax,total+delta));
+  const nextDaily=delta>0?Math.max(0,Math.min(dailyMax,daily+1)):Math.max(0,Math.min(dailyMax,daily-1));
+  const done=nextTotal>=totalMax;
+  const dailyBoundary=getLastResetUTC('daily',3).toISOString();
+  const up={
+    count_current:nextTotal,
+    count_daily_current:nextDaily,
+    count_daily_last_reset_at:dailyBoundary,
+    is_completed:done,
+    last_completed_at:nextTotal>0?appNowIso():null
+  };
+  const prev={
+    count_current:t.count_current,
+    count_daily_current:t.count_daily_current,
+    count_daily_last_reset_at:t.count_daily_last_reset_at,
+    is_completed:t.is_completed,
+    last_completed_at:t.last_completed_at
+  };
   Object.assign(t,up);
   if(done)holdTaskCardHeight(t,isExp,ownerId);else releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));
   render();
@@ -2819,7 +2913,7 @@ function taskOwnerName(isExp,ownerId){
   return c?`${a?`${a.name} · `:''}${c.name}`:ownerId;
 }
 function taskCopyFields(t){
-  return{
+  const rec={
     name:t.name,
     reset_type:t.reset_type||'daily',
     reset_day:t.reset_day??3,
@@ -2838,6 +2932,12 @@ function taskCopyFields(t){
     rest_consumed_current_cycle:0,
     clone_group_id:t.clone_group_id??null
   };
+  if(Object.prototype.hasOwnProperty.call(t,'count_daily_limit')||t.count_daily_limit!=null){
+    rec.count_daily_current=0;
+    rec.count_daily_limit=t.count_daily_limit??null;
+    rec.count_daily_last_reset_at=t.count_daily_limit!=null?getLastResetUTC('daily',3).toISOString():null;
+  }
+  return rec;
 }
 function newId(){return window.crypto?.randomUUID?window.crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&3|8);return v.toString(16);});}
 async function ensureCloneGroup(t,isExp){
@@ -2977,6 +3077,8 @@ function openCreateTask(scope,id,resetType){
   document.getElementById('task-activate-enabled').checked=false;
   document.getElementById('task-activate-day').value='3';
   document.getElementById('step-max').value='3';
+  document.getElementById('quota-total-max').value='9';
+  document.getElementById('quota-daily-limit').value='3';
   document.getElementById('rest-max').value='200';
   document.getElementById('rest-current').value='0';
   document.getElementById('rest-charge').value='20';
@@ -3009,7 +3111,7 @@ function openEditTask(id,isExp,ownerId){
   state.createTarget={scope:isExp?'account':'char',id:ownerId};
   state.createParentId=t.parent_id||null;
   state.editTarget={id,isExp,ownerId};
-  const type=t.rest_enabled?'rest':t.count_max!=null?'step':'check';
+  const type=t.rest_enabled?'rest':hasDailyQuota(t)?'weeklyQuota':t.count_max!=null?'step':'check';
   document.getElementById('task-name').value=t.name||'';
   setTaskIcon(t.icon_url||null);
   document.getElementById('task-reset').value=t.reset_type||'daily';
@@ -3017,6 +3119,8 @@ function openEditTask(id,isExp,ownerId){
   document.getElementById('task-activate-enabled').checked=t.activate_day!=null;
   if(t.activate_day!=null)document.getElementById('task-activate-day').value=String(t.activate_day);
   document.getElementById('step-max').value=t.count_max??3;
+  document.getElementById('quota-total-max').value=t.count_max??9;
+  document.getElementById('quota-daily-limit').value=t.count_daily_limit??3;
   document.getElementById('rest-max').value=t.rest_max??100;
   document.getElementById('rest-current').value=t.rest_current??0;
   document.getElementById('rest-charge').value=t.rest_charge??10;
@@ -3033,10 +3137,17 @@ function openEditTask(id,isExp,ownerId){
 }
 function selectCreateType(type){
   state.createType=type;
+  const resetSelect=document.getElementById('task-reset');
+  if(type==='weeklyQuota'){
+    resetSelect.value='weekly';
+    syncCreateReset();
+  }
+  resetSelect.disabled=type==='weeklyQuota';
   document.querySelectorAll('.type-card').forEach(b=>b.classList.toggle('active',b.dataset.type===type));
   document.getElementById('config-rest').classList.toggle('hidden',type!=='rest');
   document.getElementById('config-check').classList.toggle('hidden',type!=='check');
   document.getElementById('config-step').classList.toggle('hidden',type!=='step');
+  document.getElementById('config-weekly-quota').classList.toggle('hidden',type!=='weeklyQuota');
 }
 function syncCreateReset(){document.getElementById('task-reset-day-wrap').classList.toggle('hidden',document.getElementById('task-reset').value!=='weekly');}
 function syncCreateActivate(){document.getElementById('task-activate-wrap').classList.toggle('hidden',!document.getElementById('task-activate-enabled').checked);}
@@ -3054,6 +3165,15 @@ async function submitCreatedTask(){
   const activateDay=document.getElementById('task-activate-enabled').checked?Number(document.getElementById('task-activate-day').value):null;
   const rec={name,icon_url:state.taskIconUrl||null,reset_type:resetType,reset_day:resetDay,activate_day:activateDay,count_max:null,rest_enabled:false,rest_current:0,rest_max:200,rest_charge:20,rest_consume:40,rest_threshold:40,rest_daily_limit:1,rest_last_processed_at:null,rest_consumed_current_cycle:0};
   if(state.createType==='step'){rec.count_max=Math.max(2,Number(document.getElementById('step-max').value)||3);rec.count_current=0;}
+  if(state.createType==='weeklyQuota'){
+    rec.reset_type='weekly';
+    rec.reset_day=resetDay;
+    rec.count_max=Math.max(1,Number(document.getElementById('quota-total-max').value)||9);
+    rec.count_current=0;
+    rec.count_daily_limit=Math.max(1,Number(document.getElementById('quota-daily-limit').value)||3);
+    rec.count_daily_current=0;
+    rec.count_daily_last_reset_at=getLastResetUTC('daily',3).toISOString();
+  }
   if(state.createType==='rest'){
     rec.rest_enabled=true;
     rec.rest_max=Math.max(1,Number(document.getElementById('rest-max').value)||100);
@@ -3068,6 +3188,12 @@ async function submitCreatedTask(){
   const table=isExp?'expedition_tasks':'tasks';
   if(state.editTarget){
     const {id,ownerId}=state.editTarget;
+    const existing=(isExp?(state.expTasks[ownerId]||[]):(state.tasks[ownerId]||[])).find(x=>x.id===id);
+    if(existing&&hasDailyQuota(existing)&&state.createType!=='weeklyQuota'){
+      rec.count_daily_limit=null;
+      rec.count_daily_current=0;
+      rec.count_daily_last_reset_at=null;
+    }
     const {error}=await sb.from(table).update(rec).eq('id',id);
     if(error){toast('숙제 저장 실패');console.error(error);return;}
     const list=isExp?(state.expTasks[ownerId]||[]):(state.tasks[ownerId]||[]);
@@ -3080,6 +3206,7 @@ async function submitCreatedTask(){
     rec.parent_id=state.createParentId;
     rec.sort_order=(isExp?(state.expTasks[target.id]||[]):(state.tasks[target.id]||[])).filter(t=>t.parent_id===state.createParentId).length;
     rec.rest_enabled=false;rec.rest_current=0;rec.rest_max=200;rec.rest_charge=20;rec.rest_consume=40;rec.rest_threshold=40;rec.rest_daily_limit=1;rec.rest_last_processed_at=null;rec.rest_consumed_current_cycle=0;
+    rec.count_daily_limit=null;rec.count_daily_current=0;rec.count_daily_last_reset_at=null;
   }
   const {data,error}=await sb.from(table).insert(rec).select().single();
   if(error){auditTaskEvent('create-fail',{table,ownerId:target.id,name,reset_type:resetType,parent_id:rec.parent_id||null,error:error.message||String(error)});toast('숙제 추가 실패');console.error(error);return;}

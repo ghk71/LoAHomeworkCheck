@@ -2962,3 +2962,21 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 6개 HTML의 CSS var 정의 누락 없음 확인.
 - `git diff --check` 통과. CRLF 변환 경고만 확인.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
+## 2026-06-28 - index 주간 누적 / 일일 제한 숙제 타입 추가
+
+### 변경 내용
+- `index.html` 숙제 생성/수정 모달에 `주간 누적 / 일일 제한` 타입을 추가했습니다.
+- 새 타입은 `count_current/count_max`를 주간 총 누적으로 사용하고, `count_daily_current/count_daily_limit/count_daily_last_reset_at`으로 하루 제한을 따로 관리합니다.
+- 카드에는 `총 n/N`, `오늘 d/D`가 표시되며 `+`는 하루 제한과 주간 목표를 넘지 못하도록 막고, `-`는 주간 누적을 되돌릴 수 있게 했습니다.
+- 해당 타입 선택 중에는 초기화 주기를 주간으로 고정해 UI와 저장값이 엇갈리지 않도록 했습니다.
+- 매일 오전 6시 기준으로 오늘 카운트가 초기화되고, 주간 초기화 기준을 넘은 완료 상태는 기존 흐름처럼 정리됩니다.
+- 복제 시 새 타입의 주간/일일 진행도는 0으로 시작하도록 반영했습니다.
+- `schema.sql`과 `DB_MIGRATION_LOG.md`에 `tasks`, `expedition_tasks`의 일일 제한 카운트 컬럼을 추가했습니다.
+
+### 검증
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `index.html` 내부 `<script>` 추출 후 `node --check` 문법 검사 통과.
+- `git diff --check` 통과. CRLF 변환 경고만 확인.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.

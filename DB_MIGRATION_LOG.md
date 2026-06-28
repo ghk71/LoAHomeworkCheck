@@ -637,3 +637,30 @@ alter table raid_group_settings add column if not exists hidden boolean default 
 
 ### 적용 여부
 - 수동 확인 필요.
+
+## 2026-06-28 - 주간 누적 / 일일 제한 숙제 컬럼
+
+### 목적
+- `index.html` 숙제 타입에 “주간 총 목표 횟수”와 “일일 최대 횟수”를 함께 관리하는 타입을 추가하기 위해 사용합니다.
+- 예: 주간 총 9회, 하루 최대 3회인 숙제를 3일에 나누어 채울 수 있습니다.
+
+### SQL
+
+```sql
+alter table tasks add column if not exists count_daily_current int default 0;
+alter table tasks add column if not exists count_daily_limit int default null;
+alter table tasks add column if not exists count_daily_last_reset_at timestamptz;
+
+alter table expedition_tasks add column if not exists count_current int default 0;
+alter table expedition_tasks add column if not exists count_max int default null;
+alter table expedition_tasks add column if not exists count_daily_current int default 0;
+alter table expedition_tasks add column if not exists count_daily_limit int default null;
+alter table expedition_tasks add column if not exists count_daily_last_reset_at timestamptz;
+```
+
+### 적용 파일
+- `schema.sql`
+- `index.html`
+
+### 적용 여부
+- 수동 확인 필요.

@@ -44,6 +44,9 @@ create table if not exists tasks(
   last_completed_at timestamptz,
   count_current int default 0,
   count_max int default null,
+  count_daily_current int default 0,
+  count_daily_limit int default null,
+  count_daily_last_reset_at timestamptz,
   rest_enabled boolean default false,
   rest_current int default 0,
   rest_max int default 200,
@@ -70,6 +73,9 @@ create table if not exists expedition_tasks(
   last_completed_at timestamptz,
   count_current int default 0,
   count_max int default null,
+  count_daily_current int default 0,
+  count_daily_limit int default null,
+  count_daily_last_reset_at timestamptz,
   rest_enabled boolean default false,
   rest_current int default 0,
   rest_max int default 200,
@@ -281,6 +287,9 @@ alter table accounts         add column if not exists sort_order int default 0;
 alter table accounts         add column if not exists hide_from_filters boolean default false;
 alter table tasks            add column if not exists count_current int default 0;
 alter table tasks            add column if not exists count_max int default null;
+alter table tasks            add column if not exists count_daily_current int default 0;
+alter table tasks            add column if not exists count_daily_limit int default null;
+alter table tasks            add column if not exists count_daily_last_reset_at timestamptz;
 alter table tasks            add column if not exists parent_id uuid references tasks(id) on delete cascade;
 alter table tasks            add column if not exists activate_day int default null;
 alter table tasks            add column if not exists clone_group_id uuid;
@@ -294,6 +303,11 @@ alter table tasks            add column if not exists rest_daily_limit int defau
 alter table tasks            add column if not exists rest_last_processed_at timestamptz;
 alter table tasks            add column if not exists rest_consumed_current_cycle int default 0;
 alter table expedition_tasks add column if not exists parent_id uuid references expedition_tasks(id) on delete cascade;
+alter table expedition_tasks add column if not exists count_current int default 0;
+alter table expedition_tasks add column if not exists count_max int default null;
+alter table expedition_tasks add column if not exists count_daily_current int default 0;
+alter table expedition_tasks add column if not exists count_daily_limit int default null;
+alter table expedition_tasks add column if not exists count_daily_last_reset_at timestamptz;
 alter table expedition_tasks add column if not exists activate_day int default null;
 alter table expedition_tasks add column if not exists clone_group_id uuid;
 alter table expedition_tasks add column if not exists rest_enabled boolean default false;
