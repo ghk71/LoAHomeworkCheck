@@ -1122,14 +1122,12 @@ function raidTaskRowHTML(t){
   const popupPresetId=t.preset_id||(tempRemovedPresetByTask[t.id]?.id)||'';
   const gc=getGroupColor(raidName);
   const dc=diffClass(t.difficulty||'');
-  const flow=Math.max(0,(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0)),bound=Number(t.bound_gold)||0,bonus=Number(t.bonus_gold)||0;
-  const goldChecked=t.receive_gold!==false&&t.receive_bound!==false;
   const partyLinked=t.has_party_link||isTemp||isRemoved;
   const partyClick=partyLinked?` onclick="event.stopPropagation();showOvPartyPopup('${popupPresetId}','${t.character_id}','${t.id}')"`:'';
   const partyClass=isRemoved?'temp-remove':isTemp?'temp-add':t.has_party_link?'on':'off';
   const partyText=isRemoved?'↩ 임시해제':isTemp?'✨ 임시':t.has_party_link?'':'파티X';
+  const bonus=Number(t.bonus_gold)||0;
   const flagChips=[
-    (flow||bound)&&!goldChecked?`<span class="ov-status-chip gold off" title="골드체크 제외">골드X</span>`:'',
     bonus&&t.receive_bonus===false?`<span class="ov-status-chip bonus off" title="더보기 제외">더보기X</span>`:'',
     isRemoved||isTemp||!t.has_party_link?`<span class="ov-status-chip party ${partyClass}${partyLinked?' clickable':''}" title="${isRemoved?'임시해제':isTemp?'임시':'파티연동 없음'}"${partyClick}>${partyText}</span>`:''
   ].filter(Boolean).join('');

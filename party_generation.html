@@ -1265,23 +1265,27 @@ async function applyDraft(){
 
 async function ensureRaidTasks(){
   const toEnsure=[];
+  const scopedCharIds=new Set();
   for(const p of activePartyDrafts()){
-    for(const cid of p.slots.filter(Boolean))toEnsure.push({charId:cid,presetId:p.preset_id});
+    for(const cid of p.slots.filter(Boolean)){
+      scopedCharIds.add(cid);
+      toEnsure.push({charId:cid,presetId:p.preset_id,source:'party'});
+    }
   }
-  for(const ch of state.chars){
-    for(const item of candidateItemsForChar(ch))toEnsure.push({charId:ch.id,presetId:item.presetId});
+  for(const ch of filteredChars()){
+    scopedCharIds.add(ch.id);
+    for(const item of candidateItemsForChar(ch))toEnsure.push({charId:ch.id,presetId:item.presetId,source:'candidate'});
   }
-  const seen=new Set();
-  const uniq=[];
+  const desiredByCharGroup=new Map();
   for(const item of toEnsure){
-    const key=`${item.charId}:${item.presetId}`;
-    if(seen.has(key))continue;
     const preset=raidById(item.presetId);if(!preset)continue;
-    seen.add(key);
-    uniq.push(item);
+    const key=`${item.charId}:${normalizeRaidText(preset.name)}`;
+    const prev=desiredByCharGroup.get(key);
+    if(!prev||item.source==='party')desiredByCharGroup.set(key,{...item,preset});
   }
-  if(!uniq.length)return;
-  const charIds=[...new Set(uniq.map(x=>x.charId).filter(Boolean))];
+  const uniq=[...desiredByCharGroup.values()];
+  const charIds=[...scopedCharIds].filter(Boolean);
+  if(!charIds.length)return;
   const {data:freshTasks,error:loadError}=await sb.from('raid_tasks').select('*').in('character_id',charIds);
   if(loadError)throw loadError;
   const tasks=freshTasks||[];
@@ -1298,12 +1302,12 @@ async function ensureRaidTasks(){
     const payload=raidTaskPayloadForPreset(preset);
     const key=`${item.charId}:${item.presetId}`;
     const exact=existingByKey.get(key);
-    if(exact){
+    if(exact&&!claimedTaskIds.has(exact.id)){
       claimedTaskIds.add(exact.id);
       updateJobs.push(sb.from('raid_tasks').update(payload).eq('id',exact.id));
       continue;
     }
-    const linkedByName=tasks.find(t=>t.character_id===item.charId&&!claimedTaskIds.has(t.id)&&isSamePresetTask(t,preset));
+    const linkedByName=tasks.find(t=>t.character_id===item.charId&&!claimedTaskIds.has(t.id)&&(isSamePresetTask(t,preset)||isSameRaidGroupTask(t,preset)));
     if(linkedByName){
       claimedTaskIds.add(linkedByName.id);
       updateJobs.push(sb.from('raid_tasks').update({...payload,preset_id:preset.id}).eq('id',linkedByName.id));
@@ -1311,11 +1315,42 @@ async function ensureRaidTasks(){
     }
     insertRows.push({...payload,character_id:item.charId,preset_id:preset.id,receive_gold:true,receive_bound:true,receive_bonus:true});
   }
+  const staleIds=tasks.filter(t=>{
+    if(!t.character_id||claimedTaskIds.has(t.id)||!isManagedRaidTask(t))return false;
+    return true; // Not claimed by the final party-generation list, so it is stale.
+  }).map(t=>t.id);
   if(updateJobs.length){
     const res=await Promise.all(updateJobs);
     const err=res.find(x=>x.error)?.error;if(err)throw err;
   }
   if(insertRows.length){const {error}=await sb.from('raid_tasks').insert(insertRows);if(error)throw error;}
+  if(staleIds.length){const {error}=await sb.from('raid_tasks').delete().in('id',staleIds);if(error)throw error;}
+}
+function raidTaskGroupName(task){
+  const preset=raidById(task?.preset_id);
+  if(preset?.name)return preset.name;
+  const taskName=normalizeRaidText(task?.name);
+  const taskDiff=normalizeRaidText(task?.difficulty);
+  for(const group of groupNames()){
+    const groupNorm=normalizeRaidText(group);
+    if(taskName===groupNorm||taskName.startsWith(`${groupNorm} `))return group;
+    for(const preset of groupPresets(group)){
+      const combined=normalizeRaidText(`${preset.name||''} ${preset.difficulty||''}`);
+      const presetDiff=normalizeRaidText(preset.difficulty);
+      if(taskName===combined)return group;
+      if(taskName===groupNorm&&(!taskDiff||!presetDiff||taskDiff===presetDiff))return group;
+    }
+  }
+  return task?.name||'';
+}
+function isManagedRaidTask(task){
+  if(!task)return false;
+  if(task.preset_id&&raidById(task.preset_id))return true;
+  const group=normalizeRaidText(raidTaskGroupName(task));
+  return groupNames().some(name=>normalizeRaidText(name)===group);
+}
+function isSameRaidGroupTask(task,preset){
+  return !!(task&&preset&&normalizeRaidText(raidTaskGroupName(task))===normalizeRaidText(preset.name));
 }
 function raidTaskPayloadForPreset(preset){
   return{

@@ -2981,6 +2981,23 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - `git diff --check` 통과. CRLF 변환 경고만 확인.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
 
+## 2026-07-10 - party_generation 레이드 숙제 동기화 정리 및 골드X 배지 제거
+
+### 변경 내용
+- `party_generation.html` 적용 시 캐릭터별 최종 레이드 목록을 `좌측 체크 후보 + 우측 파티 배치` 기준으로 다시 계산하도록 수정했습니다.
+- 같은 레이드 그룹에서 난이도만 바뀐 경우 기존 `raid_tasks` 행을 새 preset/difficulty로 업데이트하고, 남은 이전 난이도 행은 삭제하도록 했습니다.
+- 최종 목록에 없는 기존 관리 대상 레이드 숙제는 삭제해 `index.html`, `overview.html`에 W/X/Y/Z가 누적 표시되는 문제를 막았습니다.
+- 현재 캐릭터 필터에서 표시 중인 캐릭터와 실제 파티 슬롯에 들어간 캐릭터만 동기화 대상으로 삼아, 숨겨 둔 캐릭터의 레이드 목록을 불필요하게 건드리지 않도록 했습니다.
+- `overview.html`과 `raid.html` 공유 레이드 현황에서 골드를 받지 않는 레이드에 표시되던 `골드X` 배지를 제거했습니다. `더보기X`, `파티X`, 임시 상태 배지는 유지했습니다.
+
+### 검증
+- `party_generation.html`, `overview.html`, `raid.html` 내부 `<script>` 추출 후 `node --check` 문법 검사 통과.
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음 확인.
+- 6개 HTML의 CSS var 정의 누락 없음 확인.
+- `골드X`, `골드체크 제외` 문자열이 남아있지 않음 확인.
+- `git diff --check` 통과. CRLF 변환 경고만 확인.
+- `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+
 ## 2026-06-28 - index 주간 누적 숙제 UI 및 진행도 수정 보강
 
 ### 변경 내용

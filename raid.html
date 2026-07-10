@@ -1613,10 +1613,8 @@ async function loadViewerOverview(el){
     return`<span class="vo-gold-mini ${cls}">${label} <b>${earned.toLocaleString()} / ${total.toLocaleString()}G</b><span class="vo-progress-track"><span class="vo-progress-fill" style="width:${pct}%;background:${color};"></span></span></span>`;
   };
   const raidGoldChips=(t,hasPartyLink=false)=>{
-    const flow=flowOf(t),bound=boundOf(t),bonus=bonusOf(t);
-    const goldChecked=t.receive_gold!==false&&t.receive_bound!==false;
+    const bonus=bonusOf(t);
     const chips=[];
-    if((flow||bound)&&!goldChecked)chips.push(`<span class="vo-raid-status gold off" title="골드체크 제외">골드X</span>`);
     if(bonus&&t.receive_bonus===false)chips.push(`<span class="vo-raid-status bonus off" title="더보기 제외">더보기X</span>`);
     if(!hasPartyLink)chips.push(`<span class="vo-raid-status party off" title="파티연동 없음">파티X</span>`);
     return chips.length?`<div class="vo-raid-gold-row">${chips.join('')}</div>`:'';
