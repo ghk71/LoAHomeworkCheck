@@ -1184,7 +1184,7 @@ async function showPartyLinkPopup(presetId,taskId,charId){
         const added=(o.temp_changes&&o.temp_changes.added)||{};
         const removed=(o.temp_changes&&o.temp_changes.removed)||{};
         const slots=o.slot_overrides||{};
-        const isTemp=Object.values(added).some(v=>v&&v.taskId===taskId);
+        const isTemp=Object.values(added).some(v=>v&&(v.taskId||v.task_id)===taskId);
         if(isTemp){const sch=schData.find(s=>s.id===o.schedule_id);if(sch)tempPartyIds.add(sch.party_id);}
         Object.keys(slots).forEach(k=>{if(slots[k]===charId){const sch=schData.find(s=>s.id===o.schedule_id);if(sch)tempPartyIds.add(sch.party_id);}});
         if(removed[charId]){const sch=schData.find(s=>s.id===o.schedule_id);if(sch)removedPartyIds.add(sch.party_id);}
@@ -1236,7 +1236,7 @@ function ensureIntegrityModal(){
   modal.innerHTML=`<div class="modal wide">
     <div class="modal-head"><div><div class="modal-title">무결성 검사</div><div class="tiny">숙제, 레이드 프리셋, 파티 배치 간 연결 문제를 확인합니다.</div></div><button class="btn" onclick="closeModal('modal-integrity')">닫기</button></div>
     <div class="modal-body"><div id="integrity-content" class="integrity-list"></div></div>
-    <div class="modal-foot"><button class="btn" onclick="openIntegrityCheck()">다시 검사</button><button class="btn primary" onclick="closeModal('modal-integrity')">확인</button></div>
+    <div class="modal-foot"><button class="btn" onclick="openIntegrityCheck()">다시 검사</button><button class="btn" onclick="repairUnlinkedRaidTasks()">미연결 숙제 자동 복구</button><button class="btn primary" onclick="closeModal('modal-integrity')">확인</button></div>
   </div>`;
   document.body.appendChild(modal);
   return modal;
@@ -1299,6 +1299,27 @@ async function collectIntegrityIssues(){
     issues.push({level:'warn',title:'파티 미연동 레이드 숙제',detail:`${t.name||t.id} 숙제는 현재 주차 기준 배치된 파티가 없습니다.`});
   });
   return issues;
+}
+async function repairUnlinkedRaidTasks(){
+  const norm=v=>String(v||'').trim().replace(/\s+/g,' ').toLowerCase();
+  // 이번 주 임시해제 상태(preset_id를 의도적으로 비운 것)는 복구 대상에서 제외
+  const targets=Object.values(state.raidTasks).flat().filter(t=>!t.preset_id&&!state.tempRemovedRaidTaskIds.has(t.id));
+  if(!targets.length){toast('복구할 미연결 레이드 숙제가 없습니다');return;}
+  const {data:presets,error}=await sb.from('raid_presets').select('*');
+  if(error){toast('레이드 프리셋 조회 실패');return;}
+  let fixed=0;
+  for(const t of targets){
+    const nameN=norm(t.name),diffN=norm(t.difficulty);
+    const cand=(presets||[]).find(p=>nameN===norm(`${p.name} ${p.difficulty||''}`))
+      ||(presets||[]).find(p=>nameN===norm(p.name)&&diffN&&norm(p.difficulty)===diffN)
+      ||(presets||[]).find(p=>nameN===norm(p.name)&&!diffN&&!norm(p.difficulty));
+    if(!cand)continue;
+    const {error:upErr}=await sb.from('raid_tasks').update({preset_id:cand.id}).eq('id',t.id);
+    if(!upErr){t.preset_id=cand.id;fixed++;}
+  }
+  if(fixed){await loadRaidMetaForCurrent();render();}
+  toast(fixed?`${fixed}개 숙제의 프리셋 연동을 복구했습니다`:'이름이 일치하는 프리셋을 찾지 못했습니다');
+  await openIntegrityCheck();
 }
 async function openIntegrityCheck(){
   ensureIntegrityModal();
@@ -1364,8 +1385,8 @@ async function loadTempRaidTaskIds(){
   const addedIds=[],removedBySchedule=[],removedRecords=[];
   (data||[]).forEach(o=>{
     const added=o.temp_changes?.added||{},removed=o.temp_changes?.removed||{};
-    Object.values(added).forEach(v=>{if(v?.taskId)addedIds.push(v.taskId);});
-    Object.values(removed).forEach(v=>{if(v?.taskId)removedRecords.push({taskId:v.taskId,scheduleId:o.schedule_id});});
+    Object.values(added).forEach(v=>{const tid=v?.taskId||v?.task_id;if(tid)addedIds.push(tid);});
+    Object.values(removed).forEach(v=>{const tid=v?.taskId||v?.task_id;if(tid)removedRecords.push({taskId:tid,scheduleId:o.schedule_id});});
   });
   const {data:tempParties}=await sb.from('raid_parties').select('id,preset_id').eq('is_temporary',true).eq('temp_week_start_date',wk);
   if(tempParties?.length){
@@ -2069,12 +2090,23 @@ function setRestFromGroup(e,id,isExp,ownerId,start,end,charge){
   if(start===0&&ratio<=0.08)val=0;
   setRest(id,isExp,ownerId,Math.max(0,Math.min(end,val)));
 }
+function raidGroupIconByName(name){
+  const n=String(name||'').trim();
+  if(!n)return'';
+  if(state.raidGroupSettings[n]?.icon_url)return state.raidGroupSettings[n].icon_url;
+  // "카제로스 하드"처럼 난이도가 붙은 이름도 그룹 아이콘과 매칭되도록 접두어 검색
+  let best='',bestLen=0;
+  Object.entries(state.raidGroupSettings).forEach(([gn,gs])=>{
+    if(gs?.icon_url&&gn&&n.startsWith(gn)&&gn.length>bestLen){best=gs.icon_url;bestLen=gn.length;}
+  });
+  return best;
+}
 function raidRow(t,charId){
   const done=isDone(t),diffClass=String(t.difficulty||'').includes('하드')?'hard':String(t.difficulty||'').includes('나이트')?'nightmare':'normal';
   const removedPreset=state.tempRemovedPresetByTask[t.id];
   const preset=removedPreset||state.presets[t.preset_id]||{};
   const rn=preset.name||t.name;
-  const icon=preset.icon_url||state.raidGroupSettings[rn]?.icon_url||'';
+  const icon=preset.icon_url||raidGroupIconByName(rn)||'';
   const flow=Math.max(0,(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0)),bound=Number(t.bound_gold)||0,bonus=Number(t.bonus_gold)||0;
   const isTemp=state.tempRaidTaskIds.has(t.id),isRemoved=state.tempRemovedRaidTaskIds.has(t.id);
   const isUnlinked=!isRemoved&&!isTemp&&!t.has_party_link;

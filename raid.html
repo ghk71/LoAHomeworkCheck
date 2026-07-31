@@ -1884,7 +1884,7 @@ const DKO=['일','월','화','수','목','금','토'];
 function saveRaidOpenState(){localStorage.setItem('la_raid_open_groups',JSON.stringify([...openRaidGroups]));localStorage.setItem('la_raid_open_presets',JSON.stringify([...openRaidPresets]));}
 function normalizeTempChanges(tc={}){
   const out={added:{},removed:{}};
-  Object.entries(tc.added||{}).forEach(([cid,info])=>{out.added[cid]={wasNew:!!(info.wasNew??info.was_new),taskId:info.taskId||info.task_id||null};});
+  Object.entries(tc.added||{}).forEach(([cid,info])=>{out.added[cid]={wasNew:!!(info.wasNew??info.was_new),taskId:info.taskId||info.task_id||null,hadPreset:!!(info.hadPreset??info.had_preset)};});
   Object.entries(tc.removed||{}).forEach(([cid,info])=>{out.removed[cid]={taskId:info.taskId||info.task_id||null,hadPreset:!!(info.hadPreset??info.had_preset),partyId:info.partyId||info.party_id||null};});
   return out;
 }
@@ -2558,6 +2558,7 @@ async function ensureRaidTaskForPreset(charId,preset,{silent=false}={}){
     const{error}=await sb.from('raid_tasks').update({preset_id:preset.id}).eq('id',existing.id);
     if(error){if(!silent)toast('❗ '+error.message);return null;}
     existing.preset_id=preset.id;
+    existing.__linked=true;
     if(!silent)toast('🔗 기존 레이드 숙제와 연동됨');
     return existing;
   }
@@ -3396,6 +3397,7 @@ async function assignOverrideChar(charId){
   // raid_task 처리
   let taskId=null;
   let wasNew=false;
+  let hadPreset=false;
   let restoredRemoved=false;
   let restoredFromPartyId=null;
   if(charId&&preset){
@@ -3416,9 +3418,10 @@ async function assignOverrideChar(charId){
       const existTask=await ensureRaidTaskForPreset(charId,preset,{silent:true});
       if(existTask){
         taskId=existTask.id;wasNew=!!existTask.__created;
+        hadPreset=!existTask.__created&&!existTask.__linked;
       }
     }
-    if(taskId&&(!restoredRemoved||restoredFromPartyId!==p.id)&&!partyHasBaseChar(p,charId))ovr.temp_changes.added[charId]={wasNew,taskId};
+    if(taskId&&(!restoredRemoved||restoredFromPartyId!==p.id)&&!partyHasBaseChar(p,charId))ovr.temp_changes.added[charId]={wasNew,taskId,hadPreset};
   }
   normalizeNoopSlotOverride(ovr,p,pickCtx.slotIndex);
   await persistOverride(pickCtx.scheduleId,wk,ovr);
@@ -3445,7 +3448,13 @@ async function removeOvrSlot(schId,slotIdx,wk){
       const info=ovr.temp_changes.added[removedCharId];
       await revertTempAdd(removedCharId,info,preset);
       delete ovr.temp_changes.added[removedCharId];
-      delete ovr.slot_overrides[String(slotIdx)]; // null로 표시 필요
+      const baseCharId=baseSlotCharId(p,slotIdx);
+      if(baseCharId&&ovr.temp_changes.removed?.[baseCharId]){
+        // 원래 슬롯 주인이 아직 임시해제 상태 → 슬롯을 비움으로 유지
+        ovr.slot_overrides[String(slotIdx)]=null;
+      } else {
+        delete ovr.slot_overrides[String(slotIdx)];
+      }
     } else {
       // 원래 파티 멤버를 임시 제거 → 파티 연동 해제
       const{data:tasks}=await sb.from('raid_tasks').select('id,preset_id').eq('character_id',removedCharId).eq('preset_id',preset.id);
@@ -3480,6 +3489,9 @@ async function revertTempAdd(charId,info,preset){
   if(info.wasNew){
     // 새로 만든 task → 삭제
     await sb.from('raid_tasks').delete().eq('id',info.taskId);
+  } else if(info.hadPreset??info.had_preset){
+    // 임시추가 이전부터 preset에 연동돼 있던 task → 연동 유지(복원)
+    if(preset?.id)await sb.from('raid_tasks').update({preset_id:preset.id}).eq('id',info.taskId);
   } else {
     // 기존 task에 preset 연동만 했던 것 → 연동 해제
     await sb.from('raid_tasks').update({preset_id:null}).eq('id',info.taskId);

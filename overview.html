@@ -879,8 +879,8 @@ async function loadTempRaidTaskIds(){
   (data||[]).forEach(o=>{
     const added=(o.temp_changes&&o.temp_changes.added)||{};
     const removed=(o.temp_changes&&o.temp_changes.removed)||{};
-    Object.values(added).forEach(v=>{if(v&&v.taskId)ids.push(v.taskId);});
-    Object.values(removed).forEach(v=>{if(v&&v.taskId)removedRecords.push({taskId:v.taskId,scheduleId:o.schedule_id});});
+    Object.values(added).forEach(v=>{const tid=v&&(v.taskId||v.task_id);if(tid)ids.push(tid);});
+    Object.values(removed).forEach(v=>{const tid=v&&(v.taskId||v.task_id);if(tid)removedRecords.push({taskId:tid,scheduleId:o.schedule_id});});
   });
   const{data:tempParties}=await sb.from('raid_parties').select('id,preset_id').eq('is_temporary',true).eq('temp_week_start_date',wk);
   if(tempParties?.length){
@@ -1134,7 +1134,7 @@ function raidTaskRowHTML(t){
   return`<div class="rt-row ${done?'done':''}" id="ov-rti-${t.id}" onclick="toggleRaidTask('${t.id}')">
     <div class="rt-check"><span class="rt-check-icon">✓</span></div>
     <div class="rt-info">
-      <div class="rt-name" style="display:flex;align-items:center;gap:4px;">${iconImg(getGroupIcon(raidName),'entity-icon-sm')}<span style="color:${gc};">${esc(raidName)}</span>${t.difficulty?` <span class="${dc}" style="font-size:.72rem;margin-left:2px;">${esc(t.difficulty)}</span>`:''}</div>
+      <div class="rt-name" style="display:flex;align-items:center;gap:4px;">${iconImg(getGroupIconLoose(raidName),'entity-icon-sm')}<span style="color:${gc};">${esc(raidName)}</span>${t.difficulty?` <span class="${dc}" style="font-size:.72rem;margin-left:2px;">${esc(t.difficulty)}</span>`:''}</div>
       ${flagChips?`<div class="ov-gold-row">${flagChips}</div>`:''}
     </div>
   </div>`;
@@ -1294,6 +1294,18 @@ function pickerRemoveIcon(){if(_pickerCb)_pickerCb(null);closeModal('modal-img-p
 
 function getGroupColor(name){return raidGroupSettings[name]?.color||(!raidGroupSettingsAvailable?localStorage.getItem('la_gc_'+name):null)||'#4caf50';}
 function getGroupIcon(name){return raidGroupSettings[name]?.icon_url||(!raidGroupSettingsAvailable?localStorage.getItem('la_gicon_'+name):null)||'';}
+function getGroupIconLoose(name){
+  const direct=getGroupIcon(name);
+  if(direct)return direct;
+  // "카제로스 하드"처럼 난이도가 붙은 이름도 그룹 아이콘과 매칭되도록 접두어 검색
+  const n=String(name||'').trim();
+  if(!n)return'';
+  let best='',bestLen=0;
+  Object.entries(raidGroupSettings).forEach(([gn,gs])=>{
+    if(gs?.icon_url&&gn&&n.startsWith(gn)&&gn.length>bestLen){best=gs.icon_url;bestLen=gn.length;}
+  });
+  return best;
+}
 function diffClass(d){if(!d)return'';const dl=d.toLowerCase();if(dl.includes('나이트메어')||dl.includes('3단계'))return'diff-nightmare';if(dl.includes('하드')||dl.includes('2단계'))return'diff-hard';if(dl.includes('노말')||dl.includes('1단계'))return'diff-normal';return'';}
 
 function openModal(id){document.getElementById(id)?.classList.add('open');}
