@@ -456,7 +456,7 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
 
 /* Slots */
 .slots-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
-.slots-grid.s8 { grid-template-columns:1fr 1fr; }
+.slots-grid.s8 { grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(4,minmax(54px,auto));grid-auto-flow:column; }
 .slot {
   display:flex; align-items:center; gap:8px;
   padding: 10px 13px;
@@ -630,6 +630,8 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
 }
 .sc-edit-badge{font-size:.62rem;color:var(--gold);white-space:nowrap;flex:0 0 auto;}
 .sc-members { display:flex; flex-direction:column; gap:3px; border-top:1px solid rgba(255,255,255,.06); padding-top:7px; }
+.sched-card.party-8{min-width:330px;max-width:390px;}
+.sc-members.s8{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(4,minmax(22px,auto));grid-auto-flow:column;column-gap:12px;}
 .sc-member {
   font-size:.75rem; display:flex; gap:5px;
   align-items:center; padding:1px 0;
@@ -976,6 +978,7 @@ button,input,select,textarea{ font:inherit; }
 .sch-party-preview-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:.7rem;color:var(--muted);}
 .sch-party-preview-body{padding:10px;}
 .sch-party-members{display:flex;flex-direction:column;gap:6px;}
+.sch-party-members.s8{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(4,minmax(34px,auto));grid-auto-flow:column;}
 .sch-party-member{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:7px;padding:7px 8px;border:1px solid transparent;border-radius:7px;font-size:.74rem;color:var(--text-2);}
 .sch-party-member.filled{border-color:rgba(255,184,77,.25);background:rgba(255,184,77,.075);}
 .sch-party-member.empty{color:var(--muted);opacity:.78;}
@@ -1098,6 +1101,7 @@ body::before{background:none;}
 .unplaced-preview-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap;color:var(--muted);font-size:.66rem;}
 .unplaced-preview-meta span,.unplaced-preview-meta b{display:inline-flex;align-items:center;min-height:20px;padding:3px 7px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.035);line-height:1;}
 .unplaced-preview-body{padding:6px;display:grid;gap:4px;max-height:142px;overflow-y:auto;scrollbar-width:thin;}
+.unplaced-preview-body.s8{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(4,minmax(30px,auto));grid-auto-flow:column;max-height:none;}
 .unplaced-list{min-height:120px;scrollbar-width:thin;}
 .unplaced-preview-empty{position:relative;min-height:72px;padding:15px 12px 13px;color:var(--muted);font-size:.75rem;line-height:1.5;background:linear-gradient(160deg,rgba(34,211,238,.07),rgba(139,92,246,.05));display:grid;align-content:center;gap:3px;}
 .unplaced-preview-empty b{display:block;color:#dffbff;font-size:.82rem;font-weight:950;}
@@ -3072,7 +3076,7 @@ function schedCardHTML(s,wk){
   const eff=getEffectiveMembers(s.id,s.party_id,wk);
   const gc=getGroupColor(preset?.name||'');
   const pc=getPartyColor(p);
-  return`<div class="sched-card ${isCompleted?'completed':''} ${(hasOvr||isTempFixed)?'has-ovr':''}" id="sc-${s.id}">
+  return`<div class="sched-card ${Number(p?.party_size)===8?'party-8':''} ${isCompleted?'completed':''} ${(hasOvr||isTempFixed)?'has-ovr':''}" id="sc-${s.id}">
     <div class="sc-header">
       <div class="sc-raid-name" style="color:${gc};display:flex;align-items:center;gap:4px;">${iconImg(getGroupIcon(preset?.name||'')||preset?.icon_url||'','entity-icon-sm')}${esc(preset?.name||'?')}<span class="${diffClass(preset?.difficulty||'')}" style="font-size:.65rem;margin-left:5px;font-weight:600;">${esc(preset?.difficulty||'')}</span></div>
       <div class="sc-subline">
@@ -3083,7 +3087,7 @@ function schedCardHTML(s,wk){
         ${hasOvr?'<span class="sc-edit-badge">편집</span>':''}
       </div>
     </div>
-    <div class="sc-members">
+    <div class="sc-members ${Number(p?.party_size)===8?'s8':''}">
       ${eff.map(slot=>{
         const ch=allChars.find(c=>c.id===slot.character_id);
         if(ch){const isHL=schHighlightChars.has(ch.id),isTemp=slot.isTempParty||(slot.isOvr&&!p.members?.some(m=>m.character_id===ch.id));return`<div class="sc-member ${isTemp?'temp':''} ${isHL?'hl-me':''}" style="${isHL?'border:1px solid rgba(200,168,75,.5);background:rgba(200,168,75,.1);border-radius:3px;padding:1px 3px;':''}">${iconImg(ch.icon_url||'','entity-icon-sm')}<span class="sc-member-name" style="${isHL?'color:var(--gold);font-weight:700;':''}">${esc(ch.name)}</span>${isTemp?'<span class="temp-link-label">임시</span>':''}<span class="sc-member-class">${esc(ch.class_name||'')}</span></div>`;}
@@ -3170,7 +3174,7 @@ function renderUnplacedPreview(){
     <div class="unplaced-preview-title" style="color:${raidColor};">${iconImg(getGroupIcon(r?.name||'')||r?.icon_url||'','entity-icon-sm')}${esc(r?.name||'레이드')} <span class="${diffClass(r?.difficulty||'')}">${esc(r?.difficulty||'')}</span></div>
     <div class="unplaced-preview-meta"><b style="color:${pc};">${esc(p.name||'파티')}</b><span>${filled}/${p.party_size||4}명</span>${r?.entry_level?`<span>입장 ${r.entry_level}</span>`:''}</div>
   </div>
-  <div class="unplaced-preview-body">${unplacedMemberRows(p)}</div>`;
+  <div class="unplaced-preview-body ${Number(p.party_size)===8?'s8':''}">${unplacedMemberRows(p)}</div>`;
 }
 function refreshUnplacedSelection(){
   document.querySelectorAll('.unplaced-card[data-party-id]').forEach(card=>{
@@ -3548,7 +3552,7 @@ function partyPreviewHTML(r,p){
       <div class="sch-party-preview-title"><span style="color:${raidColor};">${iconImg(getGroupIcon(r?.name||''),'entity-icon-sm')}${esc(r?.name||'레이드')}</span> <span class="${diffClass(r?.difficulty||'')}">${esc(r?.difficulty||'')}</span></div>
       <div class="sch-party-preview-meta"><b style="color:var(--text);">${esc(p.name||'파티')}</b><span>· ${p.party_size||4}인</span>${r?.entry_level?`<span>· 입장 ${r.entry_level}</span>`:''}</div>
     </div>
-    <div class="sch-party-preview-body"><div class="sch-party-members">${partyMemberRows(p)}</div></div>`;
+    <div class="sch-party-preview-body"><div class="sch-party-members ${Number(p.party_size)===8?'s8':''}">${partyMemberRows(p)}</div></div>`;
 }
 function schedulePartyCard(r,p,selId){
   const selected=p.id===selId;

@@ -3013,3 +3013,18 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - `index.html` 내부 `<script>` 추출 후 `node --check` 문법 검사 통과.
 - `git diff --check` 통과. CRLF 변환 경고만 확인.
 - `node tools/check-project.js`는 AGENTS.md 지침대로 실행하지 않았습니다.
+## 2026-08-05 - 파티 생성/레이드 8인 4+4 배치 및 필터·캐릭터 편집 개선
+
+### 변경 내용
+- `party_generation.html`의 8인 파티 슬롯을 1~4번 왼쪽, 5~8번 오른쪽의 4+4 배치로 변경하고 8인 파티 카드가 충분한 가로 폭을 사용하도록 조정했습니다.
+- 상단 계정/캐릭터 필터와 우측 미배치 후보 계정 목록에 내부 세로 스크롤을 추가했습니다.
+- `숨김 계정 보기`와 선택한 캐릭터 이름표 상태를 `party_generation_drafts.data`에 저장하고 페이지 재진입 시 DB에서 복원하도록 변경했습니다. 이 설정은 파티 생성 페이지에만 적용되며 별도 스키마 변경은 없습니다.
+- 좌측 캐릭터 카드에 레이드 후보 수정과 별개의 `정보 수정` 버튼을 추가했습니다. 이름, 줄임말, 직업, 아이템 레벨, 전투력, 아이콘, 아제나 축복 및 섹션 표시 설정을 `characters` 테이블에 저장합니다.
+- `raid.html`의 파티 구성 슬롯, 주간 일정 카드, 일정 선택 미리보기, 미배치 선택 파티 정보에서 8인 멤버를 동일한 4+4 순서로 표시하도록 변경했습니다.
+
+### 검증
+- `party_generation.html`, `raid.html` 내부 스크립트 문법 검사 통과.
+- 6개 HTML의 `</html>` 뒤 코드 없음 확인.
+- 6개 HTML의 CSS 변수 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 변환 경고만 확인.
+- 사용자 지침에 따라 `node tools/check-project.js`는 실행하지 않았습니다.

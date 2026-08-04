@@ -68,7 +68,7 @@ button{cursor:pointer}
 .filter-title{font-weight:950;color:#dbeafe}
 .filter-summary{color:var(--muted);font-size:.73rem}
 .filter-spacer{flex:1}
-.filter-body{display:flex;flex-direction:column;gap:7px;padding:9px 10px;border-top:1px solid var(--line)}
+.filter-body{display:flex;flex-direction:column;gap:7px;padding:9px 10px;border-top:1px solid var(--line);max-height:190px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
 .filter-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .filter-row.sub{margin-left:16px}
 .filter-row.sub > .cf-btn:first-child{border-color:rgba(125,211,252,.28);color:#b9dcff;background:rgba(56,189,248,.07)}
@@ -123,7 +123,7 @@ button{cursor:pointer}
 .tag.gold{border-color:rgba(243,180,63,.35);color:#ffd985}
 .tag.green{border-color:rgba(24,214,107,.3);color:#8df8b8}
 .tag.red{border-color:rgba(255,93,108,.35);color:#ffb3bb}
-.candidate-pool{display:grid;gap:7px;padding:0 10px 10px}
+.candidate-pool{display:grid;gap:7px;padding:0 10px 10px;max-height:190px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
 .pool-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .pool-account{min-width:54px;color:var(--gold);font-size:.72rem;font-weight:950}
 .pool-account.sub-account-name{color:#a7d8ff}
@@ -135,10 +135,12 @@ button{cursor:pointer}
 .pool-chip small{color:var(--muted);font-size:.66rem;font-weight:750}
 .party-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(245px,1fr));align-items:start;gap:8px;padding:0 10px 10px}
 .party-card{background:rgba(11,17,25,.56)}
+.party-card.party-card-8{grid-column:span 2}
 .party-head{padding:7px 8px;background:rgba(255,255,255,.03)}
 .party-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .party-title-input{width:96px;background:#111720;border:1px solid var(--line);border-radius:6px;color:var(--text);padding:5px 7px;font-weight:850}
 .slot-grid{display:grid;gap:5px;padding:7px}
+.slot-grid.s8{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(4,minmax(32px,auto));grid-auto-flow:column}
 .slot{display:grid;grid-template-columns:20px minmax(0,1fr) 26px auto;align-items:center;gap:6px;border:1px solid var(--line);border-radius:7px;background:rgba(255,255,255,.025);padding:6px 7px;min-height:32px}
 .slot.drop{border-color:rgba(34,211,238,.58);background:rgba(34,211,238,.09)}
 .slot-num{color:var(--dim);font-size:.72rem;text-align:center}
@@ -150,6 +152,7 @@ button{cursor:pointer}
 .pg-char-icon img{width:100%;height:100%;object-fit:cover;display:block}
 .pg-char-icon.empty{opacity:.55}
 .char-card-icon{width:34px;height:34px;border-radius:8px;justify-self:start}
+.char-card-actions{display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end}
 .status-line{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.74rem}
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#0f1217;border:1px solid var(--line-2);border-radius:999px;padding:9px 14px;color:var(--text);box-shadow:var(--shadow);z-index:200;opacity:0;pointer-events:none;transition:.18s}
 .toast.show{opacity:1;bottom:26px}
@@ -189,6 +192,16 @@ button{cursor:pointer}
 .api-progress-bar{height:7px;border-radius:999px;background:#0b1119;overflow:hidden}.api-progress-fill{height:100%;width:0;background:linear-gradient(90deg,var(--green),#6ee7f9)}
 .api-log{max-height:160px;overflow:auto;display:grid;gap:5px;color:var(--muted);font-size:.74rem}
 .api-log-row{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid rgba(255,255,255,.05);padding-bottom:5px}
+.character-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.character-edit-grid .full{grid-column:1/-1}
+.character-edit-checks{display:grid;gap:8px;padding:10px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.025)}
+.character-edit-checks label{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:.78rem;font-weight:820}
+.character-edit-checks input{width:16px;height:16px;accent-color:var(--accent)}
+.character-icon-row{display:grid;grid-template-columns:42px minmax(0,1fr);align-items:end;gap:10px}
+.character-icon-preview{width:42px;height:42px;border-radius:8px;border:1px solid var(--line-2);background:#111720;display:grid;place-items:center;overflow:hidden;color:var(--dim);font-size:.68rem;font-weight:900}
+.character-icon-preview img{width:100%;height:100%;object-fit:cover;display:block}
+@media(max-width:900px){.party-card.party-card-8{grid-column:span 1}}
+@media(max-width:620px){.character-edit-grid{grid-template-columns:1fr}.slot-grid.s8{grid-template-columns:1fr;grid-template-rows:none;grid-auto-flow:row}}
 .api-log-row.ok{color:#a7f3d0}.api-log-row.fail{color:#ffb4b4}
 .validation-list{display:grid;gap:10px}.validation-chip.warn{border-color:rgba(244,199,107,.42);color:#ffe1a1;background:rgba(244,199,107,.08)}.validation-chip.err{border-color:rgba(255,93,108,.45);color:#ffc5ca;background:rgba(255,93,108,.09)}
 .hidden{display:none!important}
@@ -296,6 +309,44 @@ button{cursor:pointer}
   </div>
 </div>
 
+<div class="overlay" id="modal-character-edit">
+  <div class="modal" style="width:min(720px,100%)">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="character-edit-title">캐릭터 정보 수정</div>
+        <div class="panel-sub" id="character-edit-sub"></div>
+      </div>
+      <button class="btn ghost" onclick="closeModal('modal-character-edit')">닫기</button>
+    </div>
+    <div class="modal-body">
+      <div class="character-edit-grid">
+        <div class="field full">
+          <label>캐릭터 아이콘</label>
+          <div class="character-icon-row">
+            <div class="character-icon-preview" id="pg-character-icon-preview">없음</div>
+            <input id="pg-character-icon" class="input" placeholder="이미지 경로 또는 URL" oninput="renderCharacterEditIconPreview()">
+          </div>
+        </div>
+        <div class="field"><label>캐릭터명</label><input id="pg-character-name" class="input"></div>
+        <div class="field"><label>디스코드 전송 줄임말</label><input id="pg-character-short-name" class="input" maxlength="24" placeholder="없으면 캐릭터명 사용"></div>
+        <div class="field"><label>직업</label><input id="pg-character-class" class="input"></div>
+        <div class="field"><label>아이템 레벨</label><input id="pg-character-ilvl" class="input" type="number" step="0.01"></div>
+        <div class="field"><label>전투력</label><input id="pg-character-combat" class="input" type="number" step="1"></div>
+        <div class="character-edit-checks full">
+          <label><input type="checkbox" id="pg-character-azena"> 아제나의 축복 적용</label>
+          <label><input type="checkbox" id="pg-character-show-raid"> 레이드 현황 표시</label>
+          <label><input type="checkbox" id="pg-character-show-currency"> 재화 현황 표시</label>
+          <label><input type="checkbox" id="pg-character-show-note"> 커스텀 노트 표시</label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeModal('modal-character-edit')">취소</button>
+      <button class="btn primary" id="character-edit-save-btn" onclick="saveCharacterEdit()">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="modal-validation">
   <div class="modal">
     <div class="modal-head">
@@ -360,8 +411,8 @@ const state={
   accounts:[],chars:[],raids:[],raidTasks:[],parties:[],members:[],raidGroupSettings:{},
   partyDrafts:[],originalPartyIds:new Set(),candidateMap:{},hiddenPresets:new Set(),
   collapsedPresets:new Set(),collapsedParties:new Set(),hideAssignedCandidates:false,workbenchSaveTimer:null,workbenchSaving:false,workbenchDirty:false,workbenchDbAvailable:true,workbenchChangeSeq:0,workbenchSavedSeq:0,
-  selectedAccount:ALL,selectedChars:new Set(),filterOpen:localStorage.getItem('la_pg_filter_open')!=='0',
-  selectedLeftAccount:ALL,selectedRaidGroup:null,showHiddenAccounts:false,search:'',drag:null,editCharId:null,draftId:null,
+  selectedAccount:ALL,selectedChars:new Set(),filterSelectionLoaded:false,filterOpen:localStorage.getItem('la_pg_filter_open')!=='0',
+  selectedLeftAccount:ALL,selectedRaidGroup:null,showHiddenAccounts:false,search:'',drag:null,editCharId:null,editInfoCharId:null,draftId:null,
   isApplying:false,applyStatus:'',
   lostarkApiToken:'',lostarkApiSave:!!localStorage.getItem('la_lostark_api_token'),apiUpdateExcluded:new Set(safeJson('la_lostark_update_excluded',[]))
 };
@@ -382,6 +433,8 @@ function fallbackSaveWorkbenchState(){
       collapsedPresets:[...state.collapsedPresets],
       collapsedParties:[...state.collapsedParties],
       hideAssignedCandidates:state.hideAssignedCandidates,
+      showHiddenAccounts:state.showHiddenAccounts,
+      selectedChars:[...state.selectedChars],
       parties:state.partyDrafts.map(p=>({...p}))
     }));
   }catch(e){console.warn('party_generation local workbench save failed:',e);}
@@ -393,6 +446,11 @@ function applyWorkbenchPayload(data,opts={}){
   state.collapsedPresets=new Set(Array.isArray(data.collapsedPresets)?data.collapsedPresets:[]);
   state.collapsedParties=new Set(Array.isArray(data.collapsedParties)?data.collapsedParties:[]);
   state.hideAssignedCandidates=!!data.hideAssignedCandidates;
+  if(typeof data.showHiddenAccounts==='boolean')state.showHiddenAccounts=data.showHiddenAccounts;
+  if(Array.isArray(data.selectedChars)){
+    state.selectedChars=new Set(data.selectedChars);
+    state.filterSelectionLoaded=true;
+  }
   if(!opts.skipParties&&Array.isArray(data.parties)){
     state.partyDrafts=data.parties.map(p=>({...p,slots:Array.from({length:Number(p.party_size)||4},(_,i)=>p.slots?.[i]||null)}));
   }
@@ -430,6 +488,8 @@ function draftPayload(){
     collapsedPresets:[...state.collapsedPresets],
     collapsedParties:[...state.collapsedParties],
     hideAssignedCandidates:state.hideAssignedCandidates,
+    showHiddenAccounts:state.showHiddenAccounts,
+    selectedChars:[...state.selectedChars],
     parties:state.partyDrafts.map(p=>({...p}))
   };
 }
@@ -700,13 +760,13 @@ function renderAccountFilter(){
   document.getElementById('hidden-toggle').textContent=state.showHiddenAccounts?'숨김 계정 끄기':'숨김 계정 보기';
 }
 function toggleCharacterFilter(){state.filterOpen=!state.filterOpen;localStorage.setItem('la_pg_filter_open',state.filterOpen?'1':'0');renderAccountFilter();}
-function saveCharFilter(){localStorage.setItem('la_pg_sel_chars',JSON.stringify([...state.selectedChars]));}
+function saveCharFilter(){localStorage.setItem('la_pg_sel_chars',JSON.stringify([...state.selectedChars]));saveLocalWorkbenchState();}
 function toggleChar(id){if(state.selectedChars.has(id))state.selectedChars.delete(id);else state.selectedChars.add(id);saveCharFilter();render();}
 function toggleCharGroup(ids){const allOn=ids.every(id=>state.selectedChars.has(id));ids.forEach(id=>{if(allOn)state.selectedChars.delete(id);else state.selectedChars.add(id);});saveCharFilter();render();}
 function selectAllChars(){state.selectedChars=new Set(filterSelectableChars().map(c=>c.id));saveCharFilter();render();}
 function deselectAllChars(){state.selectedChars.clear();saveCharFilter();render();}
 function setAccount(id){state.selectedAccount=id;render();}
-function toggleHiddenAccounts(){state.showHiddenAccounts=!state.showHiddenAccounts;initCharacterFilter(true);render();}
+function toggleHiddenAccounts(){state.showHiddenAccounts=!state.showHiddenAccounts;saveLocalWorkbenchState();render();}
 
 function filterVisibleAccounts(){
   return sortRows(state.accounts).filter(a=>state.showHiddenAccounts||!a.hide_from_filters);
@@ -716,13 +776,14 @@ function filterSelectableChars(){
   return sortRows(state.chars).filter(ch=>accIds.has(ch.account_id));
 }
 function initCharacterFilter(keepSaved=false){
-  const allowed=new Set(filterSelectableChars().map(c=>c.id));
+  const allIds=new Set(state.chars.map(c=>c.id));
   const saved=safeJson('la_pg_sel_chars',null);
-  if(keepSaved&&state.selectedChars?.size){
-    state.selectedChars=new Set([...state.selectedChars].filter(id=>allowed.has(id)));
+  if(state.filterSelectionLoaded||keepSaved){
+    state.selectedChars=new Set([...state.selectedChars].filter(id=>allIds.has(id)));
     return;
   }
-  state.selectedChars=new Set(Array.isArray(saved)?saved.filter(id=>allowed.has(id)):[...allowed]);
+  const allowed=new Set(filterSelectableChars().map(c=>c.id));
+  state.selectedChars=new Set(Array.isArray(saved)?saved.filter(id=>allIds.has(id)):[...allowed]);
 }
 function visibleAccounts(){
   const charAccs=new Set(filteredChars().map(c=>c.account_id));
@@ -779,7 +840,7 @@ function charCard(ch){
         <div class="char-name">${esc(ch.name)}</div>
         <div class="char-meta"><span>${esc(ch.class_name||'')}</span>${ch.item_level?`<span>레벨 ${Number(ch.item_level).toLocaleString()}</span>`:''}${ch.combat_power?`<span>투력 ${Number(ch.combat_power).toLocaleString()}</span>`:''}</div>
       </div>
-      <button class="btn ghost sm" onclick="openCandidateEdit('${ch.id}')">수정</button>
+      <div class="char-card-actions"><button class="btn ghost sm" title="레이드 후보 수정" onclick="openCandidateEdit('${ch.id}')">레이드</button><button class="btn ghost sm" onclick="openCharacterEdit('${ch.id}')">정보 수정</button></div>
     </div>
     <div class="candidate-list">${candidates.length?candidates.map(c=>candidateChip(ch,c)).join(''):'<div class="candidate-empty">표시할 레이드 후보가 없습니다</div>'}</div>
   </div>`;
@@ -883,7 +944,7 @@ function poolChip(ch,preset){
 }
 function partyCard(p,preset){
   const collapsed=state.collapsedParties.has(p.id);
-  return`<div class="party-card">
+  return`<div class="party-card ${Number(p.party_size)===8?'party-card-8':''}">
     <div class="party-head">
       <div class="party-controls">
         <input class="party-title-input" value="${esc(p.name)}" onchange="renameParty('${p.id}',this.value)">
@@ -896,7 +957,7 @@ function partyCard(p,preset){
         <button class="btn danger sm" onclick="removeParty('${p.id}')">삭제</button>
       </div>
     </div>
-    <div class="party-body ${collapsed?'collapsed':''}"><div class="slot-grid">${p.slots.map((cid,i)=>slotHtml(p,preset,cid,i)).join('')}</div></div>
+    <div class="party-body ${collapsed?'collapsed':''}"><div class="slot-grid ${Number(p.party_size)===8?'s8':''}">${p.slots.map((cid,i)=>slotHtml(p,preset,cid,i)).join('')}</div></div>
   </div>`;
 }
 function slotHtml(p,preset,charId,i){
@@ -905,6 +966,57 @@ function slotHtml(p,preset,charId,i){
     <span class="slot-num">${i+1}</span>
     ${ch?`<div class="slot-char"><div class="slot-name">${esc(ch.name)}</div><div class="slot-meta">${esc(accountNameById(ch.account_id))} · ${esc(ch.class_name||'')}</div></div>${charIcon(ch)}<button class="btn icon danger" onclick="clearSlot('${p.id}',${i})">×</button>`:`<div class="slot-empty">여기에 ${esc(preset.difficulty||'캐릭터')} 후보 드롭</div><span></span><span></span>`}
   </div>`;
+}
+
+function renderCharacterEditIconPreview(){
+  const box=document.getElementById('pg-character-icon-preview');if(!box)return;
+  const url=(document.getElementById('pg-character-icon')?.value||'').trim();
+  box.innerHTML=url?`<img src="${esc(url)}" alt="" onerror="this.parentElement.textContent='오류'">`:'없음';
+}
+function openCharacterEdit(charId){
+  const ch=charById(charId);if(!ch)return;
+  state.editInfoCharId=charId;
+  document.getElementById('character-edit-title').textContent=`${ch.name} 정보 수정`;
+  document.getElementById('character-edit-sub').textContent=`${accountNameById(ch.account_id)} 계정 · 변경 내용은 characters DB에 즉시 저장됩니다.`;
+  document.getElementById('pg-character-name').value=ch.name||'';
+  document.getElementById('pg-character-short-name').value=ch.short_name||'';
+  document.getElementById('pg-character-class').value=ch.class_name||'';
+  document.getElementById('pg-character-ilvl').value=ch.item_level||'';
+  document.getElementById('pg-character-combat').value=ch.combat_power||'';
+  document.getElementById('pg-character-icon').value=ch.icon_url||'';
+  document.getElementById('pg-character-azena').checked=ch.azena_blessing===true;
+  document.getElementById('pg-character-show-raid').checked=ch.show_raid_tasks!==false;
+  document.getElementById('pg-character-show-currency').checked=ch.show_currencies!==false;
+  document.getElementById('pg-character-show-note').checked=ch.show_custom_notes!==false;
+  renderCharacterEditIconPreview();
+  openModal('modal-character-edit');
+}
+async function saveCharacterEdit(){
+  const ch=charById(state.editInfoCharId);if(!ch)return;
+  const name=(document.getElementById('pg-character-name').value||'').trim();
+  if(!name){toast('캐릭터명을 입력하세요');return;}
+  const payload={
+    name,
+    short_name:(document.getElementById('pg-character-short-name').value||'').trim()||null,
+    class_name:(document.getElementById('pg-character-class').value||'').trim(),
+    item_level:Number(document.getElementById('pg-character-ilvl').value)||0,
+    combat_power:Number(document.getElementById('pg-character-combat').value)||0,
+    icon_url:(document.getElementById('pg-character-icon').value||'').trim()||null,
+    azena_blessing:document.getElementById('pg-character-azena').checked,
+    show_raid_tasks:document.getElementById('pg-character-show-raid').checked,
+    show_currencies:document.getElementById('pg-character-show-currency').checked,
+    show_custom_notes:document.getElementById('pg-character-show-note').checked
+  };
+  const btn=document.getElementById('character-edit-save-btn');if(btn)btn.disabled=true;
+  const {error}=await sb.from('characters').update(payload).eq('id',ch.id);
+  if(btn)btn.disabled=false;
+  if(error){console.error(error);toast('캐릭터 저장 실패: '+error.message,4200);return;}
+  Object.assign(ch,payload);
+  buildDefaultCandidates();
+  saveLocalWorkbenchState();
+  closeModal('modal-character-edit');
+  render();
+  toast('캐릭터 정보를 저장했습니다');
 }
 
 function dragCandidate(e,charId,presetId){state.drag={charId,presetId};e.dataTransfer.effectAllowed='move';e.currentTarget.classList.add('dragging');}
