@@ -25,6 +25,12 @@ function kstNow() {
   return new Date(requestNowMs);
 }
 
+function getMonthlyResetUTC(year: number, monthIndex: number) {
+  const firstDay = new Date(Date.UTC(year, monthIndex, 1)).getUTCDay();
+  const firstWednesday = 1 + ((3 - firstDay + 7) % 7);
+  return new Date(Date.UTC(year, monthIndex, firstWednesday - 1, 21, 0, 0, 0));
+}
+
 function getLastResetUTC(type: string, day = 3) {
   const now = kstNow();
   let result: Date;
@@ -34,8 +40,8 @@ function getLastResetUTC(type: string, day = 3) {
     if (now < result) result.setUTCDate(result.getUTCDate() - 1);
   } else if (type === "monthly") {
     const kst = new Date(now.getTime() + 9 * 3600000);
-    result = new Date(Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), 0, 21, 0, 0));
-    if (now < result) result = new Date(Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth() - 1, 0, 21, 0, 0));
+    result = getMonthlyResetUTC(kst.getUTCFullYear(), kst.getUTCMonth());
+    if (now < result) result = getMonthlyResetUTC(kst.getUTCFullYear(), kst.getUTCMonth() - 1);
   } else {
     const rDay = (Number(day) + 6) % 7;
     result = new Date(now);
@@ -55,7 +61,7 @@ function getPreviousResetBoundary(type: string, boundary: Date) {
   }
   if (type === "monthly") {
     const kst = new Date(prev.getTime() + 9 * 3600000);
-    return new Date(Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth() - 1, 0, 21, 0, 0));
+    return getMonthlyResetUTC(kst.getUTCFullYear(), kst.getUTCMonth() - 1);
   }
   prev.setUTCDate(prev.getUTCDate() - 7);
   return prev;

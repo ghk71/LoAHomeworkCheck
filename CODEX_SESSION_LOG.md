@@ -3028,3 +3028,20 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 6개 HTML의 CSS 변수 정의 누락 없음 확인.
 - `git diff --check` 통과. CRLF 변환 경고만 확인.
 - 사용자 지침에 따라 `node tools/check-project.js`는 실행하지 않았습니다.
+
+## 2026-08-05 - 월간 숙제 초기화 기준 변경
+
+### 변경 내용
+- `index.html`의 월간 숙제 초기화 기준을 매월 1일 06:00 KST에서 매월 첫째 주 수요일 06:00 KST로 변경했습니다.
+- 해당 월 1일의 요일을 기준으로 첫 수요일을 계산하는 헬퍼를 추가하고, 현재 경계와 이전 월 경계 계산에 모두 적용했습니다.
+- 완료 상태, 카운트, 휴식 게이지 누적 및 화면 초기화 주기 문구가 새 기준을 사용하도록 맞췄습니다.
+- `send-homework-discord` Edge Function의 월간 완료/활성화 판정도 같은 기준으로 변경했습니다.
+- `FEATURE_SPEC.md`와 `TEST_SCENARIO.md`의 월간 기준을 갱신했습니다.
+
+### 검증
+- 첫 수요일이 1일, 5일, 7일인 달과 연말 월 넘김 경계 계산 테스트 통과.
+- 첫째 주 수요일 05:59:59/06:00:00 KST 전후 경계 테스트 통과.
+- `index.html` 내부 스크립트 문법 검사 통과.
+- 6개 HTML의 `</html>` 뒤 코드 없음 및 CSS 변수 정의 누락 없음 확인.
+- `git diff --check` 통과. CRLF 변환 경고만 확인.
+- 사용자 지침에 따라 `node tools/check-project.js`는 실행하지 않았습니다.
