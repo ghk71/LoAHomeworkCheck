@@ -1142,7 +1142,7 @@ function raidTaskRowHTML(t){
     bonus&&t.receive_bonus===false?`<span class="ov-status-chip bonus off" title="더보기 제외">더보기X</span>`:'',
     isRemoved||isTemp||!t.has_party_link?`<span class="ov-status-chip party ${partyClass}${partyLinked?' clickable':''}" title="${isRemoved?'임시해제':isTemp?'임시':'파티연동 없음'}"${partyClick}>${partyText}</span>`:''
   ].filter(Boolean).join('');
-  return`<div class="rt-row ${done?'done':''}" id="ov-rti-${t.id}" onclick="toggleRaidTask(event,'${t.id}')">
+  return`<div class="rt-row ${done?'done':''}" id="ov-rti-${t.id}" onclick="toggleRaidTask('${t.id}')">
     <div class="rt-check"><span class="rt-check-icon">✓</span></div>
     <div class="rt-info">
       <div class="rt-name" style="display:flex;align-items:center;gap:4px;">${iconImg(getGroupIconLoose(raidName),'entity-icon-sm')}<span style="color:${gc};">${esc(raidName)}</span>${t.difficulty?` <span class="${dc}" style="font-size:.72rem;margin-left:2px;">${esc(t.difficulty)}</span>`:''}</div>
@@ -1223,9 +1223,8 @@ async function showOvPartyPopup(presetId,charId,taskId=''){
   }catch(err){console.error(err);el.innerHTML='<div style="color:#fca5a5;font-size:.82rem;">파티 정보를 불러오지 못했습니다.</div>';}
 }
 
-// ─── Toggle (★ 핵심 수정: await 로 실제 DB 저장 보장) ───
-async function toggleRaidTask(event,taskId){
-  event?.preventDefault();
+// ─── Toggle ───
+async function toggleRaidTask(taskId){
   if(raidToggleBusy.has(taskId))return;
   const t=raidTasks.find(x=>x.id===taskId);if(!t)return;
   raidToggleBusy.add(taskId);
@@ -1233,22 +1232,12 @@ async function toggleRaidTask(event,taskId){
   const nowDone=!isEffDone(t);
   const ts=nowDone?appNowIso():null;
   const up={is_completed:nowDone,last_completed_at:ts};
-  // DOM update immediately
-  const el=document.getElementById('ov-rti-'+taskId);
-  if(el){
-    el.classList.toggle('done',nowDone);
-    const icon=el.querySelector('.rt-check-icon');if(icon)icon.style.opacity=nowDone?'1':'0';
-    const cb=el.querySelector('.rt-check');if(cb){cb.style.background='';cb.style.borderColor='';}
-    const nm=el.querySelector('.rt-name');if(nm){nm.style.color='';nm.style.textDecoration='';}
-  }
-  // Memory update
   Object.assign(t,up);
   render();
   if(isTestMode()){raidToggleBusy.delete(taskId);return;}
   try{
-    const{data,error}=await sb.from('raid_tasks').update(up).eq('id',taskId).select('id').maybeSingle();
+    const{error}=await sb.from('raid_tasks').update(up).eq('id',taskId);
     if(error)throw error;
-    if(!data)throw new Error('변경된 행이 없습니다');
   }catch(error){
     Object.assign(t,previous);
     render();

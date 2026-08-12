@@ -3054,6 +3054,7 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - `overview.html`도 프리셋 전체 메타데이터를 로드해 레이드 숙제의 최신 골드 값을 사용하도록 변경했습니다.
 - `overview.html` 완료 판정에서 화면 표시용 KST 주차 날짜를 실제 UTC 시각처럼 비교하던 문제를 수정했습니다. 완료/초기화 경계는 수요일 06:00 KST에 해당하는 UTC 시각을 별도로 사용합니다.
 - 완료 토글은 중복 클릭을 막고, DB 갱신 행이 없거나 저장이 실패하면 메모리 상태와 화면을 이전 값으로 되돌리도록 보강했습니다.
+- 후속 점검에서 완료 토글의 `UPDATE ... SELECT` 응답이 비어 있으면 성공한 변경도 실패로 오인해 즉시 롤백될 수 있던 경로를 제거했습니다. 레이드 행 클릭은 브라우저 전역 `event`에 의존하지 않고, `raid_tasks` UPDATE 자체의 오류만 저장 실패로 처리합니다.
 
 ### 검증
 - `index.html`, `raid.html`, `overview.html` 내부 스크립트 문법 검사 통과.
