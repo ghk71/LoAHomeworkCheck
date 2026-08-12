@@ -759,7 +759,7 @@ const{createClient}=supabase;
 function getConfig(){const u=localStorage.getItem('la_url'),k=localStorage.getItem('la_key');return u&&k?{url:u,key:k}:null;}
 function safeJson(key,fallback){try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback;}catch(e){console.warn('localStorage JSON parse failed:',key,e);return fallback;}}
 
-let sb,accounts=[],characters=[],raidTasks=[],raidTasksByChar=new Map(),tempRaidTaskIds=new Set(),tempRemovedRaidTaskIds=new Set(),tempRemovedPresetByTask={},raidGroupSettings={},raidGroupSettingsAvailable=true;
+let sb,accounts=[],characters=[],raidTasks=[],raidTasksByChar=new Map(),tempRaidTaskIds=new Set(),tempRemovedRaidTaskIds=new Set(),tempRemovedPresetByTask={},raidGroupSettings={},raidGroupSettingsAvailable=true,raidToggleBusy=new Set();
 let weekOffset=0;
 let collapsedAccs=new Set(safeJson('la_ov_collapsed',[]));
 let selectedChars=new Set(); // selected character ids for filter
@@ -797,7 +797,7 @@ async function loadAll(){
     sb.from('accounts').select('*').order('sort_order').order('created_at'),
     sb.from('characters').select('*').order('sort_order').order('created_at'),
     sb.from('raid_tasks').select('*').order('sort_order').order('created_at'),
-    sb.from('raid_presets').select('id,name,difficulty')
+    sb.from('raid_presets').select('*')
   ]);
   const firstError=results.find(r=>r.error)?.error;
   if(firstError){toast('❗ 로딩 오류: '+firstError.message);console.error(firstError);return;}
@@ -809,10 +809,20 @@ async function loadAll(){
     const removedPreset=tempRemovedPresetByTask[t.id];
     if(removedPreset){
       t.preset_name=removedPreset.name;
-      t.difficulty=t.difficulty||removedPreset.difficulty||'';
+      t.difficulty=removedPreset.difficulty??t.difficulty??'';
+      t.entry_level=removedPreset.entry_level??t.entry_level;
+      t.clear_gold=removedPreset.clear_gold??t.clear_gold;
+      t.bound_gold=removedPreset.bound_gold??t.bound_gold;
+      t.bonus_gold=removedPreset.bonus_gold??t.bonus_gold;
       t.preset_icon=getGroupIcon(t.preset_name);
     } else if(t.preset_id&&presetsMap[t.preset_id]){
-      t.preset_name=presetsMap[t.preset_id].name;
+      const preset=presetsMap[t.preset_id];
+      t.preset_name=preset.name;
+      t.difficulty=preset.difficulty??t.difficulty??'';
+      t.entry_level=preset.entry_level??t.entry_level;
+      t.clear_gold=preset.clear_gold??t.clear_gold;
+      t.bound_gold=preset.bound_gold??t.bound_gold;
+      t.bonus_gold=preset.bonus_gold??t.bonus_gold;
       t.preset_icon=getGroupIcon(t.preset_name);
     }
   });
@@ -838,14 +848,15 @@ function getWeekStart(off=0){
   let b=(kst.getUTCDay()-3+7)%7;if(b===0&&kst.getUTCHours()<6)b=7;
   const ws=new Date(kst);ws.setUTCDate(ws.getUTCDate()-b+off*7);ws.setUTCHours(6,0,0,0);return ws;
 }
-function getLastReset(){return getWeekStart(weekOffset);}
+function getWeekResetUTC(off=0){return new Date(getWeekStart(off).getTime()-9*3600000);}
+function getLastReset(){return getWeekResetUTC(weekOffset);}
 function getWeekKey(off=0){const ws=getWeekStart(off);return`${ws.getUTCFullYear()}-${String(ws.getUTCMonth()+1).padStart(2,'0')}-${String(ws.getUTCDate()).padStart(2,'0')}`;}
 function isEffDone(t){
   if(!t.is_completed||!t.last_completed_at)return false;
-  return new Date(t.last_completed_at)>getWeekStart(0); // always compare against current week reset
+  return new Date(t.last_completed_at)>=getWeekResetUTC(0); // current Wednesday 06:00 KST
 }
 function nextResetLabel(){
-  const next=new Date(getWeekStart(0));next.setUTCDate(next.getUTCDate()+7);
+  const next=new Date(getWeekResetUTC(0));next.setUTCDate(next.getUTCDate()+7);
   const diff=next-appNowMs();if(diff<=0)return'곧';
   const h=Math.floor(diff/3600000),m=Math.floor((diff%3600000)/60000);
   return h>0?`${h}시간 후`:`${m}분 후`;
@@ -864,8 +875,8 @@ async function refreshWeekScopedRaidState(){
 async function moveWeek(n){weekOffset+=n;updateWeekLabel();await refreshWeekScopedRaidState();render();}
 async function goCurrentWeek(){weekOffset=0;updateWeekLabel();await refreshWeekScopedRaidState();render();}
 async function autoReset(){
-  const lr=getWeekStart(0);
-  const toReset=raidTasks.filter(t=>t.is_completed&&t.last_completed_at&&new Date(t.last_completed_at)<=lr);
+  const lr=getWeekResetUTC(0);
+  const toReset=raidTasks.filter(t=>t.is_completed&&t.last_completed_at&&new Date(t.last_completed_at)<lr);
   if(!toReset.length)return;
   if(isTestMode()){toReset.forEach(t=>{t.is_completed=false;t.last_completed_at=null;});return;}
   await sb.from('raid_tasks').update({is_completed:false,last_completed_at:null}).in('id',toReset.map(t=>t.id));
@@ -1131,7 +1142,7 @@ function raidTaskRowHTML(t){
     bonus&&t.receive_bonus===false?`<span class="ov-status-chip bonus off" title="더보기 제외">더보기X</span>`:'',
     isRemoved||isTemp||!t.has_party_link?`<span class="ov-status-chip party ${partyClass}${partyLinked?' clickable':''}" title="${isRemoved?'임시해제':isTemp?'임시':'파티연동 없음'}"${partyClick}>${partyText}</span>`:''
   ].filter(Boolean).join('');
-  return`<div class="rt-row ${done?'done':''}" id="ov-rti-${t.id}" onclick="toggleRaidTask('${t.id}')">
+  return`<div class="rt-row ${done?'done':''}" id="ov-rti-${t.id}" onclick="toggleRaidTask(event,'${t.id}')">
     <div class="rt-check"><span class="rt-check-icon">✓</span></div>
     <div class="rt-info">
       <div class="rt-name" style="display:flex;align-items:center;gap:4px;">${iconImg(getGroupIconLoose(raidName),'entity-icon-sm')}<span style="color:${gc};">${esc(raidName)}</span>${t.difficulty?` <span class="${dc}" style="font-size:.72rem;margin-left:2px;">${esc(t.difficulty)}</span>`:''}</div>
@@ -1213,8 +1224,12 @@ async function showOvPartyPopup(presetId,charId,taskId=''){
 }
 
 // ─── Toggle (★ 핵심 수정: await 로 실제 DB 저장 보장) ───
-async function toggleRaidTask(taskId){
+async function toggleRaidTask(event,taskId){
+  event?.preventDefault();
+  if(raidToggleBusy.has(taskId))return;
   const t=raidTasks.find(x=>x.id===taskId);if(!t)return;
+  raidToggleBusy.add(taskId);
+  const previous={is_completed:t.is_completed,last_completed_at:t.last_completed_at};
   const nowDone=!isEffDone(t);
   const ts=nowDone?appNowIso():null;
   const up={is_completed:nowDone,last_completed_at:ts};
@@ -1229,10 +1244,18 @@ async function toggleRaidTask(taskId){
   // Memory update
   Object.assign(t,up);
   render();
-  // ★ await: Supabase JS v2에서 await 없으면 쿼리 미실행
-  if(isTestMode())return;
-  const{error}=await sb.from('raid_tasks').update(up).eq('id',taskId);
-  if(error){toast('❗ 저장 실패: '+error.message);return;}
+  if(isTestMode()){raidToggleBusy.delete(taskId);return;}
+  try{
+    const{data,error}=await sb.from('raid_tasks').update(up).eq('id',taskId).select('id').maybeSingle();
+    if(error)throw error;
+    if(!data)throw new Error('변경된 행이 없습니다');
+  }catch(error){
+    Object.assign(t,previous);
+    render();
+    toast('❗ 저장 실패: '+(error?.message||String(error)));
+  }finally{
+    raidToggleBusy.delete(taskId);
+  }
 }
 
 function renderSummary(){

@@ -3045,3 +3045,19 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 6개 HTML의 `</html>` 뒤 코드 없음 및 CSS 변수 정의 누락 없음 확인.
 - `git diff --check` 통과. CRLF 변환 경고만 확인.
 - 사용자 지침에 따라 `node tools/check-project.js`는 실행하지 않았습니다.
+## 2026-08-12 - 레이드 난이도 골드 동기화 및 overview 완료 체크 수정
+
+### 변경 내용
+- `raid.html`에서 난이도의 클리어 골드, 귀속 골드, 더보기 골드, 입장 레벨, 난이도를 수정하면 동일 `preset_id`의 `raid_tasks`에도 함께 반영되도록 동기화했습니다.
+- 이번 주 임시해제로 `preset_id`가 잠시 비어 있는 숙제도 override의 `taskId/task_id`, `partyId/party_id` 기록을 따라 메타데이터를 갱신합니다.
+- `index.html` 레이드 카드는 연결된 `raid_presets`의 최신 난이도, 입장 레벨, 골드 값을 우선 표시하도록 변경해 기존 스냅샷이 오래된 경우도 바로 보정합니다.
+- `overview.html`도 프리셋 전체 메타데이터를 로드해 레이드 숙제의 최신 골드 값을 사용하도록 변경했습니다.
+- `overview.html` 완료 판정에서 화면 표시용 KST 주차 날짜를 실제 UTC 시각처럼 비교하던 문제를 수정했습니다. 완료/초기화 경계는 수요일 06:00 KST에 해당하는 UTC 시각을 별도로 사용합니다.
+- 완료 토글은 중복 클릭을 막고, DB 갱신 행이 없거나 저장이 실패하면 메모리 상태와 화면을 이전 값으로 되돌리도록 보강했습니다.
+
+### 검증
+- `index.html`, `raid.html`, `overview.html` 내부 스크립트 문법 검사 통과.
+- 수요일 05:59:59/06:00:00 KST 및 당일 오후 경계 계산 테스트 통과.
+- 6개 HTML의 `</html>` 뒤 코드 없음 및 CSS 변수 정의 누락 없음 확인.
+- `git diff --check` 통과 여부 확인.
+- 사용자 지침에 따라 `node tools/check-project.js`는 실행하지 않았습니다.

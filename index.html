@@ -2107,20 +2107,26 @@ function raidGroupIconByName(name){
   return best;
 }
 function raidRow(t,charId){
-  const done=isDone(t),diffClass=String(t.difficulty||'').includes('하드')?'hard':String(t.difficulty||'').includes('나이트')?'nightmare':'normal';
+  const done=isDone(t);
   const removedPreset=state.tempRemovedPresetByTask[t.id];
   const preset=removedPreset||state.presets[t.preset_id]||{};
   const rn=preset.name||t.name;
+  const difficulty=preset.difficulty??t.difficulty??'';
+  const entryLevel=Number(preset.entry_level??t.entry_level)||0;
+  const diffClass=String(difficulty).includes('하드')?'hard':String(difficulty).includes('나이트')?'nightmare':'normal';
   const icon=preset.icon_url||raidGroupIconByName(rn)||'';
-  const flow=Math.max(0,(Number(t.clear_gold)||0)-(Number(t.bound_gold)||0)),bound=Number(t.bound_gold)||0,bonus=Number(t.bonus_gold)||0;
+  const clear=Number(preset.clear_gold??t.clear_gold)||0;
+  const bound=Number(preset.bound_gold??t.bound_gold)||0;
+  const bonus=Number(preset.bonus_gold??t.bonus_gold)||0;
+  const flow=Math.max(0,clear-bound);
   const isTemp=state.tempRaidTaskIds.has(t.id),isRemoved=state.tempRemovedRaidTaskIds.has(t.id);
   const isUnlinked=!isRemoved&&!isTemp&&!t.has_party_link;
   const linkText=isRemoved?'임시해제':isTemp?'임시':t.has_party_link?'파티연동':isUnlinked?'⚠ 파티연동 없음':'';
   const linkClass=isRemoved||isTemp?'temp':isUnlinked?'unlinked':'';
   return`<div class="raid-row ${done?'done':''} ${isUnlinked?'unlinked':''}" draggable="true" ondragstart="dragStart(event,'raid_tasks','${t.id}','${charId}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'raid_tasks','${t.id}','${charId}')">
     <div class="task-main">
-      <div class="raid-title">${iconImg(icon)}<span class="raid-name">${esc(rn)}</span>${t.difficulty?`<span class="diff ${diffClass}">${esc(t.difficulty)}</span>`:''}<span class="title-actions"><button class="mini-btn danger action-only action-delete" onclick="deleteRaidTask('${t.id}','${charId}')">삭제</button></span></div>
-      <div class="task-meta">${t.entry_level?`<span class="tag">입장 ${t.entry_level}</span>`:''}${flow||bound?`<span class="tag gold">골드 ${flow.toLocaleString()} / 귀속 ${bound.toLocaleString()}</span>`:''}${bonus?`<span class="tag purple">더보기 ${bonus.toLocaleString()}</span>`:''}${linkText?`<span class="link-badge ${linkClass}" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id||''}','${t.id}','${charId}')" title="${isUnlinked?'현재 배치된 파티가 없습니다':'파티 정보 보기'}">${linkText}</span>`:''}</div>
+      <div class="raid-title">${iconImg(icon)}<span class="raid-name">${esc(rn)}</span>${difficulty?`<span class="diff ${diffClass}">${esc(difficulty)}</span>`:''}<span class="title-actions"><button class="mini-btn danger action-only action-delete" onclick="deleteRaidTask('${t.id}','${charId}')">삭제</button></span></div>
+      <div class="task-meta">${entryLevel?`<span class="tag">입장 ${entryLevel}</span>`:''}${flow||bound?`<span class="tag gold">골드 ${flow.toLocaleString()} / 귀속 ${bound.toLocaleString()}</span>`:''}${bonus?`<span class="tag purple">더보기 ${bonus.toLocaleString()}</span>`:''}${linkText?`<span class="link-badge ${linkClass}" onclick="event.stopPropagation();showPartyLinkPopup('${t.preset_id||''}','${t.id}','${charId}')" title="${isUnlinked?'현재 배치된 파티가 없습니다':'파티 정보 보기'}">${linkText}</span>`:''}</div>
     </div>
     <button class="check square ${done?'on':''}" aria-label="레이드 체크" aria-pressed="${done?'true':'false'}" onclick="toggleRaid('${t.id}','${charId}')"></button>
   </div>`;

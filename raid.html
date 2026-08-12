@@ -2682,6 +2682,36 @@ function openEditDifficulty(id){
   document.getElementById('diff-preset-id').value=id;document.getElementById('diff-group-name').value=r.name;
   openModal('modal-difficulty');
 }
+function tempRemovedTaskIdsForPreset(presetId){
+  const ids=new Set();
+  Object.values(overrides||{}).forEach(ovr=>{
+    Object.values(ovr?.temp_changes?.removed||{}).forEach(info=>{
+      const partyId=info?.partyId||info?.party_id;
+      const party=parties.find(p=>p.id===partyId);
+      const taskId=info?.taskId||info?.task_id;
+      if(taskId&&party?.preset_id===presetId)ids.add(taskId);
+    });
+  });
+  return[...ids];
+}
+async function syncRaidTasksFromPreset(presetId,preset){
+  const patch={
+    name:preset.name||'',
+    difficulty:preset.difficulty||'',
+    entry_level:Number(preset.entry_level)||0,
+    clear_gold:Number(preset.clear_gold)||0,
+    bound_gold:Number(preset.bound_gold)||0,
+    bonus_gold:Number(preset.bonus_gold)||0
+  };
+  const linked=await sb.from('raid_tasks').update(patch).eq('preset_id',presetId);
+  if(linked.error)return linked.error;
+  const removedIds=tempRemovedTaskIdsForPreset(presetId);
+  if(removedIds.length){
+    const removed=await sb.from('raid_tasks').update(patch).in('id',removedIds);
+    if(removed.error)return removed.error;
+  }
+  return null;
+}
 async function submitDifficulty(){
   const difficulty=document.getElementById('diff-difficulty').value.trim();
   if(!difficulty){toast('❗ 난이도를 입력하세요');return;}
@@ -2702,7 +2732,10 @@ async function submitDifficulty(){
       if(!res.error)toast('⚠️ raid_presets.short_name SQL 적용 후 줄임말이 저장됩니다');
     }
     if(supaErr(res,'난이도 수정 실패'))return;
-    const r=raids.find(x=>x.id===editId);if(r)Object.assign(r,rec);toast('✅ 수정됨');
+    const r=raids.find(x=>x.id===editId);if(r)Object.assign(r,rec);
+    const syncError=await syncRaidTasksFromPreset(editId,{name:groupName,...rec});
+    if(syncError){console.error(syncError);toast('❗ 난이도는 저장됐지만 캐릭터 레이드 숙제 동기화에 실패했습니다: '+syncError.message);return;}
+    toast('✅ 수정됨');
   } else {
     rec.name=groupName;rec.sort_order=raids.filter(r=>r.name===groupName).length;
     let{data,error}=await sb.from('raid_presets').insert(rec).select().single();
