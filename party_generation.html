@@ -238,12 +238,12 @@ button{cursor:pointer}
         <div class="panel-sub">현재 raid.html 파티 구성을 불러온 뒤, 후보를 배치하고 적용합니다.</div>
       </div>
       <div class="toolbar">
+        <button class="btn gold sm" onclick="openCharacterApiUpdateModal()">캐릭 업데이트</button>
         <button class="btn ghost sm" onclick="loadLatestDraft()">저장안 불러오기</button>
         <button class="btn gold sm" onclick="uploadDraft()">업로드</button>
         <button class="btn sm" onclick="validateDraft(true)">검증</button>
-        <button class="btn danger sm" onclick="resetDraft()">초기화</button>
         <button class="btn ghost sm" onclick="restoreFromDb()">원래대로</button>
-        <button class="btn gold sm" onclick="openCharacterApiUpdateModal()">캐릭 업데이트</button>
+        <button class="btn danger sm" onclick="resetDraft()">초기화</button>
         <button class="btn green sm" id="apply-draft-btn" onclick="applyDraft()">적용</button>
       </div>
     </div>
@@ -411,7 +411,7 @@ const state={
   accounts:[],chars:[],raids:[],raidTasks:[],parties:[],members:[],raidGroupSettings:{},
   partyDrafts:[],originalPartyIds:new Set(),candidateMap:{},hiddenPresets:new Set(),
   collapsedPresets:new Set(),collapsedParties:new Set(),hideAssignedCandidates:false,workbenchSaveTimer:null,workbenchSaving:false,workbenchDirty:false,workbenchDbAvailable:true,workbenchChangeSeq:0,workbenchSavedSeq:0,
-  selectedAccount:ALL,selectedChars:new Set(),filterSelectionLoaded:false,filterOpen:localStorage.getItem('la_pg_filter_open')!=='0',
+  selectedAccount:ALL,selectedChars:new Set(),filterSelectionLoaded:false,filterOpen:false,
   selectedLeftAccount:ALL,selectedRaidGroup:null,showHiddenAccounts:false,search:'',drag:null,editCharId:null,editInfoCharId:null,draftId:null,
   isApplying:false,applyStatus:'',
   lostarkApiToken:'',lostarkApiSave:!!localStorage.getItem('la_lostark_api_token'),apiUpdateExcluded:new Set(safeJson('la_lostark_update_excluded',[]))
@@ -759,7 +759,7 @@ function renderAccountFilter(){
   document.getElementById('filter-summary').textContent=`${sel}/${total}명 표시`;
   document.getElementById('hidden-toggle').textContent=state.showHiddenAccounts?'숨김 계정 끄기':'숨김 계정 보기';
 }
-function toggleCharacterFilter(){state.filterOpen=!state.filterOpen;localStorage.setItem('la_pg_filter_open',state.filterOpen?'1':'0');renderAccountFilter();}
+function toggleCharacterFilter(){state.filterOpen=!state.filterOpen;renderAccountFilter();}
 function saveCharFilter(){localStorage.setItem('la_pg_sel_chars',JSON.stringify([...state.selectedChars]));saveLocalWorkbenchState();}
 function toggleChar(id){if(state.selectedChars.has(id))state.selectedChars.delete(id);else state.selectedChars.add(id);saveCharFilter();render();}
 function toggleCharGroup(ids){const allOn=ids.every(id=>state.selectedChars.has(id));ids.forEach(id=>{if(allOn)state.selectedChars.delete(id);else state.selectedChars.add(id);});saveCharFilter();render();}
@@ -874,7 +874,7 @@ function isCharAssignedToPreset(charId,presetId){
 
 function renderRight(){
   const el=document.getElementById('right-panel');
-  const groups=groupNames().filter(group=>groupPresets(group).some(r=>!state.hiddenPresets.has(r.id)));
+  const groups=groupNames();
   if(!groups.length){el.innerHTML='<div class="empty">표시할 레이드가 없습니다</div>';return;}
   if(!state.selectedRaidGroup||!groups.includes(state.selectedRaidGroup))state.selectedRaidGroup=groups[0];
   const group=state.selectedRaidGroup;
@@ -882,13 +882,18 @@ function renderRight(){
   const tabs=`<div class="raid-tabs">${groups.map((g,i)=>`<button class="raid-tab ${g===group?'active':''}" onclick="setRaidTabIndex(${i})">${esc(g)}</button>`).join('')}</div>`;
   el.innerHTML=tabs+`<div class="raid-block">
       <div class="raid-head"><div class="raid-name">${esc(group)}</div><span class="tag">${presets.length}개 난이도</span></div>
-      <div class="preset-list">${presets.map(presetBlock).join('')}</div>
+      <div class="preset-list">${presets.length?presets.map(presetBlock).join(''):`<div class="empty">모든 난이도가 숨김 처리되어 있습니다.<div style="margin-top:10px;"><button class="btn ghost sm" onclick="unhideSelectedRaidGroup()">이 레이드 난이도 다시 표시</button></div></div>`}</div>
     </div>`;
 }
 function setRaidTabIndex(idx){
-  const groups=groupNames().filter(group=>groupPresets(group).some(r=>!state.hiddenPresets.has(r.id)));
+  const groups=groupNames();
   state.selectedRaidGroup=groups[idx]||groups[0]||null;
   renderRight();
+}
+function unhideSelectedRaidGroup(){
+  groupPresets(state.selectedRaidGroup).forEach(p=>state.hiddenPresets.delete(p.id));
+  saveLocalWorkbenchState();
+  render();
 }
 function togglePresetCollapse(presetId){
   if(state.collapsedPresets.has(presetId))state.collapsedPresets.delete(presetId);

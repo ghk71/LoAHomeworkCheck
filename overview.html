@@ -500,6 +500,13 @@ body { overflow:hidden; }
 .rt-row.done .rt-name { color:#d1fae5; font-weight:900; text-decoration:line-through; text-decoration-thickness:2px; text-decoration-color:rgba(187,247,208,.52); }
 .rt-row.done .rt-info { opacity:.92; }
 .rt-row.done .ov-status-chip { opacity:.78; }
+.rt-row.party-alert{
+  border-color:rgba(239,68,68,.52);
+  background:linear-gradient(90deg,rgba(127,29,29,.30),rgba(69,10,10,.10));
+  box-shadow:inset 4px 0 0 rgba(248,113,113,.88),0 0 0 1px rgba(239,68,68,.10);
+}
+.rt-row.party-alert:hover{background:linear-gradient(90deg,rgba(153,27,27,.36),rgba(69,10,10,.15));}
+.rt-row.party-alert .rt-name{font-weight:850;}
 .rt-check {
   width:18px; height:18px;
   border: 2px solid rgba(255,255,255,.15);
@@ -763,7 +770,7 @@ let sb,accounts=[],characters=[],raidTasks=[],raidTasksByChar=new Map(),tempRaid
 let weekOffset=0;
 let collapsedAccs=new Set(safeJson('la_ov_collapsed',[]));
 let selectedChars=new Set(); // selected character ids for filter
-let filterOpen=localStorage.getItem('la_ov_filter_open')==='1';
+let filterOpen=false;
 let incompleteOnly=localStorage.getItem('la_ov_incomplete_only')==='1';
 let tempStatusFilter=localStorage.getItem('la_ov_temp_filter')||'all';
 
@@ -948,7 +955,7 @@ async function markPartyLinkedRaidTasks(){
 
 // ─── Filter ───
 function saveFilter(){localStorage.setItem('la_ov_sel_chars',JSON.stringify([...selectedChars]));}
-function toggleFilterBar(){filterOpen=!filterOpen;localStorage.setItem('la_ov_filter_open',filterOpen?'1':'0');applyFilterOpenState();}
+function toggleFilterBar(){filterOpen=!filterOpen;applyFilterOpenState();}
 function applyFilterOpenState(){document.getElementById('cfb-body').style.display=filterOpen?'flex':'none';document.getElementById('cfb-toggle').textContent=filterOpen?'▼':'▶';}
 function renderFilterBar(){
   const charsWithRaids=charsWithRaidTasks();
@@ -1137,12 +1144,13 @@ function raidTaskRowHTML(t){
   const partyClick=partyLinked?` onclick="event.stopPropagation();showOvPartyPopup('${popupPresetId}','${t.character_id}','${t.id}')"`:'';
   const partyClass=isRemoved?'temp-remove':isTemp?'temp-add':t.has_party_link?'on':'off';
   const partyText=isRemoved?'↩ 임시해제':isTemp?'✨ 임시':t.has_party_link?'':'파티X';
+  const partyAlert=isRemoved||(!isTemp&&!t.has_party_link);
   const bonus=Number(t.bonus_gold)||0;
   const flagChips=[
     bonus&&t.receive_bonus===false?`<span class="ov-status-chip bonus off" title="더보기 제외">더보기X</span>`:'',
     isRemoved||isTemp||!t.has_party_link?`<span class="ov-status-chip party ${partyClass}${partyLinked?' clickable':''}" title="${isRemoved?'임시해제':isTemp?'임시':'파티연동 없음'}"${partyClick}>${partyText}</span>`:''
   ].filter(Boolean).join('');
-  return`<div class="rt-row ${done?'done':''}" id="ov-rti-${t.id}" onclick="toggleRaidTask('${t.id}')">
+  return`<div class="rt-row ${done?'done':''} ${partyAlert?'party-alert':''}" id="ov-rti-${t.id}" onclick="toggleRaidTask('${t.id}')">
     <div class="rt-check"><span class="rt-check-icon">✓</span></div>
     <div class="rt-info">
       <div class="rt-name" style="display:flex;align-items:center;gap:4px;">${iconImg(getGroupIconLoose(raidName),'entity-icon-sm')}<span style="color:${gc};">${esc(raidName)}</span>${t.difficulty?` <span class="${dc}" style="font-size:.72rem;margin-left:2px;">${esc(t.difficulty)}</span>`:''}</div>

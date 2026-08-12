@@ -132,7 +132,7 @@ function sortRows(rows: any[]) {
 }
 
 function incompleteRootLabels(rows: any[], predicate: (task: any) => boolean) {
-  const filtered = rows.filter(predicate);
+  const filtered = rows.filter((task) => task.is_paused !== true && predicate(task));
   const childrenByParent = new Map<string, any[]>();
   for (const task of filtered) {
     if (!task.parent_id) continue;

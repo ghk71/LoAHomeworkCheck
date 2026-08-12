@@ -457,6 +457,9 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
 /* Slots */
 .slots-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
 .slots-grid.s8 { grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(4,minmax(54px,auto));grid-auto-flow:column; }
+.slots-grid.s8.grouped8{grid-template-rows:none;grid-auto-flow:row;gap:10px;}
+.party-slot-column{display:grid;grid-template-rows:auto repeat(4,minmax(54px,auto));gap:7px;min-width:0;padding:8px;border:1px solid rgba(255,255,255,.07);border-radius:var(--r);background:rgba(255,255,255,.018);}
+.party-column-label{font-size:.66rem;font-weight:800;color:var(--gold-text);padding:0 2px 2px;border-bottom:1px solid rgba(255,255,255,.06);}
 .slot {
   display:flex; align-items:center; gap:8px;
   padding: 10px 13px;
@@ -610,6 +613,10 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
   border-radius:0 var(--r) 0 0;
 }
 .sc-header { margin-bottom:8px; }
+.sc-header-top{display:flex;align-items:flex-start;gap:7px;min-width:0;}
+.sc-header-top .sc-raid-name{flex:1;min-width:0;}
+.sc-delete-btn{width:23px;height:23px;display:inline-flex;align-items:center;justify-content:center;flex:none;border:1px solid rgba(239,68,68,.28);border-radius:6px;background:rgba(239,68,68,.07);color:#fca5a5;font-size:.78rem;font-weight:900;cursor:pointer;transition:all var(--t);}
+.sc-delete-btn:hover{border-color:rgba(239,68,68,.62);background:rgba(239,68,68,.17);color:#fff;}
 .sc-raid-name { font-size:.82rem; font-weight:700; margin-bottom:2px; }
 .sc-party-name { font-size:.7rem; margin-bottom:4px; }
 .sc-meta { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
@@ -630,17 +637,23 @@ input[type="text"],input:not([type]),textarea { ime-mode:active; }
 }
 .sc-edit-badge{font-size:.62rem;color:var(--gold);white-space:nowrap;flex:0 0 auto;}
 .sc-members { display:flex; flex-direction:column; gap:3px; border-top:1px solid rgba(255,255,255,.06); padding-top:7px; }
-.sched-card.party-8{min-width:330px;max-width:390px;}
-.sc-members.s8{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(4,minmax(22px,auto));grid-auto-flow:column;column-gap:12px;}
+.sched-card.party-8{min-width:360px;max-width:430px;}
+.sc-members.s8{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.sc-party-column{display:grid;grid-template-rows:auto repeat(4,minmax(24px,auto));gap:2px;min-width:0;padding:5px 6px;border:1px solid rgba(255,255,255,.07);border-radius:6px;background:rgba(255,255,255,.018);}
+.sc-party-label{font-size:.58rem;font-weight:850;color:var(--gold-text);padding-bottom:3px;margin-bottom:1px;border-bottom:1px solid rgba(255,255,255,.06);}
 .sc-member {
   font-size:.75rem; display:flex; gap:5px;
-  align-items:center; padding:1px 0;
+  align-items:center; padding:2px 3px; min-width:0;
 }
-.sc-member-name { font-weight:500; }
-.sc-member-class { color:var(--text-3); font-size:.67rem; }
+.sc-member-name { font-weight:500; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sc-member-class { color:var(--text-3); font-size:.67rem; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .sc-member.temp .sc-member-name { color:var(--gold); }
 .temp-link-label { font-size:.58rem; color:var(--gold); padding:0 4px; border:1px solid rgba(200,168,75,.38); border-radius:4px; background:rgba(200,168,75,.08); white-space:nowrap; }
-.sc-empty-slot { font-size:.72rem; color:var(--text-3); padding:1px 0; }
+.sc-empty-slot { min-height:24px;display:flex;align-items:center;justify-content:space-between;gap:5px;font-size:.68rem;color:var(--text-3);padding:2px 3px; }
+.sc-slot-action{width:21px;height:21px;display:inline-flex;align-items:center;justify-content:center;flex:none;border-radius:6px;border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.045);color:var(--text-2);font-size:.78rem;font-weight:900;cursor:pointer;transition:all var(--t);}
+.sc-slot-action.add:hover{border-color:rgba(16,185,129,.5);background:rgba(16,185,129,.13);color:#a7f3d0;}
+.sc-slot-action.remove{margin-left:auto;border-color:rgba(239,68,68,.22);background:rgba(239,68,68,.045);color:#fca5a5;}
+.sc-slot-action.remove:hover{border-color:rgba(239,68,68,.55);background:rgba(239,68,68,.14);color:#fff;}
 .sc-footer { display:flex; gap:5px; margin-top:9px; border-top:1px solid rgba(255,255,255,.06); padding-top:8px; align-items:center; }
 .sc-complete-btn {
   flex:1; padding:5px 8px;
@@ -2365,7 +2378,21 @@ async function renderPartyDetail(){
   if(!p){el.innerHTML='<div class="empty-state"><div class="empty-icon">🗡️</div><div>왼쪽에서 파티를 선택하세요</div></div>';return;}
   const preset=raids.find(x=>x.id===p.preset_id);
   const slots=getMembersForParty(p);
-  const gc=p.party_size===8?'slots-grid s8':'slots-grid';
+  const gc=Number(p.party_size)===8?'slots-grid s8 grouped8':'slots-grid';
+  const slotHTML=(slot,i)=>{
+    const ch=allChars.find(c=>c.id===slot.character_id);
+    if(ch)return`<div class="slot filled ${!isViewer?'clickable':''}" onclick="${!isViewer?`openCharPickerParty('${p.id}',${i})`:''}">
+      <span class="slot-num">${i+1}</span>
+      <div style="flex:1;min-width:0;"><div class="slot-char" style="display:flex;align-items:center;gap:4px;">${iconImg(ch.icon_url||'','entity-icon-sm')}${esc(ch.name)}</div><div class="slot-class">${charMeta(ch)}</div></div>
+      <button class="slot-remove edit-only" onclick="event.stopPropagation();removePartyMember('${p.id}',${i},'${slot.id||''}')">✕</button>
+    </div>`;
+    return`<div class="slot ${!isViewer?'clickable':''}" onclick="${!isViewer?`openCharPickerParty('${p.id}',${i})`:''}">
+      <span class="slot-num">${i+1}</span><span class="slot-empty">＋ 배치</span>
+    </div>`;
+  };
+  const slotGrid=Number(p.party_size)===8
+    ?`<div class="party-slot-column"><div class="party-column-label">1파티</div>${slots.slice(0,4).map((slot,i)=>slotHTML(slot,i)).join('')}</div><div class="party-slot-column"><div class="party-column-label">2파티</div>${slots.slice(4,8).map((slot,i)=>slotHTML(slot,i+4)).join('')}</div>`
+    :slots.map((slot,i)=>slotHTML(slot,i)).join('');
   el.innerHTML=`
     <div class="pdp-header">
       <div>
@@ -2378,17 +2405,7 @@ async function renderPartyDetail(){
     </div>
     <div class="section-hd">파티 슬롯${!isViewer?` <span style="font-size:.71rem;color:var(--muted);font-family:'Noto Sans KR';">(슬롯 클릭 → 캐릭터 변경)</span>`:''}</div>
     <div class="${gc}">
-      ${slots.map((slot,i)=>{
-        const ch=allChars.find(c=>c.id===slot.character_id);
-        if(ch)return`<div class="slot filled ${!isViewer?'clickable':''}" onclick="${!isViewer?`openCharPickerParty('${p.id}',${i})`:''}">
-          <span class="slot-num">${i+1}</span>
-          <div style="flex:1;min-width:0;"><div class="slot-char" style="display:flex;align-items:center;gap:4px;">${iconImg(ch.icon_url||'','entity-icon-sm')}${esc(ch.name)}</div><div class="slot-class">${charMeta(ch)}</div></div>
-          <button class="slot-remove edit-only" onclick="event.stopPropagation();removePartyMember('${p.id}',${i},'${slot.id||''}')">✕</button>
-        </div>`;
-        return`<div class="slot ${!isViewer?'clickable':''}" onclick="${!isViewer?`openCharPickerParty('${p.id}',${i})`:''}">
-          <span class="slot-num">${i+1}</span><span class="slot-empty">＋ 배치</span>
-        </div>`;
-      }).join('')}
+      ${slotGrid}
     </div>`;
   applyViewer();
 }
@@ -2401,8 +2418,8 @@ function openCharPickerParty(partyId,slotIndex){
   document.getElementById('char-pick-info').textContent=`슬롯 ${slotIndex+1} — 캐릭터 배치${minIlvl?` (입장 ${minIlvl} 이상)`:'' }`;
   buildCharPickGrid(minIlvl);openModal('modal-char-pick');
 }
-function openCharPickerOverride(schId,slotIndex){
-  pickCtx={mode:'override',partyId:null,slotIndex,scheduleId:schId};
+function openCharPickerOverride(schId,slotIndex,returnToEdit=true){
+  pickCtx={mode:'override',partyId:null,slotIndex,scheduleId:schId,returnToEdit};
   const s=schedules.find(x=>x.id===schId),p=s?parties.find(x=>x.id===s.party_id):null,preset=p?raids.find(x=>x.id===p.preset_id):null;
   const minIlvl=Number(preset?.entry_level)||0;
   document.getElementById('char-pick-info').textContent=`슬롯 ${slotIndex+1} — 이번 주 임시 변경${minIlvl?` (입장 ${minIlvl} 이상)`:''}`;
@@ -3109,9 +3126,20 @@ function schedCardHTML(s,wk){
   const eff=getEffectiveMembers(s.id,s.party_id,wk);
   const gc=getGroupColor(preset?.name||'');
   const pc=getPartyColor(p);
+  const memberHTML=(slot,i)=>{
+    const ch=allChars.find(c=>c.id===slot.character_id);
+    if(ch){
+      const isHL=schHighlightChars.has(ch.id),isTemp=slot.isTempParty||(slot.isOvr&&!p.members?.some(m=>m.character_id===ch.id));
+      return`<div class="sc-member ${isTemp?'temp':''} ${isHL?'hl-me':''}" style="${isHL?'border:1px solid rgba(200,168,75,.5);background:rgba(200,168,75,.1);border-radius:3px;padding:1px 3px;':''}">${iconImg(ch.icon_url||'','entity-icon-sm')}<span class="sc-member-name" style="${isHL?'color:var(--gold);font-weight:700;':''}">${esc(ch.name)}</span>${isTemp?'<span class="temp-link-label">임시</span>':''}<span class="sc-member-class">${esc(ch.class_name||'')}</span>${!isViewer?`<button class="sc-slot-action remove" title="이번 주 임시 제거" aria-label="${esc(ch.name)} 임시 제거" onclick="event.stopPropagation();removeOvrSlot('${s.id}',${i},'${wk}')">×</button>`:''}</div>`;
+    }
+    return`<div class="sc-empty-slot"><span>빈 슬롯</span>${!isViewer?`<button class="sc-slot-action add" title="이번 주 임시 캐릭터 추가" aria-label="빈 슬롯에 캐릭터 추가" onclick="event.stopPropagation();openCharPickerOverride('${s.id}',${i},false)">+</button>`:''}</div>`;
+  };
+  const membersHTML=Number(p?.party_size)===8
+    ?`<div class="sc-party-column"><div class="sc-party-label">1파티</div>${eff.slice(0,4).map((slot,i)=>memberHTML(slot,i)).join('')}</div><div class="sc-party-column"><div class="sc-party-label">2파티</div>${eff.slice(4,8).map((slot,i)=>memberHTML(slot,i+4)).join('')}</div>`
+    :eff.map((slot,i)=>memberHTML(slot,i)).join('');
   return`<div class="sched-card ${Number(p?.party_size)===8?'party-8':''} ${isCompleted?'completed':''} ${(hasOvr||isTempFixed)?'has-ovr':''}" id="sc-${s.id}">
     <div class="sc-header">
-      <div class="sc-raid-name" style="color:${gc};display:flex;align-items:center;gap:4px;">${iconImg(getGroupIcon(preset?.name||'')||preset?.icon_url||'','entity-icon-sm')}${esc(preset?.name||'?')}<span class="${diffClass(preset?.difficulty||'')}" style="font-size:.65rem;margin-left:5px;font-weight:600;">${esc(preset?.difficulty||'')}</span></div>
+      <div class="sc-header-top"><div class="sc-raid-name" style="color:${gc};display:flex;align-items:center;gap:4px;">${iconImg(getGroupIcon(preset?.name||'')||preset?.icon_url||'','entity-icon-sm')}${esc(preset?.name||'?')}<span class="${diffClass(preset?.difficulty||'')}" style="font-size:.65rem;margin-left:5px;font-weight:600;">${esc(preset?.difficulty||'')}</span></div>${!isViewer?`<button class="sc-delete-btn" title="일정 삭제" aria-label="일정 삭제" onclick="event.stopPropagation();deleteScheduleDirect('${s.id}')">×</button>`:''}</div>
       <div class="sc-subline">
         <span class="sc-party-name" style="color:${pc};">${esc(p?.name||'?')} · ${p?.party_size||'?'}인</span>
         ${timeStr?`<span style="font-size:.72rem;font-weight:700;color:var(--gold-bright);background:rgba(200,168,75,.12);padding:1px 6px;border-radius:4px;border:1px solid rgba(200,168,75,.3);">🕐 ${timeStr}</span>`:''}
@@ -3121,11 +3149,7 @@ function schedCardHTML(s,wk){
       </div>
     </div>
     <div class="sc-members ${Number(p?.party_size)===8?'s8':''}">
-      ${eff.map(slot=>{
-        const ch=allChars.find(c=>c.id===slot.character_id);
-        if(ch){const isHL=schHighlightChars.has(ch.id),isTemp=slot.isTempParty||(slot.isOvr&&!p.members?.some(m=>m.character_id===ch.id));return`<div class="sc-member ${isTemp?'temp':''} ${isHL?'hl-me':''}" style="${isHL?'border:1px solid rgba(200,168,75,.5);background:rgba(200,168,75,.1);border-radius:3px;padding:1px 3px;':''}">${iconImg(ch.icon_url||'','entity-icon-sm')}<span class="sc-member-name" style="${isHL?'color:var(--gold);font-weight:700;':''}">${esc(ch.name)}</span>${isTemp?'<span class="temp-link-label">임시</span>':''}<span class="sc-member-class">${esc(ch.class_name||'')}</span></div>`;}
-        return`<div class="sc-empty-slot">—</div>`;
-      }).join('')}
+      ${membersHTML}
     </div>
     <div class="sc-footer">
       ${!isViewer?`<button class="sc-edit-btn" onclick="openPartyFromSchedule('${s.party_id}')">파티</button>`:''}
@@ -3339,7 +3363,7 @@ async function openSchEdit(schId,wk){
   document.getElementById('ovr-modal-title').textContent=`${esc(preset?.name||'?')} — ${esc(p.name||'파티')} 편집`;
   document.getElementById('ovr-reset-btn').style.display=hasOvr?'flex':'none';
   const eff=getEffectiveMembers(schId,s.party_id,wk);
-  const gc=p.party_size===8?'slots-grid s8':'slots-grid';
+  const gc=Number(p.party_size)===8?'slots-grid s8':'slots-grid';
   document.getElementById('ovr-slot-section').innerHTML=`
     <p style="font-size:.74rem;color:var(--muted);margin-bottom:10px;">슬롯을 클릭해서 이번 주만 임시 변경. 원본 파티는 불변.</p>
     <div class="${gc}">
@@ -3462,8 +3486,9 @@ async function assignOverrideChar(charId){
   }
   normalizeNoopSlotOverride(ovr,p,pickCtx.slotIndex);
   await persistOverride(pickCtx.scheduleId,wk,ovr);
+  const returnToEdit=pickCtx.returnToEdit!==false;
   closeModal('modal-char-pick');
-  await openSchEdit(pickCtx.scheduleId,wk);
+  if(returnToEdit)await openSchEdit(pickCtx.scheduleId,wk);
   renderSchFilter();scheduleRenderSchedule();toast('✅ 임시 추가됨');
 }
 
@@ -3651,8 +3676,31 @@ async function submitSchedule(){
   else{const{data,error}=await sb.from('raid_schedules').insert({party_id:partyId,day_of_week:dayOfWeek,time_str:timeStr,is_fixed:isFixed}).select().single();if(error){toast('❗ '+error.message);return;}schedules.push(data);toast('✅ 일정 추가됨');}
   closeModal('modal-schedule');renderSchFilter();renderSchedule();
 }
-async function deleteScheduleFromModal(){const id=document.getElementById('sch-edit-id').value;if(!id||!confirm('일정을 삭제하시겠습니까?'))return;await sb.from('raid_schedules').delete().eq('id',id);schedules=schedules.filter(s=>s.id!==id);closeModal('modal-schedule');renderSchedule();toast('🗑️ 삭제됨');}
-async function deleteScheduleFromOvrModal(id){if(!confirm('일정을 삭제하시겠습니까?'))return;await sb.from('raid_schedules').delete().eq('id',id);schedules=schedules.filter(s=>s.id!==id);closeModal('modal-sch-edit');renderSchedule();toast('🗑️ 삭제됨');}
+async function restoreTempChangesBeforeScheduleDelete(id){
+  const s=schedules.find(x=>x.id===id),p=s?parties.find(x=>x.id===s.party_id):null,preset=p?raids.find(x=>x.id===p.preset_id):null;
+  const entries=Object.entries(overrides).filter(([key])=>key.startsWith(id+'_'));
+  for(const[,raw]of entries){
+    const tc=normalizeTempChanges(raw?.temp_changes||{});
+    for(const[charId,info]of Object.entries(tc.added||{}))await revertTempAdd(charId,info,preset);
+    for(const info of Object.values(tc.removed||{})){
+      if(info.taskId&&info.hadPreset&&preset?.id)await sb.from('raid_tasks').update({preset_id:preset.id}).eq('id',info.taskId);
+    }
+  }
+}
+async function deleteScheduleById(id,closeId=''){
+  if(!id||!confirm('일정을 삭제하시겠습니까?'))return false;
+  await restoreTempChangesBeforeScheduleDelete(id);
+  const{error}=await sb.from('raid_schedules').delete().eq('id',id);
+  if(error){toast('❗ 일정 삭제 실패: '+error.message);console.error(error);return false;}
+  schedules=schedules.filter(s=>s.id!==id);
+  Object.keys(overrides).forEach(key=>{if(key.startsWith(id+'_'))delete overrides[key];});
+  if(closeId)closeModal(closeId);
+  renderSchFilter();renderUnplacedPanel();scheduleRenderSchedule();toast('🗑️ 일정 삭제됨');
+  return true;
+}
+function deleteScheduleDirect(id){return deleteScheduleById(id);}
+function deleteScheduleFromModal(){return deleteScheduleById(document.getElementById('sch-edit-id').value,'modal-schedule');}
+function deleteScheduleFromOvrModal(id){return deleteScheduleById(id,'modal-sch-edit');}
 
 // ─── Notice ───
 async function loadNoticeCommentsData(wk=getWeekKey(weekOffset),force=false){

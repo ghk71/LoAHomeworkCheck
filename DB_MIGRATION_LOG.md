@@ -664,3 +664,25 @@ alter table expedition_tasks add column if not exists count_daily_last_reset_at 
 
 ### 적용 여부
 - 수동 확인 필요.
+
+## 2026-08-13 - 숙제 일시중지 컬럼
+
+### 목적
+- 캐릭터 숙제와 계정 숙제를 삭제하지 않고 수동으로 일시중지합니다.
+- 일시중지된 숙제는 화면 표시, 완료 집계, 자동 초기화, 휴식 게이지 처리 및 디스코드 미완료 집계에서 제외합니다.
+
+### SQL
+
+```sql
+alter table tasks add column if not exists is_paused boolean default false;
+alter table expedition_tasks add column if not exists is_paused boolean default false;
+```
+
+### 적용 파일
+- `schema.sql`
+- `index.html`
+- `supabase/functions/send-homework-discord/index.ts`
+
+### 적용 여부
+- 2026-08-13 라이브 REST 스키마 조회 결과 두 테이블 모두 아직 컬럼 미적용(HTTP 400).
+- Supabase SQL Editor에서 위 SQL을 실행한 뒤 Edge Function `send-homework-discord`를 재배포해야 함.

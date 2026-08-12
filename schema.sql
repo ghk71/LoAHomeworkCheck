@@ -40,6 +40,7 @@ create table if not exists tasks(
   reset_type text default 'weekly',
   reset_day int default 3,
   activate_day int default null,   -- ★ 활성화 요일 (0=일~6=토), null=항상 활성
+  is_paused boolean default false,
   is_completed boolean default false,
   last_completed_at timestamptz,
   count_current int default 0,
@@ -69,6 +70,7 @@ create table if not exists expedition_tasks(
   reset_type text default 'weekly',
   reset_day int default 3,
   activate_day int default null,
+  is_paused boolean default false,
   is_completed boolean default false,
   last_completed_at timestamptz,
   count_current int default 0,
@@ -286,6 +288,7 @@ alter table discord_sent_messages disable row level security;
 alter table accounts         add column if not exists sort_order int default 0;
 alter table accounts         add column if not exists hide_from_filters boolean default false;
 alter table tasks            add column if not exists count_current int default 0;
+alter table tasks            add column if not exists is_paused boolean default false;
 alter table tasks            add column if not exists count_max int default null;
 alter table tasks            add column if not exists count_daily_current int default 0;
 alter table tasks            add column if not exists count_daily_limit int default null;
@@ -303,6 +306,7 @@ alter table tasks            add column if not exists rest_daily_limit int defau
 alter table tasks            add column if not exists rest_last_processed_at timestamptz;
 alter table tasks            add column if not exists rest_consumed_current_cycle int default 0;
 alter table expedition_tasks add column if not exists parent_id uuid references expedition_tasks(id) on delete cascade;
+alter table expedition_tasks add column if not exists is_paused boolean default false;
 alter table expedition_tasks add column if not exists count_current int default 0;
 alter table expedition_tasks add column if not exists count_max int default null;
 alter table expedition_tasks add column if not exists count_daily_current int default 0;
