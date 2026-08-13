@@ -19,6 +19,7 @@
 | `raid.html` | 레이드 프리셋, 난이도, 파티 구성, 주간 일정, 임시 파티, 공유 링크 |
 | `overview.html` | 레이드 완료 현황 |
 | `parties.html` | 파티 현황 |
+| `party_generation.html` | 레이드 파티 생성 및 DB 적용 |
 | `schema.sql` | Supabase 전체 스키마 |
 | `AGENTS.md` | Codex/AI 에이전트 작업 규칙 |
 | `CODEX_INSTRUCTIONS.md` | Codex 작업 상세 규칙 |
@@ -36,14 +37,27 @@
 2. 회사 PC / 집 PC 모두 작업 전 `git pull`을 한다.
 3. 작업 종료 전 반드시 `git add`, `git commit`, `git push`를 한다.
 4. Codex 작업 전 `AGENTS.md`, `CODEX_INSTRUCTIONS.md`, `PROJECT_CONTEXT.md`를 읽힌다.
-5. 수정 후 `node tools/check-project.js`를 실행한다.
+5. 현재 환경에서는 `AGENTS.md`의 fallback 검증을 사용하고, 사용자가 다시 요청한 경우에만 `node tools/check-project.js`를 실행한다.
 6. 변경 내역은 `BUG_HISTORY.md` 또는 `CODEX_SESSION_LOG.md`에 기록한다.
 
-## 기본 검증 명령
+## 기본 검증
 
 ```bash
-node tools/check-project.js
+git diff --check
 ```
+
+- `index.html`, `core.html`, `raid.html`, `overview.html`, `parties.html`, `party_generation.html`의 `</html>` 뒤에 코드가 없는지 확인합니다.
+- 6개 HTML에서 사용한 CSS 변수가 모두 정의되어 있는지 확인합니다.
+- `tools/check-project.js`는 6개 HTML의 JavaScript 문법, `</html>`, CSS 변수를 검사하지만 현재 작업 환경에서는 사용자 요청이 있을 때만 실행합니다.
+
+## Supabase 적용 순서
+
+SQL Editor에서 아래 파일을 순서대로 전체 실행합니다.
+
+1. `supabase/migrations/20260813_integrity_and_share_links.sql`
+2. `supabase/migrations/20260813_raid_integrity_followup.sql`
+
+그다음 `create-share-link`, `resolve-share`, `send-homework-discord` Edge Function을 최신 소스로 재배포합니다. 두 번째 SQL에는 숙제 트리 복제, 레이드 임시 상태 복원, 파티 생성 적용, 정렬 저장 등 여러 화면이 공통으로 호출하는 원자적 RPC가 포함됩니다.
 
 ## GitHub Pages 설정
 

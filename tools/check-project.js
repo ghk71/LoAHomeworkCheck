@@ -7,6 +7,7 @@ const files = [
   "raid.html",
   "overview.html",
   "parties.html",
+  "party_generation.html",
 ].filter((file) => fs.existsSync(file));
 
 if (!files.length) {
@@ -25,7 +26,9 @@ for (const file of files) {
   const html = fs.readFileSync(file, "utf8");
 
   const htmlCloseIndex = html.lastIndexOf("</html>");
-  if (htmlCloseIndex !== -1) {
+  if (htmlCloseIndex === -1) {
+    fail(`${file}: </html> is missing`);
+  } else {
     const afterHtml = html.slice(htmlCloseIndex + "</html>".length).trim();
     if (afterHtml.length > 0) {
       fail(`${file}: code exists after </html>`);

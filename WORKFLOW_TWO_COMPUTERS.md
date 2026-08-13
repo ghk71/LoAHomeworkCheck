@@ -55,7 +55,7 @@ AGENTS.md와 CODEX_INSTRUCTIONS.md를 먼저 읽고 현재 작업을 시작하�
 ## 작업 종료 루틴
 
 ```bash
-node tools/check-project.js
+git diff --check
 git status
 git diff
 git add .
@@ -68,7 +68,7 @@ git push
 회사 PC:
 
 ```bash
-node tools/check-project.js
+git diff --check
 git add .
 git commit -m "WIP: 작업 내용"
 git push
@@ -128,10 +128,10 @@ git restore .
 git restore index.html
 ```
 
-직전 commit 취소:
+직전 commit 되돌리기:
 
 ```bash
-git reset --hard HEAD~1
+git revert HEAD
 ```
 
 이미 push한 commit은 조심해서 처리한다.

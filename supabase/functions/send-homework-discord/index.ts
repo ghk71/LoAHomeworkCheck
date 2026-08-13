@@ -89,14 +89,14 @@ function effectiveRestCurrent(task: any) {
   const completedAt = task.last_completed_at ? new Date(task.last_completed_at) : null;
   for (const b of getResetBoundariesSince(task, latest)) {
     const prev = getPreviousResetBoundary(String(task.reset_type || "daily"), b);
-    const completedInCycle = !!(completedAt && completedAt > prev && completedAt <= b);
+    const completedInCycle = !!(completedAt && completedAt >= prev && completedAt < b);
     if (!completedInCycle) cur = Math.min(max, cur + charge);
   }
   return cur;
 }
 
 function countIsCurrent(task: any) {
-  return !!(task.last_completed_at && new Date(task.last_completed_at) > getLastResetUTC(String(task.reset_type || "daily"), Number(task.reset_day ?? 3)));
+  return !!(task.last_completed_at && new Date(task.last_completed_at) >= getLastResetUTC(String(task.reset_type || "daily"), Number(task.reset_day ?? 3)));
 }
 
 function isDone(task: any) {
@@ -106,7 +106,7 @@ function isDone(task: any) {
     if (current && Number(task.count_current || 0) >= max) return true;
   }
   if (task.count_max != null && current && Number(task.count_current || 0) >= Number(task.count_max || 0)) return true;
-  return !!(task.is_completed && task.last_completed_at && new Date(task.last_completed_at) > getLastResetUTC(String(task.reset_type || "daily"), Number(task.reset_day ?? 3)));
+  return !!(task.is_completed && task.last_completed_at && new Date(task.last_completed_at) >= getLastResetUTC(String(task.reset_type || "daily"), Number(task.reset_day ?? 3)));
 }
 
 function isActive(task: any) {

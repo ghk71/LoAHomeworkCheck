@@ -3091,3 +3091,63 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 
 ### 후속 코드 검토
 - 구현 완료 후 전체 저장소를 읽기 전용으로 검토했습니다. RLS 비활성화, 공유 뷰어의 자동 DB 쓰기, 주간 임시 상태 복구 시점, 다단계 DB 작업의 원자성, `parties.html` 일정 요일 계산, Edge Function 호출 인증, 일회용 숙제 orphan, 검사 스크립트 범위와 백업 파일 관리 문제를 발견했으며 코드는 추가 수정하지 않았습니다.
+
+## 2026-08-13 - 데이터 무결성, 공유 링크 수명 및 문서 정리
+
+### 변경 내용
+- `raid.html` 공유 뷰어에서는 `autoResetNonFixed()`를 호출하지 않도록 가드해, 링크 진입만으로 지난 주 임시 상태 복원이나 오래된 일정 삭제가 실행되지 않게 했습니다.
+- `parties.html`은 현재 주차의 `raid_schedule_overrides.schedule_overrides.day_of_week`을 우선 적용하고 같은 요일을 `Set`으로 중복 제거합니다. 지난 주 비고정 일정도 현재 파티 요일에서 제외합니다.
+- 숙제 일시중지/재활성화와 상위·하위 완료 갱신을 `apply_task_pause_atomic` RPC 한 요청으로 저장하도록 변경했습니다. RPC 미적용 시 기존 순차 저장으로 fallback하지 않고 로컬 상태를 되돌립니다.
+- 레이드 override 원본 복원 및 일정 삭제를 `restore_raid_schedule_override_atomic`, `delete_raid_schedule_atomic` RPC로 옮겨 `raid_tasks` 복원과 override/일정 변경이 같은 DB 트랜잭션에서 처리되도록 했습니다.
+- `one_time_tasks.owner_id`의 polymorphic 관계는 계정/캐릭터 삭제 트리거로 정리하고, 마이그레이션 적용 시 기존 orphan 행도 삭제하도록 했습니다.
+- 공유 링크에 `expires_at`, `revoked_at`을 추가했습니다. UI에서 7/30/90일을 선택할 수 있고 현재 링크를 즉시 철회할 수 있으며, 마지막 생성 링크는 새로고침 뒤에도 철회할 수 있도록 localStorage에 토큰/만료 메타만 보관합니다.
+- 새 공유 링크는 수명 관리 SQL과 최신 `create-share-link` 응답이 확인될 때만 생성합니다. 만료 없는 긴 링크 fallback은 제거하고, `resolve-share`는 만료/철회 링크를 HTTP 410으로 거절합니다.
+- 실행형 SQL `supabase/migrations/20260813_integrity_and_share_links.sql`을 추가하고 최신 `schema.sql`과 같은 정의를 유지했습니다.
+- `tools/check-project.js` 검사 대상에 `party_generation.html`을 추가하고 `</html>` 자체가 없는 파일도 실패 처리하도록 수정했습니다.
+- 배포 루트의 `index_old.html`, `core_old.html`, `raid_old.html`, `overview_old.html`, `parties_old.html`을 제거했습니다.
+- README, ARCHITECTURE, 작업 지침, HANDOFF, 기능/테스트/DB 문서를 현재 6개 화면과 최신 검증 기준으로 정리했습니다.
+
+### Supabase 적용 필요
+1. SQL Editor에서 `supabase/migrations/20260813_integrity_and_share_links.sql` 전체 실행.
+2. Edge Function `create-share-link`, `resolve-share` 재배포.
+3. 이전 일시중지 작업이 미배포 상태라면 `send-homework-discord`도 재배포.
+
+### 검증
+- 라이브 데이터를 사용하는 로컬 정적 서버에서 6개 HTML의 제목과 본문 렌더링을 확인했습니다.
+- `parties.html` 최신 코드에서 한 파티의 같은 요일 중복이 제거되고 현재 주차 override 요일이 표시되는 것을 확인했습니다.
+- 공유 뷰어 진입이 정상이며 편집자 전용 자동 정리 호출은 소스 가드로 차단됨을 확인했습니다.
+- 라이브 DB에 새 공유 링크 컬럼이 아직 없을 때 생성 버튼이 링크를 만들지 않고 SQL 적용 안내를 표시하는 것을 확인했습니다.
+- 검증 중 구버전 Edge Function으로 생성된 테스트 공유 링크 1건은 REST DELETE 204로 즉시 정리했습니다.
+- 6개 HTML의 `</html>` 뒤 잔여 코드 없음과 CSS 변수 정의 누락 없음을 확인했습니다.
+- `git diff --check` 통과. CRLF 변환 경고만 확인했습니다.
+- 사용자 지침에 따라 `node tools/check-project.js`는 실행하지 않았습니다.
+
+## 2026-08-13 - 비권한 전체 무결성 후속 수정
+
+### 변경 내용
+- 숙제 복제 전체를 `clone_task_tree_atomic`으로 옮겼습니다. 임의 깊이 하위 숙제의 부모 관계를 보존하고, 이미 같은 복제 그룹이 있는 대상은 중복 생성하지 않습니다.
+- 하위 숙제 완료/카운트/휴식 게이지 변경과 상위 숙제 자동 완료를 `apply_task_pause_atomic` 한 트랜잭션으로 저장합니다.
+- 레이드 그룹/난이도/파티/일정/멤버/정렬/파티 생성 적용의 다단계 저장을 원자적 RPC로 통합하고, 실패 시 부분 저장 경로를 제거했습니다.
+- 임시 멤버 및 임시 파티가 참조하는 `raid_tasks`를 주차별 활성 참조 수로 보호합니다. 지난 주 기록은 3주 유지하지만 전역 프리셋 연결은 새 주에 즉시 복원합니다.
+- 임시해제 캐릭터를 다른 파티에 임시 추가했다가 제거하거나 임시 파티에서 정규 파티로 이동할 때 원래 숙제 연결이 손상되던 전이 경로를 보정했습니다.
+- index/overview/parties/party_generation이 편집자로 열릴 때 공통 롤오버 RPC를 호출하며, 공유 뷰어는 어떤 자동 정리/DB 마이그레이션도 실행하지 않습니다.
+- 여섯 화면의 대량 조회를 페이지네이션하고 `id` 보조 정렬을 추가했습니다. 일정 팝업도 현재 주차 override 요일과 중복 제거 규칙을 사용합니다.
+- 완료 판정의 06:00 KST 경계를 `[시작, 다음 시작)`으로 통일하고 Discord 숙제 집계에도 같은 판정을 적용했습니다.
+- 실행 순서가 명확한 후속 SQL `supabase/migrations/20260813_raid_integrity_followup.sql`을 추가하고 스키마/기능/테스트/인수인계 문서를 갱신했습니다.
+
+### 검증
+- 6개 HTML의 모든 인라인 JavaScript를 별도 파서로 검사해 문법 오류가 없음을 확인했습니다.
+- 후속 마이그레이션의 24개 함수가 `schema.sql`의 같은 함수 정의와 일치함을 확인했습니다.
+- 사용자 지침에 따라 `node tools/check-project.js`는 실행하지 않았습니다.
+- 실제 Supabase에는 두 마이그레이션 적용 후 트랜잭션/주차 롤오버를 수동 확인해야 합니다.
+
+## 2026-08-13 - 비권한 전체 무결성 수정 최종 검증
+
+### 검증 결과
+- 번들 Node 실행 파일로 6개 HTML의 모든 인라인 JavaScript를 각각 파싱했고 문법 오류가 없음을 확인했습니다. 금지된 `node tools/check-project.js`는 실행하지 않았습니다.
+- 6개 HTML 모두 `</html>` 뒤 코드가 없고, 사용한 CSS 변수의 정의 누락과 정적 ID 중복이 없음을 확인했습니다.
+- 후속 마이그레이션의 24개 함수가 `schema.sql`의 동명 함수와 모두 일치함을 확인했습니다.
+- `git diff --check`가 저장소의 CRLF 줄바꿈을 허용한 검사 설정에서 통과했습니다.
+- 로컬 서버에서 `index.html`, `raid.html`, `overview.html`, `party_generation.html`, `parties.html`, `core.html`을 라이브 Supabase 데이터로 열어 정상 렌더링과 데스크톱 가로 넘침 부재를 확인했습니다.
+- `raid.html`의 8인 파티 4+4 배치와 즉시 일정/멤버 제어, `party_generation.html`의 좌우 독립 스크롤과 8인 파티 4+4 배치를 화면에서 확인했습니다.
+- 브라우저 콘솔에 JavaScript 오류는 없었습니다. 라이브 DB에는 최신 마이그레이션이 아직 없어 `[raid-rollover]`와 `raid_group_settings.sort_order does not exist` 경고가 남았으며, 두 SQL 적용 뒤 RPC 실동작 재검증이 필요합니다.

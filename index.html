@@ -982,25 +982,49 @@ async function init(){
   sb=createClient(cfg.url,cfg.key);
   ensureClock();
   initGlobalMemo();
-  await reloadAll();
+  try{if(!isTestMode())await runRaidWeekRollover();await reloadAll();}
+  catch(error){console.error(error);toast('데이터 로딩 실패: '+(error.message||error));}
 }
+
+async function runRaidWeekRollover(){
+  const {error}=await sb.rpc('cleanup_raid_week_rollover_atomic');
+  if(error){
+    const missing=/cleanup_raid_week_rollover_atomic|schema cache|PGRST202|does not exist/i.test(error.message||'');
+    console.warn('[raid-rollover]',error);if(!missing)throw error;
+  }
+}
+function atomicRpcMissing(error){return /PGRST202|schema cache|function .* does not exist|Could not find the function/i.test(error?.message||'');}
 
 async function reloadAll(){
   toast('데이터를 불러오는 중...');
-  const [accRes,charRes]=await Promise.all([
-    sb.from('accounts').select('*').order('sort_order').order('created_at'),
-    sb.from('characters').select('*').order('sort_order').order('created_at')
-  ]);
-  if(accRes.error||charRes.error){toast('데이터 로딩 실패');console.error(accRes.error||charRes.error);return;}
-  state.accounts=accRes.data||[];
-  state.chars=charRes.data||[];
-  const firstVisible=visibleAccounts()[0]||state.accounts[0]||null;
-  if(state.selectedAccount!==ALL_ACCOUNTS_ID&&(!state.selectedAccount||!state.accounts.some(a=>a.id===state.selectedAccount)||(!state.showHiddenAccounts&&state.hiddenAccounts.has(state.selectedAccount))))state.selectedAccount=firstVisible?.id||null;
-  if(state.selectedAccount)localStorage.setItem(LAST_ACCOUNT_KEY,state.selectedAccount);
-  await loadAccountData();
-  state.lastResetBoundaryKey=getOpenPageResetBoundaryKey();
-  render();
-  toast('불러왔습니다');
+  try{
+    const [accRes,charRes]=await Promise.all([
+      fetchAllPages((from,to)=>sb.from('accounts').select('*').order('sort_order').order('created_at').order('id').range(from,to)),
+      fetchAllPages((from,to)=>sb.from('characters').select('*').order('sort_order').order('created_at').order('id').range(from,to))
+    ]);
+    if(accRes.error||charRes.error)throw(accRes.error||charRes.error);
+    state.accounts=accRes.data||[];
+    state.chars=charRes.data||[];
+    const firstVisible=visibleAccounts()[0]||state.accounts[0]||null;
+    if(state.selectedAccount!==ALL_ACCOUNTS_ID&&(!state.selectedAccount||!state.accounts.some(a=>a.id===state.selectedAccount)||(!state.showHiddenAccounts&&state.hiddenAccounts.has(state.selectedAccount))))state.selectedAccount=firstVisible?.id||null;
+    if(state.selectedAccount)localStorage.setItem(LAST_ACCOUNT_KEY,state.selectedAccount);
+    await loadAccountData();
+    state.lastResetBoundaryKey=getOpenPageResetBoundaryKey();
+    render();
+    toast('불러왔습니다');
+    return true;
+  }catch(error){console.error(error);toast('데이터 로딩 실패: '+(error.message||error));return false;}
+}
+
+async function fetchAllPages(build,pageSize=1000){
+  const rows=[];
+  for(let from=0;;from+=pageSize){
+    const result=await build(from,from+pageSize-1);
+    if(result.error)return{data:null,error:result.error};
+    const page=result.data||[];rows.push(...page);
+    if(page.length<pageSize)break;
+  }
+  return{data:rows,error:null};
 }
 
 async function sendDiscordHomeworkSummary(){
@@ -1039,7 +1063,10 @@ async function loadAccountData(){
     fetchOneTimeRows('account',accIds)
   ]);
   state.tasks=taskRes.buckets;
-  state.raidTasks=raidRes.buckets;
+  const raidWeek=getRaidWeekKey();
+  state.raidTasks={};
+  Object.entries(raidRes.buckets||{}).forEach(([charId,rows])=>{state.raidTasks[charId]=(rows||[]).filter(t=>!t.temp_week_start_date||t.temp_week_start_date===raidWeek);});
+  const currentRaidRows=(raidRes.rows||[]).filter(t=>!t.temp_week_start_date||t.temp_week_start_date===raidWeek);
   state.currencies=currencyRes.buckets;
   state.notes=noteRes.buckets;
   state.expTasks=expRes.buckets;
@@ -1049,7 +1076,7 @@ async function loadAccountData(){
   await cleanupOneTimeTasks([...(oneCharRes.rows||[]),...(oneAccRes.rows||[])]);
   await Promise.all([
     autoResetTasks(taskRes.rows,'tasks'),
-    autoResetRaidList(raidRes.rows),
+    autoResetRaidList(currentRaidRows),
     autoResetTasks(expRes.rows,'expedition_tasks')
   ]);
   await loadRaidMetaForCurrent();
@@ -1068,8 +1095,9 @@ async function fetchRowsByOwner(table,ownerField,ownerIds){
       .in(ownerField,ownerIds)
       .order('sort_order')
       .order('created_at')
+      .order('id')
       .range(from,to);
-    if(error){console.warn(error);return{rows,buckets};}
+    if(error)throw error;
     const page=data||[];
     rows.push(...page);
     if(page.length<pageSize)break;
@@ -1096,6 +1124,7 @@ async function fetchOneTimeRows(ownerType,ownerIds){
       .in('owner_id',ownerIds)
       .order('sort_order')
       .order('created_at')
+      .order('id')
       .range(from,to);
     if(error){
       console.warn('[one-time-tasks] load failed',error);
@@ -1155,7 +1184,7 @@ function visibleChars(){
   return chars;
 }
 function setMode(mode){if(mode===state.mode)return;saveViewScroll(state.mode);state.mode=mode;state.selectedChar='all';render();}
-async function selectAccount(id){state.selectedAccount=id;state.selectedChar='all';if(id)localStorage.setItem(LAST_ACCOUNT_KEY,id);await loadRaidMetaForCurrent();render();}
+async function selectAccount(id){state.selectedAccount=id;state.selectedChar='all';if(id)localStorage.setItem(LAST_ACCOUNT_KEY,id);try{await loadRaidMetaForCurrent();render();}catch(error){console.error(error);toast('레이드 정보 로딩 실패: '+(error.message||error));}}
 function selectChar(id){state.selectedChar=id;render();}
 async function showPartyLinkPopup(presetId,taskId,charId){
   const el=document.getElementById('party-link-content');
@@ -1171,26 +1200,32 @@ async function showPartyLinkPopup(presetId,taskId,charId){
   try{
     const [presetRes,partiesRes]=await Promise.all([
       sb.from('raid_presets').select('*').eq('id',presetId).single(),
-      sb.from('raid_parties').select('*').eq('preset_id',presetId).order('sort_order').order('created_at')
+      fetchAllPages((from,to)=>sb.from('raid_parties').select('*').eq('preset_id',presetId).order('sort_order').order('created_at').order('id').range(from,to))
     ]);
     if(presetRes.error)throw presetRes.error;
+    if(partiesRes.error)throw partiesRes.error;
     const preset=presetRes.data;
     const wk=getRaidWeekKey();
     const partiesData=(partiesRes.data||[]).filter(p=>!p.is_temporary||p.temp_week_start_date===wk);
     if(!preset){el.innerHTML='<div class="empty">레이드 정보를 불러올 수 없습니다</div>';return;}
     const pIds=partiesData.map(p=>p.id);
-    let members=[],schData=[];
+    let members=[],schData=[],ovrs=[];
     if(pIds.length){
-      const [memberRes,scheduleRes]=await Promise.all([
-        sb.from('raid_party_members').select('*,characters(id,name,class_name,item_level,icon_url)').in('party_id',pIds),
-        sb.from('raid_schedules').select('id,party_id,day_of_week').in('party_id',pIds)
+      const [memberRes,scheduleRes,overrideRes]=await Promise.all([
+        fetchAllPages((from,to)=>sb.from('raid_party_members').select('*,characters(id,name,class_name,item_level,icon_url)').in('party_id',pIds).order('id').range(from,to)),
+        fetchAllPages((from,to)=>sb.from('raid_schedules').select('id,party_id,day_of_week').in('party_id',pIds).order('id').range(from,to)),
+        fetchAllPages((from,to)=>sb.from('raid_schedule_overrides').select('id,schedule_id,temp_changes,slot_overrides,schedule_overrides').eq('week_start_date',wk).order('id').range(from,to))
       ]);
+      if(memberRes.error)throw memberRes.error;
+      if(scheduleRes.error)throw scheduleRes.error;
+      if(overrideRes.error)throw overrideRes.error;
       members=memberRes.data||[];
       schData=scheduleRes.data||[];
+      const scheduleIdSet=new Set(schData.map(s=>s.id));
+      ovrs=(overrideRes.data||[]).filter(o=>scheduleIdSet.has(o.schedule_id));
     }
     const tempPartyIds=new Set(),removedPartyIds=new Set();
     if(taskId){
-      const {data:ovrs}=await sb.from('raid_schedule_overrides').select('schedule_id,temp_changes,slot_overrides').eq('week_start_date',wk);
       (ovrs||[]).forEach(o=>{
         const added=(o.temp_changes&&o.temp_changes.added)||{};
         const removed=(o.temp_changes&&o.temp_changes.removed)||{};
@@ -1203,7 +1238,14 @@ async function showPartyLinkPopup(presetId,taskId,charId){
     }
     const targetParties=partiesData.filter(p=>(members.some(m=>m.party_id===p.id&&m.character_id===charId)&&!removedPartyIds.has(p.id))||tempPartyIds.has(p.id));
     const dayMap={};
-    schData.forEach(s=>{if(!dayMap[s.party_id])dayMap[s.party_id]=[];dayMap[s.party_id].push(s.day_of_week);});
+    const overrideBySchedule=new Map(ovrs.map(o=>[o.schedule_id,o]));
+    schData.forEach(s=>{
+      const rawDay=overrideBySchedule.get(s.id)?.schedule_overrides?.day_of_week;
+      const overrideDay=rawDay==null?NaN:Number(rawDay);
+      const day=Number.isInteger(overrideDay)&&overrideDay>=0&&overrideDay<=6?overrideDay:s.day_of_week;
+      if(!dayMap[s.party_id])dayMap[s.party_id]=[];
+      if(!dayMap[s.party_id].includes(day))dayMap[s.party_id].push(day);
+    });
     const gc=preset.color||state.raidGroupSettings[preset.name]?.color||'#22d3ee';
     let html=`<div class="party-link-preset" style="border-left:3px solid ${esc(gc)}">
       <div class="party-link-preset-name">${iconImg(preset.icon_url||'')}<span>${esc(preset.name||'')}</span>${preset.difficulty?`<span class="diff">${esc(preset.difficulty)}</span>`:''}</div>
@@ -1272,7 +1314,7 @@ async function collectIntegrityIssues(){
   const presetIds=[...new Set(allRaidTasks.map(t=>t.preset_id).filter(Boolean))];
   let presetMap=new Map();
   if(presetIds.length){
-    const {data,error}=await sb.from('raid_presets').select('id,name,difficulty').in('id',presetIds);
+    const {data,error}=await fetchAllPages((from,to)=>sb.from('raid_presets').select('id,name,difficulty').in('id',presetIds).order('id').range(from,to));
     if(error)issues.push({level:'error',title:'레이드 프리셋 조회 실패',detail:error.message});
     else presetMap=new Map((data||[]).map(p=>[p.id,p]));
   }
@@ -1283,14 +1325,14 @@ async function collectIntegrityIssues(){
     issues.push({level:'warn',title:'프리셋 미연결 레이드 숙제',detail:`${t.name||t.id} 숙제에 preset_id가 없어 파티 연동/정렬이 불안정할 수 있습니다.`});
   });
   const wk=getRaidWeekKey();
-  const {data:partyRows,error:partyErr}=await sb.from('raid_parties').select('id,preset_id,name,is_temporary,temp_week_start_date');
+  const {data:partyRows,error:partyErr}=await fetchAllPages((from,to)=>sb.from('raid_parties').select('id,preset_id,name,is_temporary,temp_week_start_date').order('id').range(from,to));
   if(partyErr){issues.push({level:'error',title:'파티 조회 실패',detail:partyErr.message});return issues;}
   const activeParties=(partyRows||[]).filter(p=>!p.is_temporary||p.temp_week_start_date===wk);
   const partyIds=activeParties.map(p=>p.id);
   const activePartyById=new Map(activeParties.map(p=>[p.id,p]));
   activeParties.filter(p=>!p.preset_id).forEach(p=>issues.push({level:'error',title:'프리셋 없는 파티',detail:`${p.name||p.id} 파티에 preset_id가 없습니다.`}));
   if(partyIds.length){
-    const {data:memberRows,error:memberErr}=await sb.from('raid_party_members').select('id,party_id,character_id,slot_index').in('party_id',partyIds);
+    const {data:memberRows,error:memberErr}=await fetchAllPages((from,to)=>sb.from('raid_party_members').select('id,party_id,character_id,slot_index').in('party_id',partyIds).order('id').range(from,to));
     if(memberErr)issues.push({level:'error',title:'파티 멤버 조회 실패',detail:memberErr.message});
     else{
       const raidTaskKey=new Set(allRaidTasks.filter(t=>t.character_id&&t.preset_id).map(t=>`${t.character_id}:${t.preset_id}`));
@@ -1316,18 +1358,23 @@ async function repairUnlinkedRaidTasks(){
   // 이번 주 임시해제 상태(preset_id를 의도적으로 비운 것)는 복구 대상에서 제외
   const targets=Object.values(state.raidTasks).flat().filter(t=>!t.preset_id&&!state.tempRemovedRaidTaskIds.has(t.id));
   if(!targets.length){toast('복구할 미연결 레이드 숙제가 없습니다');return;}
-  const {data:presets,error}=await sb.from('raid_presets').select('*');
+  const {data:presets,error}=await fetchAllPages((from,to)=>sb.from('raid_presets').select('*').order('sort_order').order('created_at').order('id').range(from,to));
   if(error){toast('레이드 프리셋 조회 실패');return;}
-  let fixed=0;
+  const mutations=[];
   for(const t of targets){
     const nameN=norm(t.name),diffN=norm(t.difficulty);
     const cand=(presets||[]).find(p=>nameN===norm(`${p.name} ${p.difficulty||''}`))
       ||(presets||[]).find(p=>nameN===norm(p.name)&&diffN&&norm(p.difficulty)===diffN)
       ||(presets||[]).find(p=>nameN===norm(p.name)&&!diffN&&!norm(p.difficulty));
     if(!cand)continue;
-    const {error:upErr}=await sb.from('raid_tasks').update({preset_id:cand.id}).eq('id',t.id);
-    if(!upErr){t.preset_id=cand.id;fixed++;}
+    mutations.push({op:'update',id:t.id,patch:{preset_id:cand.id}});
   }
+  if(mutations.length){
+    const {error:repairError}=await sb.rpc('apply_raid_task_mutations',{p_mutations:mutations});
+    if(repairError){toast(/apply_raid_task_mutations|PGRST202|schema cache/i.test(repairError.message||'')?'최신 Supabase 원자적 레이드 SQL을 적용해주세요':'미연결 숙제 복구 실패: '+repairError.message);return;}
+    mutations.forEach(m=>{const row=targets.find(t=>t.id===m.id);if(row)row.preset_id=m.patch.preset_id;});
+  }
+  const fixed=mutations.length;
   if(fixed){await loadRaidMetaForCurrent();render();}
   toast(fixed?`${fixed}개 숙제의 프리셋 연동을 복구했습니다`:'이름이 일치하는 프리셋을 찾지 못했습니다');
   await openIntegrityCheck();
@@ -1348,24 +1395,27 @@ async function openIntegrityCheck(){
 async function loadRaidMetaForCurrent(){
   const chars=visibleChars();
   const charIds=chars.map(c=>c.id);
+  chars.forEach(ch=>(state.raidTasks[ch.id]||[]).forEach(t=>{t.has_party_link=false;}));
   const ids=[...new Set(chars.flatMap(ch=>(state.raidTasks[ch.id]||[]).map(t=>t.preset_id).filter(Boolean)))];
   state.presets={};
   state.raidGroupSettings={};
   state.tempRaidTaskIds=new Set();
   state.tempRemovedRaidTaskIds=new Set();
   state.tempRemovedPresetByTask={};
-  const groupPromise=sb.from('raid_group_settings').select('*');
+  const groupPromise=fetchAllPages((from,to)=>sb.from('raid_group_settings').select('*').order('sort_order').order('name').range(from,to));
   const tempPromise=loadTempRaidTaskIds();
   if(ids.length){
-    const {data,error}=await sb.from('raid_presets').select('*').in('id',ids);
-    if(!error)(data||[]).forEach(p=>{state.presets[p.id]=p;});
+    const {data,error}=await fetchAllPages((from,to)=>sb.from('raid_presets').select('*').in('id',ids).order('id').range(from,to));
+    if(error)throw error;(data||[]).forEach(p=>{state.presets[p.id]=p;});
     const wk=getRaidWeekKey();
-    const {data:partyRows}=await sb.from('raid_parties').select('id,preset_id,is_temporary,temp_week_start_date').in('preset_id',ids);
+    const {data:partyRows,error:partyError}=await fetchAllPages((from,to)=>sb.from('raid_parties').select('id,preset_id,is_temporary,temp_week_start_date').in('preset_id',ids).order('id').range(from,to));
+    if(partyError)throw partyError;
     const activePartyRows=(partyRows||[]).filter(p=>!p.is_temporary||p.temp_week_start_date===wk);
     const partyPreset={};activePartyRows.forEach(p=>{partyPreset[p.id]=p.preset_id;});
     const partyIds=Object.keys(partyPreset);
     if(partyIds.length){
-      const {data:memberRows}=await sb.from('raid_party_members').select('party_id,character_id').in('party_id',partyIds).in('character_id',charIds);
+      const {data:memberRows,error:memberError}=await fetchAllPages((from,to)=>sb.from('raid_party_members').select('id,party_id,character_id').in('party_id',partyIds).in('character_id',charIds).order('id').range(from,to));
+      if(memberError)throw memberError;
       const linkedByChar={};
       (memberRows||[]).forEach(m=>{
         const presetId=partyPreset[m.party_id];
@@ -1378,7 +1428,8 @@ async function loadRaidMetaForCurrent(){
   }
   const [groupRes]=await Promise.all([groupPromise,tempPromise]);
   const {data:groups,error:gErr}=groupRes||{};
-  if(!gErr)(groups||[]).forEach(g=>{state.raidGroupSettings[g.name]=g;});
+  if(gErr){if(!/raid_group_settings|schema cache|PGRST205|does not exist/i.test(gErr.message||''))throw gErr;console.warn('raid_group_settings unavailable:',gErr.message);return;}
+  (groups||[]).forEach(g=>{state.raidGroupSettings[g.name]=g;});
 }
 function getRaidWeekKey(){
   const now=appNow(),kst=new Date(now.getTime()+9*3600000);
@@ -1391,18 +1442,20 @@ function getRaidWeekKey(){
 }
 async function loadTempRaidTaskIds(){
   const wk=getRaidWeekKey();
-  const {data,error}=await sb.from('raid_schedule_overrides').select('schedule_id,temp_changes').eq('week_start_date',wk);
-  if(error)return;
+  const {data,error}=await fetchAllPages((from,to)=>sb.from('raid_schedule_overrides').select('id,schedule_id,temp_changes').eq('week_start_date',wk).order('id').range(from,to));
+  if(error)throw error;
   const addedIds=[],removedBySchedule=[],removedRecords=[];
   (data||[]).forEach(o=>{
     const added=o.temp_changes?.added||{},removed=o.temp_changes?.removed||{};
     Object.values(added).forEach(v=>{const tid=v?.taskId||v?.task_id;if(tid)addedIds.push(tid);});
     Object.values(removed).forEach(v=>{const tid=v?.taskId||v?.task_id;if(tid)removedRecords.push({taskId:tid,scheduleId:o.schedule_id});});
   });
-  const {data:tempParties}=await sb.from('raid_parties').select('id,preset_id').eq('is_temporary',true).eq('temp_week_start_date',wk);
+  const {data:tempParties,error:tempPartyError}=await fetchAllPages((from,to)=>sb.from('raid_parties').select('id,preset_id').eq('is_temporary',true).eq('temp_week_start_date',wk).order('id').range(from,to));
+  if(tempPartyError)throw tempPartyError;
   if(tempParties?.length){
     const tempPartyIds=tempParties.map(p=>p.id);
-    const {data:tempMembers}=await sb.from('raid_party_members').select('party_id,character_id').in('party_id',tempPartyIds);
+    const {data:tempMembers,error:tempMemberError}=await fetchAllPages((from,to)=>sb.from('raid_party_members').select('id,party_id,character_id').in('party_id',tempPartyIds).order('id').range(from,to));
+    if(tempMemberError)throw tempMemberError;
     const presetByParty={};tempParties.forEach(p=>{presetByParty[p.id]=p.preset_id;});
     (tempMembers||[]).forEach(m=>{
       const presetId=presetByParty[m.party_id];
@@ -1416,15 +1469,17 @@ async function loadTempRaidTaskIds(){
   state.tempRemovedRaidTaskIds=new Set(removedBySchedule.map(x=>x.taskId));
   if(!removedBySchedule.length)return;
   const scheduleIds=[...new Set(removedBySchedule.map(x=>x.scheduleId).filter(Boolean))];
-  const {data:schRows,error:schErr}=await sb.from('raid_schedules').select('id,party_id').in('id',scheduleIds);
-  if(schErr||!schRows?.length)return;
+  const {data:schRows,error:schErr}=await fetchAllPages((from,to)=>sb.from('raid_schedules').select('id,party_id').in('id',scheduleIds).order('id').range(from,to));
+  if(schErr)throw schErr;
+  if(!schRows?.length)return;
   const partyIds=[...new Set(schRows.map(s=>s.party_id).filter(Boolean))];
-  const {data:partyRows,error:partyErr}=await sb.from('raid_parties').select('id,preset_id').in('id',partyIds);
-  if(partyErr||!partyRows?.length)return;
+  const {data:partyRows,error:partyErr}=await fetchAllPages((from,to)=>sb.from('raid_parties').select('id,preset_id').in('id',partyIds).order('id').range(from,to));
+  if(partyErr)throw partyErr;
+  if(!partyRows?.length)return;
   const presetIds=[...new Set(partyRows.map(p=>p.preset_id).filter(Boolean))];
   if(!presetIds.length)return;
-  const {data:presetRows,error:presetErr}=await sb.from('raid_presets').select('*').in('id',presetIds);
-  if(presetErr)return;
+  const {data:presetRows,error:presetErr}=await fetchAllPages((from,to)=>sb.from('raid_presets').select('*').in('id',presetIds).order('id').range(from,to));
+  if(presetErr)throw presetErr;
   const partyPreset={},presetMap={},schedulePreset={};
   partyRows.forEach(p=>{partyPreset[p.id]=p.preset_id;});
   (presetRows||[]).forEach(p=>{presetMap[p.id]=p;state.presets[p.id]=p;});
@@ -1478,32 +1533,41 @@ async function setTaskPaused(id,isExp,ownerId,paused=true){
   const t=list.find(row=>row.id===id);if(!t){clearBusy(key);return;}
   const hasChildren=list.some(row=>row.parent_id===id);
   const related=!paused?taskDescendants(list,id).filter(row=>!isTaskPaused(row)):[];
-  const changes=[{row:t,up:{is_paused:paused,...(!paused?taskResumeUpdate(t):{})}},...related.map(row=>({row,up:taskResumeUpdate(row)}))];
-  const snapshots=changes.map(({row})=>({row,previous:{...row}}));
-  changes.forEach(({row,up})=>Object.assign(row,up));
+  const changes=[],snapshots=new Map();
+  const queueChange=(row,up)=>{
+    if(!row||!up)return;
+    if(!snapshots.has(row.id))snapshots.set(row.id,{row,previous:{...row}});
+    const queued=changes.find(change=>change.row.id===row.id);
+    if(queued)Object.assign(queued.up,up);else changes.push({row,up:{...up}});
+    Object.assign(row,up);
+  };
+  const queueParentCompletion=parentId=>{
+    if(!parentId)return;
+    const parent=list.find(row=>row.id===parentId),children=list.filter(row=>row.parent_id===parentId);
+    if(!parent||!children.length)return;
+    const activeChildren=children.filter(row=>!isTaskPaused(row));
+    const done=activeChildren.length>0&&activeChildren.every(isDone);
+    queueChange(parent,{is_completed:done,last_completed_at:done?appNowIso():null});
+  };
+  queueChange(t,{is_paused:paused,...(!paused?taskResumeUpdate(t):{})});
+  related.forEach(row=>queueChange(row,taskResumeUpdate(row)));
+  if(t.parent_id)queueParentCompletion(t.parent_id);
+  if(!paused&&hasChildren)queueParentCompletion(id);
   render();
   if(document.getElementById('modal-paused-tasks')?.classList.contains('open'))renderPausedTaskManager();
   if(isTestMode()){
     clearBusy(key);
-    if(t.parent_id)await syncParentDone(t.parent_id,isExp,ownerId);
-    if(!paused&&hasChildren)await syncParentDone(id,isExp,ownerId);
     render();return;
   }
-  const table=isExp?'expedition_tasks':'tasks';
-  let error=null;
-  for(const change of changes){
-    const result=await sb.from(table).update(change.up).eq('id',change.row.id);
-    if(result.error){error=result.error;break;}
-  }
+  const payload=changes.map(change=>({id:change.row.id,update:change.up}));
+  const {error}=await sb.rpc('apply_task_pause_atomic',{p_is_expedition:isExp,p_changes:payload});
   clearBusy(key);
   if(error){
     snapshots.forEach(({row,previous})=>Object.assign(row,previous));render();renderPausedTaskManager();
-    const missing=/is_paused|column/i.test(error.message||'');
-    toast(missing?'Supabase에 is_paused 컬럼을 먼저 적용해주세요':'일시중지 저장 실패');
+    const missing=/apply_task_pause_atomic|is_paused|schema cache|function.*does not exist|PGRST202/i.test(error.message||'');
+    toast(missing?'Supabase에 2026-08-13 원자적 일시중지 SQL을 먼저 적용해주세요':'일시중지 저장 실패');
     console.error('[task-pause]',error);return;
   }
-  if(t.parent_id)await syncParentDone(t.parent_id,isExp,ownerId);
-  if(!paused&&hasChildren)await syncParentDone(id,isExp,ownerId);
   render();
   if(document.getElementById('modal-paused-tasks')?.classList.contains('open'))renderPausedTaskManager();
   toast(paused?'숙제를 일시중지했습니다':'숙제를 다시 활성화했습니다');
@@ -1689,7 +1753,7 @@ async function autoResetTasks(list,table){
       const completedAt=t.last_completed_at?new Date(t.last_completed_at):null;
       boundaries.forEach(b=>{
         const prev=getPreviousResetBoundary(t.reset_type||'daily',b);
-        const completedInCycle=!!(completedAt&&completedAt>prev&&completedAt<=b);
+        const completedInCycle=!!(completedAt&&completedAt>=prev&&completedAt<b);
         if(!completedInCycle){
           cur=Math.min(max,cur+charge);
         }
@@ -1719,10 +1783,12 @@ async function autoResetTasks(list,table){
     updates.forEach(x=>Object.assign(x.t,x.up));
     return;
   }
-  await Promise.all(updates.map(async x=>{
-    const {error}=await sb.from(table).update(x.up).eq('id',x.t.id);
-    if(!error)Object.assign(x.t,x.up);
-  }));
+  const {error}=await sb.rpc('apply_task_pause_atomic',{
+    p_is_expedition:table==='expedition_tasks',
+    p_changes:updates.map(x=>({id:x.t.id,update:x.up}))
+  });
+  if(error)throw error;
+  updates.forEach(x=>Object.assign(x.t,x.up));
 }
 async function autoResetRaidList(list){
   if(!list||!list.length)return;
@@ -1734,7 +1800,7 @@ async function autoResetRaidList(list){
   if(!error)stale.forEach(t=>{t.is_completed=false;t.last_completed_at=null;});
 }
 function countIsCurrent(t){
-  return !!(t.last_completed_at&&new Date(t.last_completed_at)>getLastResetUTC(t.reset_type||'daily',t.reset_day||3));
+  return !!(t.last_completed_at&&new Date(t.last_completed_at)>=getLastResetUTC(t.reset_type||'daily',t.reset_day||3));
 }
 function effectiveCount(t){return countIsCurrent(t)?Number(t.count_current)||0:0;}
 function hasDailyQuota(t){return t&&t.count_daily_limit!=null&&Number(t.count_daily_limit)>0&&t.count_max!=null&&!t.rest_enabled;}
@@ -1744,7 +1810,7 @@ function dailyCountIsCurrent(t){
 function effectiveDailyCount(t){return dailyCountIsCurrent(t)?Number(t.count_daily_current)||0:0;}
 function isRaidTaskRecord(t){return !!(t&&('preset_id' in t||'clear_gold' in t||'bound_gold' in t||'bonus_gold' in t));}
 function isDone(t){
-  if(isRaidTaskRecord(t))return !!(t.is_completed&&t.last_completed_at&&new Date(t.last_completed_at)>getLastResetUTC('weekly',t.reset_day??3));
+  if(isRaidTaskRecord(t))return !!(t.is_completed&&t.last_completed_at&&new Date(t.last_completed_at)>=getLastResetUTC('weekly',t.reset_day??3));
   const current=countIsCurrent(t);
   if(hasDailyQuota(t)){
     return current&&Number(t.count_current||0)>=Number(t.count_max||0);
@@ -1754,7 +1820,7 @@ function isDone(t){
     if(current&&Number(t.count_current||0)>=max)return true;
   }
   if(t.count_max!=null&&current&&Number(t.count_current||0)>=Number(t.count_max||0))return true;
-  return !!(t.is_completed&&t.last_completed_at&&new Date(t.last_completed_at)>getLastResetUTC(t.reset_type||'daily',t.reset_day||3));
+  return !!(t.is_completed&&t.last_completed_at&&new Date(t.last_completed_at)>=getLastResetUTC(t.reset_type||'daily',t.reset_day||3));
 }
 function isActive(t){
   if(t.rest_enabled&&Number(t.rest_current||0)<Number(t.rest_threshold||0))return false;
@@ -2272,12 +2338,11 @@ async function toggleTask(id,isExp,ownerId){
   Object.assign(t,up);
   if(done)holdTaskCardHeight(t,isExp,ownerId);else releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));
   render();
-  if(isTestMode()){clearBusy(key);if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}return;}
-  const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
+  const error=await persistTaskWithParent(t,up,isExp,list);
   clearBusy(key);
   if(error){Object.assign(t,prev);releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));render();}
-  if(error){toast('저장 실패');return;}
-  if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}
+  if(error){toast(atomicRpcMissing(error)?'최신 Supabase 원자적 숙제 SQL을 적용해주세요':'저장 실패');return;}
+  if(t.parent_id)render();
 }
 async function setTaskCount(id,isExp,ownerId,val){
   const key=`task:${id}`;if(!withBusy(key))return;
@@ -2291,12 +2356,11 @@ async function setTaskCount(id,isExp,ownerId,val){
   Object.assign(t,up);
   if(done)holdTaskCardHeight(t,isExp,ownerId);else releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));
   render();
-  if(isTestMode()){clearBusy(key);if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}return;}
-  const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
+  const error=await persistTaskWithParent(t,up,isExp,list);
   clearBusy(key);
   if(error){Object.assign(t,prev);releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));render();}
-  if(error){toast('저장 실패');return;}
-  if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}
+  if(error){toast(atomicRpcMissing(error)?'최신 Supabase 원자적 숙제 SQL을 적용해주세요':'저장 실패');return;}
+  if(t.parent_id)render();
 }
 async function adjustQuotaTask(id,isExp,ownerId,delta){
   const key=`task:${id}`;if(!withBusy(key))return;
@@ -2331,12 +2395,11 @@ async function adjustQuotaTask(id,isExp,ownerId,delta){
   Object.assign(t,up);
   if(done)holdTaskCardHeight(t,isExp,ownerId);else releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));
   render();
-  if(isTestMode()){clearBusy(key);if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}return;}
-  const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
+  const error=await persistTaskWithParent(t,up,isExp,list);
   clearBusy(key);
   if(error){Object.assign(t,prev);releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));render();}
-  if(error){toast('저장 실패');return;}
-  if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}
+  if(error){toast(atomicRpcMissing(error)?'최신 Supabase 원자적 숙제 SQL을 적용해주세요':'저장 실패');return;}
+  if(t.parent_id)render();
 }
 function applyRestCompletionChange(t,nextCount){
   const maxCount=Math.max(1,Number(t.rest_daily_limit)||1);
@@ -2375,21 +2438,33 @@ async function setRestTaskCount(id,isExp,ownerId,val){
   Object.assign(t,up);
   if(done)holdTaskCardHeight(t,isExp,ownerId);else releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));
   render();
-  if(isTestMode()){clearBusy(key);if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}return;}
-  const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',id);
+  const error=await persistTaskWithParent(t,up,isExp,list);
   clearBusy(key);
   if(error){Object.assign(t,prev);releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));render();}
-  if(error){toast('저장 실패');return;}
-  if(t.parent_id){await syncParentDone(t.parent_id,isExp,ownerId);render();}
+  if(error){toast(atomicRpcMissing(error)?'최신 Supabase 원자적 숙제 SQL을 적용해주세요':'저장 실패');return;}
+  if(t.parent_id)render();
 }
-async function syncParentDone(parentId,isExp,ownerId){
-  const list=getTaskList(isExp,ownerId),children=list.filter(t=>t.parent_id===parentId),parent=list.find(t=>t.id===parentId);
-  if(!parent||!children.length)return;
+function parentCompletionPlan(task,list){
+  if(!task?.parent_id)return null;
+  const parentId=task.parent_id,children=list.filter(t=>t.parent_id===parentId),parent=list.find(t=>t.id===parentId);
+  if(!parent||!children.length)return null;
   const activeChildren=children.filter(t=>!isTaskPaused(t));
   const done=activeChildren.length>0&&activeChildren.every(isDone),up={is_completed:done,last_completed_at:done?appNowIso():null};
-  if(isTestMode()){Object.assign(parent,up);return;}
-  const {error}=await sb.from(isExp?'expedition_tasks':'tasks').update(up).eq('id',parentId);
-  if(!error)Object.assign(parent,up);
+  return{parent,up};
+}
+async function persistTaskWithParent(task,up,isExp,list){
+  const parentPlan=parentCompletionPlan(task,list);
+  if(isTestMode()){
+    if(parentPlan)Object.assign(parentPlan.parent,parentPlan.up);
+    return null;
+  }
+  const changes=[{id:task.id,update:up}];
+  if(parentPlan)changes.push({id:parentPlan.parent.id,update:parentPlan.up});
+  try{
+    const{error}=await sb.rpc('apply_task_pause_atomic',{p_is_expedition:!!isExp,p_changes:changes});
+    if(!error&&parentPlan)Object.assign(parentPlan.parent,parentPlan.up);
+    return error||null;
+  }catch(error){return error;}
 }
 async function setRest(id,isExp,ownerId,val){
   if(!id||id==='undefined')return;
@@ -2454,45 +2529,14 @@ async function deleteRaidTask(id,charId){
   const list=state.raidTasks[charId]||[];
   const t=list.find(x=>x.id===id);if(!t)return;
   if(!confirm(`"${t.name}" 레이드 숙제를 삭제하시겠습니까?`))return;
-  const {error}=await sb.from('raid_tasks').delete().eq('id',id);
-  if(error){toast('삭제 실패');return;}
-  await cleanupRaidPartyLinksForTask(t);
+  const {error}=await sb.rpc('delete_raid_task_and_links_atomic',{p_task_id:id});
+  if(error){toast(/delete_raid_task_and_links_atomic|PGRST202|schema cache/i.test(error.message||'')?'최신 Supabase 원자적 레이드 SQL을 적용해주세요':'삭제 실패');return;}
   state.raidTasks[charId]=list.filter(x=>x.id!==id);
   state.tempRaidTaskIds.delete(id);
   state.tempRemovedRaidTaskIds.delete(id);
   delete state.tempRemovedPresetByTask[id];
   await loadRaidMetaForCurrent();
   render();toast('삭제했습니다');
-}
-async function cleanupRaidPartyLinksForTask(t){
-  if(!t?.preset_id||!t?.character_id)return;
-  try{
-    const {data:partyRows,error:partyErr}=await sb.from('raid_parties').select('id').eq('preset_id',t.preset_id);
-    if(partyErr){console.warn(partyErr);return;}
-    const partyIds=(partyRows||[]).map(p=>p.id);
-    if(!partyIds.length)return;
-    const memberRes=await sb.from('raid_party_members').delete().in('party_id',partyIds).eq('character_id',t.character_id);
-    if(memberRes.error)console.warn(memberRes.error);
-    const {data:scheduleRows,error:scheduleErr}=await sb.from('raid_schedules').select('id').in('party_id',partyIds);
-    if(scheduleErr){console.warn(scheduleErr);return;}
-    const scheduleIds=(scheduleRows||[]).map(s=>s.id);
-    if(!scheduleIds.length)return;
-    const {data:overrideRows,error:overrideErr}=await sb.from('raid_schedule_overrides').select('id,slot_overrides,temp_changes').in('schedule_id',scheduleIds);
-    if(overrideErr){console.warn(overrideErr);return;}
-    await Promise.all((overrideRows||[]).map(async row=>{
-      const slotOverrides={...(row.slot_overrides||{})};
-      const tempChanges={added:{...((row.temp_changes||{}).added||{})},removed:{...((row.temp_changes||{}).removed||{})}};
-      let changed=false;
-      Object.keys(slotOverrides).forEach(k=>{if(slotOverrides[k]===t.character_id){slotOverrides[k]=null;changed=true;}});
-      const addInfo=tempChanges.added[t.character_id];
-      if(addInfo&&(!(addInfo.taskId||addInfo.task_id)||(addInfo.taskId||addInfo.task_id)===t.id)){delete tempChanges.added[t.character_id];changed=true;}
-      const remInfo=tempChanges.removed[t.character_id];
-      if(remInfo&&(!(remInfo.taskId||remInfo.task_id)||(remInfo.taskId||remInfo.task_id)===t.id)){delete tempChanges.removed[t.character_id];changed=true;}
-      if(!changed)return;
-      const {error}=await sb.from('raid_schedule_overrides').update({slot_overrides:slotOverrides,temp_changes:tempChanges}).eq('id',row.id);
-      if(error)console.warn(error);
-    }));
-  }catch(err){console.warn('raid party link cleanup failed:',err);}
 }
 async function openAddRaidTask(charId){
   const ch=state.chars.find(c=>c.id===charId);if(!ch)return;
@@ -2501,7 +2545,7 @@ async function openAddRaidTask(charId){
   const list=document.getElementById('raid-preset-list');
   list.innerHTML='<div class="empty">레이드 목록을 불러오는 중...</div>';
   openModal('modal-raid-preset');
-  const {data,error}=await sb.from('raid_presets').select('*').order('sort_order').order('created_at');
+  const {data,error}=await fetchAllPages((from,to)=>sb.from('raid_presets').select('*').order('sort_order').order('created_at').order('id').range(from,to));
   if(error){list.innerHTML='<div class="empty">레이드 프리셋을 불러오지 못했습니다</div>';return;}
   const ilvl=Number(ch.item_level)||0;
   const eligible=(data||[]).filter(p=>!Number(p.entry_level)||!ilvl||Number(p.entry_level)<=ilvl);
@@ -2945,7 +2989,7 @@ function localListForMove(type,ownerId){
   return{list:[],table:type};
 }
 async function persistOrder(table,list){
-  await Promise.all(list.map((item,i)=>sb.from(table).update({sort_order:i}).eq('id',item.id)));
+  return sb.rpc('reorder_sort_order_atomic',{p_entity:table,p_ids:list.map(item=>item.id)});
 }
 function dragStart(event,type,id,ownerId='',groupKey=''){
   event.stopPropagation();
@@ -2990,13 +3034,14 @@ async function dropOn(event,type,targetId,ownerId='',groupKey=''){
   }
   const from=list.findIndex(x=>x.id===ctx.id),to=list.findIndex(x=>x.id===targetId);
   if(from<0||to<0)return;
+  const previous=list.slice();
   const [item]=list.splice(from,1);
   list.splice(to,0,item);
   list.forEach((x,i)=>x.sort_order=i);
-  commit(list);
+  const {error}=await persistOrder(table,list);
+  if(error){previous.forEach((x,i)=>x.sort_order=i);commit(previous);toast('순서 저장 실패');console.warn(error);}
+  else commit(list);
   render();
-  const {error}=await Promise.all(list.map((item,i)=>sb.from(table).update({sort_order:i}).eq('id',item.id))).then(results=>({error:results.find(r=>r.error)?.error}));
-  if(error){toast('순서 저장 실패');console.warn(error);}
 }
 async function moveItem(type,id,dir,ownerId=null){
   let {list,table}=localListForMove(type,ownerId);
@@ -3006,7 +3051,8 @@ async function moveItem(type,id,dir,ownerId=null){
   if(idx<0||next<0||next>=list.length)return;
   [list[idx],list[next]]=[list[next],list[idx]];
   list.forEach((x,i)=>x.sort_order=i);
-  await persistOrder(table,list);
+  const {error}=await persistOrder(table,list);
+  if(error){[list[idx],list[next]]=[list[next],list[idx]];list.forEach((x,i)=>x.sort_order=i);toast('순서 저장 실패');console.warn(error);return;}
   if(type==='accounts'){state.accounts=list;}
   if(type==='characters'){state.chars=state.chars.filter(c=>c.account_id!==state.selectedAccount).concat(list).sort((a,b)=>(a.account_id||'').localeCompare(b.account_id||'')||(a.sort_order||0)-(b.sort_order||0));}
   render();
@@ -3020,7 +3066,8 @@ async function moveTask(id,isExp,ownerId,isChild,dir){
   if(idx<0||next<0||next>=list.length)return;
   [list[idx],list[next]]=[list[next],list[idx]];
   list.forEach((x,i)=>x.sort_order=i);
-  await persistOrder(table,list);
+  const {error}=await persistOrder(table,list);
+  if(error){[list[idx],list[next]]=[list[next],list[idx]];list.forEach((x,i)=>x.sort_order=i);toast('순서 저장 실패');console.warn(error);return;}
   render();
 }
 
@@ -3029,50 +3076,6 @@ function taskOwnerName(isExp,ownerId){
   if(isExp){const a=state.accounts.find(x=>x.id===ownerId);return a?`${a.name}${isAccountHidden(ownerId)?' · 숨김':''}`:ownerId;}
   const c=state.chars.find(x=>x.id===ownerId);const a=state.accounts.find(x=>x.id===c?.account_id);
   return c?`${a?`${a.name} · `:''}${c.name}`:ownerId;
-}
-function taskCopyFields(t){
-  const rec={
-    name:t.name,
-    reset_type:t.reset_type||'daily',
-    reset_day:t.reset_day??3,
-    activate_day:t.activate_day??null,
-    count_current:0,
-    count_max:t.count_max??null,
-    icon_url:t.icon_url||null,
-    rest_enabled:t.rest_enabled??false,
-    rest_current:t.rest_current??0,
-    rest_max:t.rest_max??200,
-    rest_charge:t.rest_charge??20,
-    rest_consume:t.rest_consume??40,
-    rest_threshold:t.rest_threshold??40,
-    rest_daily_limit:t.rest_daily_limit??1,
-    rest_last_processed_at:t.rest_last_processed_at??null,
-    rest_consumed_current_cycle:0,
-    clone_group_id:t.clone_group_id??null
-  };
-  if(Object.prototype.hasOwnProperty.call(t,'count_daily_limit')||t.count_daily_limit!=null){
-    rec.count_daily_current=0;
-    rec.count_daily_limit=t.count_daily_limit??null;
-    rec.count_daily_last_reset_at=t.count_daily_limit!=null?getLastResetUTC('daily',3).toISOString():null;
-  }
-  return rec;
-}
-function newId(){return window.crypto?.randomUUID?window.crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&3|8);return v.toString(16);});}
-async function ensureCloneGroup(t,isExp){
-  if(t.clone_group_id)return t.clone_group_id;
-  const groupId=newId(),table=isExp?'expedition_tasks':'tasks';
-  const {error}=await sb.from(table).update({clone_group_id:groupId}).eq('id',t.id);
-  if(error){toast('복제 그룹 저장 실패');throw error;}
-  t.clone_group_id=groupId;
-  return groupId;
-}
-async function countRootTasks(table,ownerField,ownerId){
-  const {count,error}=await sb.from(table).select('id',{count:'exact',head:true}).eq(ownerField,ownerId).is('parent_id',null);
-  if(error)return 99;
-  return count||0;
-}
-function localRootTaskCount(isExp,ownerId){
-  return getTaskList(isExp,ownerId).filter(t=>!t.parent_id).length;
 }
 async function openCopyTask(id,isExp,ownerId){
   const task=getTaskList(isExp,ownerId).find(x=>x.id===id);if(!task)return;
@@ -3100,44 +3103,49 @@ async function openCopyTask(id,isExp,ownerId){
 function copySelectAll(checked){document.querySelectorAll('[data-copy-target],[data-copy-account]').forEach(cb=>{cb.checked=checked;});}
 function copySelectAccount(accId,checked){document.querySelectorAll(`[data-copy-account-id="${accId}"]`).forEach(cb=>{cb.checked=checked;});}
 async function executeTaskCopy(){
+  if(executeTaskCopy.busy)return;
   const ctx=state.copyCtx;if(!ctx)return;
   const targets=[...document.querySelectorAll('#copy-task-list [data-copy-target]:checked')].map(cb=>cb.value);
   if(!targets.length){toast('복제할 대상을 선택하세요');return;}
   const src=getTaskList(ctx.isExp,ctx.ownerId).find(x=>x.id===ctx.id);if(!src)return;
-  const children=getTaskList(ctx.isExp,ctx.ownerId).filter(x=>x.parent_id===ctx.id);
   const table=ctx.isExp?'expedition_tasks':'tasks',ownerField=ctx.isExp?'account_id':'character_id';
-  let groupId;
-  try{groupId=await ensureCloneGroup(src,ctx.isExp);}catch{return;}
-  let copied=0;
-  for(const targetId of targets){
-    const rootRec={...taskCopyFields(src),clone_group_id:groupId,[ownerField]:targetId,sort_order:localRootTaskCount(ctx.isExp,targetId)};
-    const {data:newRoot,error}=await sb.from(table).insert(rootRec).select().single();
-    if(error){auditTaskEvent('copy-create-fail',{table,ownerId:targetId,name:rootRec.name,error:error.message||String(error)});console.warn(error);continue;}
-    auditTaskEvent('copy-create-success',{table,id:newRoot.id,ownerId:targetId,name:newRoot.name,clone_group_id:newRoot.clone_group_id||null,parent_id:null});
-    if(!ctx.isExp&&state.tasks[targetId])state.tasks[targetId].push(newRoot);
-    if(ctx.isExp&&state.expTasks[targetId])state.expTasks[targetId].push(newRoot);
-    if(children.length&&newRoot){
-      const childRows=children.map((c,i)=>({...taskCopyFields(c),clone_group_id:null,[ownerField]:targetId,parent_id:newRoot.id,sort_order:i}));
-      const {data:newChildren,error:childError}=await sb.from(table).insert(childRows).select();
-      if(childError)auditTaskEvent('copy-child-create-fail',{table,parentId:newRoot.id,ownerId:targetId,error:childError.message||String(childError)});
-      if(!childError&&newChildren){
-        newChildren.forEach(child=>auditTaskEvent('copy-child-create-success',{table,id:child.id,ownerId:targetId,name:child.name,parent_id:child.parent_id}));
-        if(!ctx.isExp&&state.tasks[targetId])state.tasks[targetId].push(...newChildren);
-        if(ctx.isExp&&state.expTasks[targetId])state.expTasks[targetId].push(...newChildren);
-      }
-    }
-    copied++;
+  executeTaskCopy.busy=true;
+  try{
+    const {data,error}=await sb.rpc('clone_task_tree_atomic',{
+      p_is_expedition:ctx.isExp,
+      p_source_id:src.id,
+      p_target_owner_ids:targets
+    });
+    if(error)throw error;
+    src.clone_group_id=data?.cloneGroupId||src.clone_group_id||null;
+    const rows=Array.isArray(data?.rows)?data.rows:[];
+    rows.forEach(row=>{
+      const targetId=row[ownerField];
+      const list=getTaskList(ctx.isExp,targetId);
+      if(!list.some(item=>item.id===row.id))list.push(row);
+      auditTaskEvent(row.parent_id?'copy-child-create-success':'copy-create-success',{
+        table,id:row.id,ownerId:targetId,name:row.name,
+        clone_group_id:row.clone_group_id||null,parent_id:row.parent_id||null
+      });
+    });
+    closeModal('modal-copy-task');
+    render();
+    const copied=Number(data?.copiedTargets??targets.length),skipped=Number(data?.skippedTargets||0);
+    toast(`${copied}개 대상에 복제했습니다${skipped?` · 기존 복제본 ${skipped}개 건너뜀`:''}`);
+  }catch(error){
+    auditTaskEvent('copy-create-fail',{table,sourceId:src.id,targetOwnerIds:targets,error:error.message||String(error)});
+    console.error(error);
+    toast(/clone_task_tree_atomic|PGRST202|schema cache|does not exist/i.test(error.message||'')?'최신 Supabase 원자적 숙제 복제 SQL을 적용해주세요':'숙제 복제 실패: '+(error.message||error));
+  }finally{
+    executeTaskCopy.busy=false;
   }
-  closeModal('modal-copy-task');
-  render();
-  toast(`${copied}개 대상에 복제했습니다`);
 }
 async function openBulkDelete(id,isExp,ownerId){
   const task=getTaskList(isExp,ownerId).find(x=>x.id===id);if(!task)return;
   const table=isExp?'expedition_tasks':'tasks',ownerField=isExp?'account_id':'character_id';
   let rows=[task];
   if(task.clone_group_id){
-    const {data,error}=await sb.from(table).select('*').eq('clone_group_id',task.clone_group_id).is('parent_id',null);
+    const {data,error}=await fetchAllPages((from,to)=>sb.from(table).select('*').eq('clone_group_id',task.clone_group_id).is('parent_id',null).order('created_at').order('id').range(from,to));
     if(error){toast('복제본 조회 실패');return;}
     rows=data&&data.length?data:rows;
   }

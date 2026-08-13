@@ -1,401 +1,11 @@
--- ============================================================
--- 로스트아크 숙제 트래커 전체 SQL (중복 실행 안전)
--- Supabase SQL Editor에서 전체 복사 후 실행하세요
--- ============================================================
+-- 2026-08-13: complete atomic raid/week rollover operations used by the static clients
 
-create extension if not exists "uuid-ossp";
-
--- 계정
-create table if not exists accounts(
-  id uuid default uuid_generate_v4() primary key,
-  name text not null,
-  sort_order int default 0,
-  hide_from_filters boolean default false,
-  created_at timestamptz default now()
-);
-
--- 캐릭터
-create table if not exists characters(
-  id uuid default uuid_generate_v4() primary key,
-  account_id uuid references accounts(id) on delete cascade,
-  name text not null,
-  class_name text default '',
-  short_name text,
-  item_level numeric default 0,
-  combat_power numeric default 0,
-  azena_blessing boolean default false,
-  show_raid_tasks boolean default true,
-  show_currencies boolean default true,
-  show_custom_notes boolean default true,
-  sort_order int default 0,
-  created_at timestamptz default now()
-);
-
--- 일반 숙제
-create table if not exists tasks(
-  id uuid default uuid_generate_v4() primary key,
-  character_id uuid references characters(id) on delete cascade,
-  parent_id uuid references tasks(id) on delete cascade,
-  name text not null,
-  reset_type text default 'weekly',
-  reset_day int default 3,
-  activate_day int default null,   -- ★ 활성화 요일 (0=일~6=토), null=항상 활성
-  is_paused boolean default false,
-  is_completed boolean default false,
-  last_completed_at timestamptz,
-  count_current int default 0,
-  count_max int default null,
-  count_daily_current int default 0,
-  count_daily_limit int default null,
-  count_daily_last_reset_at timestamptz,
-  rest_enabled boolean default false,
-  rest_current int default 0,
-  rest_max int default 200,
-  rest_charge int default 20,
-  rest_consume int default 40,
-  rest_threshold int default 40,
-  rest_daily_limit int default 1,
-  rest_last_processed_at timestamptz,
-  rest_consumed_current_cycle int default 0,
-  sort_order int default 0,
-  created_at timestamptz default now()
-);
-
--- 원정대 숙제
-create table if not exists expedition_tasks(
-  id uuid default uuid_generate_v4() primary key,
-  account_id uuid references accounts(id) on delete cascade,
-  parent_id uuid references expedition_tasks(id) on delete cascade,
-  name text not null,
-  reset_type text default 'weekly',
-  reset_day int default 3,
-  activate_day int default null,
-  is_paused boolean default false,
-  is_completed boolean default false,
-  last_completed_at timestamptz,
-  count_current int default 0,
-  count_max int default null,
-  count_daily_current int default 0,
-  count_daily_limit int default null,
-  count_daily_last_reset_at timestamptz,
-  rest_enabled boolean default false,
-  rest_current int default 0,
-  rest_max int default 200,
-  rest_charge int default 20,
-  rest_consume int default 40,
-  rest_threshold int default 40,
-  rest_daily_limit int default 1,
-  rest_last_processed_at timestamptz,
-  rest_consumed_current_cycle int default 0,
-  sort_order int default 0,
-  created_at timestamptz default now()
-);
-
--- One-time checklist tasks for index.html right-side panels.
-create table if not exists one_time_tasks(
-  id uuid default uuid_generate_v4() primary key,
-  owner_type text not null check (owner_type in ('character','account')),
-  owner_id uuid not null,
-  name text not null,
-  is_completed boolean default false,
-  completed_at timestamptz,
-  sort_order int default 0,
-  created_at timestamptz default now()
-);
-
--- 레이드 숙제 (index.html 용 — 캐릭터별 체크리스트)
-create table if not exists raid_tasks(
-  id uuid default uuid_generate_v4() primary key,
-  character_id uuid references characters(id) on delete cascade,
-  name text not null,
-  difficulty text default '',
-  short_name text,
-  entry_level numeric default 0,
-  clear_gold numeric default 0,
-  bound_gold numeric default 0,
-  is_completed boolean default false,
-  last_completed_at timestamptz,
-  reset_day int default 3,
-  temp_week_start_date text,
-  sort_order int default 0,
-  created_at timestamptz default now()
-);
-
--- 재화
-create table if not exists currencies(
-  id uuid default uuid_generate_v4() primary key,
-  character_id uuid references characters(id) on delete cascade,
-  name text not null,
-  amount bigint default 0,
-  icon text default '💰',
-  sort_order int default 0,
-  created_at timestamptz default now()
-);
-
--- 커스텀 팝업
-create table if not exists custom_popups(
-  id uuid default uuid_generate_v4() primary key,
-  character_id uuid references characters(id) on delete cascade,
-  title text not null,
-  icon text default '📋',
-  content jsonb default '[]'::jsonb,
-  sort_order int default 0,
-  created_at timestamptz default now()
-);
-
--- 코어정수 (core.html 용)
-create table if not exists character_cores(
-  id uuid default uuid_generate_v4() primary key,
-  character_id uuid references characters(id) on delete cascade unique,
-  cores jsonb default '{}'::jsonb,   -- { "order_sun_1": { "grade": "ancient", "priority": true }, ... }
-  updated_at timestamptz default now()
-);
-
--- 레이드 프리셋 (레이드 정보 마스터)
-create table if not exists raid_presets(
-  id uuid default uuid_generate_v4() primary key,
-  name text not null,
-  difficulty text default '',
-  entry_level numeric default 0,
-  clear_gold numeric default 0,
-  bound_gold numeric default 0,
-  sort_order int default 0,
-  hidden boolean default false,
-  created_at timestamptz default now()
-);
-
--- 레이드 그룹 표시 설정
-create table if not exists raid_group_settings(
-  name text primary key,
-  icon_url text,
-  color text default '#4caf50',
-  hidden boolean default false,
-  sort_order int default 0,
-  updated_at timestamptz default now()
-);
-
--- 레이드 파티 (raid_presets에 종속)
-create table if not exists raid_parties(
-  id uuid default uuid_generate_v4() primary key,
-  preset_id uuid references raid_presets(id) on delete cascade,
-  name text default '파티',
-  party_size int default 4,
-  is_temporary boolean default false,
-  temp_week_start_date text,
-  temp_task_changes jsonb default '{"added":{},"removed":{}}'::jsonb,
-  sort_order int default 0,
-  created_at timestamptz default now()
-);
-
--- 파티 멤버
-create table if not exists raid_party_members(
-  id uuid default uuid_generate_v4() primary key,
-  party_id uuid references raid_parties(id) on delete cascade,
-  character_id uuid references characters(id) on delete set null,
-  slot_index int not null,
-  created_at timestamptz default now()
-);
-
--- 레이드 일정
-create table if not exists raid_schedules(
-  id uuid default uuid_generate_v4() primary key,
-  party_id uuid references raid_parties(id) on delete cascade,
-  day_of_week int not null,
-  time_str text default '',
-  is_fixed boolean default false,
-  week_start_date text,
-  created_at timestamptz default now()
-);
-
--- 주차별 일정 오버라이드 (임시 파티 변경 + 완료 여부)
-create table if not exists raid_schedule_overrides(
-  id uuid default uuid_generate_v4() primary key,
-  schedule_id uuid references raid_schedules(id) on delete cascade,
-  week_start_date text not null,
-  slot_overrides jsonb default '{}'::jsonb,
-  schedule_overrides jsonb default '{}'::jsonb,
-  is_completed boolean default false,
-  completed_at timestamptz,
-  created_at timestamptz default now(),
-  unique(schedule_id, week_start_date)
-);
-
--- 주차별 공지
-create table if not exists raid_notices(
-  id uuid default uuid_generate_v4() primary key,
-  week_start_date text not null unique,
-  content text default '',
-  updated_at timestamptz default now()
-);
-
--- 주차별 공지 댓글
-create table if not exists raid_notice_comments(
-  id uuid default uuid_generate_v4() primary key,
-  week_start_date text not null,
-  author_name text default '익명',
-  content text not null,
-  created_at timestamptz default now()
-);
-
--- 파티 생성 작업안
-create table if not exists party_generation_drafts(
-  id uuid default uuid_generate_v4() primary key,
-  name text default '기본 파티 생성안',
-  data jsonb default '{}'::jsonb,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-
--- 짧은 공유 링크
-create table if not exists share_links(
-  token text primary key,
-  payload jsonb not null,
-  created_at timestamptz default now(),
-  expires_at timestamptz not null default (now() + interval '30 days'),
-  revoked_at timestamptz
-);
-
--- Discord Webhook 전송 메시지 삭제 예약
-create table if not exists discord_sent_messages(
-  id uuid default uuid_generate_v4() primary key,
-  kind text not null,
-  week_start_date text,
-  webhook_env text not null,
-  message_id text not null,
-  delete_after timestamptz not null,
-  deleted_at timestamptz,
-  delete_attempts int default 0,
-  last_error text,
-  content_preview text,
-  created_at timestamptz default now()
-);
-
-alter table accounts          disable row level security;
-alter table characters        disable row level security;
-alter table tasks             disable row level security;
-alter table expedition_tasks  disable row level security;
-alter table one_time_tasks    disable row level security;
-alter table raid_tasks        disable row level security;
-alter table currencies        disable row level security;
-alter table custom_popups     disable row level security;
-alter table character_cores   disable row level security;
-alter table raid_presets      disable row level security;
-alter table raid_group_settings disable row level security;
-alter table raid_parties      disable row level security;
-alter table raid_party_members disable row level security;
-alter table raid_schedules    disable row level security;
-alter table raid_schedule_overrides disable row level security;
-alter table raid_notices      disable row level security;
-alter table raid_notice_comments disable row level security;
-alter table party_generation_drafts disable row level security;
-alter table discord_sent_messages disable row level security;
-
--- ★ 기존 설치 업데이트용 (이미 있는 DB에서 실행 시)
-alter table accounts         add column if not exists sort_order int default 0;
-alter table accounts         add column if not exists hide_from_filters boolean default false;
-alter table tasks            add column if not exists count_current int default 0;
-alter table tasks            add column if not exists is_paused boolean default false;
-alter table tasks            add column if not exists count_max int default null;
-alter table tasks            add column if not exists count_daily_current int default 0;
-alter table tasks            add column if not exists count_daily_limit int default null;
-alter table tasks            add column if not exists count_daily_last_reset_at timestamptz;
-alter table tasks            add column if not exists parent_id uuid references tasks(id) on delete cascade;
-alter table tasks            add column if not exists activate_day int default null;
-alter table tasks            add column if not exists clone_group_id uuid;
-alter table tasks            add column if not exists rest_enabled boolean default false;
-alter table tasks            add column if not exists rest_current int default 0;
-alter table tasks            add column if not exists rest_max int default 200;
-alter table tasks            add column if not exists rest_charge int default 20;
-alter table tasks            add column if not exists rest_consume int default 40;
-alter table tasks            add column if not exists rest_threshold int default 40;
-alter table tasks            add column if not exists rest_daily_limit int default 1;
-alter table tasks            add column if not exists rest_last_processed_at timestamptz;
-alter table tasks            add column if not exists rest_consumed_current_cycle int default 0;
-alter table expedition_tasks add column if not exists parent_id uuid references expedition_tasks(id) on delete cascade;
-alter table expedition_tasks add column if not exists is_paused boolean default false;
-alter table expedition_tasks add column if not exists count_current int default 0;
-alter table expedition_tasks add column if not exists count_max int default null;
-alter table expedition_tasks add column if not exists count_daily_current int default 0;
-alter table expedition_tasks add column if not exists count_daily_limit int default null;
-alter table expedition_tasks add column if not exists count_daily_last_reset_at timestamptz;
-alter table expedition_tasks add column if not exists activate_day int default null;
-alter table expedition_tasks add column if not exists clone_group_id uuid;
-alter table expedition_tasks add column if not exists rest_enabled boolean default false;
-alter table expedition_tasks add column if not exists rest_current int default 0;
-alter table expedition_tasks add column if not exists rest_max int default 200;
-alter table expedition_tasks add column if not exists rest_charge int default 20;
-alter table expedition_tasks add column if not exists rest_consume int default 40;
-alter table expedition_tasks add column if not exists rest_threshold int default 40;
-alter table expedition_tasks add column if not exists rest_daily_limit int default 1;
-alter table expedition_tasks add column if not exists rest_last_processed_at timestamptz;
-alter table expedition_tasks add column if not exists rest_consumed_current_cycle int default 0;
--- raid_parties 기존 설치 업데이트
-create table if not exists one_time_tasks(
-  id uuid default uuid_generate_v4() primary key,
-  owner_type text not null check (owner_type in ('character','account')),
-  owner_id uuid not null,
-  name text not null,
-  is_completed boolean default false,
-  completed_at timestamptz,
-  sort_order int default 0,
-  created_at timestamptz default now()
-);
-alter table one_time_tasks add column if not exists owner_type text default 'character';
-alter table one_time_tasks add column if not exists owner_id uuid;
-alter table one_time_tasks add column if not exists name text;
-alter table one_time_tasks add column if not exists is_completed boolean default false;
-alter table one_time_tasks add column if not exists completed_at timestamptz;
-alter table one_time_tasks add column if not exists sort_order int default 0;
-alter table one_time_tasks disable row level security;
-
--- polymorphic owner_id는 FK를 직접 걸 수 없으므로 소유자 삭제 트리거로 정리
-create or replace function cleanup_character_one_time_tasks()
-returns trigger
-language plpgsql
-as $$
-begin
-  delete from one_time_tasks where owner_type = 'character' and owner_id = old.id;
-  return old;
-end;
-$$;
-
-drop trigger if exists trg_cleanup_character_one_time_tasks on characters;
-create trigger trg_cleanup_character_one_time_tasks
-after delete on characters
-for each row execute function cleanup_character_one_time_tasks();
-
-create or replace function cleanup_account_one_time_tasks()
-returns trigger
-language plpgsql
-as $$
-begin
-  delete from one_time_tasks where owner_type = 'account' and owner_id = old.id;
-  return old;
-end;
-$$;
-
-drop trigger if exists trg_cleanup_account_one_time_tasks on accounts;
-create trigger trg_cleanup_account_one_time_tasks
-after delete on accounts
-for each row execute function cleanup_account_one_time_tasks();
-
--- 이미 남아 있는 orphan 데이터도 전체 schema 적용 시 한 번 정리
-delete from one_time_tasks t
-where t.owner_type = 'character'
-  and not exists (select 1 from characters c where c.id = t.owner_id);
-delete from one_time_tasks t
-where t.owner_type = 'account'
-  and not exists (select 1 from accounts a where a.id = t.owner_id);
-
-alter table raid_tasks       add column if not exists temp_week_start_date text;
-alter table raid_parties     add column if not exists preset_id uuid references raid_presets(id) on delete cascade;
-alter table raid_parties     add column if not exists is_temporary boolean default false;
-alter table raid_parties     add column if not exists temp_week_start_date text;
-alter table raid_parties     add column if not exists temp_task_changes jsonb default '{"added":{},"removed":{}}'::jsonb;
-alter table raid_schedules   add column if not exists week_start_date text;
+alter table raid_parties add column if not exists temp_task_changes jsonb
+  default '{"added":{},"removed":{}}'::jsonb;
+alter table raid_tasks add column if not exists temp_week_start_date text;
+alter table raid_schedules add column if not exists week_start_date text;
 alter table raid_group_settings add column if not exists sort_order int default 0;
 
--- 비고정 일정은 생성 시각이 아니라 명시적인 게임 주차에 귀속한다.
 with schedule_weeks as (
   select id,
     ((created_at at time zone 'Asia/Seoul' - interval '6 hours')::date
@@ -407,102 +17,7 @@ update raid_schedules s
 set week_start_date = to_char(w.week_date, 'YYYY-MM-DD')
 from schedule_weeks w
 where s.id = w.id;
--- raid_schedule_overrides 기존 설치 업데이트
-alter table raid_schedule_overrides add column if not exists is_completed boolean default false;
-alter table raid_schedule_overrides add column if not exists completed_at timestamptz;
-alter table raid_schedule_overrides add column if not exists schedule_overrides jsonb default '{}';
--- raid_tasks에 preset 연동 컬럼 추가
-alter table raid_tasks add column if not exists preset_id uuid references raid_presets(id) on delete set null;
--- 더보기 골드 컬럼 추가
-alter table raid_tasks    add column if not exists bonus_gold numeric default 0;
-alter table raid_presets  add column if not exists bonus_gold numeric default 0;
--- 일정 순서 정렬용
-alter table raid_schedules add column if not exists sort_order int default 0;
 
--- ★ 신규 기능 업데이트 (현재 HTML 코드 호환)
--- 부계정
-alter table accounts add column if not exists parent_account_id uuid references accounts(id) on delete set null;
-
--- 레이드/파티 색상
-alter table raid_presets add column if not exists color text;
-alter table raid_parties add column if not exists color text;
-
--- 레이드 숙제 골드 수령 여부 (초기화 안됨, 영구 설정)
-alter table raid_tasks add column if not exists receive_gold boolean default true;
-alter table raid_tasks add column if not exists receive_bound boolean default true;
-alter table raid_tasks add column if not exists receive_bonus boolean default true;
-
--- 이미지 아이콘 URL
-alter table characters add column if not exists icon_url text;
-alter table characters add column if not exists short_name text;
-alter table characters add column if not exists combat_power numeric default 0;
-alter table characters add column if not exists azena_blessing boolean default false;
-alter table characters add column if not exists show_raid_tasks boolean default true;
-alter table characters add column if not exists show_currencies boolean default true;
-alter table characters add column if not exists show_custom_notes boolean default true;
-alter table raid_presets add column if not exists icon_url text;
-alter table raid_presets add column if not exists short_name text;
-alter table raid_presets add column if not exists hidden boolean default false;
-alter table expedition_tasks add column if not exists icon_url text;
-alter table tasks add column if not exists icon_url text;
-alter table currencies add column if not exists icon_url text;
-
--- 레이드 그룹 표시 설정
-create table if not exists raid_group_settings(
-  name text primary key,
-  icon_url text,
-  color text default '#4caf50',
-  hidden boolean default false,
-  sort_order int default 0,
-  updated_at timestamptz default now()
-);
-alter table raid_group_settings disable row level security;
-alter table raid_group_settings add column if not exists hidden boolean default false;
-alter table raid_group_settings add column if not exists sort_order int default 0;
-
--- 재화 마지막 수정일
-alter table currencies add column if not exists updated_at timestamptz;
-
--- 임시 파티 변경사항 추적 (주 초기화 시 복원용)
-alter table raid_schedule_overrides add column if not exists temp_changes jsonb default '{}';
-
--- 파티 생성 작업안
-create table if not exists party_generation_drafts(
-  id uuid default uuid_generate_v4() primary key,
-  name text default '기본 파티 생성안',
-  data jsonb default '{}'::jsonb,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-alter table party_generation_drafts disable row level security;
-
--- Discord Webhook 전송 메시지 삭제 예약
-create table if not exists discord_sent_messages(
-  id uuid default uuid_generate_v4() primary key,
-  kind text not null,
-  week_start_date text,
-  webhook_env text not null,
-  message_id text not null,
-  delete_after timestamptz not null,
-  deleted_at timestamptz,
-  delete_attempts int default 0,
-  last_error text,
-  content_preview text,
-  created_at timestamptz default now()
-);
-alter table discord_sent_messages add column if not exists week_start_date text;
-alter table discord_sent_messages disable row level security;
-
--- 공유 링크 만료 및 철회
-alter table share_links add column if not exists expires_at timestamptz;
-alter table share_links add column if not exists revoked_at timestamptz;
-update share_links
-set expires_at = coalesce(expires_at, created_at + interval '30 days', now() + interval '30 days')
-where expires_at is null;
-alter table share_links alter column expires_at set default (now() + interval '30 days');
-alter table share_links alter column expires_at set not null;
-
--- 숙제 일시중지/재활성화의 관련 행들을 한 트랜잭션으로 저장
 create or replace function apply_task_pause_atomic(
   p_is_expedition boolean,
   p_changes jsonb
@@ -560,7 +75,6 @@ begin
 end;
 $$;
 
--- 루트 숙제와 모든 하위 숙제를 여러 대상에 한 트랜잭션으로 복제한다.
 create or replace function clone_task_tree_atomic(
   p_is_expedition boolean,
   p_source_id uuid,
@@ -774,7 +288,6 @@ begin
 end;
 $$;
 
--- 한 raid_task를 참조하는 주차별 임시 변경 기록 수.
 create or replace function raid_task_temp_reference_count(p_task_id uuid)
 returns int
 language sql
@@ -808,7 +321,6 @@ as $$
   ) refs;
 $$;
 
--- 임시 멤버 변경을 원래 raid_tasks 상태로 되돌리는 내부 공통 함수
 create or replace function restore_raid_temp_changes(
   p_temp_changes jsonb,
   p_preset_id uuid
@@ -882,8 +394,6 @@ begin
 end;
 $$;
 
--- 지난 주 표시용 기록은 유지하면서 전역 raid_tasks 연결만 원상태로 되돌린다.
--- 임시로 새로 만든 숙제는 해당 주차 조회를 위해 보존 기간 동안 남겨 둔다.
 create or replace function restore_raid_temp_links_only(
   p_temp_changes jsonb,
   p_preset_id uuid
@@ -936,84 +446,6 @@ begin
 end;
 $$;
 
-create or replace function restore_raid_schedule_override_atomic(
-  p_override_id uuid,
-  p_mode text default 'clear_all'
-)
-returns jsonb
-language plpgsql
-as $$
-declare
-  v_temp_changes jsonb;
-  v_preset_id uuid;
-  v_result jsonb;
-begin
-  if p_mode not in ('clear_temp', 'clear_all', 'delete') then
-    raise exception 'invalid restore mode: %', p_mode;
-  end if;
-
-  select coalesce(o.temp_changes, '{}'::jsonb), p.preset_id
-    into v_temp_changes, v_preset_id
-  from raid_schedule_overrides o
-  join raid_schedules s on s.id = o.schedule_id
-  join raid_parties p on p.id = s.party_id
-  where o.id = p_override_id
-  for update of o;
-  if not found then raise exception 'schedule override not found: %', p_override_id; end if;
-
-  v_result := restore_raid_temp_changes(v_temp_changes, v_preset_id);
-  if p_mode = 'delete' then
-    delete from raid_schedule_overrides where id = p_override_id;
-  elsif p_mode = 'clear_all' then
-    update raid_schedule_overrides
-    set slot_overrides = '{}'::jsonb,
-        temp_changes = jsonb_build_object('added', '{}'::jsonb, 'removed', '{}'::jsonb),
-        schedule_overrides = '{}'::jsonb
-    where id = p_override_id;
-  else
-    update raid_schedule_overrides
-    set temp_changes = jsonb_build_object('added', '{}'::jsonb, 'removed', '{}'::jsonb)
-    where id = p_override_id;
-  end if;
-
-  return v_result || jsonb_build_object('mode', p_mode);
-end;
-$$;
-
-create or replace function delete_raid_schedule_atomic(p_schedule_id uuid)
-returns jsonb
-language plpgsql
-as $$
-declare
-  v_override record;
-  v_preset_id uuid;
-  v_restored int := 0;
-begin
-  select p.preset_id into v_preset_id
-  from raid_schedules s
-  join raid_parties p on p.id = s.party_id
-  where s.id = p_schedule_id
-  for update of s;
-  if not found then raise exception 'schedule not found: %', p_schedule_id; end if;
-
-  for v_override in
-    select id, coalesce(temp_changes, '{}'::jsonb) as temp_changes
-    from raid_schedule_overrides
-    where schedule_id = p_schedule_id
-    for update
-  loop
-    perform restore_raid_temp_changes(v_override.temp_changes, v_preset_id);
-    delete from raid_schedule_overrides where id = v_override.id;
-    v_restored := v_restored + 1;
-  end loop;
-
-  delete from raid_schedules where id = p_schedule_id;
-  return jsonb_build_object('deleted', true, 'restoredOverrides', v_restored);
-end;
-$$;
-
--- 여러 화면에서 공통으로 사용하는 raid_tasks 변경 묶음.
--- 외부 RPC가 이 함수를 호출하면 하나라도 실패할 때 전체 트랜잭션이 롤백된다.
 create or replace function apply_raid_task_mutations(p_mutations jsonb)
 returns int
 language plpgsql
@@ -1964,7 +1396,6 @@ begin
   v_current_week := to_char(v_game_date - mod(extract(dow from v_game_date)::int - 3 + 7, 7), 'YYYY-MM-DD');
   v_keep_week := to_char((v_current_week::date - 14), 'YYYY-MM-DD');
 
-  -- 지난 주 표시 데이터는 유지하되 전역 숙제 연결은 주차가 바뀌는 즉시 복원한다.
   for v_override in
     select o.id, o.schedule_id, o.week_start_date, coalesce(o.temp_changes, '{}'::jsonb) as temp_changes, p.preset_id
     from raid_schedule_overrides o
@@ -2000,7 +1431,6 @@ begin
     v_marked_parties := v_marked_parties + 1;
   end loop;
 
-  -- 현재 주차와 이전 두 주는 조회용으로 보존하고, 그보다 오래된 기록만 제거한다.
   for v_override in
     select o.id, coalesce(o.temp_changes, '{}'::jsonb) as temp_changes, p.preset_id
     from raid_schedule_overrides o
@@ -2056,10 +1486,7 @@ $$;
 grant execute on function apply_task_pause_atomic(boolean, jsonb) to anon, authenticated;
 grant execute on function clone_task_tree_atomic(boolean, uuid, uuid[]) to anon, authenticated;
 grant execute on function raid_task_temp_reference_count(uuid) to anon, authenticated;
-grant execute on function restore_raid_temp_changes(jsonb, uuid) to anon, authenticated;
 grant execute on function restore_raid_temp_links_only(jsonb, uuid) to anon, authenticated;
-grant execute on function restore_raid_schedule_override_atomic(uuid, text) to anon, authenticated;
-grant execute on function delete_raid_schedule_atomic(uuid) to anon, authenticated;
 grant execute on function apply_raid_task_mutations(jsonb) to anon, authenticated;
 grant execute on function apply_raid_override_changes_atomic(jsonb, jsonb) to anon, authenticated;
 grant execute on function delete_raid_task_and_links_atomic(uuid) to anon, authenticated;
@@ -2079,28 +1506,7 @@ grant execute on function create_raid_temp_party_atomic(uuid, text, int, text, j
 grant execute on function set_raid_party_member_atomic(uuid, int, uuid, uuid[], jsonb, jsonb, jsonb) to anon, authenticated;
 grant execute on function cleanup_raid_week_rollover_atomic() to anon, authenticated;
 
--- 성능 최적화용 인덱스 (중복 실행 안전)
-create index if not exists idx_characters_account_sort on characters(account_id, sort_order, created_at);
-create index if not exists idx_tasks_character_parent_sort on tasks(character_id, parent_id, sort_order, created_at);
-create index if not exists idx_tasks_clone_group on tasks(clone_group_id);
-create index if not exists idx_expedition_tasks_account_parent_sort on expedition_tasks(account_id, parent_id, sort_order, created_at);
-create index if not exists idx_expedition_tasks_clone_group on expedition_tasks(clone_group_id);
-create index if not exists idx_one_time_tasks_owner_sort on one_time_tasks(owner_type, owner_id, sort_order, created_at);
-create index if not exists idx_one_time_tasks_completed on one_time_tasks(is_completed, completed_at);
-create index if not exists idx_share_links_expires on share_links(expires_at) where revoked_at is null;
-create index if not exists idx_raid_tasks_character_sort on raid_tasks(character_id, sort_order, created_at);
-create index if not exists idx_raid_tasks_character_preset on raid_tasks(character_id, preset_id);
 create index if not exists idx_raid_tasks_temp_week on raid_tasks(temp_week_start_date) where temp_week_start_date is not null;
-create index if not exists idx_currencies_character_sort on currencies(character_id, sort_order, created_at);
-create index if not exists idx_custom_popups_character_sort on custom_popups(character_id, sort_order, created_at);
-create index if not exists idx_character_cores_character on character_cores(character_id);
-create index if not exists idx_raid_presets_name_sort on raid_presets(name, sort_order, created_at);
-create index if not exists idx_raid_parties_preset_sort on raid_parties(preset_id, sort_order, created_at);
-create index if not exists idx_raid_party_members_party_slot on raid_party_members(party_id, slot_index);
-create index if not exists idx_raid_schedules_party_day_sort on raid_schedules(party_id, day_of_week, sort_order, created_at);
-create index if not exists idx_raid_schedules_week on raid_schedules(week_start_date, is_fixed, day_of_week, sort_order);
-create index if not exists idx_raid_schedule_overrides_week on raid_schedule_overrides(week_start_date);
-create index if not exists idx_raid_notice_comments_week_created on raid_notice_comments(week_start_date, created_at);
-create index if not exists idx_party_generation_drafts_updated on party_generation_drafts(updated_at desc);
-create index if not exists idx_discord_sent_messages_due on discord_sent_messages(kind, delete_after) where deleted_at is null;
-create index if not exists idx_discord_sent_messages_week on discord_sent_messages(kind, week_start_date, created_at);
+
+create index if not exists idx_raid_schedules_week
+  on raid_schedules(week_start_date, is_fixed, day_of_week, sort_order);

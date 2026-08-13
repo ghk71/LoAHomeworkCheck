@@ -10,6 +10,7 @@ Browser
   ├─ core.html
   ├─ raid.html
   ├─ overview.html
+  ├─ party_generation.html
   └─ parties.html
         │
         ▼
@@ -26,7 +27,10 @@ Supabase
   ├─ raid_party_members
   ├─ raid_schedules
   ├─ raid_schedule_overrides
-  └─ raid_notices
+  ├─ raid_notices / raid_notice_comments
+  ├─ one_time_tasks
+  ├─ party_generation_drafts
+  └─ share_links
 ```
 
 ## 페이지별 역할
@@ -76,6 +80,12 @@ Supabase
 - 파티 멤버 표시
 - 난이도 표시
 
+### `party_generation.html`
+
+- 레이드/난이도별 파티 작업안 생성
+- 캐릭터 후보 및 파티 배치 편집
+- 검증 후 현재 파티와 캐릭터별 레이드 숙제에 적용
+
 ## 핵심 Supabase 관계
 
 ```txt
@@ -100,6 +110,8 @@ raid_parties.id
 raid_schedules.id
   └─ raid_schedule_overrides.schedule_id
 ```
+
+`one_time_tasks.owner_id`는 계정/캐릭터를 함께 가리키는 polymorphic 키라 FK 대신 계정/캐릭터 삭제 트리거로 정리한다.
 
 ## 중요한 데이터 설계
 
@@ -158,3 +170,36 @@ UI에서는 본계정 아래에 부계정을 하위 탭으로 묶어야 한다.
 ```
 
 기존 데이터 호환을 위해 `was_new`, `task_id`, `had_preset`도 읽을 수 있어야 한다.
+
+임시 상태 복원과 일정 삭제는 여러 REST 요청으로 나누지 않는다.
+
+- `restore_raid_schedule_override_atomic`
+- `delete_raid_schedule_atomic`
+
+두 RPC가 `raid_tasks` 복원과 override/일정 변경을 같은 DB 트랜잭션에서 처리한다.
+
+주차별 임시 상태는 다음 원칙을 따른다.
+
+- 현재 주차와 이전 두 주의 override/임시 파티 기록은 조회용으로 보존한다.
+- 주차가 바뀌면 과거 JSON 기록은 유지한 채 전역 `raid_tasks.preset_id` 연결만 즉시 원복한다.
+- JSON의 `_restored` 표시는 이미 원복된 과거 기록을 다시 적용하지 않게 한다.
+- `raid_task_temp_reference_count`는 아직 활성인 주차 참조만 계산해 다른 주의 임시 작업을 삭제하거나 덮어쓰지 않게 한다.
+- `temp_week_start_date`가 있는 주차 전용 숙제는 선택 주차에서만 로드하며 보존 기간 뒤 정리한다.
+
+여러 행이 함께 바뀌는 작업은 브라우저 REST 요청 묶음이 아니라 아래 RPC 한 번으로 처리한다.
+
+- `apply_task_pause_atomic`: 일시중지, 완료, 휴식 게이지, 상위/하위 완료 동기화
+- `clone_task_tree_atomic`: 루트와 모든 자손 숙제 복제
+- `apply_raid_override_changes_atomic`: override와 레이드 숙제 임시 변경
+- `apply_party_generation_atomic`: 파티 생성기 적용과 레이드 숙제 동기화
+- `set_raid_party_member_atomic`, `create_raid_temp_party_atomic`: 멤버/임시 파티와 숙제 변경
+- `cleanup_raid_week_rollover_atomic`: 06:00 KST 주차 롤오버 복원 및 보존 기간 정리
+
+### 공유 링크
+
+`share_links`는 실제 Supabase URL/key payload와 함께 `expires_at`, `revoked_at`을 저장한다.
+
+- `create-share-link`: 1~365일 범위의 만료 링크 생성 및 토큰 철회
+- `resolve-share`: 철회 또는 만료 링크를 HTTP 410으로 거절
+- UI에서 제공하는 만료 선택지는 7/30/90일
+- 기존 `?viewer=` 긴 링크는 과거 링크 호환용으로만 읽고 새로 생성하지 않는다.

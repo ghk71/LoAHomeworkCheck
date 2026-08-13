@@ -926,7 +926,7 @@ const ICON_REPO=localStorage.getItem('la_icon_repo')||'ghk71/LoAHomeworkCheck';
 const ICON_RAW=`https://raw.githubusercontent.com/${ICON_REPO}/main/`;
 const ICON_API=`https://api.github.com/repos/${ICON_REPO}/contents/`;
 let _pickerCb=null;
-function iconImg(url,cls='entity-icon'){return url?`<img class="${cls}" src="${url}" onerror="this.style.display='none'">`:'';} 
+function iconImg(url,cls='entity-icon'){return url?`<img class="${cls}" src="${url}" onerror="this.style.display='none'">`:'';}
 
 async function openImagePicker(cb,path='images/'){
   _pickerCb=cb;
@@ -1005,13 +1005,23 @@ const coreDisplayName=(cid,k,fallback)=>getCname(cid,k).trim()||fallback;
 const getCombos=(cid)=>(coreData[cid]?.cores?.__combos)||[];
 const ck=(t,e,s)=>`${t}_${e}_${s}`;
 const sk=(t,e)=>`${t}_${e}`;
+async function fetchAllPages(build,pageSize=1000){
+  const rows=[];
+  for(let from=0;;from+=pageSize){
+    const result=await build(from,from+pageSize-1);
+    if(result.error)return{data:null,error:result.error};
+    const page=result.data||[];rows.push(...page);
+    if(page.length<pageSize)break;
+  }
+  return{data:rows,error:null};
+}
 async function init(){
   const cfg=getConfig();if(!cfg){window.location.href='index.html';return;}
   sb=createClient(cfg.url,cfg.key);
   const results=await Promise.all([
-    sb.from('accounts').select('*').order('sort_order').order('created_at'),
-    sb.from('characters').select('*').order('sort_order').order('created_at'),
-    sb.from('character_cores').select('*')
+    fetchAllPages((from,to)=>sb.from('accounts').select('*').order('sort_order').order('created_at').order('id').range(from,to)),
+    fetchAllPages((from,to)=>sb.from('characters').select('*').order('sort_order').order('created_at').order('id').range(from,to)),
+    fetchAllPages((from,to)=>sb.from('character_cores').select('*').order('id').range(from,to))
   ]);
   const firstError=results.find(r=>r.error)?.error;
   if(firstError){toast('❗ 로딩 오류: '+firstError.message);console.error(firstError);return;}
@@ -1148,7 +1158,7 @@ function renderCombo(vis,el){
 }
 // ─── Debounced DB save (최적화: 500ms 내 연속 클릭은 마지막만 저장) ───
 const _saveTimer={};
-function scheduleSave(cid){clearTimeout(_saveTimer[cid]);_saveTimer[cid]=setTimeout(()=>saveCores(cid),500);}
+function scheduleSave(cid){clearTimeout(_saveTimer[cid]);_saveTimer[cid]=setTimeout(()=>{saveCores(cid);},500);}
 const _memoTimer={};
 function saveCoreMemo(cid,value){
   if(isLocked)return;
@@ -1166,20 +1176,39 @@ function getChaosName(charId,type,ek,slot){
   return names[ek+'_'+slot]||dflt;
 }
 async function saveChaosName(charId,ek,slot,name){
-  if(!charId)return;
+  if(!charId)return false;
   if(!coreData[charId])coreData[charId]={id:null,cores:{}};
   if(!coreData[charId].cores)coreData[charId].cores={};
   if(!coreData[charId].cores.__chaosNames)coreData[charId].cores.__chaosNames={};
-  coreData[charId].cores.__chaosNames[ek+'_'+slot]=name;
-  await saveCores(charId);
+  const key=ek+'_'+slot,names=coreData[charId].cores.__chaosNames;
+  const hadOwn=Object.prototype.hasOwnProperty.call(names,key),previous=names[key];
+  names[key]=name;
+  const saved=await saveCores(charId);
+  if(!saved){if(hadOwn)names[key]=previous;else delete names[key];}
+  return saved;
 }
 function promptChaosName(charId,ek,slot,current){
   const newName=prompt('혼돈 코어 이름 변경:',current);
   if(newName!==null&&newName.trim()){
-    saveChaosName(charId,ek,slot,newName.trim()).then(()=>renderMain());
+    saveChaosName(charId,ek,slot,newName.trim()).then(saved=>{if(saved)renderMain();});
   }
 }
-async function saveCores(cid){const e=coreData[cid];if(!e)return;if(e.id){await sb.from('character_cores').update({cores:e.cores}).eq('id',e.id);}else{const{data}=await sb.from('character_cores').insert({character_id:cid,cores:e.cores}).select().single();if(data)coreData[cid].id=data.id;}}
+const _coreSaveQueue={};
+async function saveCores(cid){
+  const e=coreData[cid];if(!e)return false;
+  const snapshot=JSON.parse(JSON.stringify(e.cores||{}));
+  const save=async()=>{
+    let result;
+    if(e.id)result=await sb.from('character_cores').update({cores:snapshot}).eq('id',e.id);
+    else result=await sb.from('character_cores').insert({character_id:cid,cores:snapshot}).select().single();
+    if(result.error){toast('❗ 코어 저장 실패: '+result.error.message);console.error(result.error);return false;}
+    if(!e.id&&result.data)e.id=result.data.id;
+    return true;
+  };
+  const queued=(_coreSaveQueue[cid]||Promise.resolve()).catch(()=>false).then(save);
+  _coreSaveQueue[cid]=queued;
+  return queued;
+}
 
 function ensure(cid,key){if(!coreData[cid])coreData[cid]={id:null,cores:{}};if(!coreData[cid].cores)coreData[cid].cores={};if(key&&!coreData[cid].cores[key])coreData[cid].cores[key]={grade:'none',priority:false,name:''};}
 
@@ -1224,14 +1253,32 @@ function comboPrio(cid,key,btn){
 
 const _nt={};
 function saveCoreName(cid,key,val){if(isLocked)return;ensure(cid,key);coreData[cid].cores[key].name=val;clearTimeout(_nt[cid+key]);_nt[cid+key]=setTimeout(()=>saveCores(cid),800);if(viewMode==='combo'&&key.startsWith('order_'))renderMain();}
-async function resetAll(){if(!confirm('화면에 보이는 캐릭터의 코어 데이터를 모두 초기화하시겠습니까?'))return;const vis=allChars.filter(c=>selectedChars.has(c.id));for(const c of vis){const combos=getCombos(c.id);coreData[c.id]={...(coreData[c.id]||{}),cores:{__combos:combos}};await saveCores(c.id);}renderMain();toast('✅ 초기화 완료');}
+async function resetAll(){
+  if(!confirm('화면에 보이는 캐릭터의 코어 데이터를 모두 초기화하시겠습니까?'))return;
+  const vis=allChars.filter(c=>selectedChars.has(c.id));
+  const previous={};
+  vis.forEach(c=>{
+    previous[c.id]=JSON.parse(JSON.stringify(coreData[c.id]||{id:null,cores:{}}));
+    const combos=getCombos(c.id);
+    coreData[c.id]={...(coreData[c.id]||{}),cores:{__combos:combos}};
+  });
+  const rows=vis.map(c=>({character_id:c.id,cores:coreData[c.id].cores||{}}));
+  const {data,error}=await sb.rpc('save_character_cores_atomic',{p_rows:rows});
+  if(error){
+    Object.entries(previous).forEach(([id,value])=>{coreData[id]=value;});
+    toast(/save_character_cores_atomic|PGRST202|schema cache/i.test(error.message||'')?'최신 Supabase 원자적 저장 SQL을 적용해주세요':'코어 초기화 실패: '+error.message);
+    return;
+  }
+  Object.entries(data||{}).forEach(([cid,id])=>{if(coreData[cid])coreData[cid].id=id;});
+  renderMain();toast('✅ 초기화 완료');
+}
 const genId=()=>'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 const slotOpts=()=>[1,2,3,4,5,6].map(n=>`<option value="${n}">${n}</option>`).join('');
 function openAddCombo(cid){if(isLocked)return;document.getElementById('combo-modal-title').textContent='조합 추가';document.getElementById('combo-submit-btn').textContent='추가';document.getElementById('combo-char-id').value=cid;document.getElementById('combo-id').value='';document.getElementById('combo-label').value='';['combo-sun','combo-moon','combo-star'].forEach(id=>{document.getElementById(id).innerHTML=slotOpts();});const c=allChars.find(x=>x.id===cid);document.getElementById('combo-char-label').textContent=c?`${c.name}${c.item_level?' (Lv.'+c.item_level+')':''}의 조합`:'';openModal('modal-combo');}
 function openEditCombo(cid,cid2){if(isLocked)return;const combo=getCombos(cid).find(x=>x.id===cid2);if(!combo)return;document.getElementById('combo-modal-title').textContent='조합 수정';document.getElementById('combo-submit-btn').textContent='저장';document.getElementById('combo-char-id').value=cid;document.getElementById('combo-id').value=cid2;document.getElementById('combo-label').value=combo.label||'';['combo-sun','combo-moon','combo-star'].forEach(id=>{document.getElementById(id).innerHTML=slotOpts();});document.getElementById('combo-sun').value=String(combo.sun);document.getElementById('combo-moon').value=String(combo.moon);document.getElementById('combo-star').value=String(combo.star);const c=allChars.find(x=>x.id===cid);document.getElementById('combo-char-label').textContent=c?`${c.name}의 조합`:'';openModal('modal-combo');}
-async function submitCombo(){if(isLocked)return;const cid=document.getElementById('combo-char-id').value,cid2=document.getElementById('combo-id').value,label=document.getElementById('combo-label').value.trim(),sun=parseInt(document.getElementById('combo-sun').value),moon=parseInt(document.getElementById('combo-moon').value),star=parseInt(document.getElementById('combo-star').value);ensure(cid,null);if(!coreData[cid].cores.__combos)coreData[cid].cores.__combos=[];const combos=coreData[cid].cores.__combos;if(cid2){const idx=combos.findIndex(x=>x.id===cid2);if(idx>=0)combos[idx]={...combos[idx],label,sun,moon,star};toast('✅ 조합 수정됨');}else{combos.push({id:genId(),label:label||`조합${combos.length+1}`,sun,moon,star});toast('✅ 조합 추가됨');}await saveCores(cid);closeModal('modal-combo');renderMain();}
-async function moveCombo(cid,cid2,delta){if(isLocked)return;ensure(cid,null);const combos=coreData[cid].cores.__combos||[];const idx=combos.findIndex(x=>x.id===cid2),next=idx+delta;if(idx<0||next<0||next>=combos.length)return;[combos[idx],combos[next]]=[combos[next],combos[idx]];await saveCores(cid);renderMain();toast('✅ 조합 순서 변경됨');}
-async function deleteCombo(cid,cid2){if(isLocked)return;if(!confirm('이 조합을 삭제하시겠습니까?'))return;ensure(cid,null);if(!coreData[cid].cores.__combos)return;coreData[cid].cores.__combos=coreData[cid].cores.__combos.filter(x=>x.id!==cid2);await saveCores(cid);renderMain();toast('🗑️ 삭제됨');}
+async function submitCombo(){if(isLocked)return;const cid=document.getElementById('combo-char-id').value,cid2=document.getElementById('combo-id').value,label=document.getElementById('combo-label').value.trim(),sun=parseInt(document.getElementById('combo-sun').value),moon=parseInt(document.getElementById('combo-moon').value),star=parseInt(document.getElementById('combo-star').value);ensure(cid,null);if(!coreData[cid].cores.__combos)coreData[cid].cores.__combos=[];const before=JSON.parse(JSON.stringify(coreData[cid].cores.__combos)),combos=coreData[cid].cores.__combos;if(cid2){const idx=combos.findIndex(x=>x.id===cid2);if(idx>=0)combos[idx]={...combos[idx],label,sun,moon,star};}else{combos.push({id:genId(),label:label||`조합${combos.length+1}`,sun,moon,star});}if(!await saveCores(cid)){coreData[cid].cores.__combos=before;return;}closeModal('modal-combo');renderMain();toast(cid2?'✅ 조합 수정됨':'✅ 조합 추가됨');}
+async function moveCombo(cid,cid2,delta){if(isLocked)return;ensure(cid,null);const combos=coreData[cid].cores.__combos||[];const idx=combos.findIndex(x=>x.id===cid2),next=idx+delta;if(idx<0||next<0||next>=combos.length)return;[combos[idx],combos[next]]=[combos[next],combos[idx]];if(!await saveCores(cid)){[combos[idx],combos[next]]=[combos[next],combos[idx]];return;}renderMain();toast('✅ 조합 순서 변경됨');}
+async function deleteCombo(cid,cid2){if(isLocked)return;if(!confirm('이 조합을 삭제하시겠습니까?'))return;ensure(cid,null);if(!coreData[cid].cores.__combos)return;const before=coreData[cid].cores.__combos;coreData[cid].cores.__combos=before.filter(x=>x.id!==cid2);if(!await saveCores(cid)){coreData[cid].cores.__combos=before;return;}renderMain();toast('🗑️ 삭제됨');}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');}));

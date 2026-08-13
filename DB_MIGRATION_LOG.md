@@ -686,3 +686,64 @@ alter table expedition_tasks add column if not exists is_paused boolean default 
 ### 적용 여부
 - 2026-08-13 라이브 REST 스키마 조회 결과 두 테이블 모두 아직 컬럼 미적용(HTTP 400).
 - Supabase SQL Editor에서 위 SQL을 실행한 뒤 Edge Function `send-homework-discord`를 재배포해야 함.
+
+## 2026-08-13 - 데이터 무결성 RPC / 일회용 숙제 정리 / 공유 링크 수명
+
+### 목적
+- 숙제 일시중지와 관련 상위·하위 완료 갱신을 한 트랜잭션으로 처리합니다.
+- 레이드 일정 삭제 또는 override 초기화 시 임시 멤버의 `raid_tasks` 복원과 일정 변경을 한 트랜잭션으로 처리합니다.
+- 계정/캐릭터 삭제 시 polymorphic `one_time_tasks.owner_id`의 orphan 행을 트리거로 정리합니다.
+- 공유 링크에 `expires_at`, `revoked_at`을 추가해 만료와 즉시 철회를 지원합니다.
+
+### SQL
+- 전체 실행 SQL: `supabase/migrations/20260813_integrity_and_share_links.sql`
+- 같은 정의는 최신 `schema.sql`에도 포함되어 있습니다.
+- 기존 orphan 일회용 숙제는 마이그레이션 실행 중 한 번 정리됩니다.
+
+### Edge Function 재배포
+- `create-share-link`
+- `resolve-share`
+
+### 적용 파일
+- `schema.sql`
+- `supabase/migrations/20260813_integrity_and_share_links.sql`
+- `index.html`
+- `raid.html`
+- `parties.html`
+- `supabase/functions/create-share-link/index.ts`
+- `supabase/functions/resolve-share/index.ts`
+
+### 적용 여부
+- 수동 적용 및 Edge Function 재배포 필요.
+
+## 2026-08-13 - 레이드/숙제 원자성 및 주차 무결성 후속 마이그레이션
+
+### 목적
+- 루트 숙제와 모든 하위 숙제를 한 트랜잭션으로 복제합니다.
+- 완료/휴식/일시중지와 상위 숙제 완료 동기화를 한 요청으로 저장합니다.
+- 파티 생성 적용, 레이드 그룹/난이도/파티/일정/멤버 변경을 원자적 RPC로 처리합니다.
+- 임시 멤버와 임시 파티 기록을 주차별로 분리하고, 과거 기록은 3주 보존하면서 전역 레이드 숙제 연결은 새 주에 즉시 복원합니다.
+- 대량 조회를 위한 주차/소유자/정렬 인덱스를 추가합니다.
+
+### 적용 순서
+1. `supabase/migrations/20260813_integrity_and_share_links.sql`
+2. `supabase/migrations/20260813_raid_integrity_followup.sql`
+
+두 번째 파일은 첫 번째 파일의 함수 일부를 최신 정의로 교체하므로 반드시 위 순서를 지킵니다. 두 파일은 모두 중복 실행 가능한 `if not exists`, `create or replace` 형태입니다.
+
+### 주요 추가 RPC
+- `clone_task_tree_atomic`
+- `raid_task_temp_reference_count`
+- `restore_raid_temp_links_only`
+- `apply_raid_task_mutations`
+- `apply_raid_override_changes_atomic`
+- `delete_raid_task_and_links_atomic`
+- `save_raid_group_atomic`, `save_raid_preset_atomic`, `save_raid_party_atomic`
+- `apply_party_generation_atomic`
+- `update_raid_schedule_atomic`
+- `create_raid_temp_party_atomic`, `set_raid_party_member_atomic`
+- `cleanup_raid_week_rollover_atomic`
+
+### 적용 여부
+- 저장소 SQL 작성 완료.
+- 실제 Supabase SQL Editor 적용 및 RPC 수동 검증 필요.

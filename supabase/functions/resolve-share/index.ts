@@ -26,8 +26,12 @@ Deno.serve(async (req) => {
   if (!/^[A-Za-z0-9_-]{8,32}$/.test(token)) return json({ error: "공유 토큰이 올바르지 않습니다." }, 400);
 
   const sb = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
-  const { data, error } = await sb.from("share_links").select("payload").eq("token", token).maybeSingle();
+  const { data, error } = await sb.from("share_links").select("payload,expires_at,revoked_at").eq("token", token).maybeSingle();
   if (error) return json({ error: error.message }, 500);
   if (!data?.payload?.url || !data?.payload?.key) return json({ error: "공유 링크를 찾을 수 없습니다." }, 404);
-  return json({ payload: data.payload });
+  if (data.revoked_at) return json({ error: "철회된 공유 링크입니다.", reason: "revoked" }, 410);
+  if (!data.expires_at || new Date(data.expires_at).getTime() <= Date.now()) {
+    return json({ error: "만료된 공유 링크입니다.", reason: "expired" }, 410);
+  }
+  return json({ payload: data.payload, expiresAt: data.expires_at });
 });

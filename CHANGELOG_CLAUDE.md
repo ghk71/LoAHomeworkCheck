@@ -1,6 +1,6 @@
 # 로스트아크 숙제 — index.html 변경 인계 문서
 
-이 문서는 작업 컨텍스트가 없는 다음 작업자(예: codex)가 변경 사항을 빠르게 파악하기 위한 인계 자료입니다. 원본은 사용자가 가지고 있던 두 개의 index.html (구 버전 = `index_old.html`, 신 버전 = `index.html`)이며, 이 문서의 모든 작업은 신 버전 위에서 이뤄졌습니다.
+이 문서는 작업 컨텍스트가 없는 다음 작업자(예: codex)가 변경 사항을 빠르게 파악하기 위한 인계 자료입니다. 원본은 사용자가 가지고 있던 두 개의 index.html (구 버전 = `index_old.html`, 신 버전 = `index.html`)이며, 이 문서의 모든 작업은 신 버전 위에서 이뤄졌습니다. `*_old.html` 백업은 2026-08-13 배포 루트에서 제거되었으며 과거 내용은 Git 이력으로 확인합니다.
 
 ## 1. 작업 환경 한눈에
 
@@ -185,7 +185,7 @@ repo/
 
 - **이미지 인덱스의 첫 워크플로 트리거**: 사용자가 처음 이 시스템을 도입할 때, `images/` 변경이 없으면 워크플로가 트리거되지 않을 수 있음. `Actions` 탭에서 `Run workflow`로 한 번 수동 실행 필요. (워크플로 자체에 `workflow_dispatch` 있음.)
 - **워크플로 권한**: 저장소 Settings → Actions → General → "Workflow permissions"에서 "Read and write permissions"가 켜져 있어야 봇 commit이 가능. 안 켜져 있으면 워크플로는 돌지만 push 단계에서 실패함.
-- **휴식 게이지 자동 처리의 멱등성**: `autoResetTasks`는 같은 데이터에 대해 여러 번 호출돼도 `rest_last_processed_at`로 중복 처리를 방지함. 다만 동시에 여러 탭이 열려 있으면 race condition 가능성 — 마지막 쓰기가 이김. 거의 영향 없을 것으로 봄.
+- **휴식 게이지 자동 처리의 멱등성**: `autoResetTasks`는 `rest_last_processed_at`를 기준으로 같은 경계를 중복 처리하지 않으며, 관련 여러 숙제 갱신은 최신 `apply_task_pause_atomic` RPC 한 트랜잭션으로 저장함.
 - **파티 연동 팝업의 `raid_schedules`/`raid_schedule_overrides` 의존**: 임시 파티 연동 표시는 이 두 테이블이 채워져 있어야 정확. 데이터가 비어 있으면 에러 없이 "현재 캐릭터가 배치된 파티가 없습니다" 표시.
 - **Enter 키 단축키 - select 요소 제외**: 의도된 동작이지만, select 안에서 Enter로 저장하길 원하면 keydown 핸들러의 `if(tag==='SELECT')return;` 조건 제거.
 - **`character.icon_url` 스키마**: `characters` 테이블에 이 컬럼이 없는 환경이면 저장 시 Supabase 에러. 기존 운영 환경엔 있는 것으로 확인.
@@ -199,7 +199,7 @@ repo/
 - [ ] 캐릭터 수정 → 아이콘 picker로 변경 → 저장 → 카드 헤더에 새 아이콘 반영
 - [ ] 어떤 모달이든 input에서 Enter → primary 버튼 동작 (textarea에서는 줄바꿈)
 - [ ] 레이드 숙제 행의 `파티연동` badge 클릭 → 파티 정보 팝업 열림
-- [ ] 재화 섹션 헤더 → "최종 YYYY.MM.DD" pill 표시 (재화가 있고 `updated_at`이 있을 때)
+- [ ] 재화 섹션이 날짜 문구 없이 아이콘·이름·수량 중심으로 표시되는지
 - [ ] 휴식 게이지 숙제 → 테스트 날짜 며칠 뒤로 설정 → 새로고침 → 게이지 충전 확인
 
 ## 9. 추가 작업이 필요할 때 진입점
@@ -212,3 +212,5 @@ repo/
 ---
 
 이 문서는 사용자에게서 받은 명시적 작업 지시 외의 변경은 하지 않은 상태에서 끝남. 이후 디자인 결정이나 추가 기능은 사용자와 다시 상의 필요.
+
+> 2026-08-13 이후의 최신 동작과 배포 순서는 `HANDOFF.md`, `CODEX_SESSION_LOG.md`, `DB_MIGRATION_LOG.md`를 우선합니다.

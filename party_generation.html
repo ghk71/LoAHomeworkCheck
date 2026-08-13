@@ -537,10 +537,11 @@ async function saveWorkbenchStateToDb(){
   }
 }
 async function clearLocalWorkbenchState(){
-  localStorage.removeItem(WORKBENCH_STORAGE_KEY);
   if(state.draftId){
-    try{await sb.from('party_generation_drafts').delete().eq('id',state.draftId);}catch(e){console.warn('workbench DB clear failed:',e);}
+    const{error}=await sb.from('party_generation_drafts').delete().eq('id',state.draftId);
+    if(error)throw error;
   }
+  localStorage.removeItem(WORKBENCH_STORAGE_KEY);
   state.draftId=null;
 }
 function setApplyState(active,msg=''){
@@ -582,6 +583,8 @@ function orderedAccounts(accounts=filterVisibleAccounts()){
 }
 function groupNames(){
   const dbNames=[];for(const r of state.raids){if(r.name&&!dbNames.includes(r.name))dbNames.push(r.name);}
+  const settingNames=Object.values(state.raidGroupSettings).filter(x=>dbNames.includes(x.name)).sort((a,b)=>(Number(a.sort_order)||0)-(Number(b.sort_order)||0)||String(a.name).localeCompare(String(b.name))).map(x=>x.name);
+  if(new Set(settingNames.map(n=>Number(state.raidGroupSettings[n]?.sort_order)||0)).size>1)return[...settingNames,...dbNames.filter(n=>!settingNames.includes(n))];
   const saved=safeJson('la_raid_group_order',[]);
   return saved.length?[...saved.filter(n=>dbNames.includes(n)),...dbNames.filter(n=>!saved.includes(n))]:dbNames;
 }
@@ -625,8 +628,10 @@ function presetSortOrder(presetId){
   return 9999;
 }
 
+function appNowMs(){const t=Number(localStorage.getItem('la_test_now')||0);return Number.isFinite(t)&&t>0?t:Date.now();}
+function isTestMode(){return !!localStorage.getItem('la_test_now');}
 function getWeekStart(off=0){
-  const now=new Date(),kst=new Date(now.getTime()+9*3600000);
+  const now=new Date(appNowMs()),kst=new Date(now.getTime()+9*3600000);
   let b=(kst.getUTCDay()-3+7)%7;if(b===0&&kst.getUTCHours()<6)b=7;
   const ws=new Date(kst);ws.setUTCDate(ws.getUTCDate()-b+off*7);ws.setUTCHours(6,0,0,0);return ws;
 }
@@ -637,24 +642,46 @@ async function init(){
   if(!cfg){document.getElementById('setup').style.display='flex';document.getElementById('app').classList.remove('active');return;}
   document.getElementById('setup').style.display='none';document.getElementById('app').classList.add('active');
   sb=createClient(cfg.url,cfg.key);
-  await loadData();
+  try{if(!isTestMode())await runRaidWeekRollover();await loadData();}
+  catch(error){console.error(error);toast('로드 실패: '+(error.message||error));}
+}
+
+async function runRaidWeekRollover(){
+  const {error}=await sb.rpc('cleanup_raid_week_rollover_atomic');
+  if(error){
+    const missing=/cleanup_raid_week_rollover_atomic|schema cache|PGRST202|does not exist/i.test(error.message||'');
+    console.warn('[raid-rollover]',error);
+    if(!missing)throw error;
+  }
+}
+
+async function fetchAllPages(build,pageSize=1000){
+  const rows=[];
+  for(let from=0;;from+=pageSize){
+    const result=await build(from,from+pageSize-1);
+    if(result.error)return{data:null,error:result.error};
+    const page=result.data||[];rows.push(...page);
+    if(page.length<pageSize)break;
+  }
+  return{data:rows,error:null};
 }
 
 async function loadData(opts={}){
-  const wk=getWeekKey(0);
   const [a,c,r,p,m,t,g]=await Promise.all([
-    sb.from('accounts').select('*').order('sort_order').order('created_at'),
-    sb.from('characters').select('*').order('sort_order').order('created_at'),
-    sb.from('raid_presets').select('*').order('sort_order').order('created_at'),
-    sb.from('raid_parties').select('*').order('sort_order').order('created_at'),
-    sb.from('raid_party_members').select('*').order('slot_index'),
-    sb.from('raid_tasks').select('*').order('sort_order').order('created_at'),
-    sb.from('raid_group_settings').select('*')
+    fetchAllPages((from,to)=>sb.from('accounts').select('*').order('sort_order').order('created_at').order('id').range(from,to)),
+    fetchAllPages((from,to)=>sb.from('characters').select('*').order('sort_order').order('created_at').order('id').range(from,to)),
+    fetchAllPages((from,to)=>sb.from('raid_presets').select('*').order('sort_order').order('created_at').order('id').range(from,to)),
+    fetchAllPages((from,to)=>sb.from('raid_parties').select('*').order('sort_order').order('created_at').order('id').range(from,to)),
+    fetchAllPages((from,to)=>sb.from('raid_party_members').select('*').order('party_id').order('slot_index').order('id').range(from,to)),
+    fetchAllPages((from,to)=>sb.from('raid_tasks').select('*').order('sort_order').order('created_at').order('id').range(from,to)),
+    fetchAllPages((from,to)=>sb.from('raid_group_settings').select('*').order('sort_order').order('name').range(from,to))
   ]);
   const err=[a,c,r,p,m,t].find(x=>x.error)?.error;if(err){toast('로드 실패: '+err.message);throw err;}
-  state.accounts=a.data||[];state.chars=c.data||[];state.raids=r.data||[];state.raidTasks=t.data||[];
+  if(g.error&&!/raid_group_settings|schema cache|PGRST205|does not exist/i.test(g.error.message||''))throw g.error;
+  state.accounts=a.data||[];state.chars=c.data||[];state.raids=r.data||[];state.raidTasks=(t.data||[]).filter(task=>!task.temp_week_start_date);
   state.raidGroupSettings={};(g.data||[]).forEach(row=>{if(row.name)state.raidGroupSettings[row.name]=row;});
-  state.parties=(p.data||[]).filter(x=>!x.is_temporary||x.temp_week_start_date===wk);
+  // 파티 생성기는 고정 파티 구성만 편집한다. 주차 전용 임시 파티는 raid.html에서 관리한다.
+  state.parties=(p.data||[]).filter(x=>!x.is_temporary);
   const activePartyIds=new Set(state.parties.map(x=>x.id));
   state.members=(m.data||[]).filter(x=>activePartyIds.has(x.party_id));
   buildInitialDraft();
@@ -668,8 +695,12 @@ async function loadData(opts={}){
 
 async function restoreFromDb(){
   if(!confirm('현재 작업 중인 배치를 버리고 DB의 raid.html 파티 구성을 다시 불러옵니까?'))return;
-  await clearLocalWorkbenchState();
-  state.hiddenPresets=new Set();state.collapsedPresets=new Set();state.collapsedParties=new Set();state.hideAssignedCandidates=false;state.candidateMap={};await loadData({skipLocalWorkbench:true});toast('DB 구성을 다시 불러왔습니다');
+  try{
+    await clearLocalWorkbenchState();
+    state.hiddenPresets=new Set();state.collapsedPresets=new Set();state.collapsedParties=new Set();state.hideAssignedCandidates=false;state.candidateMap={};
+    await loadData({skipLocalWorkbench:true});
+    toast('DB 구성을 다시 불러왔습니다');
+  }catch(error){console.error(error);toast('저장안 초기화 실패: '+(error.message||error));}
 }
 async function reloadFromDb(){return restoreFromDb();}
 function resetDraft(){
@@ -1346,29 +1377,23 @@ async function applyDraft(){
   const keptIds=new Set(nonEmpty.filter(p=>!String(p.id).startsWith('new_')).map(p=>p.id));
   const deleteIds=[...state.originalPartyIds].filter(id=>!keptIds.has(id));
   try{
-    if(deleteIds.length){
-      setApplyState(true,'기존 파티 정리 중');
-      const {error}=await sb.from('raid_parties').delete().in('id',deleteIds);
-      if(error)throw error;
-    }
-    for(const [idx,p] of nonEmpty.entries()){
-      setApplyState(true,`파티 저장 중 ${idx+1}/${nonEmpty.length}`);
-      let partyId=p.id;
-      const rec={preset_id:p.preset_id,name:p.name||'파티',party_size:p.party_size||4,sort_order:idx};
-      if(String(p.id).startsWith('new_')){
-        const {data,error}=await sb.from('raid_parties').insert(rec).select().single();
-        if(error)throw error;partyId=data.id;p.id=partyId;p.fromDb=true;
-      }else{
-        const {error}=await sb.from('raid_parties').update(rec).eq('id',partyId);
-        if(error)throw error;
-        const {error:memberDeleteError}=await sb.from('raid_party_members').delete().eq('party_id',partyId);
-        if(memberDeleteError)throw memberDeleteError;
-      }
-      const rows=p.slots.map((cid,i)=>cid?{party_id:partyId,character_id:cid,slot_index:i}:null).filter(Boolean);
-      if(rows.length){const {error}=await sb.from('raid_party_members').insert(rows);if(error)throw error;}
-    }
-    setApplyState(true,'레이드 숙제 동기화 중');
-    await ensureRaidTasks();
+    setApplyState(true,'레이드 숙제 변경안 계산 중');
+    const taskMutations=await buildRaidTaskSyncMutations();
+    const partyPayload=nonEmpty.map((p,idx)=>({
+      id:String(p.id).startsWith('new_')?null:p.id,
+      preset_id:p.preset_id,
+      name:p.name||'파티',
+      party_size:p.party_size||4,
+      sort_order:idx,
+      slots:Array.from({length:Number(p.party_size)||4},(_,i)=>p.slots?.[i]||null)
+    }));
+    setApplyState(true,'파티와 레이드 숙제를 한 번에 저장 중');
+    const {error}=await sb.rpc('apply_party_generation_atomic',{
+      p_parties:partyPayload,
+      p_delete_party_ids:deleteIds,
+      p_task_mutations:taskMutations
+    });
+    if(error)throw error;
     setApplyState(true,'적용 결과 확인 중');
     await loadData();
     const sec=((performance.now()-startedAt)/1000).toFixed(1);
@@ -1380,7 +1405,7 @@ async function applyDraft(){
   }
 }
 
-async function ensureRaidTasks(){
+async function buildRaidTaskSyncMutations(){
   const toEnsure=[];
   const scopedCharIds=new Set();
   for(const p of activePartyDrafts()){
@@ -1402,17 +1427,16 @@ async function ensureRaidTasks(){
   }
   const uniq=[...desiredByCharGroup.values()];
   const charIds=[...scopedCharIds].filter(Boolean);
-  if(!charIds.length)return;
-  const {data:freshTasks,error:loadError}=await sb.from('raid_tasks').select('*').in('character_id',charIds);
+  if(!charIds.length)return[];
+  const {data:freshTasks,error:loadError}=await fetchAllPages((from,to)=>sb.from('raid_tasks').select('*').in('character_id',charIds).order('sort_order').order('created_at').order('id').range(from,to));
   if(loadError)throw loadError;
-  const tasks=freshTasks||[];
+  const tasks=(freshTasks||[]).filter(task=>!task.temp_week_start_date);
   const existingByKey=new Map();
   tasks.filter(t=>t.preset_id&&t.character_id).forEach(t=>{
     const key=`${t.character_id}:${t.preset_id}`;
     if(!existingByKey.has(key))existingByKey.set(key,t);
   });
-  const updateJobs=[];
-  const insertRows=[];
+  const mutations=[];
   const claimedTaskIds=new Set();
   for(const item of uniq){
     const preset=raidById(item.presetId);if(!preset)continue;
@@ -1421,27 +1445,23 @@ async function ensureRaidTasks(){
     const exact=existingByKey.get(key);
     if(exact&&!claimedTaskIds.has(exact.id)){
       claimedTaskIds.add(exact.id);
-      updateJobs.push(sb.from('raid_tasks').update(payload).eq('id',exact.id));
+      mutations.push({op:'update',id:exact.id,patch:payload});
       continue;
     }
     const linkedByName=tasks.find(t=>t.character_id===item.charId&&!claimedTaskIds.has(t.id)&&(isSamePresetTask(t,preset)||isSameRaidGroupTask(t,preset)));
     if(linkedByName){
       claimedTaskIds.add(linkedByName.id);
-      updateJobs.push(sb.from('raid_tasks').update({...payload,preset_id:preset.id}).eq('id',linkedByName.id));
+      mutations.push({op:'update',id:linkedByName.id,patch:{...payload,preset_id:preset.id}});
       continue;
     }
-    insertRows.push({...payload,character_id:item.charId,preset_id:preset.id,receive_gold:true,receive_bound:true,receive_bonus:true});
+    mutations.push({op:'insert',record:{id:crypto.randomUUID(),...payload,character_id:item.charId,preset_id:preset.id,receive_gold:true,receive_bound:true,receive_bonus:true}});
   }
   const staleIds=tasks.filter(t=>{
     if(!t.character_id||claimedTaskIds.has(t.id)||!isManagedRaidTask(t))return false;
     return true; // Not claimed by the final party-generation list, so it is stale.
   }).map(t=>t.id);
-  if(updateJobs.length){
-    const res=await Promise.all(updateJobs);
-    const err=res.find(x=>x.error)?.error;if(err)throw err;
-  }
-  if(insertRows.length){const {error}=await sb.from('raid_tasks').insert(insertRows);if(error)throw error;}
-  if(staleIds.length){const {error}=await sb.from('raid_tasks').delete().in('id',staleIds);if(error)throw error;}
+  staleIds.forEach(id=>mutations.push({op:'delete',id}));
+  return mutations;
 }
 function raidTaskGroupName(task){
   const preset=raidById(task?.preset_id);

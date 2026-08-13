@@ -9,6 +9,7 @@
 - `raid.html`
 - `overview.html`
 - `parties.html`
+- `party_generation.html`
 
 목표:
 
@@ -36,11 +37,11 @@
 
 ### 0-2. 공통 정적 구조 검사
 
-1. `index.html`, `core.html`, `raid.html`, `overview.html`, `parties.html`를 각각 연다.
+1. `index.html`, `core.html`, `raid.html`, `overview.html`, `parties.html`, `party_generation.html`을 각각 연다.
 2. 페이지 하단에 JavaScript 코드가 텍스트로 노출되지 않는지 확인한다.
 3. 상단 메뉴 이동이 모든 페이지에서 정상인지 확인한다.
 4. 디자인 톤이 크게 깨지지 않는지 확인한다.
-5. 수정 후에는 `node tools/check-project.js`를 실행한다.
+5. 수정 후에는 `AGENTS.md`의 fallback 검증과 `git diff --check`를 실행한다.
 
 성공 기준:
 
@@ -846,7 +847,7 @@
 [ ] overview.html 완료/골드 집계가 index/raid와 연동된다.
 [ ] parties.html 난이도 위치/색상/중복 제거가 정상이다.
 [ ] 좁은 데스크톱과 모바일 폭에서 텍스트/버튼 겹침이 없다.
-[ ] `node tools/check-project.js`가 실행 가능한 환경에서는 통과한다.
+[ ] AGENTS.md의 fallback 정적 검증과 `git diff --check`가 통과한다.
 ```
 
 ---
@@ -863,7 +864,7 @@
 - 테스트 계정/캐릭터:
 
 ### 통과
-- 
+-
 
 ### 실패
 - 증상:
@@ -874,5 +875,5 @@
 - 관련 페이지:
 
 ### 후속 조치
-- 
+-
 ```

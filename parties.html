@@ -687,6 +687,7 @@ let partySearch=localStorage.getItem('la_pt_search')||'';
 let partyMatrixMode=localStorage.getItem('la_pt_matrix')==='1';
 function appNowMs(){const t=Number(localStorage.getItem('la_test_now')||0);return Number.isFinite(t)&&t>0?t:Date.now();}
 function appNow(){return new Date(appNowMs());}
+function isTestMode(){return !!localStorage.getItem('la_test_now');}
 function getWeekStart(){const now=appNow(),kst=new Date(now.getTime()+9*3600000);let b=(kst.getUTCDay()-3+7)%7;if(b===0&&kst.getUTCHours()<6)b=7;const ws=new Date(kst);ws.setUTCDate(ws.getUTCDate()-b);ws.setUTCHours(6,0,0,0);return ws;}
 function getWeekKey(){const ws=getWeekStart();return`${ws.getUTCFullYear()}-${String(ws.getUTCMonth()+1).padStart(2,'0')}-${String(ws.getUTCDate()).padStart(2,'0')}`;}
 function charsInPartyScope(){
@@ -711,29 +712,45 @@ function rebuildRenderIndexes(){
     if(!raidTasksByChar.has(t.character_id))raidTasksByChar.set(t.character_id,[]);
     raidTasksByChar.get(t.character_id).push(t);
   });
-  raidGroupOrderCache=safeJson('la_raid_group_order',[]);
+  const settingOrder=Object.values(raidGroupSettings).sort((a,b)=>(Number(a.sort_order)||0)-(Number(b.sort_order)||0)||String(a.name||'').localeCompare(String(b.name||''))).map(x=>x.name);
+  raidGroupOrderCache=new Set(settingOrder.map(n=>Number(raidGroupSettings[n]?.sort_order)||0)).size>1?settingOrder:safeJson('la_raid_group_order',[]);
   raidSortKeyCache=new Map();
 }
 
 async function init(){
   const cfg=getConfig();if(!cfg){window.location.href='index.html';return;}
   sb=createClient(cfg.url,cfg.key);
-  await loadAll();
+  try{if(!isTestMode())await runRaidWeekRollover();await loadAll();}
+  catch(error){console.error(error);toast('❗ 파티 현황 로딩 실패: '+(error.message||error));}
+}
+async function runRaidWeekRollover(){
+  const {error}=await sb.rpc('cleanup_raid_week_rollover_atomic');
+  if(error){const missing=/cleanup_raid_week_rollover_atomic|schema cache|PGRST202|does not exist/i.test(error.message||'');console.warn('[raid-rollover]',error);if(!missing)throw error;}
+}
+async function fetchAllPages(build,pageSize=1000){
+  const rows=[];
+  for(let from=0;;from+=pageSize){
+    const result=await build(from,from+pageSize-1);
+    if(result.error)return{data:null,error:result.error};
+    const page=result.data||[];rows.push(...page);
+    if(page.length<pageSize)break;
+  }
+  return{data:rows,error:null};
 }
 async function loadAll(){
   document.getElementById('loading').style.display='flex';
   document.getElementById('content').style.display='none';
   const results=await Promise.all([
-    sb.from('accounts').select('*').order('sort_order').order('created_at'),
-    sb.from('characters').select('*').order('sort_order').order('created_at'),
-    sb.from('raid_presets').select('*').order('sort_order').order('created_at'),
-    sb.from('raid_parties').select('*').order('sort_order').order('created_at'),
-    sb.from('raid_party_members').select('*'),
-    sb.from('raid_schedules').select('id,party_id,day_of_week'),
-    sb.from('raid_tasks').select('*').order('sort_order').order('created_at')
+    fetchAllPages((from,to)=>sb.from('accounts').select('*').order('sort_order').order('created_at').order('id').range(from,to)),
+    fetchAllPages((from,to)=>sb.from('characters').select('*').order('sort_order').order('created_at').order('id').range(from,to)),
+    fetchAllPages((from,to)=>sb.from('raid_presets').select('*').order('sort_order').order('created_at').order('id').range(from,to)),
+    fetchAllPages((from,to)=>sb.from('raid_parties').select('*').order('sort_order').order('created_at').order('id').range(from,to)),
+    fetchAllPages((from,to)=>sb.from('raid_party_members').select('*').order('party_id').order('slot_index').order('id').range(from,to)),
+    fetchAllPages((from,to)=>sb.from('raid_schedules').select('id,party_id,day_of_week,is_fixed,week_start_date,created_at').order('party_id').order('day_of_week').order('created_at').order('id').range(from,to)),
+    fetchAllPages((from,to)=>sb.from('raid_tasks').select('*').order('sort_order').order('created_at').order('id').range(from,to))
   ]);
   const firstError=results.find(r=>r.error)?.error;
-  if(firstError){toast('❗ 로딩 오류: '+firstError.message);console.error(firstError);return;}
+  if(firstError)throw firstError;
   const[r1,r2,r3,r4,r5,r6,r7]=results;
   accounts=r1.data||[];characters=r2.data||[];raids=r3.data||[];
   const wk=getWeekKey();
@@ -741,17 +758,31 @@ async function loadAll(){
   const activePartyIds=new Set(parties.map(p=>p.id));
   members=(r5.data||[]).filter(m=>activePartyIds.has(m.party_id));
   schedules=(r6.data||[]).filter(s=>activePartyIds.has(s.party_id));
-  raidTasks=r7.data||[];
-  const[,{data:ovrData}]=await Promise.all([
+  raidTasks=(r7.data||[]).filter(t=>!t.temp_week_start_date||t.temp_week_start_date===wk);
+  const[,ovrResult]=await Promise.all([
     loadRaidGroupSettings(),
-    sb.from('raid_schedule_overrides').select('*').eq('week_start_date',getWeekKey())
+    fetchAllPages((from,to)=>sb.from('raid_schedule_overrides').select('*').eq('week_start_date',getWeekKey()).order('id').range(from,to))
   ]);
+  if(ovrResult.error)throw ovrResult.error;
+  const ovrData=ovrResult.data;
   scheduleOverrides=ovrData||[];
   const DAYS_KO=['일','월','화','수','목','금','토'];
-  const schMap={};schedules.forEach(s=>{if(!schMap[s.party_id])schMap[s.party_id]=[];schMap[s.party_id].push(s.day_of_week);});
+  const overrideBySchedule=new Map(scheduleOverrides.map(o=>[o.schedule_id,o]));
+  const wsMs=getWeekStart().getTime()-9*3600000,weMs=wsMs+7*24*3600000;
+  const dayOrder=[3,4,5,6,0,1,2];
+  schedules=schedules.filter(s=>s.is_fixed||(s.week_start_date?s.week_start_date===wk:(new Date(s.created_at).getTime()>=wsMs&&new Date(s.created_at).getTime()<weMs)));
+  const schMap={};
+  schedules.forEach(s=>{
+    const raw=overrideBySchedule.get(s.id)?.schedule_overrides||{};
+    const overrideDay=raw.day_of_week==null?NaN:Number(raw.day_of_week),baseDay=Number(s.day_of_week);
+    const day=Number.isInteger(overrideDay)&&overrideDay>=0&&overrideDay<=6?overrideDay:baseDay;
+    if(!Number.isInteger(day)||day<0||day>6)return;
+    if(!schMap[s.party_id])schMap[s.party_id]=new Set();
+    schMap[s.party_id].add(day);
+  });
   parties.forEach(p=>{
     p.members=members.filter(m=>m.party_id===p.id).sort((a,b)=>a.slot_index-b.slot_index);
-    const days=schMap[p.id]||[];
+    const days=[...(schMap[p.id]||[])].sort((a,b)=>dayOrder.indexOf(a)-dayOrder.indexOf(b));
     p._sched_days=days.map(d=>DAYS_KO[d]+'요일').join(', ');
   });
   rebuildRenderIndexes();
@@ -772,8 +803,8 @@ function toggleFilter(){filterOpen=!filterOpen;localStorage.setItem('la_pt_filte
 function applyFilterOpen(){document.getElementById('fb-body').style.display=filterOpen?'flex':'none';document.getElementById('fb-toggle').textContent=filterOpen?'▼':'▶';}
 async function loadRaidGroupSettings(){
   raidGroupSettings={};raidGroupSettingsAvailable=true;
-  const{data,error}=await sb.from('raid_group_settings').select('*');
-  if(error){raidGroupSettingsAvailable=false;console.warn('raid_group_settings unavailable:',error.message);return;}
+  const{data,error}=await fetchAllPages((from,to)=>sb.from('raid_group_settings').select('*').order('sort_order').order('name').range(from,to));
+  if(error){raidGroupSettingsAvailable=false;console.warn('raid_group_settings unavailable:',error.message);if(!/raid_group_settings|schema cache|PGRST205|does not exist/i.test(error.message||''))throw error;return;}
   (data||[]).forEach(r=>{raidGroupSettings[r.name]=r;});
 }
 function renderFilter(){
@@ -1066,7 +1097,8 @@ function goToPartySchedule(partyId){
 async function leaveParty(partyId,charId,memberId,presetId,presetName){
   if(!confirm(`"${presetName}" 파티에서 탈퇴합니다.\n레이드 숙제는 삭제하지 않습니다. 계속?`))return;
   // 1. Remove from party slot
-  await sb.from('raid_party_members').delete().eq('id',memberId);
+  const {error}=await sb.from('raid_party_members').delete().eq('id',memberId);
+  if(error){console.error(error);toast('파티 탈퇴 저장 실패: '+error.message);return;}
   members=members.filter(m=>m.id!==memberId);
   const p=parties.find(x=>x.id===partyId);
   if(p)p.members=p.members.filter(m=>m.id!==memberId);
@@ -1081,7 +1113,7 @@ const ICON_REPO=localStorage.getItem('la_icon_repo')||'ghk71/LoAHomeworkCheck';
 const ICON_RAW=`https://raw.githubusercontent.com/${ICON_REPO}/main/`;
 const ICON_API=`https://api.github.com/repos/${ICON_REPO}/contents/`;
 let _pickerCb=null;
-function iconImg(url,cls='entity-icon'){return url?`<img class="${cls}" src="${url}" onerror="this.style.display='none'">`:'';} 
+function iconImg(url,cls='entity-icon'){return url?`<img class="${cls}" src="${url}" onerror="this.style.display='none'">`:'';}
 
 async function openImagePicker(cb,path='images/'){
   _pickerCb=cb;

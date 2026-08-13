@@ -16,6 +16,7 @@ Codex를 처음 실행한 뒤 아래 프롬프트를 그대로 붙여넣는다.
 - TEST_SCENARIO.md
 - DB_MIGRATION_LOG.md
 - CODEX_SESSION_LOG.md
+- HANDOFF.md
 - schema.sql
 
 그 다음 아래 HTML 파일을 분석하세요.
@@ -25,6 +26,7 @@ Codex를 처음 실행한 뒤 아래 프롬프트를 그대로 붙여넣는다.
 - raid.html
 - overview.html
 - parties.html
+- party_generation.html
 
 중요 규칙:
 - 아직 코드를 수정하지 마세요.
@@ -46,7 +48,7 @@ Codex를 처음 실행한 뒤 아래 프롬프트를 그대로 붙여넣는다.
 
 1. Codex가 구조 요약을 내놓으면, 본인이 알고 있는 프로젝트 내용과 맞는지 확인한다.
 2. 틀린 부분이 있으면 바로 정정한다.
-3. Codex에게 `node tools/check-project.js`를 먼저 실행하게 한다.
+3. Codex에게 `AGENTS.md`의 fallback 검증을 먼저 실행하게 한다.
 4. 현재 코드의 정적 검증 결과를 확인한다.
 5. 그 다음 가장 급한 버그 하나만 지정한다.
 6. 수정 범위를 제한한다.
@@ -64,6 +66,6 @@ Codex를 처음 실행한 뒤 아래 프롬프트를 그대로 붙여넣는다.
 - index.html만 수정
 - 다른 파일 수정 금지
 - 기존 기능 삭제 금지
-- 수정 후 node tools/check-project.js 실행
+- 수정 후 AGENTS.md의 fallback 검증 실행
 - 변경 내역을 CODEX_SESSION_LOG.md에 기록
 ```

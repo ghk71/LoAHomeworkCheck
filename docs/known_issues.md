@@ -1,53 +1,10 @@
 # Known Issues
 
-현재 알고 있는 미해결 문제를 기록한다.
+현재 코드 점검에서 재현 가능한 미해결 기능 버그는 남아 있지 않다.
 
-## 작성 규칙
+## 운영 확인 사항
 
-```md
-## 제목
-
-### 증상
-### 재현 방법
-### 예상 원인
-### 우선순위
-### 담당/상태
-```
-
-## 뷰어(공유 링크) 모드에서도 주간 자동 초기화가 DB에 쓰기를 수행
-
-### 증상
-공유 링크로 raid.html을 여는 뷰어도 `autoResetNonFixed()`가 실행되어 지난 주 임시 변경 되돌리기, 오래된 override/일정 삭제 등 DB 쓰기가 일어난다. 뷰어 기기의 시계가 잘못돼 있으면 현재 주차 데이터를 조기에 되돌리거나 일정을 삭제할 수 있다.
-
-### 재현 방법
-1. 공유 링크를 뷰어 기기에서 연다.
-2. 뷰어 기기의 시스템 날짜를 다음 주로 바꾼 뒤 다시 연다.
-3. 이번 주 임시 변경이 되돌려지고 오래된 일정이 삭제된다.
-
-### 예상 원인
-raid.html 로드 시 `isViewer` 여부와 무관하게 `await autoResetNonFixed()`를 호출한다.
-
-### 우선순위
-중간 (RLS 도입 전까지는 뷰어도 쓰기 권한을 가짐)
-
-### 담당/상태
-미해결 — `if(!isViewer)` 가드 또는 서버측(예: Supabase Edge Function/cron) 이전 검토
-
-## 주간 롤오버 복원이 raid.html을 열어야만 실행됨
-
-### 증상
-수요일 6시(KST) 주차가 바뀐 뒤 raid.html을 열지 않으면, 지난 주 임시해제된 숙제의 `preset_id`가 계속 null로 남는다. index/overview는 현재 주차 override만 읽으므로 해당 숙제는 "파티연동 없음"으로 표시된다(아이콘은 이름 폴백으로 표시됨).
-
-### 재현 방법
-1. 화요일에 임시해제를 한다.
-2. 수요일 이후 raid.html을 열지 않고 index.html만 사용한다.
-3. 해당 숙제가 파티 미연동 상태로 남는다.
-
-### 예상 원인
-지난 주 temp_changes 복원(`autoResetNonFixed`)이 raid.html 초기화 코드에만 존재한다.
-
-### 우선순위
-중간
-
-### 담당/상태
-미해결 — index/overview 로드 시에도 지난 주 temp_changes 복원 실행, 또는 index.html 무결성 검사의 "미연결 숙제 자동 복구" 사용으로 수동 복구 가능
+- `supabase/migrations/20260813_integrity_and_share_links.sql`과 `supabase/migrations/20260813_raid_integrity_followup.sql`을 순서대로 적용해야 최신 원자적 RPC가 동작한다.
+- `create-share-link`, `resolve-share`, `send-homework-discord`는 최신 소스로 재배포해야 한다.
+- 실제 Supabase 적용 전에는 RPC 트랜잭션, 링크 만료/철회, 삭제 트리거를 브라우저에서 끝까지 검증할 수 없다.
+- 새 문제가 재현되면 증상, 재현 순서, 콘솔 오류, 관련 행의 ID와 주차 키를 이 문서에 추가한다.
