@@ -40,6 +40,7 @@ AGENTS.md를 따르고, HANDOFF.md, CHANGELOG_CLAUDE.md, CODEX_SESSION_LOG.md �
 ```text
 1. supabase/migrations/20260813_integrity_and_share_links.sql
 2. supabase/migrations/20260813_raid_integrity_followup.sql
+3. supabase/migrations/20260818_parent_task_completion_consistency.sql
 ```
 
 2. 다음 Edge Function을 최신 소스로 재배포합니다.
@@ -81,3 +82,10 @@ AGENTS.md를 따르고, HANDOFF.md, CHANGELOG_CLAUDE.md, CODEX_SESSION_LOG.md �
 - 여섯 화면 모두 데스크톱 뷰포트에서 문서 가로 넘침이 없었습니다. 파티 생성의 좌우 독립 스크롤과 8인 파티 4+4 배치도 확인했습니다.
 - 브라우저 콘솔 오류는 없었습니다. `raid_group_settings.sort_order does not exist`와 `[raid-rollover]` 경고는 라이브 Supabase에 이번 두 마이그레이션이 아직 적용되지 않은 상태에서 발생하므로, 위 SQL 두 개를 순서대로 적용한 뒤 다시 확인해야 합니다.
 - `node tools/check-project.js`는 저장소 지침에 따라 실행하지 않았습니다.
+
+## 2026-08-18 하위 숙제 완료 일관성 보정
+
+- 여러 하위 숙제 완료 요청이 동시에 진행될 때 오래된 상위 완료값이 마지막에 저장되는 경쟁 상태를 수정했습니다.
+- `index.html`은 완료 클릭 직후와 각 저장 응답 후 현재 하위 상태로 모든 조상 완료 상태를 다시 계산하며, 실패 롤백 때도 같은 계산을 수행합니다.
+- `apply_task_pause_atomic`은 변경된 숙제를 저장한 뒤 관련 부모 행을 잠그고 실제 DB의 활성 하위 숙제를 기준으로 조상 완료 상태를 아래에서 위 순서로 재계산합니다.
+- 위 적용 순서의 세 번째 SQL을 Supabase SQL Editor에서 실행해야 DB 경쟁 상태 보정까지 활성화됩니다.

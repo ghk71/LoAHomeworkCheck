@@ -747,3 +747,23 @@ alter table expedition_tasks add column if not exists is_paused boolean default 
 ### 적용 여부
 - 저장소 SQL 작성 완료.
 - 실제 Supabase SQL Editor 적용 및 RPC 수동 검증 필요.
+
+## 2026-08-18 - 하위 숙제 동시 완료 시 상위 완료 일관성
+
+### 목적
+- 여러 하위 숙제를 빠르게 완료할 때 서로 다른 요청이 오래된 상위 완료값을 덮어쓰는 경쟁 상태를 방지합니다.
+- 변경된 자식 숙제를 저장한 뒤 관련 부모 행을 고정된 순서로 잠그고, 실제 DB의 활성 하위 숙제를 기준으로 모든 조상 완료 상태를 다시 계산합니다.
+
+### 적용 순서
+1. `supabase/migrations/20260813_integrity_and_share_links.sql`
+2. `supabase/migrations/20260813_raid_integrity_followup.sql`
+3. `supabase/migrations/20260818_parent_task_completion_consistency.sql`
+
+### 적용 파일
+- `schema.sql`
+- `supabase/migrations/20260818_parent_task_completion_consistency.sql`
+- `index.html`
+
+### 적용 여부
+- 저장소 SQL 작성 완료.
+- 실제 Supabase SQL Editor 적용 및 빠른 연속 완료 수동 검증 필요.

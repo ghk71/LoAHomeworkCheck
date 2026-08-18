@@ -3151,3 +3151,29 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 로컬 서버에서 `index.html`, `raid.html`, `overview.html`, `party_generation.html`, `parties.html`, `core.html`을 라이브 Supabase 데이터로 열어 정상 렌더링과 데스크톱 가로 넘침 부재를 확인했습니다.
 - `raid.html`의 8인 파티 4+4 배치와 즉시 일정/멤버 제어, `party_generation.html`의 좌우 독립 스크롤과 8인 파티 4+4 배치를 화면에서 확인했습니다.
 - 브라우저 콘솔에 JavaScript 오류는 없었습니다. 라이브 DB에는 최신 마이그레이션이 아직 없어 `[raid-rollover]`와 `raid_group_settings.sort_order does not exist` 경고가 남았으며, 두 SQL 적용 뒤 RPC 실동작 재검증이 필요합니다.
+
+## 2026-08-13 - 하위 숙제 진행도 및 레이드 편의 기능 보정
+
+### 변경 내용
+- `index.html` 부모 숙제 행 우측에 `하위 숙제 2/6` 형식의 진행도를 한 번만 복원했습니다. 하위 목록 아래쪽의 중복 진행도는 만들지 않았습니다.
+- `raid.html` 일정 삭제에서 확인창을 제거했습니다. 연속 클릭에 따른 중복 RPC만 `scheduleDeleteBusy`로 차단하고 바로 삭제합니다.
+- `party_generation.html` 선택 레이드에 숨긴 난이도가 하나라도 있으면 `숨김 난이도` 복구 줄을 표시합니다. 일부만 숨긴 경우에도 난이도별 복구와 전체 복구가 가능합니다.
+- 파티 생성 우상단 버튼을 불러오기/복원/초기화, 저장/검증/적용 흐름이 이어지도록 재배열했습니다.
+- 캐릭터 딜러/서포터 역할 기능은 요청대로 코드에 반영하지 않고 별도 UI 시안만 제작했습니다.
+
+### 검증
+- `index.html`, `raid.html`, `party_generation.html` 인라인 JavaScript 문법 검사를 통과했습니다.
+- 실제 파티 생성 데이터에서 지평의 성당 `1단계`, 세르카 `노말`, 종막 `노말`처럼 일부만 숨긴 난이도의 개별 복구 버튼이 노출되는 것을 확인했습니다.
+- `git diff --check`를 통과했습니다.
+
+## 2026-08-18 - 하위 숙제 상위 완료 경쟁 상태 수정
+
+### 변경 내용
+- 하위 숙제를 빠르게 연속 완료할 때 각 요청이 보유한 오래된 상위 완료값이 역순으로 저장될 수 있던 원인을 확인했습니다.
+- `index.html`에서 하위 상태 변경 직후와 RPC 성공/실패 후 현재 메모리 상태를 기준으로 조상 완료 상태를 재계산합니다. 중첩 하위 숙제도 루트까지 전파됩니다.
+- `apply_task_pause_atomic`이 입력 변경을 적용한 후 관련 부모 행을 UUID 순서로 잠그고, 활성 하위 행의 실제 DB 완료 상태를 기준으로 조상을 아래에서 위로 다시 계산하도록 `schema.sql`을 갱신했습니다.
+- 실행형 마이그레이션 `supabase/migrations/20260818_parent_task_completion_consistency.sql`을 추가했습니다.
+
+### 검증
+- `schema.sql`과 새 마이그레이션의 `apply_task_pause_atomic` 정의가 동일함을 확인했습니다.
+- 6개 HTML 인라인 JavaScript, CSS 변수, `</html>` 후행 코드 및 `git diff --check`를 별도 검사합니다.

@@ -56,8 +56,9 @@ SQL Editor에서 아래 파일을 순서대로 전체 실행합니다.
 
 1. `supabase/migrations/20260813_integrity_and_share_links.sql`
 2. `supabase/migrations/20260813_raid_integrity_followup.sql`
+3. `supabase/migrations/20260818_parent_task_completion_consistency.sql`
 
-그다음 `create-share-link`, `resolve-share`, `send-homework-discord` Edge Function을 최신 소스로 재배포합니다. 두 번째 SQL에는 숙제 트리 복제, 레이드 임시 상태 복원, 파티 생성 적용, 정렬 저장 등 여러 화면이 공통으로 호출하는 원자적 RPC가 포함됩니다.
+그다음 `create-share-link`, `resolve-share`, `send-homework-discord` Edge Function을 최신 소스로 재배포합니다. 두 번째 SQL에는 숙제 트리 복제, 레이드 임시 상태 복원, 파티 생성 적용, 정렬 저장 등 여러 화면이 공통으로 호출하는 원자적 RPC가 포함되며, 세 번째 SQL은 동시 하위 숙제 저장 후 상위 완료 상태를 DB 기준으로 다시 확정합니다.
 
 ## GitHub Pages 설정
 

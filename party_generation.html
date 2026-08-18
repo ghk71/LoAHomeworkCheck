@@ -112,6 +112,10 @@ button{cursor:pointer}
 .raid-tab.active{background:linear-gradient(135deg,#e8fbff,#dcd6ff);border-color:transparent;color:#081018}
 .raid-tab.sub-account-tab{border-color:rgba(125,211,252,.26);color:#b9dcff;background:rgba(56,189,248,.07)}
 .raid-tab.sub-account-tab.active{background:linear-gradient(135deg,#dff7ff,#e7e1ff);color:#07101b}
+.hidden-preset-strip{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 0 10px;padding:9px 10px;border:1px solid rgba(244,199,107,.24);background:rgba(244,199,107,.06);border-radius:8px}
+.hidden-preset-label{color:#ffd985;font-size:.72rem;font-weight:950;margin-right:2px}
+.hidden-preset-chip{border:1px solid rgba(244,199,107,.28);background:rgba(25,30,37,.88);color:#f7dca1;border-radius:7px;padding:5px 8px;font-size:.71rem;font-weight:850;display:inline-flex;align-items:center;gap:5px}
+.hidden-preset-chip:hover{border-color:rgba(34,211,238,.42);color:#dffbff}
 .raid-list{display:grid;gap:12px;min-height:0}
 .preset-list{display:grid;gap:9px;padding:10px}
 .preset-head{background:rgba(18,24,32,.74)}
@@ -240,10 +244,10 @@ button{cursor:pointer}
       <div class="toolbar">
         <button class="btn gold sm" onclick="openCharacterApiUpdateModal()">캐릭 업데이트</button>
         <button class="btn ghost sm" onclick="loadLatestDraft()">저장안 불러오기</button>
-        <button class="btn gold sm" onclick="uploadDraft()">업로드</button>
-        <button class="btn sm" onclick="validateDraft(true)">검증</button>
         <button class="btn ghost sm" onclick="restoreFromDb()">원래대로</button>
         <button class="btn danger sm" onclick="resetDraft()">초기화</button>
+        <button class="btn gold sm" onclick="uploadDraft()">업로드</button>
+        <button class="btn sm" onclick="validateDraft(true)">검증</button>
         <button class="btn green sm" id="apply-draft-btn" onclick="applyDraft()">적용</button>
       </div>
     </div>
@@ -909,9 +913,12 @@ function renderRight(){
   if(!groups.length){el.innerHTML='<div class="empty">표시할 레이드가 없습니다</div>';return;}
   if(!state.selectedRaidGroup||!groups.includes(state.selectedRaidGroup))state.selectedRaidGroup=groups[0];
   const group=state.selectedRaidGroup;
-  const presets=groupPresets(group).filter(r=>!state.hiddenPresets.has(r.id));
+  const allPresets=groupPresets(group);
+  const presets=allPresets.filter(r=>!state.hiddenPresets.has(r.id));
+  const hiddenPresets=allPresets.filter(r=>state.hiddenPresets.has(r.id));
   const tabs=`<div class="raid-tabs">${groups.map((g,i)=>`<button class="raid-tab ${g===group?'active':''}" onclick="setRaidTabIndex(${i})">${esc(g)}</button>`).join('')}</div>`;
-  el.innerHTML=tabs+`<div class="raid-block">
+  const hiddenStrip=hiddenPresets.length?`<div class="hidden-preset-strip"><span class="hidden-preset-label">숨김 난이도 ${hiddenPresets.length}</span>${hiddenPresets.map(p=>`<button class="hidden-preset-chip" title="${esc(p.difficulty||'기본')} 다시 표시" onclick="unhidePreset('${p.id}')"><span>${esc(p.difficulty||'기본')}</span><span aria-hidden="true">↩</span></button>`).join('')}<button class="btn ghost sm" onclick="unhideSelectedRaidGroup()">모두 표시</button></div>`:'';
+  el.innerHTML=tabs+hiddenStrip+`<div class="raid-block">
       <div class="raid-head"><div class="raid-name">${esc(group)}</div><span class="tag">${presets.length}개 난이도</span></div>
       <div class="preset-list">${presets.length?presets.map(presetBlock).join(''):`<div class="empty">모든 난이도가 숨김 처리되어 있습니다.<div style="margin-top:10px;"><button class="btn ghost sm" onclick="unhideSelectedRaidGroup()">이 레이드 난이도 다시 표시</button></div></div>`}</div>
     </div>`;
@@ -923,6 +930,11 @@ function setRaidTabIndex(idx){
 }
 function unhideSelectedRaidGroup(){
   groupPresets(state.selectedRaidGroup).forEach(p=>state.hiddenPresets.delete(p.id));
+  saveLocalWorkbenchState();
+  render();
+}
+function unhidePreset(presetId){
+  state.hiddenPresets.delete(presetId);
   saveLocalWorkbenchState();
   render();
 }

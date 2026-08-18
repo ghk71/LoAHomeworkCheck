@@ -2162,12 +2162,14 @@ function taskRow(t,isExp,ownerId,isChild=false,idx=0,children=[]){
   const done=isDone(t),quota=hasDailyQuota(t),step=t.count_max!=null&&!quota,rest=!!t.rest_enabled;
   const inactive=!isActive(t);
   const parentId=t.parent_id||'';
+  const activeChildren=children.filter(child=>!isTaskPaused(child));
+  const childProgress=activeChildren.length?`하위 숙제 ${activeChildren.filter(isDone).length}/${activeChildren.length}`:'';
   return`<div class="task-row ${quota?'quota-task':''} ${done?'done':''} ${inactive?'inactive':''}" id="task-${t.id}" draggable="true" ondragstart="dragStart(event,'${isExp?'expedition_tasks':'tasks'}','${t.id}','${ownerId}','${parentId}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'${isExp?'expedition_tasks':'tasks'}','${t.id}','${ownerId}','${parentId}')">
     <div class="task-main ${isChild?'child':''}">
       <div class="task-title">${iconImg(t.icon_url)}<span>${esc(t.name)}</span><span class="title-actions"><button class="mini-btn action-only action-copy" title="복제" onclick="openCopyTask('${t.id}',${isExp},'${ownerId}')">복제</button><button class="mini-btn action-only action-edit" title="수정" onclick="openEditTask('${t.id}',${isExp},'${ownerId}')">수정</button>${!isChild?`<button class="mini-btn action-only action-edit" title="하위 숙제 추가" onclick="openCreateSubTask('${t.id}',${isExp},'${ownerId}')">하위</button>`:''}<button class="mini-btn action-only action-pause" title="완료 집계와 초기화에서 제외" onclick="setTaskPaused('${t.id}',${isExp},'${ownerId}',true)">중지</button><button class="mini-btn danger action-only action-delete" title="삭제" onclick="smartDeleteTask('${t.id}',${isExp},'${ownerId}')">삭제</button></span></div>
       ${taskMetaHTML(t)}
     </div>
-    <div class="task-control">${children.length?'<span class="parent-lock">하위 연동</span>':quota?quotaControl(t,isExp,ownerId):rest?restCountButtons(t,isExp,ownerId):step?stepDots(t,isExp,ownerId):`<button class="check square ${done?'on':''}" aria-label="숙제 체크" onclick="toggleTask('${t.id}',${isExp},'${ownerId}')"></button>`}</div>
+    <div class="task-control">${children.length?`<span class="parent-lock">${childProgress||'하위 숙제 0/0'}</span>`:quota?quotaControl(t,isExp,ownerId):rest?restCountButtons(t,isExp,ownerId):step?stepDots(t,isExp,ownerId):`<button class="check square ${done?'on':''}" aria-label="숙제 체크" onclick="toggleTask('${t.id}',${isExp},'${ownerId}')"></button>`}</div>
     ${rest?`<div class="task-rest-span">${restBox(t,isExp,ownerId)}</div>`:''}
   </div>`;
 }
@@ -2336,11 +2338,12 @@ async function toggleTask(id,isExp,ownerId){
   if(t.count_max!=null&&!hasDailyQuota(t))up.count_current=done?t.count_max:0;
   const prev={is_completed:t.is_completed,last_completed_at:t.last_completed_at,count_current:t.count_current};
   Object.assign(t,up);
+  syncParentCompletionInMemory(t,list);
   if(done)holdTaskCardHeight(t,isExp,ownerId);else releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));
   render();
   const error=await persistTaskWithParent(t,up,isExp,list);
   clearBusy(key);
-  if(error){Object.assign(t,prev);releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));render();}
+  if(error){Object.assign(t,prev);syncParentCompletionInMemory(t,list);releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));render();}
   if(error){toast(atomicRpcMissing(error)?'최신 Supabase 원자적 숙제 SQL을 적용해주세요':'저장 실패');return;}
   if(t.parent_id)render();
 }
@@ -2354,11 +2357,12 @@ async function setTaskCount(id,isExp,ownerId,val){
   const up={count_current:cur,is_completed:done,last_completed_at:cur>0?appNowIso():null};
   const prev={count_current:t.count_current,is_completed:t.is_completed,last_completed_at:t.last_completed_at};
   Object.assign(t,up);
+  syncParentCompletionInMemory(t,list);
   if(done)holdTaskCardHeight(t,isExp,ownerId);else releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));
   render();
   const error=await persistTaskWithParent(t,up,isExp,list);
   clearBusy(key);
-  if(error){Object.assign(t,prev);releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));render();}
+  if(error){Object.assign(t,prev);syncParentCompletionInMemory(t,list);releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));render();}
   if(error){toast(atomicRpcMissing(error)?'최신 Supabase 원자적 숙제 SQL을 적용해주세요':'저장 실패');return;}
   if(t.parent_id)render();
 }
@@ -2393,11 +2397,12 @@ async function adjustQuotaTask(id,isExp,ownerId,delta){
     last_completed_at:t.last_completed_at
   };
   Object.assign(t,up);
+  syncParentCompletionInMemory(t,list);
   if(done)holdTaskCardHeight(t,isExp,ownerId);else releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));
   render();
   const error=await persistTaskWithParent(t,up,isExp,list);
   clearBusy(key);
-  if(error){Object.assign(t,prev);releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));render();}
+  if(error){Object.assign(t,prev);syncParentCompletionInMemory(t,list);releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));render();}
   if(error){toast(atomicRpcMissing(error)?'최신 Supabase 원자적 숙제 SQL을 적용해주세요':'저장 실패');return;}
   if(t.parent_id)render();
 }
@@ -2436,11 +2441,12 @@ async function setRestTaskCount(id,isExp,ownerId,val){
   const up={count_current:cur,is_completed:done,last_completed_at:cur>0?appNowIso():null,...applyRestCompletionChange(t,cur)};
   const prev={count_current:t.count_current,is_completed:t.is_completed,last_completed_at:t.last_completed_at,rest_current:t.rest_current,rest_consumed_current_cycle:t.rest_consumed_current_cycle};
   Object.assign(t,up);
+  syncParentCompletionInMemory(t,list);
   if(done)holdTaskCardHeight(t,isExp,ownerId);else releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));
   render();
   const error=await persistTaskWithParent(t,up,isExp,list);
   clearBusy(key);
-  if(error){Object.assign(t,prev);releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));render();}
+  if(error){Object.assign(t,prev);syncParentCompletionInMemory(t,list);releaseHeldCardHeight(taskCardKey(t,isExp,ownerId));render();}
   if(error){toast(atomicRpcMissing(error)?'최신 Supabase 원자적 숙제 SQL을 적용해주세요':'저장 실패');return;}
   if(t.parent_id)render();
 }
@@ -2449,20 +2455,35 @@ function parentCompletionPlan(task,list){
   const parentId=task.parent_id,children=list.filter(t=>t.parent_id===parentId),parent=list.find(t=>t.id===parentId);
   if(!parent||!children.length)return null;
   const activeChildren=children.filter(t=>!isTaskPaused(t));
-  const done=activeChildren.length>0&&activeChildren.every(isDone),up={is_completed:done,last_completed_at:done?appNowIso():null};
+  const done=activeChildren.length>0&&activeChildren.every(isDone);
+  const completedAt=done?(isDone(parent)&&parent.last_completed_at?parent.last_completed_at:appNowIso()):null;
+  const up={is_completed:done,last_completed_at:completedAt};
   return{parent,up};
+}
+function syncParentCompletionInMemory(task,list){
+  let current=task,firstPlan=null;
+  const visited=new Set();
+  while(current?.parent_id&&!visited.has(current.id)){
+    visited.add(current.id);
+    const plan=parentCompletionPlan(current,list);
+    if(!plan)break;
+    if(!firstPlan)firstPlan=plan;
+    Object.assign(plan.parent,plan.up);
+    current=plan.parent;
+  }
+  return firstPlan;
 }
 async function persistTaskWithParent(task,up,isExp,list){
   const parentPlan=parentCompletionPlan(task,list);
   if(isTestMode()){
-    if(parentPlan)Object.assign(parentPlan.parent,parentPlan.up);
+    syncParentCompletionInMemory(task,list);
     return null;
   }
   const changes=[{id:task.id,update:up}];
   if(parentPlan)changes.push({id:parentPlan.parent.id,update:parentPlan.up});
   try{
     const{error}=await sb.rpc('apply_task_pause_atomic',{p_is_expedition:!!isExp,p_changes:changes});
-    if(!error&&parentPlan)Object.assign(parentPlan.parent,parentPlan.up);
+    if(!error)syncParentCompletionInMemory(task,list);
     return error||null;
   }catch(error){return error;}
 }

@@ -3668,15 +3668,19 @@ async function submitSchedule(){
   else{const{data,error}=await sb.from('raid_schedules').insert({party_id:partyId,day_of_week:dayOfWeek,time_str:timeStr,is_fixed:isFixed,week_start_date:isFixed?null:getWeekKey(weekOffset)}).select().single();if(error){toast('❗ '+error.message);return;}schedules.push(data);toast('✅ 일정 추가됨');}
   closeModal('modal-schedule');renderSchFilter();renderSchedule();
 }
+const scheduleDeleteBusy=new Set();
 async function deleteScheduleById(id,closeId=''){
-  if(!id||!confirm('일정을 삭제하시겠습니까?'))return false;
-  const{error}=await sb.rpc('delete_raid_schedule_atomic',{p_schedule_id:id});
-  if(error){toast(atomicRpcMissing(error)?'Supabase에 원자적 레이드 정리 SQL을 먼저 적용해주세요':'❗ 일정 삭제 실패: '+error.message);console.error(error);return false;}
-  schedules=schedules.filter(s=>s.id!==id);
-  Object.keys(overrides).forEach(key=>{if(key.startsWith(id+'_'))delete overrides[key];});
-  if(closeId)closeModal(closeId);
-  renderSchFilter();renderUnplacedPanel();scheduleRenderSchedule();toast('🗑️ 일정 삭제됨');
-  return true;
+  if(!id||scheduleDeleteBusy.has(id))return false;
+  scheduleDeleteBusy.add(id);
+  try{
+    const{error}=await sb.rpc('delete_raid_schedule_atomic',{p_schedule_id:id});
+    if(error){toast(atomicRpcMissing(error)?'Supabase에 원자적 레이드 정리 SQL을 먼저 적용해주세요':'❗ 일정 삭제 실패: '+error.message);console.error(error);return false;}
+    schedules=schedules.filter(s=>s.id!==id);
+    Object.keys(overrides).forEach(key=>{if(key.startsWith(id+'_'))delete overrides[key];});
+    if(closeId)closeModal(closeId);
+    renderSchFilter();renderUnplacedPanel();scheduleRenderSchedule();toast('🗑️ 일정 삭제됨');
+    return true;
+  }finally{scheduleDeleteBusy.delete(id);}
 }
 function deleteScheduleDirect(id){return deleteScheduleById(id);}
 function deleteScheduleFromModal(){return deleteScheduleById(document.getElementById('sch-edit-id').value,'modal-schedule');}
