@@ -1151,8 +1151,6 @@ body::before{background:none;}
   <a href="raid.html" class="pnav-item active" id="nav-raid">🏰 레이드</a>
   <a href="overview.html" class="pnav-item">📊 레이드 현황</a>
   <a href="party_generation.html" class="pnav-item">🧩 파티 생성</a>
-  <a href="parties.html" class="pnav-item">👥 파티 현황</a>
-  <a href="core.html" class="pnav-item" id="nav-core">🔮 코어 현황</a>
 </nav>
 <div id="viewer-banner">👁 공유 모드 — 선택 계정 레이드 현황은 완료 처리 가능
   <span id="viewer-tab-btns" style="margin-left:16px;display:inline-flex;gap:4px;">
@@ -1950,7 +1948,7 @@ async function init(){
   applyViewer();
   if(isViewer&&!viewerSelectedAccount(accounts))await switchViewerTab('ov');
   else switchTab('schedule'); // 기본 탭: 주간 일정
-  // parties.html에서 파티로 이동 시 해당 파티 자동 오픈
+  // 파티 링크로 이동 시 해당 파티 자동 오픈
   const urlPartyId=new URLSearchParams(location.search).get('party');
   const openPartyId=urlPartyId||localStorage.getItem('la_open_party_id');
   if(openPartyId){localStorage.removeItem('la_open_party_id');autoOpenParty(openPartyId);}
@@ -3017,7 +3015,7 @@ function openDayGroupModal(i){
 }
 
 
-// ─── parties.html에서 파티 이동 시 자동 오픈 ───
+// ─── 파티 링크로 이동 시 자동 오픈 ───
 function autoOpenParty(partyId){
   const p=parties.find(x=>x.id===partyId);if(!p)return;
   const preset=raids.find(x=>x.id===p.preset_id);if(!preset)return;

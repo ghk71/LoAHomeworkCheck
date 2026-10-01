@@ -7,11 +7,9 @@
 ```txt
 Browser
   ├─ index.html
-  ├─ core.html
   ├─ raid.html
   ├─ overview.html
-  ├─ party_generation.html
-  └─ parties.html
+  └─ party_generation.html
         │
         ▼
 Supabase
@@ -47,15 +45,6 @@ Supabase
 - 재화 관리
 - 파티연동 팝업
 
-### `core.html`
-
-- 캐릭터별 코어 등급 관리
-- 기본 보기
-- 번호별 묶음 보기
-- 사용자 조합 보기
-- 혼돈 코어 이름 직접 편집
-- 숨긴 코어 관리
-
 ### `raid.html`
 
 - 레이드 프리셋 관리
@@ -74,12 +63,6 @@ Supabase
 - 부계정 그룹화
 - 파티연동 팝업
 
-### `parties.html`
-
-- 레이드별 파티 목록 표시
-- 파티 멤버 표시
-- 난이도 표시
-
 ### `party_generation.html`
 
 - 레이드/난이도별 파티 작업안 생성
@@ -87,6 +70,8 @@ Supabase
 - 검증 후 현재 파티와 캐릭터별 레이드 숙제에 적용
 
 ## 핵심 Supabase 관계
+
+2026-10-01 사용자 요청으로 코어 현황 및 파티 현황 페이지를 삭제했습니다. `character_cores` 등 기존 DB 데이터와 레이드 파티 테이블은 유지합니다. 상단 메뉴는 숙제 → 레이드 → 레이드 현황 → 파티 생성 순서입니다.
 
 ```txt
 accounts.id

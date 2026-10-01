@@ -43,7 +43,7 @@ Current user instruction: skip `node tools/check-project.js`.
 
 Fallback checks:
 
-- Confirm no code exists after `</html>` in `index.html`, `core.html`, `raid.html`, `overview.html`, and `parties.html`.
+- Confirm no code exists after `</html>` in `index.html`, `raid.html`, `overview.html`, and `party_generation.html`.
 - Confirm every CSS `var(--...)` used in those files is defined.
 - Run `git diff --check`.
 
@@ -54,5 +54,9 @@ When reviewing or editing:
 - Check for runtime errors such as `ReferenceError`, `TypeError`, and Supabase column errors.
 - Check that UI classes referenced in templates are defined in CSS.
 - Check that sharing/viewer mode never exposes editing controls.
-- Check that index/core/raid/overview/parties maintain consistent visual tone.
-- Check that related data flows between index, raid, overview, and parties remain compatible.
+- Check that index/raid/overview/party_generation maintain consistent visual tone.
+- Check that related data flows between index, raid, overview, and party_generation remain compatible.
+
+## Retired Pages
+
+- The user explicitly requested removal of `core.html` and `parties.html` on 2026-10-01. Do not restore those pages or navigation links unless requested. Existing Supabase data is retained.

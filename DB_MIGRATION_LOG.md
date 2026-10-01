@@ -767,3 +767,13 @@ alter table expedition_tasks add column if not exists is_paused boolean default 
 ### 적용 여부
 - 저장소 SQL 작성 완료.
 - 실제 Supabase SQL Editor 적용 및 빠른 연속 완료 수동 검증 필요.
+
+## 2026-10-01 - 같은 복제 그룹 숙제 설정 일괄 수정
+
+- 적용 파일: `supabase/migrations/20261001_task_group_settings.sql` (`schema.sql`에도 동일 함수 반영)
+- 추가 RPC: `update_task_group_settings_atomic(boolean, uuid, uuid, uuid[], jsonb)`
+- 현재 숙제를 포함한 선택 대상의 `clone_group_id`를 행 잠금 후 확인하고, 허용한 공통 설정만 같은 트랜잭션에서 저장합니다.
+- 이름/아이콘/초기화/활성화/유형 설정만 수정하며, 완료 기록/현재 횟수/휴식 게이지/중지 여부/소유자/부모/정렬은 변경할 수 없습니다.
+- 미리보기 이후 대상 삭제 또는 그룹 변경 시 일부만 저장하지 않고 전체 요청을 실패시킵니다.
+- 기존 테이블/컬럼을 사용하므로 데이터 이관과 Edge Function 배포는 필요하지 않습니다. 기존 2026-08 SQL 적용 환경은 이번 파일만 추가 실행합니다.
+- 로컬 PostgreSQL(PGlite)에서 캐릭터/계정 양쪽 테이블, 진행도 보존, 다른 그룹/삭제 대상 차단 및 강제 실패 롤백 검증 통과. 실제 Supabase에는 적용하지 않았습니다.

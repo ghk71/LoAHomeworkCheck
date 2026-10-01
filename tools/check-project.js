@@ -3,10 +3,8 @@ const { execFileSync } = require("child_process");
 
 const files = [
   "index.html",
-  "core.html",
   "raid.html",
   "overview.html",
-  "parties.html",
   "party_generation.html",
 ].filter((file) => fs.existsSync(file));
 

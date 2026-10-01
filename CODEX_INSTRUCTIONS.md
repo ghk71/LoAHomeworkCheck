@@ -45,8 +45,8 @@ node tools/check-project.js
 
 대신 수정 후 반드시 아래를 확인한다.
 
-- `index.html`, `core.html`, `raid.html`, `overview.html`, `parties.html`, `party_generation.html`에서 `</html>` 뒤 코드가 없는지 확인한다.
-- 6개 주요 HTML에서 사용한 CSS `var(--...)`가 모두 정의되어 있는지 확인한다.
+- `index.html`, `raid.html`, `overview.html`, `party_generation.html`에서 `</html>` 뒤 코드가 없는지 확인한다.
+- 4개 주요 HTML에서 사용한 CSS `var(--...)`가 모두 정의되어 있는지 확인한다.
 - `git diff --check`를 실행한다.
 
 ## Supabase 주의사항
@@ -57,7 +57,7 @@ node tools/check-project.js
 
 ## UI 주의사항
 
-- index/core/raid/overview/parties/party_generation의 디자인 톤을 통일한다.
+- index/raid/overview/party_generation의 디자인 톤을 통일한다.
 - CSS 누락으로 기본 HTML 버튼이 노출되면 실패다.
 - hover 효과를 추가할 때 모바일/터치 환경도 깨지지 않아야 한다.
 - 모달은 화면 밖으로 나가면 안 된다.
@@ -69,8 +69,8 @@ node tools/check-project.js
 [ ] 관련 파일만 수정했다
 [ ] schema.sql과 컬럼명을 대조했다
 [ ] node tools/check-project.js는 사용자 지시로 생략
-[ ] 6개 주요 HTML `</html>` 뒤 코드 없음 확인
-[ ] 6개 주요 HTML CSS 변수 누락 없음 확인
+[ ] 4개 주요 HTML `</html>` 뒤 코드 없음 확인
+[ ] 4개 주요 HTML CSS 변수 누락 없음 확인
 [ ] git diff --check 통과
 [ ] git diff 확인
 [ ] BUG_HISTORY.md 또는 CODEX_SESSION_LOG.md 기록

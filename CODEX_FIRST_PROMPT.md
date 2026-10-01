@@ -22,10 +22,8 @@ Codex를 처음 실행한 뒤 아래 프롬프트를 그대로 붙여넣는다.
 그 다음 아래 HTML 파일을 분석하세요.
 
 - index.html
-- core.html
 - raid.html
 - overview.html
-- parties.html
 - party_generation.html
 
 중요 규칙:

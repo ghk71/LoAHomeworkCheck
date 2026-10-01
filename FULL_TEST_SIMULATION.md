@@ -2,13 +2,13 @@
 
 이 문서는 로스트아크 숙제 트래커의 전체 기능을 실제 사용자 흐름에 가깝게 검증하기 위한 시나리오 모음이다.
 
+2026-10-01 안내: 이 문서에는 과거 기능 시나리오가 포함되어 있습니다. 사용자 요청으로 코어 현황/파티 현황 페이지가 삭제되어 두 페이지의 시나리오 및 교차 확인 단계는 더 이상 적용하지 않습니다. 현재 검증 기준은 `TEST_SCENARIO.md`를 우선합니다.
+
 대상 파일:
 
 - `index.html`
-- `core.html`
 - `raid.html`
 - `overview.html`
-- `parties.html`
 - `party_generation.html`
 
 목표:
@@ -37,7 +37,7 @@
 
 ### 0-2. 공통 정적 구조 검사
 
-1. `index.html`, `core.html`, `raid.html`, `overview.html`, `parties.html`, `party_generation.html`을 각각 연다.
+1. `index.html`, `raid.html`, `overview.html`, `party_generation.html`을 각각 연다.
 2. 페이지 하단에 JavaScript 코드가 텍스트로 노출되지 않는지 확인한다.
 3. 상단 메뉴 이동이 모든 페이지에서 정상인지 확인한다.
 4. 디자인 톤이 크게 깨지지 않는지 확인한다.
@@ -367,7 +367,7 @@
 
 ---
 
-## 8. core.html 코어 현황 시나리오
+## 8. core.html 코어 현황 시나리오 (2026-10-01 종료, 과거 기록)
 
 ### 8-1. 기본 보기와 대상 캐릭터
 
@@ -657,7 +657,7 @@
 
 ---
 
-## 14. parties.html 시나리오
+## 14. parties.html 시나리오 (2026-10-01 종료, 과거 기록)
 
 ### 14-1. 파티 목록 기본 표시
 

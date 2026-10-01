@@ -15,12 +15,12 @@ AGENTS.md를 따르고, HANDOFF.md, CHANGELOG_CLAUDE.md, CODEX_SESSION_LOG.md �
 ## 프로젝트
 
 - GitHub Pages + Supabase 기반 정적 HTML/CSS/JavaScript 프로젝트
-- 주요 화면: `index.html`, `raid.html`, `overview.html`, `party_generation.html`, `parties.html`, `core.html`
+- 주요 화면: `index.html`, `raid.html`, `overview.html`, `party_generation.html`
 - React/Vite/Next.js 전환 금지
 - JavaScript는 각 HTML 내부 `<script>`에만 유지
 - `</html>` 뒤 코드 금지, CSS 변수 누락 금지
 - 현재 사용자 지시로 `node tools/check-project.js`는 실행하지 않음
-- 대체 검증: 6개 HTML 후행 코드/CSS 변수, `git diff --check`, 브라우저 확인
+- 대체 검증: 4개 HTML 후행 코드/CSS 변수, `git diff --check`, 브라우저 확인
 
 ## 2026-08-13 최신 작업
 
@@ -41,6 +41,7 @@ AGENTS.md를 따르고, HANDOFF.md, CHANGELOG_CLAUDE.md, CODEX_SESSION_LOG.md �
 1. supabase/migrations/20260813_integrity_and_share_links.sql
 2. supabase/migrations/20260813_raid_integrity_followup.sql
 3. supabase/migrations/20260818_parent_task_completion_consistency.sql
+4. supabase/migrations/20261001_task_group_settings.sql
 ```
 
 2. 다음 Edge Function을 최신 소스로 재배포합니다.
@@ -89,3 +90,18 @@ AGENTS.md를 따르고, HANDOFF.md, CHANGELOG_CLAUDE.md, CODEX_SESSION_LOG.md �
 - `index.html`은 완료 클릭 직후와 각 저장 응답 후 현재 하위 상태로 모든 조상 완료 상태를 다시 계산하며, 실패 롤백 때도 같은 계산을 수행합니다.
 - `apply_task_pause_atomic`은 변경된 숙제를 저장한 뒤 관련 부모 행을 잠그고 실제 DB의 활성 하위 숙제를 기준으로 조상 완료 상태를 아래에서 위 순서로 재계산합니다.
 - 위 적용 순서의 세 번째 SQL을 Supabase SQL Editor에서 실행해야 DB 경쟁 상태 보정까지 활성화됩니다.
+
+## 2026-10-01 일시중지 관리 및 같은 숙제 함께 수정
+
+- 일시중지 관리에 검색, 계정/주기/대상 필터와 계정·캐릭터별 목록을 추가했습니다. 상위에 따라 중지된 하위도 확인하고 `상위 보기`로 재개 위치를 찾을 수 있습니다.
+- 숙제 수정 창에 `이 숙제만 저장`과 `같은 숙제 함께 수정`을 구분했습니다. 후자는 같은 `clone_group_id`에 속한 복제본을 DB에서 조회하며 숨김 계정도 포함합니다.
+- 전체/계정/개별 적용 대상을 미리 선택하며, 공통 설정만 변경하고 완료·횟수·휴식 게이지·일시중지 상태는 보존합니다. 하위 숙제 및 이름만 같은 다른 그룹은 변경하지 않습니다.
+- 네 번째 SQL을 추가 적용해야 실제 DB 그룹 저장이 가능합니다. 테스트 모드에서는 메모리만 수정합니다.
+- 라이브 Supabase에는 이 SQL을 직접 적용하지 않았습니다.
+
+## 2026-10-01 같은 숙제 목록 및 페이지 정리
+
+- `관리 → 같은 숙제 모아보기`에서 같은 테이블·복제 그룹별 숙제를 펼쳐 계정/캐릭터, 중지 여부, 설정 차이를 확인하고 수정할 수 있습니다. 그룹 없는 항목은 `개별 숙제 포함` 또는 `개별 숙제만`으로 조회합니다.
+- 사용자 요청으로 `core.html`, `parties.html`과 모든 상단 링크를 삭제했습니다. 현재 메뉴는 숙제 → 레이드 → 레이드 현황 → 파티 생성입니다.
+- 기존 코어 및 파티 관련 DB 데이터는 유지했습니다. 이번 조회 화면/페이지 삭제에는 추가 SQL이 필요하지 않습니다.
+- 기존 6개 페이지 검증 이력은 페이지 삭제 전 과거 기록입니다. 앞으로는 현재 4개 페이지만 검증합니다.

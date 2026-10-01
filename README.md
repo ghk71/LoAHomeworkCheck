@@ -15,10 +15,8 @@
 | 파일 | 역할 |
 |---|---|
 | `index.html` | 메인 숙제, 계정, 캐릭터, 레이드 숙제, 재화 관리 |
-| `core.html` | 코어 현황, 사용자 조합 관리 |
 | `raid.html` | 레이드 프리셋, 난이도, 파티 구성, 주간 일정, 임시 파티, 공유 링크 |
 | `overview.html` | 레이드 완료 현황 |
-| `parties.html` | 파티 현황 |
 | `party_generation.html` | 레이드 파티 생성 및 DB 적용 |
 | `schema.sql` | Supabase 전체 스키마 |
 | `AGENTS.md` | Codex/AI 에이전트 작업 규칙 |
@@ -46,9 +44,9 @@
 git diff --check
 ```
 
-- `index.html`, `core.html`, `raid.html`, `overview.html`, `parties.html`, `party_generation.html`의 `</html>` 뒤에 코드가 없는지 확인합니다.
-- 6개 HTML에서 사용한 CSS 변수가 모두 정의되어 있는지 확인합니다.
-- `tools/check-project.js`는 6개 HTML의 JavaScript 문법, `</html>`, CSS 변수를 검사하지만 현재 작업 환경에서는 사용자 요청이 있을 때만 실행합니다.
+- `index.html`, `raid.html`, `overview.html`, `party_generation.html`의 `</html>` 뒤에 코드가 없는지 확인합니다.
+- 4개 HTML에서 사용한 CSS 변수가 모두 정의되어 있는지 확인합니다.
+- `tools/check-project.js`는 4개 HTML의 JavaScript 문법, `</html>`, CSS 변수를 검사하지만 현재 작업 환경에서는 사용자 요청이 있을 때만 실행합니다.
 
 ## Supabase 적용 순서
 
@@ -57,8 +55,11 @@ SQL Editor에서 아래 파일을 순서대로 전체 실행합니다.
 1. `supabase/migrations/20260813_integrity_and_share_links.sql`
 2. `supabase/migrations/20260813_raid_integrity_followup.sql`
 3. `supabase/migrations/20260818_parent_task_completion_consistency.sql`
+4. `supabase/migrations/20261001_task_group_settings.sql`
 
 그다음 `create-share-link`, `resolve-share`, `send-homework-discord` Edge Function을 최신 소스로 재배포합니다. 두 번째 SQL에는 숙제 트리 복제, 레이드 임시 상태 복원, 파티 생성 적용, 정렬 저장 등 여러 화면이 공통으로 호출하는 원자적 RPC가 포함되며, 세 번째 SQL은 동시 하위 숙제 저장 후 상위 완료 상태를 DB 기준으로 다시 확정합니다.
+
+네 번째 SQL은 동일 복제 그룹의 설정만 원자적으로 수정하는 RPC입니다. 이전 SQL이 적용된 환경에서는 네 번째만 추가 실행하면 되며, 이 기능을 위한 Edge Function 재배포는 필요하지 않습니다.
 
 ## GitHub Pages 설정
 
