@@ -291,6 +291,7 @@ body.manage-active .mode-done{display:inline-flex}
 .task-catalog-title strong{display:flex;gap:7px;align-items:center;overflow-wrap:anywhere}
 .task-catalog-meta{color:var(--muted);font-size:.73rem;overflow-wrap:anywhere}
 .task-catalog-count{color:var(--accent);font-weight:850;white-space:nowrap;flex:none}
+.task-catalog-group>summary>.btn{flex:none;white-space:nowrap}
 .task-catalog-difference{color:var(--gold)}
 .task-catalog-members{padding:0 13px 8px}
 .task-catalog-member{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;border-top:1px solid var(--line);padding:10px 0}
@@ -300,6 +301,10 @@ body.manage-active .mode-done{display:inline-flex}
 #modal-task-group-edit{z-index:120}
 #modal-create{z-index:110}
 #modal-create .modal-foot{flex-wrap:wrap}
+#modal-create .modal-head>div,.create-grid>div,#modal-create .field{min-width:0}
+#modal-create .modal-head>.btn{flex:none;white-space:nowrap}
+#modal-create .preview-card .task-title{white-space:normal;overflow-wrap:anywhere}
+#create-target{overflow-wrap:anywhere}
 #modal-create .btn:disabled,#modal-task-group-edit .btn:disabled,.paused-task-actions .btn:disabled{opacity:.45;cursor:default}
 @media(max-width:600px){
   .task-manager-filters{grid-template-columns:1fr 1fr;padding:10px 12px}
@@ -371,7 +376,7 @@ body.manage-active .mode-done{display:inline-flex}
 .modal-title{font-size:1.05rem;font-weight:1000}
 .modal-body{padding:16px 20px}
 .modal-foot{padding:13px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
-.create-grid{display:grid;grid-template-columns:230px 1fr;gap:20px}
+.create-grid{display:grid;grid-template-columns:230px minmax(0,1fr);gap:20px}
 .type-list{display:grid;gap:8px}
 .type-card{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:10px;text-align:left;color:var(--text)}
 .type-card.active{border-color:rgba(34,211,238,.65);box-shadow:inset 0 0 0 1px rgba(34,211,238,.18)}
@@ -395,11 +400,14 @@ body.manage-active .mode-done{display:inline-flex}
 .pick-empty{padding:24px;text-align:center;color:var(--muted)}
 .hidden{display:none!important}
 @media(max-width:760px){
-  .create-grid{grid-template-columns:1fr}
+  .create-grid{grid-template-columns:minmax(0,1fr)}
   .form-grid.compact{grid-template-columns:1fr 1fr}
   .grid,.account-grid{grid-template-columns:1fr}
   .one-time-grid{grid-template-columns:1fr}
   .tool-row{align-items:flex-start;flex-direction:column}
+}
+@media(max-width:480px){
+  #modal-create .form-grid,#modal-create .form-grid.compact{grid-template-columns:minmax(0,1fr)}
 }
 </style>
 </head>
@@ -3384,12 +3392,13 @@ function openCreateSubTask(parentId,isExp,ownerId){
   document.getElementById('create-title').textContent='하위 숙제 생성';
   document.getElementById('create-target').textContent+=' · 하위 숙제';
 }
-function openEditTask(id,isExp,ownerId){
+function openEditTask(id,isExp,ownerId,allGroup=false){
   const list=isExp?(state.expTasks[ownerId]||[]):(state.tasks[ownerId]||[]);
   const t=list.find(x=>x.id===id);if(!t)return;
+  if(allGroup&&!t.clone_group_id){toast('복제 그룹이 없는 숙제입니다');return;}
   state.createTarget={scope:isExp?'account':'char',id:ownerId};
   state.createParentId=t.parent_id||null;
-  state.editTarget={id,isExp,ownerId};
+  state.editTarget={id,isExp,ownerId,allGroup,groupId:t.clone_group_id};
   state.taskGroupEdit=null;
   syncTaskGroupEditButton(t);
   const type=t.rest_enabled?'rest':hasDailyQuota(t)?'weeklyQuota':t.count_max!=null?'step':'check';
@@ -3415,6 +3424,12 @@ function openEditTask(id,isExp,ownerId){
   document.getElementById('create-title').textContent=isExp?'계정 숙제 수정':'캐릭터 숙제 수정';
   document.getElementById('create-target').textContent=`대상: ${name}`;
   document.getElementById('task-submit-btn').textContent='이 숙제만 저장';
+  if(allGroup){
+    const rows=Object.values(isExp?state.expTasks:state.tasks).flat().filter(task=>task.clone_group_id===t.clone_group_id);
+    document.getElementById('create-title').textContent='같은 숙제 전체 수정';
+    document.getElementById('create-target').textContent=`그룹 전체 ${rows.length}개 · 숨김 계정 포함 · ${name}의 설정 기준`;
+    document.getElementById('task-submit-btn').textContent=`전체 ${rows.length}개 저장`;
+  }
   renderRestPreview();
   syncQuotaConfigInputs();
   openModal('modal-create');
@@ -3494,6 +3509,7 @@ async function submitCreatedTask(editGroup=false){
   }
   const isExp=target.scope==='account';
   const table=isExp?'expedition_tasks':'tasks';
+  if(state.editTarget?.allGroup){await openTaskGroupEdit(rec,true);return;}
   if(editGroup){await openTaskGroupEdit(rec);return;}
   if(state.editTarget){
     const {id,ownerId}=state.editTarget;
@@ -3569,23 +3585,35 @@ function renderTaskCatalog(){
     const first=group.entries[0],paused=group.entries.filter(e=>e.paused).length;
     const accounts=new Set(group.entries.map(e=>e.account?.id||e.ownerId));
     return`<details class="task-catalog-group" data-group-key="${esc(group.key)}" ${state.taskCatalogExpanded.has(group.key)?'open':''} ontoggle="rememberTaskCatalogOpen(this)">
-      <summary><div class="task-catalog-title"><strong>${iconImg(first.task.icon_url)}<span>${esc(group.names.join(' / '))}</span></strong><span class="task-catalog-meta">${group.isExp?'계정 숙제':'캐릭터 숙제'} · ${group.linked?`복제 그룹 ${esc(first.task.clone_group_id.slice(0,8))}`:'개별 숙제'} · ${accounts.size}계정${paused?` · 중지 ${paused}개`:''}${group.different?' · <span class="task-catalog-difference">설정 다름</span>':''}</span></div><span class="task-catalog-count">${group.entries.length}개</span></summary>
+      <summary><div class="task-catalog-title"><strong>${iconImg(first.task.icon_url)}<span>${esc(group.names.join(' / '))}</span></strong><span class="task-catalog-meta">${group.isExp?'계정 숙제':'캐릭터 숙제'} · ${group.linked?`복제 그룹 ${esc(first.task.clone_group_id.slice(0,8))}`:'개별 숙제'} · ${accounts.size}계정${paused?` · 중지 ${paused}개`:''}${group.different?' · <span class="task-catalog-difference">설정 다름</span>':''}</span></div><span class="task-catalog-count">${group.entries.length}개</span>${group.linked?`<button class="btn" type="button" onclick="event.preventDefault();event.stopPropagation();openEditTask('${first.task.id}',${group.isExp},'${first.ownerId}',true)">전체 수정</button>`:''}</summary>
       <div class="task-catalog-members">${group.entries.map(({task,ownerId,ownerName,account,paused:stopped,parent})=>`<div class="task-catalog-member"><div><div class="task-catalog-owner">${group.isExp?'':`${esc(account?.name||'계정 정보 없음')} · `}${esc(ownerName)}${account?.parent_account_id?' <span class="paused-sub-account">부계정</span>':''}${account&&isAccountHidden(account.id)?' <span class="task-catalog-meta">숨김 계정</span>':''}</div><div class="task-catalog-meta">${esc(task.name)} · ${esc(resetText(task))} · ${taskTypeLabel(task)}${stopped?' · 일시중지':''}${parent?` · 상위: ${esc(parent.name)}`:''}</div></div><button class="btn" onclick="openEditTask('${task.id}',${group.isExp},'${ownerId}')">수정</button></div>`).join('')}</div>
     </details>`;
   }).join('');
 }
 function syncTaskGroupEditButton(task){
   const button=document.getElementById('task-group-edit-btn'),hint=document.getElementById('task-group-hint');
-  button.classList.toggle('hidden',!task);hint.classList.toggle('hidden',!task);
+  const allGroup=!!state.editTarget?.allGroup;
+  document.getElementById('task-submit-btn').disabled=false;
+  button.classList.toggle('hidden',!task||allGroup);hint.classList.toggle('hidden',!task);
   button.disabled=!task?.clone_group_id;
-  hint.textContent=task?(task.clone_group_id?'복제한 같은 숙제의 설정을 함께 수정할 수 있습니다.':'복제 그룹이 없는 숙제입니다. 이 숙제만 수정할 수 있습니다.'):'';
+  hint.textContent=allGroup?'현재 횟수·휴식 게이지·완료·중지 상태는 각자 유지합니다. 하위 숙제 설정은 변경하지 않습니다.':task?(task.clone_group_id?'복제한 같은 숙제의 설정을 함께 수정할 수 있습니다.':'복제 그룹이 없는 숙제입니다. 이 숙제만 수정할 수 있습니다.'):'';
+  ['rest-current','quota-total-current','quota-daily-current'].forEach(id=>{
+    const input=document.getElementById(id);input.disabled=allGroup;
+    input.closest('.field').classList.toggle('hidden',allGroup);
+  });
+  document.getElementById('rest-preview').classList.toggle('hidden',allGroup);
+  document.querySelector('#config-weekly-quota .preview-card .tiny').classList.toggle('hidden',allGroup);
 }
-async function openTaskGroupEdit(rec){
+async function openTaskGroupEdit(rec,allTargets=false){
   const ctx=state.editTarget;if(!ctx)return;
   const source=getTaskList(ctx.isExp,ctx.ownerId).find(t=>t.id===ctx.id);
   if(!source?.clone_group_id){toast('같은 복제 그룹이 있는 숙제만 함께 수정할 수 있습니다');return;}
+  if(source.clone_group_id!==ctx.groupId){toast('숙제의 복제 그룹이 변경되었습니다. 다시 열어주세요.');return;}
   submitCreatedTask.busy=true;
   const button=document.getElementById('task-group-edit-btn');button.disabled=true;
+  const submit=document.getElementById('task-submit-btn'),label=submit.textContent;
+  submit.disabled=true;
+  if(allTargets)submit.textContent='전체 저장 중...';
   try{
     let rows;
     if(isTestMode())rows=Object.values(ctx.isExp?state.expTasks:state.tasks).flat().filter(t=>t.clone_group_id===source.clone_group_id);
@@ -3595,11 +3623,12 @@ async function openTaskGroupEdit(rec){
     }
     if(state.editTarget!==ctx||!document.getElementById('modal-create').classList.contains('open'))return;
     if(!rows.some(t=>t.id===ctx.id))throw new Error('숙제의 복제 그룹이 변경되었습니다. 다시 열어주세요.');
-    if(rows.length<2){toast('함께 수정할 복제본이 없습니다');return;}
-    state.taskGroupEdit={...ctx,groupId:source.clone_group_id,settings:sharedTaskSettings(rec),rows};
-    renderTaskGroupEdit();openModal('modal-task-group-edit');
+    if(rows.length<2&&!allTargets){toast('함께 수정할 복제본이 없습니다');return;}
+    const group={...ctx,groupId:source.clone_group_id,settings:sharedTaskSettings(rec),rows};
+    if(allTargets)await saveTaskGroupSettings(group,rows.map(t=>t.id));
+    else{state.taskGroupEdit=group;renderTaskGroupEdit();openModal('modal-task-group-edit');}
   }catch(error){console.error('[task-group-edit]',error);toast('같은 숙제 조회 실패: '+(error.message||error));}
-  finally{submitCreatedTask.busy=false;if(state.editTarget===ctx)button.disabled=false;}
+  finally{submitCreatedTask.busy=false;if(state.editTarget===ctx){button.disabled=false;submit.disabled=false;submit.textContent=label;}}
 }
 function renderTaskGroupEdit(){
   const ctx=state.taskGroupEdit;if(!ctx)return;
@@ -3632,11 +3661,13 @@ function syncTaskGroupSelection(){
   document.getElementById('task-group-save-btn').textContent=`${selected}개 숙제 함께 저장`;
   document.getElementById('task-group-save-btn').disabled=selected===0||!!saveTaskGroupSettings.busy;
 }
-async function saveTaskGroupSettings(){
-  const ctx=state.taskGroupEdit;if(!ctx||saveTaskGroupSettings.busy)return;
-  const ids=[...document.querySelectorAll('#task-group-targets [data-group-target]:checked')].map(cb=>cb.dataset.groupTarget);
+async function saveTaskGroupSettings(ctx=state.taskGroupEdit,ids=null){
+  if(!ctx||saveTaskGroupSettings.busy)return;
+  const editor=state.editTarget;
+  ids=ids||[...document.querySelectorAll('#task-group-targets [data-group-target]:checked')].map(cb=>cb.dataset.groupTarget);
   if(!ids.includes(ctx.id)){toast('현재 숙제를 포함해서 선택해주세요');return;}
-  saveTaskGroupSettings.busy=true;syncTaskGroupSelection();
+  saveTaskGroupSettings.busy=true;
+  if(state.taskGroupEdit===ctx)syncTaskGroupSelection();
   try{
     if(!isTestMode()){
       const {error}=await sb.rpc('update_task_group_settings_atomic',{p_is_expedition:ctx.isExp,p_source_id:ctx.id,p_group_id:ctx.groupId,p_target_ids:ids,p_settings:ctx.settings});
@@ -3646,7 +3677,7 @@ async function saveTaskGroupSettings(){
     const selected=new Set(ids),buckets=ctx.isExp?state.expTasks:state.tasks;
     Object.values(buckets).forEach(list=>list.forEach(task=>{if(selected.has(task.id))Object.assign(task,ctx.settings);}));
     if(state.taskGroupEdit===ctx){closeModal('modal-task-group-edit');state.taskGroupEdit=null;}
-    if(state.editTarget?.id===ctx.id){closeModal('modal-create');state.editTarget=null;}
+    if(state.editTarget===editor){closeModal('modal-create');state.editTarget=null;}
     render();renderPausedTaskManager();toast(`${ids.length}개 숙제 설정을 함께 저장했습니다`);
   }catch(error){
     console.error('[task-group-edit]',error);
