@@ -10,6 +10,18 @@
 
 이번 작업 환경에서는 Supabase 관리용 연결과 로그인된 대시보드가 없어 실제 운영 SQL 실행은 하지 않았습니다.
 
+### 실행할 파일 전체 목록
+
+이미 적용한 파일은 건너뛰고, 미적용 파일은 아래 순서대로 전체 실행합니다. 중간 오류가 발생하면 다음 파일을 실행하지 말고 원인을 먼저 확인합니다.
+
+1. `supabase/migrations/20260813_integrity_and_share_links.sql`
+2. `supabase/migrations/20260813_raid_integrity_followup.sql`
+3. `supabase/migrations/20260818_parent_task_completion_consistency.sql`
+4. `supabase/migrations/20261001_task_group_settings.sql`
+5. `supabase/migrations/20261008_task_batch_workflow.sql`
+
+기존 DB 기준 안내이며, `schema.sql`까지 중복 실행할 필요는 없습니다. 적용 전 DB 백업을 권장합니다. 1번에는 고아 일회용 숙제 정리 및 기존 공유 링크 만료일 설정도 포함됩니다.
+
 ## 기존 데이터 처리
 
 - `task_lineage_backup_20261008`에 마이그레이션 이전 숙제 전체 행을 최초 한 번 백업합니다. 재실행해도 원본 백업을 덮어쓰지 않습니다.

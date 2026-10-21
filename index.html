@@ -110,7 +110,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .global-memo-input{width:100%;min-height:120px;max-height:240px;resize:vertical;border:0;background:transparent;color:var(--text);padding:12px;font:inherit;line-height:1.55;outline:none}
 .global-memo-input::placeholder{color:var(--dim)}
 .action-only{display:none!important}
-body.action-copy .action-copy,body.action-edit .action-edit,body.action-delete .action-delete,body.action-pause .action-pause,body.action-order .action-order{display:inline-flex!important}
+body.action-copy .action-copy,body.action-edit .action-edit,body.action-child .action-child,body.action-delete .action-delete,body.action-pause .action-pause,body.action-order .action-order{display:inline-flex!important}
 .mode-action.active{border-color:rgba(34,211,238,.55);color:#bff6ff;background:rgba(34,211,238,.12)}
 .mode-done{display:none}
 body.manage-active .mode-done{display:inline-flex}
@@ -309,18 +309,27 @@ body.manage-active .mode-done{display:inline-flex}
 .task-catalog-member:first-child{border-top:0}
 .task-catalog-owner{font-weight:800;overflow-wrap:anywhere}
 .task-catalog-controls{margin-right:auto;display:flex;gap:6px;flex-wrap:wrap}
-.task-draft-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+.task-draft-layout{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:20px}
 .task-draft-node{padding:10px 0;border-bottom:1px solid var(--line);display:grid;gap:8px;min-width:0}
 .task-draft-node strong{overflow-wrap:anywhere}
 .task-draft-actions{display:flex;gap:6px;flex-wrap:wrap}
 .task-target-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}
-.task-target-toolbar .input{flex:1;min-width:130px}
-.task-target-account{border-bottom:1px solid var(--line);padding:8px 0}
-.task-target-account>header{display:flex;gap:8px;align-items:center;color:var(--gold);font-weight:800}
-.task-target-option{display:flex;gap:9px;align-items:center;padding:8px 0;overflow-wrap:anywhere}
-.task-target-option input,.task-target-account input{flex:none;accent-color:var(--accent)}
-.task-target-option small{display:block;color:var(--muted)}
-.task-target-counter{color:var(--accent);font-weight:800}
+.task-target-toolbar .input{flex:1 0 100%;min-width:0}
+.task-target-toolbar .btn{font-size:.73rem;padding:6px 9px}
+.task-target-account{border-bottom:1px solid var(--line);padding:14px 0}
+.task-target-account>header{display:flex;gap:8px;align-items:center;color:var(--text);font-weight:800;margin-bottom:8px}
+.task-target-account>header>label{display:flex;gap:8px;align-items:center;cursor:pointer;min-width:0;overflow-wrap:anywhere}
+.task-target-account .account-selection-count{margin-left:auto;flex:none;font-size:.73rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.task-target-sub{font-size:.66rem;color:var(--purple);font-weight:650;white-space:nowrap}
+.task-target-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(140px,100%),1fr));gap:6px}
+.task-target-option{display:flex;gap:8px;align-items:center;min-width:0;min-height:44px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);overflow-wrap:anywhere;cursor:pointer}
+.task-target-option:hover{border-color:var(--line-2);background:var(--panel-hover)}
+.task-target-option:has(input:checked){border-color:var(--accent);background:#163139;color:#e9fdff}
+.task-target-option:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.task-target-option input,.task-target-account input{width:16px;height:16px;margin:0;flex:none;accent-color:var(--accent)}
+.task-target-option>span{min-width:0;flex:1;font-weight:750}
+.task-target-option small{display:block;color:var(--muted);font-size:.68rem;font-weight:500;margin-top:2px}
+.task-target-counter{color:var(--accent);font-weight:800;margin-left:auto;font-size:.74rem}
 .task-target-option[hidden],.task-target-account[hidden],#task-group-targets [hidden]{display:none!important}
 #modal-copy-task,#modal-bulk-delete{z-index:120}
 @media(max-width:760px){.task-draft-layout{grid-template-columns:minmax(0,1fr)}}
@@ -436,7 +445,7 @@ body.manage-active .mode-done{display:inline-flex}
   .tool-pop{width:min(300px,100%);max-height:65vh;overflow-y:auto}
 }
 @media(max-width:480px){
-  .topbar>.action-mode-picker{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+  .topbar>.action-mode-picker{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
   .topbar>.action-mode-picker label{position:relative;min-width:0;padding:8px 2px;font-size:.75rem}
   .topbar>.action-mode-picker input{position:absolute;width:1px;height:1px;opacity:0}
   #modal-create .form-grid,#modal-create .form-grid.compact{grid-template-columns:minmax(0,1fr)}
@@ -478,6 +487,7 @@ body.manage-active .mode-done{display:inline-flex}
     <fieldset class="action-mode-picker" aria-label="숙제 작업 모드">
       <label><input type="radio" name="task-action-mode" value="normal" onchange="setActionMode(this.value)">완료 체크</label>
       <label><input type="radio" name="task-action-mode" value="edit" onchange="setActionMode(this.value)">수정</label>
+      <label><input type="radio" name="task-action-mode" value="child" onchange="setActionMode(this.value)">하위 추가</label>
       <label><input type="radio" name="task-action-mode" value="copy" onchange="setActionMode(this.value)">복제</label>
       <label><input type="radio" name="task-action-mode" value="delete" onchange="setActionMode(this.value)">삭제</label>
       <label><input type="radio" name="task-action-mode" value="pause" onchange="setActionMode(this.value)">일시중지</label>
@@ -1039,6 +1049,7 @@ function applyActionMode(){
   document.getElementById('add-current-task').textContent='+ '+({daily:'캐릭터 숙제',weekly:'주간/월간 숙제',account:'계정 숙제',onetime:'일회용 숙제'}[state.mode]||'숙제');
   document.body.classList.toggle('action-copy',state.actionMode==='copy');
   document.body.classList.toggle('action-edit',state.actionMode==='edit');
+  document.body.classList.toggle('action-child',state.actionMode==='child');
   document.body.classList.toggle('action-delete',state.actionMode==='delete');
   document.body.classList.toggle('action-pause',state.actionMode==='pause');
   document.body.classList.toggle('action-order',false);
@@ -2375,7 +2386,7 @@ function taskRow(t,isExp,ownerId,isChild=false,idx=0,children=[]){
   const childProgress=activeChildren.length?`하위 숙제 ${activeChildren.filter(isDone).length}/${activeChildren.length}`:'';
   return`<div class="task-row ${quota?'quota-task':''} ${done?'done':''} ${inactive?'inactive':''}" id="task-${t.id}" draggable="true" ondragstart="dragStart(event,'${isExp?'expedition_tasks':'tasks'}','${t.id}','${ownerId}','${parentId}')" ondragover="allowDrop(event)" ondrop="dropOn(event,'${isExp?'expedition_tasks':'tasks'}','${t.id}','${ownerId}','${parentId}')">
     <div class="task-main ${isChild?'child':''}">
-      <div class="task-title">${iconImg(t.icon_url)}<span>${esc(t.name)}</span><span class="title-actions"><button class="mini-btn action-only action-copy" title="복제" onclick="openCopyTask('${t.id}',${isExp},'${ownerId}')">복제</button><button class="mini-btn action-only action-edit" title="수정" onclick="openEditTask('${t.id}',${isExp},'${ownerId}')">수정</button>${!isChild?`<button class="mini-btn action-only action-edit" title="하위 숙제 추가" onclick="openCreateSubTask('${t.id}',${isExp},'${ownerId}')">하위</button>`:''}<button class="mini-btn action-only action-pause" title="완료 집계와 초기화에서 제외" onclick="setTaskPaused('${t.id}',${isExp},'${ownerId}',true)">중지</button><button class="mini-btn danger action-only action-delete" title="삭제" onclick="smartDeleteTask('${t.id}',${isExp},'${ownerId}')">삭제</button></span></div>
+      <div class="task-title">${iconImg(t.icon_url)}<span>${esc(t.name)}</span><span class="title-actions"><button class="mini-btn action-only action-copy" title="복제" onclick="openCopyTask('${t.id}',${isExp},'${ownerId}')">복제</button><button class="mini-btn action-only action-edit" title="수정" onclick="openEditTask('${t.id}',${isExp},'${ownerId}')">수정</button>${!isChild?`<button class="mini-btn action-only action-child" title="하위 숙제 추가" onclick="openCreateSubTask('${t.id}',${isExp},'${ownerId}')">하위 추가</button>`:''}<button class="mini-btn action-only action-pause" title="완료 집계와 초기화에서 제외" onclick="setTaskPaused('${t.id}',${isExp},'${ownerId}',true)">중지</button><button class="mini-btn danger action-only action-delete" title="삭제" onclick="smartDeleteTask('${t.id}',${isExp},'${ownerId}')">삭제</button></span></div>
       ${taskMetaHTML(t)}
     </div>
     <div class="task-control">${children.length?`<span class="parent-lock">${childProgress||'하위 숙제 0/0'}</span>`:quota?quotaControl(t,isExp,ownerId):rest?restCountButtons(t,isExp,ownerId):step?stepDots(t,isExp,ownerId):`<button class="check square ${done?'on':''}" aria-label="숙제 체크" onclick="toggleTask('${t.id}',${isExp},'${ownerId}')"></button>`}</div>
@@ -3316,8 +3327,8 @@ function renderTaskTargets(container,isExp,entries,selected=[]){
     groups.get(accountId).entries.push({...entry,owner});
   });
   document.getElementById(container).innerHTML='<div class="task-target-toolbar"><input class="input" type="search" aria-label="대상 검색" placeholder="캐릭터 · 계정 검색" oninput="filterTaskTargets(\''+container+'\',this.value)"><button type="button" class="btn" onclick="selectTaskTargets(\''+container+'\',true)">검색 결과 선택</button><button type="button" class="btn" onclick="selectTaskTargets(\''+container+'\',false)">선택 해제</button><span class="task-target-counter" aria-live="polite"></span></div>'+
-    [...groups.values()].map(({account,entries:items})=>'<section class="task-target-account"><header><input type="checkbox" aria-label="'+esc(account?.name||'계정')+' 전체 선택" onchange="selectTaskTargets(\''+container+'\',this.checked,this.closest(\'section\'))"><span>'+esc(account?.name||'계정 정보 없음')+(account?.parent_account_id?' · 부계정':'')+(account&&isAccountHidden(account.id)?' · 숨김 계정':'')+'</span></header>'+
-      items.map(e=>'<label class="task-target-option" data-search="'+esc([account?.name,e.owner?.name,e.taskName].filter(Boolean).join(' ').toLocaleLowerCase('ko'))+'"><input type="checkbox" data-task-target="'+esc(e.key)+'" data-owner-id="'+esc(e.ownerId)+'" data-expedition="'+isExp+'" '+(selectedIds.has(e.key)?'checked':'')+' onchange="syncTaskTargets(\''+container+'\')"><span>'+esc(e.owner?.name||e.ownerId)+(e.taskName?'<small>'+esc(e.taskName)+'</small>':'')+(e.detail?'<small>'+esc(e.detail)+'</small>':'')+'</span></label>').join('')+'</section>').join('')+(groups.size?'':'<div class="empty">선택 가능한 대상이 없습니다</div>');
+    [...groups.values()].map(({account,entries:items})=>'<section class="task-target-account"><header><label><input type="checkbox" aria-label="'+esc(account?.name||'계정')+' 전체 선택" onchange="selectTaskTargets(\''+container+'\',this.checked,this.closest(\'section\'))"><span>'+esc(account?.name||'계정 정보 없음')+'</span></label>'+(account?.parent_account_id?'<span class="task-target-sub">부계정</span>':'')+'<span class="account-selection-count"></span></header><div class="task-target-options">'+
+      items.map(e=>'<label class="task-target-option" data-search="'+esc([account?.name,e.owner?.name,e.taskName].filter(Boolean).join(' ').toLocaleLowerCase('ko'))+'"><input type="checkbox" data-task-target="'+esc(e.key)+'" data-owner-id="'+esc(e.ownerId)+'" data-expedition="'+isExp+'" '+(selectedIds.has(e.key)?'checked':'')+' onchange="syncTaskTargets(\''+container+'\')"><span>'+esc(e.owner?.name||e.ownerId)+(e.taskName?'<small>'+esc(e.taskName)+'</small>':!isExp&&e.owner?.class_name?'<small>'+esc(e.owner.class_name)+'</small>':'')+(e.detail?'<small>'+esc(e.detail)+'</small>':'')+'</span></label>').join('')+'</div></section>').join('')+(groups.size?'':'<div class="empty">선택 가능한 대상이 없습니다</div>');
   syncTaskTargets(container);
 }
 function selectedTaskTargets(container){return [...document.querySelectorAll('#'+container+' [data-task-target]:checked')].filter(cb=>isTaskTargetVisible(cb.dataset.expedition==='true',cb.dataset.ownerId)).map(cb=>cb.dataset.taskTarget);}
@@ -3336,6 +3347,8 @@ function syncTaskTargets(container){
   const hiddenSelected=all.filter(cb=>cb.checked&&cb.closest('.task-target-option').hidden).length;
   root.querySelector('.task-target-counter').textContent=all.filter(cb=>cb.checked).length+' / '+all.length+' 선택'+(hiddenSelected?' · 검색 밖 '+hiddenSelected+'개':'');
   root.querySelectorAll('.task-target-account').forEach(group=>{
+    const total=[...group.querySelectorAll('[data-task-target]')];
+    group.querySelector('.account-selection-count').textContent=total.filter(cb=>cb.checked).length+' / '+total.length;
     const boxes=[...group.querySelectorAll('[data-task-target]')].filter(cb=>!cb.closest('.task-target-option').hidden);
     const count=boxes.filter(cb=>cb.checked).length,head=group.querySelector('header input');
     head.checked=boxes.length>0&&count===boxes.length;head.indeterminate=count>0&&count<boxes.length;
@@ -3431,6 +3444,13 @@ async function fetchTaskGroupRows(ctx){
 function openGlobalTaskCreate(){
   if(saveTaskDraft.busy||continueGlobalTaskCreate.busy)return;
   state.openMenu=null;applyActionMode();
+  if(state.mode!=='onetime'){
+    const isExp=state.mode==='account';
+    openCreateTask(isExp?'account':'char',null,state.mode==='daily'?'daily':'weekly');
+    state.taskDraft={isExp,ownerId:null,parentSourceId:null,nodes:[],selected:[],requestId:crypto.randomUUID()};
+    document.getElementById('create-target').textContent='적용 대상 미선택';
+    return;
+  }
   state.taskStart={mode:state.mode,isExp:state.mode==='account',selected:{character:[],account:[]},records:null};
   document.getElementById('task-start-title').textContent=({daily:'캐릭터',weekly:'주간/월간',account:'계정',onetime:'일회용'}[state.mode])+' 숙제 추가';
   document.getElementById('task-start-onetime').classList.toggle('hidden',state.mode!=='onetime');
@@ -3450,13 +3470,6 @@ async function continueGlobalTaskCreate(){
   const ctx=state.taskStart;if(!ctx||continueGlobalTaskCreate.busy)return;
   const ids=selectedTaskTargets('task-start-targets');
   if(!ids.length){toast('추가할 대상을 선택하세요');return;}
-  if(ctx.mode!=='onetime'){
-    closeModal('modal-task-start');
-    openCreateTask(ctx.isExp?'account':'char',ids[0],ctx.mode==='daily'?'daily':'weekly');
-    state.taskDraft={isExp:ctx.isExp,ownerId:ids[0],parentSourceId:null,nodes:[],selected:ids,requestId:crypto.randomUUID()};
-    document.getElementById('create-target').textContent=`선택한 ${ctx.isExp?'계정':'캐릭터'} ${ids.length}개`;
-    return;
-  }
   const name=document.getElementById('task-start-name').value.trim();
   if(!name){toast('숙제명을 입력하세요');return;}
   if(!state.oneTimeAvailable){toast('one_time_tasks SQL을 먼저 적용해주세요');return;}

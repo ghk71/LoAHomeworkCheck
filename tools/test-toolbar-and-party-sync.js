@@ -35,21 +35,39 @@ const {chromium}=require('playwright');
     assert.equal(await page.evaluate(()=>state.actionMode),'edit');
     await page.locator('[name="task-action-mode"][value="normal"]').check();
     await page.evaluate(()=>openGlobalTaskCreate());
-    assert.deepEqual(await page.locator('#task-start-targets [data-task-target]').evaluateAll(els=>els.map(el=>el.dataset.taskTarget)),['c1','c2']);
-    await page.locator('#task-start-targets [data-task-target="c1"]').check();
-    await page.locator('#task-start-targets input[type="search"]').fill('두 번째');
-    await page.locator('#task-start-targets [data-task-target="c2"]').check();
-    for(const width of [1280,390]){
-      await page.setViewportSize({width,height:900});
-      assert.equal(await page.locator('#modal-task-start .modal').evaluate(el=>el.scrollWidth<=el.clientWidth+1),true);
-      await page.screenshot({path:path.join(os.tmpdir(),'loa-toolbar-targets-'+width+'.png')});
-    }
-    await page.locator('#task-start-next').click();
+    assert.equal(await page.locator('#modal-task-start').evaluate(el=>el.classList.contains('open')),false);
     assert.equal(await page.locator('#task-reset').inputValue(),'daily');
     await page.locator('#task-name').fill('선택 일일 숙제');await page.locator('#task-submit-btn').click();
+    assert.deepEqual(await page.evaluate(()=>selectedTaskTargets('task-draft-targets')),[]);
+    await page.locator('#task-draft-save').click();
+    assert.deepEqual(await page.evaluate(()=>[state.tasks.c1.length,state.tasks.c2.length]),[0,0]);
+    assert.deepEqual(await page.locator('#task-draft-targets [data-task-target]').evaluateAll(els=>els.map(el=>el.dataset.taskTarget)),['c1','c2']);
+    await page.locator('#task-draft-targets [data-task-target="c1"]').check();
+    await page.locator('#task-draft-targets input[type="search"]').fill('두 번째');
+    await page.locator('#task-draft-targets [data-task-target="c2"]').check();
+    await page.locator('#task-draft-targets input[type="search"]').fill('');
+    await page.evaluate(()=>{
+      window.previewChars=state.chars;
+      state.taskDraft.selected=selectedTaskTargets('task-draft-targets');
+      state.chars=[...state.chars,...Array.from({length:28},(_,i)=>({id:'preview-'+i,account_id:i%2?'a':'b',name:i===0?'아주 긴 캐릭터 이름의 줄바꿈 확인':`캐릭터 ${i+3}`,class_name:i%2?'가디언나이트':'바드'}))];
+      renderTaskDraft();
+    });
+    for(const width of [1280,390]){
+      await page.setViewportSize({width,height:900});
+      assert.equal(await page.locator('#modal-task-draft .modal').evaluate(el=>el.scrollWidth<=el.clientWidth+1),true);
+      await page.screenshot({path:path.join(os.tmpdir(),'loa-toolbar-targets-'+width+'.png')});
+    }
+    await page.evaluate(()=>{state.chars=window.previewChars;renderTaskDraft();});
     assert.deepEqual(await page.evaluate(()=>selectedTaskTargets('task-draft-targets')),['c1','c2']);
     await page.locator('#task-draft-save').click();
     assert.deepEqual(await page.evaluate(()=>[state.tasks.c1.length,state.tasks.c2.length]),[1,1]);
+    await page.evaluate(()=>setActionMode('edit'));
+    assert.equal(await page.locator('.task-row .action-child:visible').count(),0);
+    await page.evaluate(()=>setActionMode('child'));
+    assert.equal(await page.locator('.task-row .action-edit:visible').count(),0);
+    await page.locator('.task-row .action-child:visible').first().click();
+    assert.equal(await page.evaluate(()=>state.createParentId),await page.evaluate(()=>state.tasks.c1[0].id));
+    await page.evaluate(()=>{closeModal('modal-create');finishActionMode();});
     await page.evaluate(()=>{
       const source=state.tasks.c1[0];
       state.tasks.ch=[{...source,id:'hidden-task',character_id:'ch'}];
@@ -74,10 +92,11 @@ const {chromium}=require('playwright');
     assert.deepEqual(await page.evaluate(()=>taskCatalogGroups().flatMap(g=>g.entries.map(e=>e.ownerId))),['c1','c2']);
     for(const [mode,id,scope] of [['weekly','c2','char'],['account','b','account']]){
       await page.evaluate(mode=>{setMode(mode);openGlobalTaskCreate();},mode);
-      assert.equal(await page.locator('#task-start-targets').getByText(/숨김 계정|숨김 캐릭터|필터 제외/).count(),0);
-      await page.locator('#task-start-targets [data-task-target="'+id+'"]').check();await page.locator('#task-start-next').click();
       assert.deepEqual(await page.evaluate(()=>[state.createTarget.scope,document.getElementById('task-reset').value]),[scope,'weekly']);
-      await page.evaluate(()=>closeModal('modal-create'));
+      await page.locator('#task-name').fill('주기별 생성');await page.locator('#task-submit-btn').click();
+      assert.equal(await page.locator('#task-draft-targets').getByText(/숨김 계정|숨김 캐릭터|필터 제외/).count(),0);
+      await page.locator('#task-draft-targets [data-task-target="'+id+'"]').check();
+      await page.evaluate(()=>closeModal('modal-task-draft'));
     }
     await page.evaluate(()=>{setMode('onetime');openGlobalTaskCreate();});
     await page.locator('#task-start-name').fill('한 번만 하기');
