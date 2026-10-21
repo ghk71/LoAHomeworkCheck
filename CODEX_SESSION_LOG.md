@@ -3276,3 +3276,12 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 수정과 하위 추가를 별도 작업 모드로 분리했습니다. 모바일은 6개 모드를 3열 2행으로 표시합니다.
 - 격리 브라우저에서 새 생성 흐름, 미선택 저장 방지, 카드 기본값, 하위 추가 분리, 숨김 계정 제외 및 기존 일괄 관리 회귀를 검증했습니다. 로컬 PGlite에서 캐릭터/계정 SQL의 생성·복제·선택 수정/삭제·실패 롤백을 재검증했습니다.
 - 네 HTML 인라인 JS/CSS 변수/후행 코드와 git diff --check 대체 검증 수행. check-project.js는 실행하지 않았습니다.
+
+## 2026-10-21 - SQL 적용 후 숙제 생성 404 / UUID 함수 오류
+
+- 사용자가 SQL 적용 후에도 실패한 요청의 내부 오류 `42883 / function uuid_generate_v4() does not exist`를 제공했습니다. RPC 인자/누락 문제가 아니라 고정 search_path에서 UUID 확장 함수를 찾지 못하는 경로입니다.
+- 20261008 일괄 숙제 함수와 백필의 UUID 생성을 pg_catalog.gen_random_uuid()로 변경하고 schema.sql에 동기화했습니다. 기존 DB에는 두 헬퍼만 교체하는 20261021_task_uuid_search_path.sql을 추가했습니다. 사용자 운영 DB는 변경하지 않았습니다.
+- index 오류 안내는 PGRST202(RPC 미발견), 42883(UUID 내부 함수), 기타 오류를 구분합니다. 로그는 code/message/details/hint를 문자열로 출력하고 안내 시간을 늘렸습니다. 기존 입력 및 재시도 요청 ID는 유지합니다. favicon은 기존 cube4.png를 지정했습니다.
+- 이전 SQL 테스트의 public UUID 스텁이 오류를 가리던 문제를 수정했습니다. 확장 스키마에만 스텁을 둔 상태로 기존 헬퍼의 생성/복제 실패를 재현하고, 복구 SQL의 반복 적용과 기존 진행 보존 및 전체 일괄 작업을 검증했습니다.
+- 격리 Edge 브라우저 테스트에서 오류별 안내, 실패 시 입력/요청 ID 보존, 기존 생성/복제/선택 수정/삭제, 390/1280px 및 네 HTML 정적 검사를 통과했습니다. 샌드박스 브라우저 실행 실패 후 승인된 격리 실행으로 검증했고 운영 네트워크 요청은 모두 모킹했습니다.
+- check-project.js는 실행하지 않았습니다. 운영 반영은 복구 SQL 실행과 index.html 배포가 남아 있습니다.

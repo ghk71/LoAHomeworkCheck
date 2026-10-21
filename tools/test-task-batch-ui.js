@@ -88,11 +88,18 @@ for(const name of ['index','raid','overview','party_generation']){
     await page.evaluate(()=>openCreateTask('account','a','weekly'));
     await page.locator('#task-name').fill('계정 숙제');await page.locator('#task-submit-btn').click();
     await page.locator('#task-draft-targets [data-task-target="b"]').check();
-    await page.evaluate(()=>{localStorage.removeItem('la_test_now');window.calls=[];sb={rpc:async(name,args)=>{window.calls.push({name,args});return {error:{message:'offline'}};}};});
+    await page.evaluate(()=>{localStorage.removeItem('la_test_now');window.calls=[];sb={rpc:async(name,args)=>{window.calls.push({name,args});return {error:{code:'42883',message:'function uuid_generate_v4() does not exist',details:null,hint:'No function matches the given name and argument types.'}};}};});
     await page.locator('#task-draft-save').click();await page.locator('#task-draft-save').click();
     const calls=await page.evaluate(()=>window.calls);assert.equal(calls.length,2);assert.equal(calls[0].args.p_request_id,calls[1].args.p_request_id);
     assert.equal(await page.locator('#modal-task-draft').evaluate(el=>el.classList.contains('open')),true);
     assert.equal(await page.locator('#task-draft-save').isDisabled(),false);
+    assert.match(await page.locator('#toast').innerText(),/20261021_task_uuid_search_path.sql/);
+    await page.evaluate(()=>taskOperationError({code:'PGRST202',message:'Could not find function in schema cache'}));
+    assert.match(await page.locator('#toast').innerText(),/20261008_task_batch_workflow.sql/);
+    await page.evaluate(()=>taskOperationError({code:'42883',message:'function another_helper() does not exist'}));
+    assert.match(await page.locator('#toast').innerText(),/\[42883\].*another_helper/);
+    assert.doesNotMatch(await page.locator('#toast').innerText(),/20261008/);
+    assert.ok(fs.existsSync(await page.locator('link[rel="icon"]').getAttribute('href')),'favicon asset missing');
     assert.deepEqual(errors,[]);
     console.log('UI: draft hierarchy, account search/selection, nested rendering, parent-aware copy, selected edit/delete, add-child targeting, retry, 390/1280px and four-page static checks passed');
   }finally{await browser.close();}

@@ -19,8 +19,31 @@
 3. `supabase/migrations/20260818_parent_task_completion_consistency.sql`
 4. `supabase/migrations/20261001_task_group_settings.sql`
 5. `supabase/migrations/20261008_task_batch_workflow.sql`
+6. `supabase/migrations/20261021_task_uuid_search_path.sql`
 
 기존 DB 기준 안내이며, `schema.sql`까지 중복 실행할 필요는 없습니다. 적용 전 DB 백업을 권장합니다. 1번에는 고아 일회용 숙제 정리 및 기존 공유 링크 만료일 설정도 포함됩니다.
+
+### SQL 적용 후에도 404 / 42883이 발생하는 경우
+
+`function uuid_generate_v4() does not exist`는 숙제 생성 RPC 자체의 누락이 아니라 내부 UUID 생성 함수 조회 실패입니다. 고정된 `search_path=public,pg_temp`에서 다른 스키마의 확장 함수를 찾지 못할 수 있습니다. HTTP 404만 보고 기존 SQL 미적용으로 판단하지 않습니다.
+
+- 앞선 5개 SQL을 이미 적용했다면 **6번 복구 SQL 전체만** SQL Editor에서 실행합니다. `task_insert_node`, `task_ensure_copy_node` 두 함수만 교체하고 스키마 캐시를 갱신합니다.
+- 기존 숙제/완료/휴식/그룹 ID/요청 기록은 변경하지 않습니다. 다시 실행해도 되며 숙제를 재생성할 필요가 없습니다.
+- 복구 SQL은 20261008 RPC 존재 여부를 검사합니다. 선행 SQL 누락 오류가 뜨면 5번의 성공 여부부터 확인합니다.
+- 최신 `schema.sql`과 5번 원본 SQL도 동일하게 수정되어 신규 설치에서 재발하지 않습니다.
+- 브라우저 코드를 배포한 뒤 새로고침하면 내부 함수 오류와 RPC 누락을 구분해 안내합니다. DB 복구 자체는 HTML 배포와 별개로 필요합니다.
+- UUID 생성에는 [PostgreSQL 기본 UUID 함수](https://www.postgresql.org/docs/current/functions-uuid.html)인 `pg_catalog.gen_random_uuid()`를 사용합니다. 확장 설치 위치나 검색 경로를 변경할 필요가 없습니다.
+
+적용 확인(읽기 전용, 두 행 모두 `uses_builtin_uuid=true`, `uses_legacy_uuid=false`):
+
+```sql
+select p.oid::regprocedure as function_name,
+       position('pg_catalog.gen_random_uuid()' in p.prosrc) > 0 as uses_builtin_uuid,
+       position('uuid_generate_v4()' in p.prosrc) > 0 as uses_legacy_uuid
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname in ('task_insert_node', 'task_ensure_copy_node');
+```
 
 ## 기존 데이터 처리
 

@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" type="image/png" href="images/homework/cube4.png">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>로스트아크 숙제 트래커</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css">
@@ -1007,7 +1008,7 @@ const resetCache=new Map();
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 function iconImg(url,cls=''){return url?`<span class="${cls||'task-icon'}"><img src="${esc(url)}" alt="" loading="lazy"></span>`:'';}
-function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),1800);}
+function toast(msg,duration=1800){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('show'),duration);}
 function getConfig(){const url=localStorage.getItem('la_url'),key=localStorage.getItem('la_key');return url&&key?{url,key}:null;}
 function saveConfig(){const url=document.getElementById('setup-url').value.trim(),key=document.getElementById('setup-key').value.trim();if(!url||!key){toast('URL과 key를 입력하세요');return;}localStorage.setItem('la_url',url);localStorage.setItem('la_key',key);init();}
 function appNow(){const t=Number(localStorage.getItem('la_test_now')||0);return Number.isFinite(t)&&t>0?new Date(t):new Date();}
@@ -3366,8 +3367,15 @@ function mergeTaskStructureRows(isExp,rows){
   touched.forEach(id=>{const list=buckets[id];list.forEach(t=>syncParentCompletionInMemory(t,list));});
 }
 function taskOperationError(error){
-  console.error('[task-batch]',error);
-  toast(/PGRST202|schema cache|function.*does not exist/i.test(error.message||'')?'Supabase에 2026-10-08 숙제 일괄 관리 SQL을 적용해주세요':'저장 실패: '+(error.message||error));
+  const code=String(error?.code||''),message=String(error?.message||error||'알 수 없는 오류');
+  console.error('[task-batch]',JSON.stringify({code,message,details:error?.details??null,hint:error?.hint??null}));
+  if(code==='42883'&&/uuid_generate_v4/i.test(message)){
+    toast('DB UUID 함수 오류: 20261021_task_uuid_search_path.sql을 SQL Editor에서 실행해주세요. 입력 내용은 유지됩니다.',10000);
+  }else if(code==='PGRST202'){
+    toast('숙제 RPC를 찾을 수 없습니다. 20261008_task_batch_workflow.sql 적용 및 스키마 캐시를 확인해주세요.',10000);
+  }else{
+    toast('저장 실패'+(code?' ['+code+']':'')+': '+message,10000);
+  }
 }
 async function openCopyTask(id,isExp,ownerId){
   const task=getTaskList(isExp,ownerId).find(t=>t.id===id);if(!task)return;

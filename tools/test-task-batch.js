@@ -4,12 +4,17 @@ const fs=require('node:fs');
 const assert=require('node:assert/strict');
 const schema=fs.readFileSync('schema.sql','utf8').replace(/\r\n/g,'\n');
 const migration=fs.readFileSync('supabase/migrations/20261008_task_batch_workflow.sql','utf8').replace(/\r\n/g,'\n');
+const repair=fs.readFileSync('supabase/migrations/20261021_task_uuid_search_path.sql','utf8').replace(/\r\n/g,'\n');
 assert.ok(schema.includes(migration.trim()));
+const helpers=migration.slice(migration.indexOf('create or replace function task_insert_node('),migration.indexOf('create or replace function task_refresh_parents(')).trim();
+assert.ok(repair.includes(helpers),'repair definitions must match the current schema');
+assert.ok(!migration.includes('uuid_generate_v4()'),'batch SQL must not depend on extension search_path');
 const uuid=n=>'00000000-0000-0000-0000-'+String(n).padStart(12,'0');
 (async()=>{
   const db=new PGlite();
   try{
-    await db.exec("create role anon; create role authenticated; create function uuid_generate_v4() returns uuid language sql as 'select gen_random_uuid()';");
+    // Model Supabase's extension schema, not a public UUID helper that masks the bug.
+    await db.exec("create role anon; create role authenticated; create schema extensions; create function extensions.uuid_generate_v4() returns uuid language sql as 'select pg_catalog.gen_random_uuid()'; set search_path=public,extensions;");
     for(const table of ['accounts','characters','tasks','expedition_tasks'])await db.exec(schema.match(new RegExp('create table if not exists '+table+'\\([\\s\\S]*?\\n\\);'))[0]);
     for(const table of ['tasks','expedition_tasks'])await db.exec(`alter table ${table} add column clone_group_id uuid; alter table ${table} add column icon_url text;`);
     await db.exec(schema.slice(schema.indexOf('create or replace function apply_task_pause_atomic('),schema.indexOf('-- Run after 20261001_task_group_settings.sql.')));
@@ -18,6 +23,18 @@ const uuid=n=>'00000000-0000-0000-0000-'+String(n).padStart(12,'0');
       await db.query('insert into characters(id,account_id,name) values ($1,$2,$3)',[uuid(i+10),uuid(i),'Char '+i]);
     }
     await db.exec(migration);
+    await db.exec('set search_path=public,pg_temp;');
+    const legacyHelpers=helpers.replaceAll('pg_catalog.gen_random_uuid()','uuid_generate_v4()');
+    const missingUuid=e=>e.code==='42883'&&e.message.includes('uuid_generate_v4');
+    await db.exec(legacyHelpers);
+    for(const exp of [false,true]){
+      await assert.rejects(()=>db.query('select create_task_bundle_atomic($1,$2,$3,$4)',[exp,JSON.stringify([{key:uuid(601),parentKey:null,settings:{name:'UUID regression',reset_type:'daily'}}]),[uuid(exp?1:11)],uuid(exp?602:603)]),missingUuid);
+      assert.equal((await db.query(`select count(*)::int as n from ${exp?'expedition_tasks':'tasks'}`)).rows[0].n,0);
+    }
+    assert.equal((await db.query('select count(*)::int as n from task_batch_requests')).rows[0].n,0,'failed UUID creation left request records');
+    await db.exec(repair);
+    await db.exec(repair);
+    console.log('Reproduced 42883 with UUID helper outside public; targeted repair applied twice');
     for(const exp of [false,true]){
       const table=exp?'expedition_tasks':'tasks',owner=exp?'account_id':'character_id';
       const owners=[1,2,3,4].map(n=>uuid(n+(exp?0:10)));
@@ -83,5 +100,23 @@ const uuid=n=>'00000000-0000-0000-0000-'+String(n).padStart(12,'0');
       assert.equal((await db.query('select count(*)::int as n from task_batch_requests where id=$1',[failedId])).rows[0].n,0);
       console.log(table+': nested create/retry, child copy/missing ancestors, idempotent merge, legacy repair/progress, selected edit/delete, rollback, backfill passed');
     }
+    // The second affected helper generates an identity for legacy copy sources.
+    for(const exp of [false,true]){
+      const table=exp?'expedition_tasks':'tasks',owner=exp?'account_id':'character_id';
+      const sourceId=uuid(exp?702:701),sourceOwner=uuid(exp?1:11),targetOwner=uuid(exp?2:12);
+      await db.query(`insert into ${table}(id,${owner},name,reset_type,rest_current,count_current,is_paused) values ($1,$2,'Legacy copy','daily',60,2,true)`,[sourceId,sourceOwner]);
+      const snapshot=(await db.query(`select * from ${table} order by id`)).rows;
+      await db.exec(legacyHelpers);
+      await assert.rejects(()=>db.query('select clone_task_tree_atomic($1,$2,$3)',[exp,sourceId,[targetOwner]]),missingUuid);
+      await db.exec(repair);
+      await db.exec(repair);
+      assert.deepEqual((await db.query(`select * from ${table} order by id`)).rows,snapshot,'repair changed existing tasks');
+      await db.query('select clone_task_tree_atomic($1,$2,$3)',[exp,sourceId,[targetOwner]]);
+      const source=(await db.query(`select * from ${table} where id=$1`,[sourceId])).rows[0];
+      assert.ok(source.clone_group_id);
+      assert.equal(source.rest_current,60);assert.equal(source.count_current,2);assert.equal(source.is_paused,true);
+      assert.equal((await db.query(`select count(*)::int as n from ${table} where ${owner}=$1 and clone_group_id=$2`,[targetOwner,source.clone_group_id])).rows[0].n,1);
+    }
+    console.log('Legacy copy UUID regression and repair data preservation passed for both task tables');
   }finally{await db.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -787,3 +787,11 @@ alter table expedition_tasks add column if not exists is_paused boolean default 
 - `create_task_bundle_atomic`, `delete_task_selection_atomic`, `save_task_settings_atomic`, `repair_task_parent_links_atomic` 추가. 기존 복제/그룹 설정 RPC를 부모 인식 및 원본 제외 선택 수정 가능 버전으로 교체합니다.
 - 모든 생성/삭제/복구는 트랜잭션으로 처리하며, 같은 테이블의 구조 변경은 직렬화합니다. 요청 재시도와 이미 생성된 구성 ID의 중복 삽입을 차단합니다.
 - 상세 적용/점검 및 복구 제한: `docs/task_batch_migration.md`.
+
+## 2026-10-21 - 숙제 생성/복제 UUID 함수 검색 경로 복구
+
+- 사용자 오류 `42883: function uuid_generate_v4() does not exist`에 대한 복구 파일: `supabase/migrations/20261021_task_uuid_search_path.sql`.
+- 20261008 SQL이 이미 적용된 DB에서는 이번 파일만 추가 실행합니다. `task_insert_node`와 `task_ensure_copy_node`의 UUID 생성을 `pg_catalog.gen_random_uuid()`로 교체합니다. 기존 행/그룹/진행/요청 기록을 변경하지 않습니다.
+- 함수 두 개 교체와 PostgREST 캐시 갱신을 한 트랜잭션으로 수행합니다. 선행 RPC 존재 여부를 검사하고 반복 적용 가능합니다.
+- 신규 설치용 20261008 SQL과 schema.sql의 동일 함수 및 초기 그룹 UUID 생성도 교체했습니다. 다른 레이드 기능이나 테이블 기본값은 변경하지 않았습니다.
+- 로컬 PGlite에서 확장 함수가 public 밖에 있을 때의 생성/복제 오류를 재현하고 복구, 반복 적용, 기존 데이터 보존을 검증했습니다. 운영 Supabase에는 직접 적용하지 않았습니다.

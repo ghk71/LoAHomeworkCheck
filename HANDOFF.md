@@ -1,5 +1,12 @@
 # HANDOFF
 
+## 2026-10-21 최신 후속: UUID 함수 오류 복구
+
+- 사용자가 앞선 SQL 적용 후 실제 오류 `42883: function uuid_generate_v4() does not exist`를 확인했습니다. 아래 이전 메모의 SQL 미적용 추정과 구분해야 합니다.
+- 숙제 RPC 내부의 UUID 검색 경로 문제를 수정했습니다. **운영 DB에는 `supabase/migrations/20261021_task_uuid_search_path.sql` 전체를 추가 실행해야 합니다.** 기존 5개 SQL을 다시 실행하거나 숙제를 재생성할 필요는 없습니다. 함수 두 개만 교체하며 기존 숙제 데이터는 유지합니다.
+- 신규 설치용 20261008 SQL/schema.sql에도 수정 반영. index.html의 잘못된 미적용 안내와 favicon 경로 보정. 자세한 적용 확인 SQL은 docs/task_batch_migration.md 참고.
+- PGlite에서 기존 오류 재현/복구/반복 적용/진행 보존, 격리 브라우저에서 입력 보존/오류 분류/일괄 관리 회귀 및 네 HTML 대체 검증 통과. 운영 SQL 실행/HTML 배포는 수행하지 않았습니다.
+
 ## 2026-10-21 최신 작업
 
 - 후속 요청: 숨김 계정(localStorage 숨김 또는 DB hide_from_filters)은 모든 숙제 일괄 선택 목록과 같은 숙제 모아보기에서 제외하고, 전체 수정에서도 변경하지 않음. 이전 이력의 숨김 계정 포함 정책을 대체함.

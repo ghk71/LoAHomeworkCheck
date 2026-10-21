@@ -29,7 +29,7 @@ begin
   foreach tab in array array['tasks','expedition_tasks'] loop
     execute format('lock table %I in share row exclusive mode',tab);
     execute format('insert into task_lineage_backup_20261008 select %L,id,to_jsonb(t) from %I t on conflict do nothing',tab,tab);
-    execute format('update %I set clone_group_id=uuid_generate_v4() where parent_id is null and clone_group_id is null',tab);
+    execute format('update %I set clone_group_id=pg_catalog.gen_random_uuid() where parent_id is null and clone_group_id is null',tab);
     -- Only unambiguous children under an already-linked parent family can share an identity.
     loop
       execute format('select t.id, t.parent_id, p.clone_group_id as parent_group, to_jsonb(t) as doc from %I t join %I p on p.id=t.parent_id where t.clone_group_id is null and p.clone_group_id is not null order by t.created_at,t.id limit 1',tab,tab) into item;
@@ -37,7 +37,7 @@ begin
       signature := task_shared_config(item.doc);
       execute format('select exists(select 1 from %I t join %I p on p.id=t.parent_id where p.clone_group_id=$1 and task_shared_config(to_jsonb(t))=$2 group by t.%I having count(*)>1)',tab,tab,case when tab='tasks' then 'character_id' else 'account_id' end)
         into duplicate_owner using item.parent_group,signature;
-      group_id := uuid_generate_v4();
+      group_id := pg_catalog.gen_random_uuid();
       if duplicate_owner then
         execute format('update %I set clone_group_id=$1 where id=$2',tab) using group_id,item.id;
       else
@@ -46,7 +46,7 @@ begin
           using group_id,item.parent_group,signature;
       end if;
     end loop;
-    execute format('update %I set clone_group_id=uuid_generate_v4() where clone_group_id is null',tab);
+    execute format('update %I set clone_group_id=pg_catalog.gen_random_uuid() where clone_group_id is null',tab);
   end loop;
 end;
 $$;
@@ -67,7 +67,7 @@ begin
   end if;
   execute format('select coalesce(max(sort_order),-1)+1 from %I where %I=$1 and parent_id is not distinct from $2',tab,owner_col) into next_sort using p_owner,p_parent;
   doc := task_shared_config(p_settings) || jsonb_build_object(
-    'id',uuid_generate_v4(),owner_col,p_owner,'parent_id',p_parent,'clone_group_id',p_group,'sort_order',next_sort,
+    'id',pg_catalog.gen_random_uuid(),owner_col,p_owner,'parent_id',p_parent,'clone_group_id',p_group,'sort_order',next_sort,
     'is_completed',false,'last_completed_at',null,'is_paused',false,'count_current',0,
     'count_daily_current',0,'count_daily_last_reset_at',now(),'rest_consumed_current_cycle',0,
     'rest_current',greatest(0,least(coalesce((p_settings->>'rest_current')::int,0),coalesce((p_settings->>'rest_max')::int,200))),
@@ -91,7 +91,7 @@ begin
   if p_source=any(p_path) then raise exception 'cyclic task hierarchy'; end if;
   execute format('select to_jsonb(t) from %I t where id=$1',tab) into src using p_source;
   if src is null then raise exception 'source task not found'; end if;
-  group_id := coalesce((src->>'clone_group_id')::uuid,uuid_generate_v4());
+  group_id := coalesce((src->>'clone_group_id')::uuid,pg_catalog.gen_random_uuid());
   execute format('update %I set clone_group_id=$1 where id=$2 and clone_group_id is null',tab) using group_id,p_source;
   if (src->>'parent_id') is not null then
     execute format('select to_jsonb(t) from %I t where id=$1 and %I=$2',tab,owner_col) into dst using (src->>'parent_id')::uuid,(src->>owner_col)::uuid;
