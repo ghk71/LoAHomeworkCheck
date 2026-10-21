@@ -38,6 +38,8 @@ button{cursor:pointer}
 input[type=number]{appearance:textfield;-moz-appearance:textfield}
 input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{appearance:none;margin:0}
 .page-nav{position:sticky;top:0;z-index:60;height:42px;background:rgba(18,21,27,.92);border-bottom:1px solid var(--line);display:flex;align-items:stretch;backdrop-filter:blur(16px)}
+.page-nav{overflow-x:auto}
+.page-nav .pnav-item{flex-shrink:0}
 .pnav-item{padding:0 22px;display:flex;align-items:center;gap:6px;color:var(--muted);text-decoration:none;border-right:1px solid var(--line);font-size:.82rem;font-weight:850;white-space:nowrap}
 .pnav-item:hover,.pnav-item.active{color:var(--text);background:rgba(255,255,255,.045)}
 .pnav-item.active{box-shadow:inset 0 -2px 0 var(--accent);color:#eefcff}
@@ -89,6 +91,11 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .switch.on::after{left:20px;background:var(--green)}
 .tool-row{display:flex;align-items:center;gap:8px;justify-content:space-between;margin-top:8px}
 .tool-actions{display:flex;gap:7px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
+.action-mode-picker{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:flex-end;border:0;padding:0;margin:8px 0}
+.action-mode-picker label{display:flex;align-items:center;gap:4px;font-size:.8rem;cursor:pointer}
+.action-mode-picker input{accent-color:var(--accent)}
+.tool-advanced{border-top:1px solid var(--line);padding-top:8px;margin-top:4px}
+.tool-advanced summary{cursor:pointer;padding:6px;font-size:.8rem}
 .tool-menu{position:relative}
 .tool-pop{position:absolute;right:0;top:calc(100% + 6px);z-index:20;width:240px;background:#1a2028;border:1px solid var(--line-2);border-radius:8px;padding:10px;box-shadow:var(--shadow);display:none}
 .tool-pop.open{display:grid;gap:8px}
@@ -420,6 +427,9 @@ body.manage-active .mode-done{display:inline-flex}
   .grid,.account-grid{grid-template-columns:1fr}
   .one-time-grid{grid-template-columns:1fr}
   .tool-row{align-items:flex-start;flex-direction:column}
+  .tool-actions{position:relative;width:100%}
+  .tool-menu{position:static}
+  .tool-pop{width:min(300px,100%);max-height:65vh;overflow-y:auto}
 }
 @media(max-width:480px){
   #modal-create .form-grid,#modal-create .form-grid.compact{grid-template-columns:minmax(0,1fr)}
@@ -458,19 +468,28 @@ body.manage-active .mode-done{display:inline-flex}
     </div>
     <div class="account-tabs" id="account-tabs"></div>
     <div class="filter-row" id="character-tabs"></div>
+    <fieldset class="action-mode-picker" aria-label="숙제 작업 모드">
+      <label><input type="radio" name="task-action-mode" value="normal" onchange="setActionMode(this.value)">완료 체크</label>
+      <label><input type="radio" name="task-action-mode" value="edit" onchange="setActionMode(this.value)">수정</label>
+      <label><input type="radio" name="task-action-mode" value="copy" onchange="setActionMode(this.value)">복제</label>
+      <label><input type="radio" name="task-action-mode" value="delete" onchange="setActionMode(this.value)">삭제</label>
+      <label><input type="radio" name="task-action-mode" value="pause" onchange="setActionMode(this.value)">일시중지</label>
+    </fieldset>
     <div class="tool-row">
       <div class="tiny" id="mode-help"></div>
       <div class="tool-actions">
         <div class="tool-menu">
           <button class="btn" onclick="toggleToolMenu('options')">보기 옵션</button>
           <div class="tool-pop" id="options-panel">
-            <label class="tool-toggle-row"><span>완료 숙제 숨기기</span><button class="switch" id="hide-done-switch" onclick="toggleHideCompleted()"></button></label>
-            <label class="tool-toggle-row"><span>비활성 숙제 보이기</span><button class="switch" id="show-inactive-switch" onclick="toggleShowInactive()"></button></label>
+            <label class="tool-toggle-row"><span>완료 숙제 보이기</span><button class="switch" role="switch" aria-label="완료 숙제 보이기" id="hide-done-switch" onclick="toggleHideCompleted()"></button></label>
+            <label class="tool-toggle-row"><span>비활성 숙제 보이기</span><button class="switch" role="switch" aria-label="비활성 숙제 보이기" id="show-inactive-switch" onclick="toggleShowInactive()"></button></label>
+            <button class="btn" onclick="collapseAllSections()">모든 카드 접기</button>
           </div>
         </div>
         <div class="tool-menu">
           <button class="btn primary" onclick="toggleToolMenu('add')">+ 추가</button>
           <div class="tool-pop" id="add-panel">
+            <button class="btn primary" id="add-current-task" onclick="openGlobalTaskCreate()">+ 숙제</button>
             <button class="btn" onclick="openAccountModal()">+ 계정</button>
             <button class="btn" onclick="openCharacterModal()">+ 캐릭터</button>
           </div>
@@ -478,23 +497,14 @@ body.manage-active .mode-done{display:inline-flex}
         <div class="tool-menu">
           <button class="btn" onclick="toggleToolMenu('manage')">관리</button>
           <div class="tool-pop" id="manage-panel">
-            <button class="btn mode-action" data-action="edit" onclick="setActionMode('edit')">수정 모드</button>
-            <button class="btn mode-action" data-action="copy" onclick="setActionMode('copy')">복제 모드</button>
-            <button class="btn mode-action danger" data-action="delete" onclick="setActionMode('delete')">삭제 모드</button>
-            <button class="btn mode-action" data-action="pause" onclick="setActionMode('pause')">일시중지 모드</button>
             <button class="btn" onclick="openPausedTaskManager()">일시중지 관리</button>
             <button class="btn" onclick="openTaskCatalog()">같은 숙제 모아보기</button>
-            <button class="btn" onclick="openTaskParentRepair()">숙제 구조 점검</button>
-            <button class="btn" onclick="collapseAllSections()">일괄접기</button>
             <button class="btn" onclick="openAccountSettings()">계정 설정</button>
+            <details class="tool-advanced"><summary>고급 관리</summary><button class="btn" onclick="openTaskParentRepair()">숙제 구조 점검</button></details>
           </div>
         </div>
-        <button class="btn green mode-done" id="mode-done-btn" onclick="finishActionMode()">모드 완료</button>
         <button class="btn gold" onclick="openCharacterApiUpdateModal()">캐릭 업데이트</button>
-        <button class="btn" id="homework-discord-btn" onclick="sendDiscordHomeworkSummary()">디스코드 전송</button>
-        <button class="btn" onclick="openIntegrityCheck()">무결성 검사</button>
         <button class="btn" onclick="toggleGlobalMemo()">메모</button>
-        <button class="btn" onclick="reloadAll()">새로고침</button>
         <button class="btn" onclick="openSettings()" title="설정">⚙️</button>
       </div>
     </div>
@@ -861,6 +871,23 @@ body.manage-active .mode-done{display:inline-flex}
   </div>
 </div>
 
+<div class="overlay" id="modal-task-start">
+  <div class="modal task-manager-modal">
+    <div class="modal-head"><div class="modal-title" id="task-start-title">숙제 추가</div><button class="btn" onclick="closeModal('modal-task-start')">닫기</button></div>
+    <div class="modal-body">
+      <div id="task-start-onetime" class="hidden">
+        <div class="field"><label for="task-start-name">일회용 숙제</label><input class="input" id="task-start-name" maxlength="80"></div>
+        <fieldset class="action-mode-picker" aria-label="일회용 숙제 대상">
+          <label><input type="radio" name="task-start-owner" value="character" checked onchange="changeTaskStartOwner(false)">캐릭터</label>
+          <label><input type="radio" name="task-start-owner" value="account" onchange="changeTaskStartOwner(true)">계정</label>
+        </fieldset>
+      </div>
+      <div id="task-start-targets"></div>
+    </div>
+    <div class="modal-foot"><button class="btn" onclick="closeModal('modal-task-start')">취소</button><button class="btn primary" id="task-start-next" onclick="continueGlobalTaskCreate()">숙제 설정</button></div>
+  </div>
+</div>
+
 <div class="overlay" id="modal-task-draft">
   <div class="modal task-manager-modal">
     <div class="modal-head"><div><div class="modal-title">숙제 구성 및 대상 선택</div><div class="tiny" id="task-draft-summary"></div></div><button class="btn" onclick="closeModal('modal-task-draft')">닫기</button></div>
@@ -1001,6 +1028,8 @@ function toggleToolMenu(menu){
   render();
 }
 function applyActionMode(){
+  document.querySelectorAll('[name="task-action-mode"]').forEach(input=>input.checked=input.value===state.actionMode);
+  document.getElementById('add-current-task').textContent='+ '+({daily:'캐릭터 숙제',weekly:'주간/월간 숙제',account:'계정 숙제',onetime:'일회용 숙제'}[state.mode]||'숙제');
   document.body.classList.toggle('action-copy',state.actionMode==='copy');
   document.body.classList.toggle('action-edit',state.actionMode==='edit');
   document.body.classList.toggle('action-delete',state.actionMode==='delete');
@@ -1018,8 +1047,8 @@ function applyActionMode(){
   if(pop)pop.classList.add('open');
   const hd=document.getElementById('hide-done-switch');
   const ia=document.getElementById('show-inactive-switch');
-  if(hd)hd.classList.toggle('on',state.hideCompleted);
-  if(ia)ia.classList.toggle('on',state.showInactive);
+  if(hd){hd.classList.toggle('on',!state.hideCompleted);hd.setAttribute('aria-checked',String(!state.hideCompleted));}
+  if(ia){ia.classList.toggle('on',state.showInactive);ia.setAttribute('aria-checked',String(state.showInactive));}
   const apiSave=document.getElementById('lostark-api-save-switch');
   if(apiSave)apiSave.classList.toggle('on',state.lostarkApiSave);
 }
@@ -2384,8 +2413,7 @@ function restBox(t,isExp,ownerId){
     groups.push(`<div class="rest-group" style="--fill:${pct}%" title="${start} - ${end}" onclick="setRestFromGroup(event,'${t.id}',${isExp},'${ownerId}',${start},${end},${r.charge})"></div>`);
   }
   const ready=r.threshold>0&&r.cur>=r.threshold;
-  const prediction=restPredictionText(t);
-  return`<div class="rest-box ${ready?'rest-ready':''}"><div class="rest-line"><span>${r.threshold>0?`강조 ${r.threshold} · `:''}충전 ${r.charge}${prediction?` · ${prediction}`:''}</span><b>${r.cur}/${r.max}</b></div><div class="rest-segments">${groups.join('')}</div></div>`;
+  return`<div class="rest-box ${ready?'rest-ready':''}"><div class="rest-line"><span>휴식 게이지</span><b>${r.cur}/${r.max}</b></div><div class="rest-segments">${groups.join('')}</div></div>`;
 }
 function setRestFromGroup(e,id,isExp,ownerId,start,end,charge){
   const rect=e.currentTarget.getBoundingClientRect();
@@ -3386,6 +3414,55 @@ async function fetchTaskGroupRows(ctx){
   if(result.error)throw result.error;
   if(!result.data?.some(t=>t.id===ctx.id))throw new Error('원본이 삭제되었거나 그룹이 변경되었습니다. 다시 열어주세요.');
   return result.data;
+}
+function openGlobalTaskCreate(){
+  if(saveTaskDraft.busy||continueGlobalTaskCreate.busy)return;
+  state.openMenu=null;applyActionMode();
+  state.taskStart={mode:state.mode,isExp:state.mode==='account',selected:{character:[],account:[]},records:null};
+  document.getElementById('task-start-title').textContent=({daily:'캐릭터',weekly:'주간/월간',account:'계정',onetime:'일회용'}[state.mode])+' 숙제 추가';
+  document.getElementById('task-start-onetime').classList.toggle('hidden',state.mode!=='onetime');
+  document.getElementById('task-start-name').value='';
+  document.querySelector('[name="task-start-owner"][value="character"]').checked=true;
+  document.getElementById('task-start-next').textContent=state.mode==='onetime'?'선택 대상에 추가':'숙제 설정';
+  renderTaskTargets('task-start-targets',state.taskStart.isExp,taskTargetEntries(state.taskStart.isExp));
+  openModal('modal-task-start');
+}
+function changeTaskStartOwner(isExp){
+  const ctx=state.taskStart;if(!ctx||continueGlobalTaskCreate.busy)return;
+  ctx.selected[ctx.isExp?'account':'character']=selectedTaskTargets('task-start-targets');
+  ctx.isExp=isExp;
+  renderTaskTargets('task-start-targets',isExp,taskTargetEntries(isExp),ctx.selected[isExp?'account':'character']);
+}
+async function continueGlobalTaskCreate(){
+  const ctx=state.taskStart;if(!ctx||continueGlobalTaskCreate.busy)return;
+  const ids=selectedTaskTargets('task-start-targets');
+  if(!ids.length){toast('추가할 대상을 선택하세요');return;}
+  if(ctx.mode!=='onetime'){
+    closeModal('modal-task-start');
+    openCreateTask(ctx.isExp?'account':'char',ids[0],ctx.mode==='daily'?'daily':'weekly');
+    state.taskDraft={isExp:ctx.isExp,ownerId:ids[0],parentSourceId:null,nodes:[],selected:ids,requestId:crypto.randomUUID()};
+    document.getElementById('create-target').textContent=`선택한 ${ctx.isExp?'계정':'캐릭터'} ${ids.length}개`;
+    return;
+  }
+  const name=document.getElementById('task-start-name').value.trim();
+  if(!name){toast('숙제명을 입력하세요');return;}
+  if(!state.oneTimeAvailable){toast('one_time_tasks SQL을 먼저 적용해주세요');return;}
+  const ownerType=ctx.isExp?'account':'character',signature=JSON.stringify([name,ownerType,ids]);
+  if(ctx.signature!==signature){
+    ctx.signature=signature;
+    ctx.records=ids.map(id=>({id:crypto.randomUUID(),owner_type:ownerType,owner_id:id,name,is_completed:false,completed_at:null,created_at:appNowIso(),sort_order:oneTimeBucket(ownerType,id).length}));
+  }
+  continueGlobalTaskCreate.busy=true;
+  const controls=[...document.querySelectorAll('#modal-task-start input, #modal-task-start button')];
+  controls.forEach(el=>el.disabled=true);
+  try{
+    if(!isTestMode()){
+      const {error}=await sb.from('one_time_tasks').upsert(ctx.records,{onConflict:'id',ignoreDuplicates:true});
+      if(error)throw error;
+    }
+    ctx.records.forEach(row=>{const list=ensureOneTimeBucket(row.owner_type,row.owner_id);if(!list.some(t=>t.id===row.id))list.push(row);});
+    closeModal('modal-task-start');render();toast(ids.length+'개 대상에 일회용 숙제를 추가했습니다');
+  }catch(error){taskOperationError(error);}finally{continueGlobalTaskCreate.busy=false;controls.forEach(el=>el.disabled=false);}
 }
 function stageTaskDraft(rec){
   const target=state.createTarget;
