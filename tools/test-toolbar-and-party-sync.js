@@ -20,9 +20,9 @@ const {chromium}=require('playwright');
     await page.goto('http://localhost/index.html');
     await page.evaluate(()=>{
       localStorage.setItem('la_test_now',String(Date.parse('2026-10-21T12:00:00+09:00')));
-      state.accounts=[{id:'a',name:'본계정'},{id:'b',name:'부계정',parent_account_id:'a'}];
-      state.chars=[{id:'c1',account_id:'a',name:'첫 캐릭터'},{id:'c2',account_id:'b',name:'두 번째 캐릭터'}];
-      state.hiddenAccounts=new Set(['b']);state.tasks={c1:[],c2:[]};state.expTasks={a:[],b:[]};state.selectedAccount='a';
+      state.accounts=[{id:'a',name:'본계정'},{id:'b',name:'부계정',parent_account_id:'a'},{id:'hidden',name:'숨김 계정'},{id:'excluded',name:'필터 제외 계정',hide_from_filters:true}];
+      state.chars=[{id:'c1',account_id:'a',name:'첫 캐릭터'},{id:'c2',account_id:'b',name:'두 번째 캐릭터'},{id:'ch',account_id:'hidden',name:'숨김 캐릭터'},{id:'ce',account_id:'excluded',name:'필터 제외 캐릭터'}];
+      state.hiddenAccounts=new Set(['hidden']);state.tasks={c1:[],c2:[],ch:[],ce:[]};state.expTasks={a:[],b:[],hidden:[],excluded:[]};state.selectedAccount='a';
       state.mode='daily';state.hideCompleted=true;state.showInactive=false;
       document.getElementById('setup').style.display='none';document.getElementById('app').classList.add('active');render();
     });
@@ -35,6 +35,7 @@ const {chromium}=require('playwright');
     assert.equal(await page.evaluate(()=>state.actionMode),'edit');
     await page.locator('[name="task-action-mode"][value="normal"]').check();
     await page.evaluate(()=>openGlobalTaskCreate());
+    assert.deepEqual(await page.locator('#task-start-targets [data-task-target]').evaluateAll(els=>els.map(el=>el.dataset.taskTarget)),['c1','c2']);
     await page.locator('#task-start-targets [data-task-target="c1"]').check();
     await page.locator('#task-start-targets input[type="search"]').fill('두 번째');
     await page.locator('#task-start-targets [data-task-target="c2"]').check();
@@ -49,8 +50,31 @@ const {chromium}=require('playwright');
     assert.deepEqual(await page.evaluate(()=>selectedTaskTargets('task-draft-targets')),['c1','c2']);
     await page.locator('#task-draft-save').click();
     assert.deepEqual(await page.evaluate(()=>[state.tasks.c1.length,state.tasks.c2.length]),[1,1]);
+    await page.evaluate(()=>{
+      const source=state.tasks.c1[0];
+      state.tasks.ch=[{...source,id:'hidden-task',character_id:'ch'}];
+      state.tasks.ce=[{...source,id:'excluded-task',character_id:'ce'}];
+      state.showHiddenAccounts=true;
+    });
+    for(const operation of ['copy','delete','edit']){
+      await page.evaluate(async op=>{
+        const t=state.tasks.c1[0];
+        if(op==='copy')await openCopyTask(t.id,false,'c1');
+        if(op==='delete')await openBulkDelete(t.id,false,'c1');
+        if(op==='edit'){openEditTask(t.id,false,'c1');await openTaskGroupEdit({...t,name:'visible only'});}
+      },operation);
+      const selector=operation==='copy'?'#copy-task-list':operation==='delete'?'#bulk-delete-list':'#task-group-targets';
+      assert.equal(await page.locator(selector).getByText(/숨김 계정|숨김 캐릭터|필터 제외/).count(),0);
+      await page.evaluate(()=>document.querySelectorAll('.overlay.open').forEach(el=>el.classList.remove('open')));
+    }
+    await page.evaluate(async()=>{
+      const t=state.tasks.c1[0];openEditTask(t.id,false,'c1',true);await openTaskGroupEdit({...t,name:'전체 수정 결과'},true);
+    });
+    assert.deepEqual(await page.evaluate(()=>[state.tasks.c1[0].name,state.tasks.c2[0].name,state.tasks.ch[0].name,state.tasks.ce[0].name]),['전체 수정 결과','전체 수정 결과','선택 일일 숙제','선택 일일 숙제']);
+    assert.deepEqual(await page.evaluate(()=>taskCatalogGroups().flatMap(g=>g.entries.map(e=>e.ownerId))),['c1','c2']);
     for(const [mode,id,scope] of [['weekly','c2','char'],['account','b','account']]){
       await page.evaluate(mode=>{setMode(mode);openGlobalTaskCreate();},mode);
+      assert.equal(await page.locator('#task-start-targets').getByText(/숨김 계정|숨김 캐릭터|필터 제외/).count(),0);
       await page.locator('#task-start-targets [data-task-target="'+id+'"]').check();await page.locator('#task-start-next').click();
       assert.deepEqual(await page.evaluate(()=>[state.createTarget.scope,document.getElementById('task-reset').value]),[scope,'weekly']);
       await page.evaluate(()=>closeModal('modal-create'));
@@ -58,6 +82,7 @@ const {chromium}=require('playwright');
     await page.evaluate(()=>{setMode('onetime');openGlobalTaskCreate();});
     await page.locator('#task-start-name').fill('한 번만 하기');
     await page.locator('[name="task-start-owner"][value="account"]').check();
+    assert.deepEqual(await page.locator('#task-start-targets [data-task-target]').evaluateAll(els=>els.map(el=>el.dataset.taskTarget)),['a','b']);
     await page.locator('#task-start-targets [data-task-target="a"]').check();await page.locator('#task-start-next').click();
     assert.equal(await page.evaluate(()=>state.oneTimeTasks.account.a[0].name),'한 번만 하기');
     await page.evaluate(()=>openGlobalTaskCreate());

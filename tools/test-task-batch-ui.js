@@ -25,7 +25,7 @@ for(const name of ['index','raid','overview','party_generation']){
     await page.goto('http://localhost/index.html');
     await page.evaluate(()=>{
       localStorage.setItem('la_test_now',String(Date.parse('2026-10-08T12:00:00+09:00')));
-      state.accounts=[{id:'a',name:'본계정'},{id:'b',name:'숨김 부계정',parent_account_id:'a'}];state.hiddenAccounts=new Set(['b']);
+      state.accounts=[{id:'a',name:'본계정'},{id:'b',name:'부계정',parent_account_id:'a'}];state.hiddenAccounts=new Set();
       state.chars=[{id:'c1',account_id:'a',name:'첫 번째 캐릭터',class_name:'바드'},{id:'c2',account_id:'b',name:'두 번째 캐릭터',class_name:'도화가'},{id:'c3',account_id:'a',name:'세 번째 캐릭터',class_name:'버서커'}];
       state.tasks={c1:[],c2:[],c3:[]};state.expTasks={a:[],b:[]};state.selectedAccount='a';state.mode='daily';state.hideCompleted=false;state.showInactive=true;
       document.getElementById('setup').style.display='none';document.getElementById('app').classList.add('active');render();openCreateTask('char','c1','daily');
@@ -94,6 +94,6 @@ for(const name of ['index','raid','overview','party_generation']){
     assert.equal(await page.locator('#modal-task-draft').evaluate(el=>el.classList.contains('open')),true);
     assert.equal(await page.locator('#task-draft-save').isDisabled(),false);
     assert.deepEqual(errors,[]);
-    console.log('UI: draft hierarchy, hidden-account search/selection, nested rendering, parent-aware copy, selected edit/delete, add-child targeting, retry, 390/1280px and four-page static checks passed');
+    console.log('UI: draft hierarchy, account search/selection, nested rendering, parent-aware copy, selected edit/delete, add-child targeting, retry, 390/1280px and four-page static checks passed');
   }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

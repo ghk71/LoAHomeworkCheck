@@ -91,9 +91,13 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .switch.on::after{left:20px;background:var(--green)}
 .tool-row{display:flex;align-items:center;gap:8px;justify-content:space-between;margin-top:8px}
 .tool-actions{display:flex;gap:7px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
-.action-mode-picker{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:flex-end;border:0;padding:0;margin:8px 0}
-.action-mode-picker label{display:flex;align-items:center;gap:4px;font-size:.8rem;cursor:pointer}
-.action-mode-picker input{accent-color:var(--accent)}
+.action-mode-picker{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end;border:0;padding:0;margin:10px 0}
+.action-mode-picker label{display:flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:8px 12px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel-2);color:var(--muted);font-size:.84rem;font-weight:800;cursor:pointer;white-space:nowrap}
+.action-mode-picker label:hover{background:var(--panel-hover);color:var(--text)}
+.action-mode-picker label:has(input:checked){border-color:var(--accent);background:#153c46;color:#e9fdff;box-shadow:inset 0 -2px 0 var(--accent)}
+.action-mode-picker label:has(input:focus-visible){outline:2px solid var(--text);outline-offset:3px}
+.action-mode-picker input{appearance:none;flex:none;width:16px;height:16px;margin:0;border:2px solid var(--dim);border-radius:50%;background:var(--bg);cursor:pointer}
+.action-mode-picker input:checked{border-color:var(--accent);background:var(--accent);box-shadow:inset 0 0 0 3px #153c46}
 .tool-advanced{border-top:1px solid var(--line);padding-top:8px;margin-top:4px}
 .tool-advanced summary{cursor:pointer;padding:6px;font-size:.8rem}
 .tool-menu{position:relative}
@@ -432,6 +436,9 @@ body.manage-active .mode-done{display:inline-flex}
   .tool-pop{width:min(300px,100%);max-height:65vh;overflow-y:auto}
 }
 @media(max-width:480px){
+  .topbar>.action-mode-picker{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+  .topbar>.action-mode-picker label{position:relative;min-width:0;padding:8px 2px;font-size:.75rem}
+  .topbar>.action-mode-picker input{position:absolute;width:1px;height:1px;opacity:0}
   #modal-create .form-grid,#modal-create .form-grid.compact{grid-template-columns:minmax(0,1fr)}
 }
 </style>
@@ -3291,11 +3298,17 @@ function taskOwnerName(isExp,ownerId){
   return c?`${a?`${a.name} · `:''}${c.name}`:ownerId;
 }
 function taskTargetEntries(isExp){
-  return (isExp?state.accounts:state.chars).map(owner=>({key:owner.id,ownerId:owner.id}));
+  return (isExp?state.accounts:state.chars).filter(owner=>isTaskTargetVisible(isExp,owner.id)).map(owner=>({key:owner.id,ownerId:owner.id}));
+}
+function isTaskTargetVisible(isExp,ownerId){
+  const accountId=isExp?ownerId:state.chars.find(c=>c.id===ownerId)?.account_id;
+  const account=state.accounts.find(a=>a.id===accountId);
+  return !!account&&!isAccountHidden(account.id)&&account.hide_from_filters!==true;
 }
 function renderTaskTargets(container,isExp,entries,selected=[]){
   const selectedIds=new Set(selected),groups=new Map();
   entries.forEach(entry=>{
+    if(!isTaskTargetVisible(isExp,entry.ownerId))return;
     const owner=(isExp?state.accounts:state.chars).find(o=>o.id===entry.ownerId);
     const account=isExp?owner:state.accounts.find(a=>a.id===owner?.account_id);
     const accountId=account?.id||'unknown';
@@ -3304,10 +3317,10 @@ function renderTaskTargets(container,isExp,entries,selected=[]){
   });
   document.getElementById(container).innerHTML='<div class="task-target-toolbar"><input class="input" type="search" aria-label="대상 검색" placeholder="캐릭터 · 계정 검색" oninput="filterTaskTargets(\''+container+'\',this.value)"><button type="button" class="btn" onclick="selectTaskTargets(\''+container+'\',true)">검색 결과 선택</button><button type="button" class="btn" onclick="selectTaskTargets(\''+container+'\',false)">선택 해제</button><span class="task-target-counter" aria-live="polite"></span></div>'+
     [...groups.values()].map(({account,entries:items})=>'<section class="task-target-account"><header><input type="checkbox" aria-label="'+esc(account?.name||'계정')+' 전체 선택" onchange="selectTaskTargets(\''+container+'\',this.checked,this.closest(\'section\'))"><span>'+esc(account?.name||'계정 정보 없음')+(account?.parent_account_id?' · 부계정':'')+(account&&isAccountHidden(account.id)?' · 숨김 계정':'')+'</span></header>'+
-      items.map(e=>'<label class="task-target-option" data-search="'+esc([account?.name,e.owner?.name,e.taskName].filter(Boolean).join(' ').toLocaleLowerCase('ko'))+'"><input type="checkbox" data-task-target="'+esc(e.key)+'" '+(selectedIds.has(e.key)?'checked':'')+' onchange="syncTaskTargets(\''+container+'\')"><span>'+esc(e.owner?.name||e.ownerId)+(e.taskName?'<small>'+esc(e.taskName)+'</small>':'')+(e.detail?'<small>'+esc(e.detail)+'</small>':'')+'</span></label>').join('')+'</section>').join('');
+      items.map(e=>'<label class="task-target-option" data-search="'+esc([account?.name,e.owner?.name,e.taskName].filter(Boolean).join(' ').toLocaleLowerCase('ko'))+'"><input type="checkbox" data-task-target="'+esc(e.key)+'" data-owner-id="'+esc(e.ownerId)+'" data-expedition="'+isExp+'" '+(selectedIds.has(e.key)?'checked':'')+' onchange="syncTaskTargets(\''+container+'\')"><span>'+esc(e.owner?.name||e.ownerId)+(e.taskName?'<small>'+esc(e.taskName)+'</small>':'')+(e.detail?'<small>'+esc(e.detail)+'</small>':'')+'</span></label>').join('')+'</section>').join('')+(groups.size?'':'<div class="empty">선택 가능한 대상이 없습니다</div>');
   syncTaskTargets(container);
 }
-function selectedTaskTargets(container){return [...document.querySelectorAll('#'+container+' [data-task-target]:checked')].map(cb=>cb.dataset.taskTarget);}
+function selectedTaskTargets(container){return [...document.querySelectorAll('#'+container+' [data-task-target]:checked')].filter(cb=>isTaskTargetVisible(cb.dataset.expedition==='true',cb.dataset.ownerId)).map(cb=>cb.dataset.taskTarget);}
 function filterTaskTargets(container,query){
   const root=document.getElementById(container),q=query.trim().toLocaleLowerCase('ko');
   root.querySelectorAll('.task-target-option').forEach(row=>row.hidden=!row.dataset.search.includes(q));
@@ -3684,9 +3697,9 @@ function openEditTask(id,isExp,ownerId,allGroup=false){
   document.getElementById('create-target').textContent=`대상: ${name}`;
   document.getElementById('task-submit-btn').textContent='이 숙제만 저장';
   if(allGroup){
-    const rows=Object.values(isExp?state.expTasks:state.tasks).flat().filter(task=>task.clone_group_id===t.clone_group_id);
+    const rows=Object.values(isExp?state.expTasks:state.tasks).flat().filter(task=>task.clone_group_id===t.clone_group_id&&isTaskTargetVisible(isExp,task[isExp?'account_id':'character_id']));
     document.getElementById('create-title').textContent='같은 숙제 전체 수정';
-    document.getElementById('create-target').textContent=`그룹 전체 ${rows.length}개 · 숨김 계정 포함 · ${name}의 설정 기준`;
+    document.getElementById('create-target').textContent=`그룹 전체 ${rows.length}개 · 숨김 계정 제외 · ${name}의 설정 기준`;
     document.getElementById('task-submit-btn').textContent=`전체 ${rows.length}개 저장`;
   }
   renderRestPreview();
@@ -3806,6 +3819,7 @@ function sharedTaskSettings(rec){return Object.fromEntries(TASK_SHARED_SETTINGS.
 function taskCatalogGroups(){
   const groups=new Map(),accounts=new Map(state.accounts.map(a=>[a.id,a])),chars=new Map(state.chars.map(c=>[c.id,c]));
   [false,true].forEach(isExp=>Object.entries(isExp?state.expTasks:state.tasks).forEach(([ownerId,list])=>{
+    if(!isTaskTargetVisible(isExp,ownerId))return;
     const owner=isExp?accounts.get(ownerId):chars.get(ownerId),account=isExp?owner:accounts.get(owner?.account_id);
     const byId=new Map(list.map(t=>[t.id,t]));
     list.forEach(task=>{
@@ -3836,7 +3850,7 @@ function renderTaskCatalog(){
   const query=document.getElementById('task-catalog-search').value.trim().toLocaleLowerCase('ko');
   const scope=document.getElementById('task-catalog-scope').value,kind=document.getElementById('task-catalog-kind').value;
   const all=taskCatalogGroups(),groups=all.filter(group=>(scope==='all'||(scope==='account')===group.isExp)&&(kind==='all'||(kind==='linked')===group.linked)&&(!query||group.entries.some(e=>[e.task.name,e.ownerName,e.account?.name,e.parent?.name].filter(Boolean).join(' ').toLocaleLowerCase('ko').includes(query))));
-  document.getElementById('task-catalog-summary').textContent=`${groups.length}개 묶음 · 숙제 ${groups.reduce((sum,g)=>sum+g.entries.length,0)}개 · 숨김 계정 포함`;
+  document.getElementById('task-catalog-summary').textContent=`${groups.length}개 묶음 · 숙제 ${groups.reduce((sum,g)=>sum+g.entries.length,0)}개 · 숨김 계정 제외`;
   if(!groups.length){el.innerHTML='<div class="empty">조건에 맞는 숙제가 없습니다</div>';return;}
   el.innerHTML=groups.map(group=>{
     const first=group.entries[0],paused=group.entries.filter(e=>e.paused).length;
@@ -3880,6 +3894,7 @@ async function openTaskGroupEdit(rec,allTargets=false){
     }
     if(state.editTarget!==ctx||!document.getElementById('modal-create').classList.contains('open'))return;
     if(!rows.some(t=>t.id===ctx.id))throw new Error('숙제의 복제 그룹이 변경되었습니다. 다시 열어주세요.');
+    rows=rows.filter(t=>isTaskTargetVisible(ctx.isExp,t[ctx.isExp?'account_id':'character_id']));
     if(rows.length<2&&!allTargets){toast('함께 수정할 복제본이 없습니다');return;}
     const group={...ctx,groupId:source.clone_group_id,settings:sharedTaskSettings(rec),rows};
     if(allTargets)await saveTaskGroupSettings(group,rows.map(t=>t.id));
@@ -3891,6 +3906,7 @@ function renderTaskGroupEdit(){
   const ctx=state.taskGroupEdit;if(!ctx)return;
   const groups=new Map(),ownerField=ctx.isExp?'account_id':'character_id';
   ctx.rows.forEach(task=>{
+    if(!isTaskTargetVisible(ctx.isExp,task[ownerField]))return;
     const owner=ctx.isExp?state.accounts.find(a=>a.id===task.account_id):state.chars.find(c=>c.id===task.character_id);
     const account=ctx.isExp?owner:state.accounts.find(a=>a.id===owner?.account_id);
     const key=account?.id||'unknown';
@@ -3930,6 +3946,7 @@ async function saveTaskGroupSettings(ctx=state.taskGroupEdit,ids=null){
   if(!ctx||saveTaskGroupSettings.busy)return;
   const editor=state.editTarget;
   ids=ids||[...document.querySelectorAll('#task-group-targets [data-group-target]:checked')].map(cb=>cb.dataset.groupTarget);
+  ids=ids.filter(id=>ctx.rows.some(t=>t.id===id&&isTaskTargetVisible(ctx.isExp,t[ctx.isExp?'account_id':'character_id'])));
   if(!ids.length){toast('수정할 대상을 선택해주세요');return;}
   saveTaskGroupSettings.busy=true;
   if(state.taskGroupEdit===ctx)syncTaskGroupSelection();
