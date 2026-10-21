@@ -175,6 +175,11 @@ UI에서는 본계정 아래에 부계정을 하위 탭으로 묶어야 한다.
 
 - `apply_task_pause_atomic`: 일시중지, 완료, 휴식 게이지, 상위/하위 완료 동기화
 - `clone_task_tree_atomic`: 루트와 모든 자손 숙제 복제
+- `create_task_bundle_atomic`: 미저장 숙제 구성과 중첩 하위를 선택 소유자에 한 번에 생성. `task_batch_requests` 요청 ID로 재시도 중복 방지
+- `clone_task_tree_atomic`은 하위 숙제도 시작점으로 받을 수 있으며, 각 노드의 `clone_group_id`로 대상 부모/자식을 찾아 연결하고 누락된 조상을 생성
+- `delete_task_selection_atomic`: 같은 그룹에서 선택한 숙제와 전체 자손 삭제 및 부모 완료 재계산
+- `save_task_settings_atomic`, `update_task_group_settings_atomic`: 단일/선택 대상 설정 저장. 공통 설정과 소유자별 진행 상태를 분리
+- `repair_task_parent_links_atomic`: 정상 하위와 동일 그룹 ID가 있는 독립 숙제만 미리보기 후 선택 복구
 - `apply_raid_override_changes_atomic`: override와 레이드 숙제 임시 변경
 - `apply_party_generation_atomic`: 파티 생성기 적용과 레이드 숙제 동기화
 - `set_raid_party_member_atomic`, `create_raid_temp_party_atomic`: 멤버/임시 파티와 숙제 변경

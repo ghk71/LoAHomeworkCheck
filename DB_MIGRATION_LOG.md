@@ -777,3 +777,13 @@ alter table expedition_tasks add column if not exists is_paused boolean default 
 - 미리보기 이후 대상 삭제 또는 그룹 변경 시 일부만 저장하지 않고 전체 요청을 실패시킵니다.
 - 기존 테이블/컬럼을 사용하므로 데이터 이관과 Edge Function 배포는 필요하지 않습니다. 기존 2026-08 SQL 적용 환경은 이번 파일만 추가 실행합니다.
 - 로컬 PostgreSQL(PGlite)에서 캐릭터/계정 양쪽 테이블, 진행도 보존, 다른 그룹/삭제 대상 차단 및 강제 실패 롤백 검증 통과. 실제 Supabase에는 적용하지 않았습니다.
+
+## 2026-10-08 - 숙제 일괄 구성 및 부모 연결 보정
+
+- 적용 파일: `supabase/migrations/20261008_task_batch_workflow.sql`. `schema.sql`에도 동일 정의 반영.
+- 기존 2026-10-01 SQL 이후 실행하고, 성공한 뒤 새 HTML을 배포합니다. 실제 운영 적용은 아직 하지 않았습니다.
+- 원본 백업 `task_lineage_backup_20261008`, 중복 요청 방지 `task_batch_requests`를 추가합니다.
+- `clone_group_id`를 하위 단계까지 보정하되 기존 행 ID/부모/진행 상태는 유지합니다. 동일 부모 그룹·설정·소유자별 유일성으로 확정할 수 없는 항목은 별도 그룹으로 남깁니다.
+- `create_task_bundle_atomic`, `delete_task_selection_atomic`, `save_task_settings_atomic`, `repair_task_parent_links_atomic` 추가. 기존 복제/그룹 설정 RPC를 부모 인식 및 원본 제외 선택 수정 가능 버전으로 교체합니다.
+- 모든 생성/삭제/복구는 트랜잭션으로 처리하며, 같은 테이블의 구조 변경은 직렬화합니다. 요청 재시도와 이미 생성된 구성 ID의 중복 삽입을 차단합니다.
+- 상세 적용/점검 및 복구 제한: `docs/task_batch_migration.md`.
