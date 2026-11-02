@@ -3293,3 +3293,8 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 기존 render 경로에서 계산하므로 드래그 배치/해제/다른 파티로 이동/캐릭터 정보 수정 후 즉시 갱신됩니다. 신규 DB 컬럼/SQL/추가 조회는 없습니다.
 - tools/test-party-combat-power.js에서 실제 드래그 이벤트, 배치 해제, 모킹 DB 캐릭터 수정, 4인/8인 평균, 미등록 값, 접힘, 1440/1024/390px 화면을 검증했습니다. 데스크톱/모바일 스크린샷을 확인했습니다.
 - 네 HTML 인라인 JS 문법/CSS 변수/HTML 후행 코드 및 git diff --check 대체 검증 통과. check-project.js는 실행하지 않았고 운영 DB 쓰기/배포는 하지 않았습니다.
+
+### 후속: 캐릭터별 전투력 간소화
+
+- 우측 후보/배치 멤버의 전투력은 숫자만 표시하고 글자 크기와 굵기를 줄였습니다. 미등록은 `-`, 마우스 툴팁은 전투력/미등록 안내를 유지합니다. 파티 평균 표시와 계산은 변경하지 않았습니다.
+- 전투력 회귀 테스트 및 네 HTML 정적 대체 검사, git diff --check 통과. 추가 SQL 없음.

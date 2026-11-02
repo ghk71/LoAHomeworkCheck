@@ -44,7 +44,8 @@ for(const name of ['index','raid','overview','party_generation']){
     await page.locator('.pool-chip').filter({hasText:'아주긴캐릭터'}).dragTo(cards.nth(0).locator('.slot').nth(1));
     assert.equal(await cards.nth(0).locator('.party-power strong').innerText(),'7,000.5');
     assert.equal(await page.locator('.pool-chip').filter({hasText:'아주긴캐릭터'}).count(),0);
-    assert.match(await cards.nth(0).locator('.slot').nth(1).innerText(),/투력 8,000.75/);
+    assert.equal(await cards.nth(0).locator('.slot').nth(1).locator('.combat-power').innerText(),'8,000.75');
+    assert.equal(await page.locator('.pool-chip .combat-power').first().evaluate(el=>getComputedStyle(el).fontSize),'10.24px');
     await page.evaluate(()=>{assignToSlot('c2','r','p4',2);render();});
     assert.equal(await cards.nth(0).locator('.party-power strong').innerText(),'7,000.5');
     assert.equal(await cards.nth(0).locator('.party-power-missing').innerText(),'미등록 1명');
