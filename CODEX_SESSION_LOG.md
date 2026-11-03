@@ -3308,3 +3308,12 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 운영 반영 전 supabase/migrations/20261103_character_skill_settings.sql 전체 실행 필요. 운영 DB 수정/배포는 하지 않았습니다.
 - tools/test-character-skill-settings.js에서 SQL 반복 적용/CAS, 두 탭 진입, 생성/수정/선택 삭제/복사, 캐릭터 분리, 저장 실패/재시도, 동시 편집 충돌, 닫기 취소, SQL 미적용, 테스트 모드, 긴 코드 및 1280/390px 내부 스크롤을 검증했습니다. 스크린샷 확인 및 기존 tools/test-task-batch-ui.js 회귀 통과.
 - 네 HTML 문법/CSS 변수/후행 코드와 git diff --check 대체 검증 통과. check-project.js는 실행하지 않았습니다.
+
+## 2026-11-03 - 일시중지 영구 삭제 및 대상 순서 통일
+
+- 일시중지 관리 행에 영구 삭제 버튼을 추가했습니다. 기존 delete_task_selection_atomic RPC로 같은 복제 그룹의 중지 항목을 선택해 모든 자손과 함께 영구 삭제합니다. 직접 중지와 상위에 따른 중지를 모두 지원하며 활성 복제본/동명 다른 그룹은 제외합니다.
+- 삭제 범위와 복구 불가를 확인창에 명시했습니다. 테스트 모드는 메모리에서만 삭제하며 확인/완료 문구도 구분합니다. 실패 시 목록을 유지하고 성공 시 숙제/일시중지/열린 같은 숙제 목록을 갱신합니다.
+- 공유 대상 선택기에 state.accounts/state.chars의 현재 화면 순서를 적용했습니다. DB의 숙제 UUID 순서나 최초 등장 계정에 의존하지 않습니다. 복제/삭제/추가/구조 복구 및 그룹 수정/같은 숙제 모아보기의 구성원 순서를 맞췄습니다.
+- 기존 숨김 계정 제외 정책 유지. 일시중지 관리에서 숨김 원본을 직접 클릭한 경우에만 그 소유자를 삭제창에 허용하며 다른 숨김 계정은 노출하지 않고 다음 일반 삭제창으로 예외가 이어지지 않습니다.
+- tools/test-paused-delete-and-target-order.js에서 순서 변경 반영, 선택/취소/실패 재시도, 하위 포함 삭제, 계정/상위 중지 항목/숨김 원본/테스트 모드 및 1280/390px 화면을 검증했습니다. 기존 task-batch-ui, toolbar-and-party-sync, PGlite task-batch 회귀도 통과했습니다.
+- 네 HTML 문법/CSS 변수/후행 코드와 git diff --check 대체 검증 통과. check-project.js 실행 및 운영 DB 변경 없음. 추가 SQL 없음(기존 20261008 숙제 일괄 관리 RPC 재사용).

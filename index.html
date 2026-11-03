@@ -1744,7 +1744,7 @@ function renderPausedTaskManager(){
     <div class="paused-account-head">${esc(account.name)}${account.parent_account_id?'<span class="paused-sub-account">부계정</span>':''}${isAccountHidden(account.id)?'<span class="tiny">숨김 계정</span>':''}</div>
     ${[...owners.values()].map(entries=>`<div class="paused-owner-head">${entries[0].isExp?'계정 숙제':esc(entries[0].ownerName)}<span>${entries[0].isExp?'':esc(entries[0].owner.class_name||'')} · ${entries.length}개</span></div>${entries.map(({task,isExp,ownerId,ancestors,blockedBy})=>`<div class="paused-task-row" id="paused-${isExp?'exp':'char'}-${task.id}" tabindex="-1">
       <div class="paused-task-main"><div class="paused-task-name">${iconImg(task.icon_url)}<span>${esc(task.name)}</span></div><div class="paused-task-meta">${esc(resetText(task))}${ancestors.length?` · ${esc(ancestors.map(t=>t.name).join(' / '))}`:''}</div>${blockedBy?`<div class="paused-task-blocked">${esc(blockedBy.name)} 중지 중${isTaskPaused(task)?' · 개별 중지도 설정됨':''}</div>`:''}</div>
-      <div class="paused-task-actions"><button class="btn" onclick="openEditTask('${task.id}',${isExp},'${ownerId}')">수정</button>${blockedBy?`<button class="btn" onclick="focusPausedTask('${blockedBy.id}',${isExp},'${account.id}')">상위 보기</button>`:`<button class="btn green" onclick="setTaskPaused('${task.id}',${isExp},'${ownerId}',false)">재개</button>`}</div>
+      <div class="paused-task-actions"><button class="btn" onclick="openEditTask('${task.id}',${isExp},'${ownerId}')">수정</button>${blockedBy?`<button class="btn" onclick="focusPausedTask('${blockedBy.id}',${isExp},'${account.id}')">상위 보기</button>`:`<button class="btn green" onclick="setTaskPaused('${task.id}',${isExp},'${ownerId}',false)">재개</button>`}<button class="btn danger" title="같은 숙제의 일시중지 항목을 선택하여 영구 삭제" onclick="openBulkDelete('${task.id}',${isExp},'${ownerId}',true)">영구 삭제</button></div>
     </div>`).join('')}`).join('')}
   </section>`).join('');
 }
@@ -3486,17 +3486,29 @@ function taskOwnerName(isExp,ownerId){
   return c?`${a?`${a.name} · `:''}${c.name}`:ownerId;
 }
 function taskTargetEntries(isExp){
-  return (isExp?state.accounts:state.chars).filter(owner=>isTaskTargetVisible(isExp,owner.id)).map(owner=>({key:owner.id,ownerId:owner.id}));
+  return sortTaskTargetEntries(isExp,(isExp?state.accounts:state.chars).filter(owner=>isTaskTargetVisible(isExp,owner.id)).map(owner=>({key:owner.id,ownerId:owner.id})));
+}
+function sortTaskTargetEntries(isExp,entries){
+  // State arrays are the current tab/card order, including drag reordering.
+  const accounts=new Map(state.accounts.map((a,i)=>[a.id,i]));
+  const chars=new Map(state.chars.map((c,i)=>[c.id,{accountId:c.account_id,rank:i}]));
+  const accountRank=entry=>accounts.get(isExp?entry.ownerId:chars.get(entry.ownerId)?.accountId)??Infinity;
+  const charRank=entry=>isExp?0:(chars.get(entry.ownerId)?.rank??Infinity);
+  return [...entries].sort((a,b)=>accountRank(a)-accountRank(b)||charRank(a)-charRank(b));
 }
 function isTaskTargetVisible(isExp,ownerId){
   const accountId=isExp?ownerId:state.chars.find(c=>c.id===ownerId)?.account_id;
   const account=state.accounts.find(a=>a.id===accountId);
   return !!account&&!isAccountHidden(account.id)&&account.hide_from_filters!==true;
 }
-function renderTaskTargets(container,isExp,entries,selected=[]){
+function taskTargetAllowed(isExp,ownerId,allowedHiddenOwner=''){
+  return isTaskTargetVisible(isExp,ownerId)||(ownerId===allowedHiddenOwner&&(isExp?state.accounts:state.chars).some(owner=>owner.id===ownerId));
+}
+function renderTaskTargets(container,isExp,entries,selected=[],allowedHiddenOwner=''){
   const selectedIds=new Set(selected),groups=new Map();
-  entries.forEach(entry=>{
-    if(!isTaskTargetVisible(isExp,entry.ownerId))return;
+  document.getElementById(container).dataset.allowedHiddenOwner=allowedHiddenOwner;
+  sortTaskTargetEntries(isExp,entries).forEach(entry=>{
+    if(!taskTargetAllowed(isExp,entry.ownerId,allowedHiddenOwner))return;
     const owner=(isExp?state.accounts:state.chars).find(o=>o.id===entry.ownerId);
     const account=isExp?owner:state.accounts.find(a=>a.id===owner?.account_id);
     const accountId=account?.id||'unknown';
@@ -3508,7 +3520,7 @@ function renderTaskTargets(container,isExp,entries,selected=[]){
       items.map(e=>'<label class="task-target-option" data-search="'+esc([account?.name,e.owner?.name,e.taskName].filter(Boolean).join(' ').toLocaleLowerCase('ko'))+'"><input type="checkbox" data-task-target="'+esc(e.key)+'" data-owner-id="'+esc(e.ownerId)+'" data-expedition="'+isExp+'" '+(selectedIds.has(e.key)?'checked':'')+' onchange="syncTaskTargets(\''+container+'\')"><span>'+esc(e.owner?.name||e.ownerId)+(e.taskName?'<small>'+esc(e.taskName)+'</small>':!isExp&&e.owner?.class_name?'<small>'+esc(e.owner.class_name)+'</small>':'')+(e.detail?'<small>'+esc(e.detail)+'</small>':'')+'</span></label>').join('')+'</div></section>').join('')+(groups.size?'':'<div class="empty">선택 가능한 대상이 없습니다</div>');
   syncTaskTargets(container);
 }
-function selectedTaskTargets(container){return [...document.querySelectorAll('#'+container+' [data-task-target]:checked')].filter(cb=>isTaskTargetVisible(cb.dataset.expedition==='true',cb.dataset.ownerId)).map(cb=>cb.dataset.taskTarget);}
+function selectedTaskTargets(container){const allowedHiddenOwner=document.getElementById(container).dataset.allowedHiddenOwner||'';return [...document.querySelectorAll('#'+container+' [data-task-target]:checked')].filter(cb=>taskTargetAllowed(cb.dataset.expedition==='true',cb.dataset.ownerId,allowedHiddenOwner)).map(cb=>cb.dataset.taskTarget);}
 function filterTaskTargets(container,query){
   const root=document.getElementById(container),q=query.trim().toLocaleLowerCase('ko');
   root.querySelectorAll('.task-target-option').forEach(row=>row.hidden=!row.dataset.search.includes(q));
@@ -3579,17 +3591,19 @@ async function executeTaskCopy(){
     render();toast(targets.length+'개 대상에 반영했습니다 · 신규 숙제 '+(data.created||0)+'개');
   }catch(error){taskOperationError(error);}finally{executeTaskCopy.busy=false;button.disabled=false;}
 }
-async function openBulkDelete(id,isExp,ownerId){
+async function openBulkDelete(id,isExp,ownerId,pausedOnly=false){
+  if(confirmBulkDelete.busy)return;
   const task=getTaskList(isExp,ownerId).find(t=>t.id===id);if(!task)return;
-  const ctx={id,isExp,ownerId,groupId:task.clone_group_id||null};
+  const ctx={id,isExp,ownerId,groupId:task.clone_group_id||null,pausedOnly};
   state.bulkCtx=ctx;
   try{
-    const rows=await fetchTaskGroupRows(ctx);
+    let rows=await fetchTaskGroupRows(ctx);
     if(state.bulkCtx!==ctx)return;
-    ctx.rows=rows;
     const field=isExp?'account_id':'character_id';
-    document.getElementById('bulk-delete-label').textContent=task.name+' · 선택한 숙제와 그 아래 모든 하위 숙제 삭제';
-    renderTaskTargets('bulk-delete-list',isExp,rows.map(row=>({key:row.id,ownerId:row[field],taskName:row.name,detail:row.parent_id?'하위 숙제':'상위 숙제'})),[id]);
+    if(pausedOnly)rows=rows.filter(row=>isTaskOrAncestorPaused(row,getTaskList(isExp,row[field])));
+    ctx.rows=rows;
+    document.getElementById('bulk-delete-label').textContent=task.name+(pausedOnly?' · 같은 복제 그룹의 일시중지 항목':'')+' · 선택한 숙제와 모든 하위 숙제 영구 삭제 · 복구 불가';
+    renderTaskTargets('bulk-delete-list',isExp,rows.map(row=>({key:row.id,ownerId:row[field],taskName:row.name,detail:(row.parent_id?'하위 숙제':'상위 숙제')+(pausedOnly?' · 일시중지':'')})),[id],pausedOnly?ownerId:'');
     openModal('modal-bulk-delete');
   }catch(error){taskOperationError(error);}
 }
@@ -3598,7 +3612,7 @@ async function confirmBulkDelete(){
   const ctx=state.bulkCtx;if(!ctx||confirmBulkDelete.busy)return;
   const ids=selectedTaskTargets('bulk-delete-list');if(!ids.length){toast('삭제할 대상을 선택하세요');return;}
   const names=ctx.rows.filter(t=>ids.includes(t.id)).map(t=>taskOwnerName(ctx.isExp,t[ctx.isExp?'account_id':'character_id']));
-  if(!confirm(names.join('\n')+'\n\n선택한 '+ids.length+'개 숙제와 모든 하위 숙제를 삭제할까요?'))return;
+  if(!confirm(names.join('\n')+'\n\n선택한 '+ids.length+'개 숙제와 모든 하위 숙제를 '+(isTestMode()?'테스트 화면에서만 삭제할까요?':'영구 삭제할까요?\n삭제 후에는 복구할 수 없습니다.')))return;
   confirmBulkDelete.busy=true;document.getElementById('bulk-delete-submit').disabled=true;
   try{
     const data=await taskStructureRequest('delete_task_selection_atomic',{p_is_expedition:ctx.isExp,p_source_id:ctx.id,p_group_id:ctx.groupId,p_target_ids:ids});
@@ -3611,7 +3625,9 @@ async function confirmBulkDelete(){
     Object.values(buckets).forEach(list=>list.forEach(task=>syncParentCompletionInMemory(task,list)));
     auditTaskEvent('bulk-delete-success',{table:ctx.isExp?'expedition_tasks':'tasks',ids:[...deleted]});
     if(state.bulkCtx===ctx)closeModal('modal-bulk-delete');
-    render();renderPausedTaskManager();toast(deleted.size+'개 숙제를 삭제했습니다');
+    render();renderPausedTaskManager();
+    if(document.getElementById('modal-task-catalog')?.classList.contains('open'))renderTaskCatalog();
+    toast(deleted.size+'개 숙제를 '+(isTestMode()?'테스트 화면에서 삭제했습니다':'영구 삭제했습니다'));
   }catch(error){taskOperationError(error);}finally{confirmBulkDelete.busy=false;document.getElementById('bulk-delete-submit').disabled=false;}
 }
 async function fetchTaskGroupRows(ctx){
@@ -4026,6 +4042,7 @@ function taskCatalogGroups(){
     });
   }));
   return [...groups.values()].map(group=>{
+    group.entries=sortTaskTargetEntries(group.isExp,group.entries);
     const names=[...new Set(group.entries.map(e=>e.task.name))];
     const signatures=new Set(group.entries.map(e=>JSON.stringify(sharedTaskSettings(e.task))));
     return {...group,names,different:signatures.size>1};
@@ -4102,7 +4119,7 @@ async function openTaskGroupEdit(rec,allTargets=false){
 function renderTaskGroupEdit(){
   const ctx=state.taskGroupEdit;if(!ctx)return;
   const groups=new Map(),ownerField=ctx.isExp?'account_id':'character_id';
-  ctx.rows.forEach(task=>{
+  sortTaskTargetEntries(ctx.isExp,ctx.rows.map(task=>({task,ownerId:task[ownerField]}))).forEach(({task})=>{
     if(!isTaskTargetVisible(ctx.isExp,task[ownerField]))return;
     const owner=ctx.isExp?state.accounts.find(a=>a.id===task.account_id):state.chars.find(c=>c.id===task.character_id);
     const account=ctx.isExp?owner:state.accounts.find(a=>a.id===owner?.account_id);
@@ -4110,11 +4127,10 @@ function renderTaskGroupEdit(){
     if(!groups.has(key))groups.set(key,{account,entries:[]});
     groups.get(key).entries.push({task,owner});
   });
-  const accountOrder=new Map(state.accounts.map((a,i)=>[a.id,i])),charOrder=new Map(state.chars.map((c,i)=>[c.id,i]));
   document.getElementById('task-group-review').innerHTML=`<strong>${iconImg(ctx.settings.icon_url)} ${esc(ctx.settings.name)}</strong><div class="tiny">${esc(resetText(ctx.settings))} · 이름 / 아이콘 / 초기화 / 활성화 / 유형 설정</div><div class="tiny">현재 횟수·휴식 게이지·완료 기록·일시중지는 각 대상의 값을 유지합니다. 하위 숙제의 설정은 변경하지 않습니다.</div>`;
-  document.getElementById('task-group-targets').innerHTML=[...groups.entries()].sort((a,b)=>(accountOrder.get(a[0])??Infinity)-(accountOrder.get(b[0])??Infinity)).map(([key,{account,entries}])=>`<section>
+  document.getElementById('task-group-targets').innerHTML=[...groups.entries()].map(([key,{account,entries}])=>`<section>
     <div class="target-group-head"><span>${esc(account?.name||'계정 정보 없음')}${account?.parent_account_id?' · 부계정':''}${account&&isAccountHidden(account.id)?' · 숨김 계정':''}</span><label class="target-chip"><input type="checkbox" data-group-account="${key}" onchange="selectTaskGroupTargets(this.checked,'${key}')">계정 선택</label></div>
-    ${entries.sort((a,b)=>(charOrder.get(a.task[ownerField])??0)-(charOrder.get(b.task[ownerField])??0)).map(({task,owner})=>`<label class="task-group-target" data-search="${esc([account?.name,owner?.name,task.name].join(' ').toLocaleLowerCase('ko'))}"><input type="checkbox" data-group-target="${task.id}" data-group-owner="${key}" checked onchange="syncTaskGroupSelection()"><span class="task-group-target-main">${esc(owner?.name||task[ownerField])}${task.id===ctx.id?' · 현재 숙제':''}<small>${esc(task.name)} · ${esc(resetText(task))}${task.is_paused?' · 일시중지':''}</small></span></label>`).join('')}
+    ${entries.map(({task,owner})=>`<label class="task-group-target" data-search="${esc([account?.name,owner?.name,task.name].join(' ').toLocaleLowerCase('ko'))}"><input type="checkbox" data-group-target="${task.id}" data-group-owner="${key}" checked onchange="syncTaskGroupSelection()"><span class="task-group-target-main">${esc(owner?.name||task[ownerField])}${task.id===ctx.id?' · 현재 숙제':''}<small>${esc(task.name)} · ${esc(resetText(task))}${task.is_paused?' · 일시중지':''}</small></span></label>`).join('')}
   </section>`).join('');
   document.getElementById('task-group-search').value='';
   syncTaskGroupSelection();
