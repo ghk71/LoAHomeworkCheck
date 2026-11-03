@@ -795,3 +795,11 @@ alter table expedition_tasks add column if not exists is_paused boolean default 
 - 함수 두 개 교체와 PostgREST 캐시 갱신을 한 트랜잭션으로 수행합니다. 선행 RPC 존재 여부를 검사하고 반복 적용 가능합니다.
 - 신규 설치용 20261008 SQL과 schema.sql의 동일 함수 및 초기 그룹 UUID 생성도 교체했습니다. 다른 레이드 기능이나 테이블 기본값은 변경하지 않았습니다.
 - 로컬 PGlite에서 확장 함수가 public 밖에 있을 때의 생성/복제 오류를 재현하고 복구, 반복 적용, 기존 데이터 보존을 검증했습니다. 운영 Supabase에는 직접 적용하지 않았습니다.
+
+## 2026-11-03 - 캐릭터별 스킬 세팅
+
+- 실행 파일: `supabase/migrations/20261103_character_skill_settings.sql`. 기존 characters 테이블이 있는 프로젝트에서 파일 전체를 SQL Editor로 실행합니다. schema.sql에도 동일 컬럼 정의를 추가했습니다.
+- `characters.skill_settings jsonb not null default '[]'::jsonb` 추가. 각 행은 `{id, name, code}`이며 배열 순서가 표시 순서입니다. 기존 캐릭터는 빈 목록에서 시작하고 기존 숙제/레이드/캐릭터 정보는 변경하지 않습니다.
+- 설정 목록만 단일 UPDATE로 저장하며 읽었던 JSON과 현재 JSON이 일치할 때만 갱신합니다. 다른 창의 변경 또는 삭제로 일치 행이 없으면 저장을 중단하고 입력을 보존합니다.
+- 새 테이블/RPC/Edge Function은 없습니다. 캐릭터 삭제 시 세팅도 같은 행과 함께 제거됩니다. 주기 초기화에 포함하지 않습니다.
+- 로컬 PGlite에서 반복 마이그레이션/기존 세팅 보존/조건부 저장을 검증했습니다. 운영 DB에는 직접 적용하지 않았습니다.

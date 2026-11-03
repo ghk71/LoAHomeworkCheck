@@ -1,5 +1,12 @@
 # HANDOFF
 
+## 2026-11-03 최신: 캐릭터 스킬 세팅
+
+- index 일일/주간·월간 카드의 심볼 버튼에서 캐릭터별 스킬 세팅 모달을 엽니다. 추가, 선택 삭제, 수정 토글(OFF 시 저장), 저장/취소, 코드 원문 복사 지원.
+- **배포 전 SQL**: `supabase/migrations/20261103_character_skill_settings.sql` 전체 실행. characters.skill_settings JSONB만 추가하며 새 RPC/Edge Function은 없습니다. 실제 운영 적용은 수행하지 않았습니다.
+- 단일 조건부 UPDATE로 다른 창의 변경을 보호하고 실패 시 입력 유지. 테스트 모드는 메모리만 변경. 기존 숙제 및 레이드 데이터와 초기화 주기에 영향 없음.
+- 테스트: tools/test-character-skill-settings.js(PGlite+격리 Playwright), tools/test-task-batch-ui.js. 모바일/데스크톱 스크린샷과 네 HTML 대체 검증 통과. check-project.js 실행 금지 유지.
+
 ## 2026-10-21 최신 후속: UUID 함수 오류 복구
 
 - 사용자가 앞선 SQL 적용 후 실제 오류 `42883: function uuid_generate_v4() does not exist`를 확인했습니다. 아래 이전 메모의 SQL 미적용 추정과 구분해야 합니다.

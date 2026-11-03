@@ -440,6 +440,7 @@ alter table characters add column if not exists azena_blessing boolean default f
 alter table characters add column if not exists show_raid_tasks boolean default true;
 alter table characters add column if not exists show_currencies boolean default true;
 alter table characters add column if not exists show_custom_notes boolean default true;
+alter table characters add column if not exists skill_settings jsonb not null default '[]'::jsonb;
 alter table raid_presets add column if not exists icon_url text;
 alter table raid_presets add column if not exists short_name text;
 alter table raid_presets add column if not exists hidden boolean default false;

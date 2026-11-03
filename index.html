@@ -127,6 +127,8 @@ body.manage-active .mode-done{display:inline-flex}
 .char-card.done .char-head{background:linear-gradient(135deg,rgba(19,92,68,.42),rgba(31,44,39,.9))}
 .avatar{width:34px;height:34px;border-radius:8px;background:#171c23;border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none;color:var(--muted)}
 .avatar img,.task-icon img{width:100%;height:100%;object-fit:cover}
+.avatar.skill-trigger{padding:0;cursor:pointer}
+.avatar.skill-trigger:hover,.avatar.skill-trigger:focus-visible{border-color:var(--accent);outline:2px solid var(--accent);outline-offset:2px}
 .char-meta{min-width:0;flex:1;overflow:hidden}
 .char-name{font-weight:900;display:flex;align-items:center;gap:5px;min-width:0;white-space:nowrap}
 .char-name-text{min-width:0;overflow:hidden;text-overflow:ellipsis}
@@ -412,6 +414,24 @@ body.manage-active .mode-done{display:inline-flex}
 .modal-title{font-size:1.05rem;font-weight:1000}
 .modal-body{padding:16px 20px}
 .modal-foot{padding:13px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+.skill-modal{width:min(880px,100%);display:flex;flex-direction:column;overflow:hidden}
+.skill-modal .modal-head{flex-wrap:wrap;flex-shrink:0;padding:14px 16px}
+.skill-modal .modal-title{overflow-wrap:anywhere;min-width:0;flex:1 1 160px;font-size:.95rem}
+.skill-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.skill-toolbar .btn{padding:7px 9px;font-size:.76rem}
+.skill-toolbar [aria-pressed="true"]{color:#c9f7ff;background:rgba(34,211,238,.15);border-color:var(--accent)}
+.skill-body{overflow:auto;min-height:0;padding:0 16px 14px}
+.skill-row{display:grid;grid-template-columns:24px minmax(100px,1fr) minmax(120px,2fr) 54px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.skill-row.skill-columns{position:sticky;top:0;background:#15171b;z-index:1;color:var(--muted);font-size:.74rem}
+.skill-row input[type="checkbox"]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+.skill-row .input{width:100%;min-width:0;font-size:.8rem}
+.skill-row textarea{resize:vertical;min-height:40px;max-height:160px;line-height:1.4}
+.skill-name{overflow-wrap:anywhere;font-size:.82rem;font-weight:750}
+.skill-code{font: .75rem/1.5 monospace;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.skill-copy{padding:7px;font-size:.72rem}
+.skill-modal .modal-foot{align-items:center;flex-wrap:wrap;flex-shrink:0;padding:10px 16px}
+.skill-status{margin-right:auto;color:var(--muted);font-size:.74rem;overflow-wrap:anywhere}
+@media(max-width:540px){.skill-row{grid-template-columns:24px minmax(0,1fr) 48px;gap:6px}.skill-code,.skill-row textarea{grid-column:2;grid-row:2}.skill-row .skill-copy{grid-column:3;grid-row:1/3}.skill-columns .skill-code-label{display:none}.skill-row.skill-columns{grid-template-columns:24px minmax(0,1fr) 48px}.skill-modal .modal-head{gap:10px}.skill-toolbar{width:100%;justify-content:flex-end}}
 .create-grid{display:grid;grid-template-columns:230px minmax(0,1fr);gap:20px}
 .type-list{display:grid;gap:8px}
 .type-card{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:10px;text-align:left;color:var(--text)}
@@ -925,6 +945,26 @@ body.manage-active .mode-done{display:inline-flex}
   </div>
 </div>
 
+<div class="overlay" id="modal-skill-settings">
+  <div class="modal skill-modal" role="dialog" aria-modal="true" aria-labelledby="skill-settings-title">
+    <div class="modal-head">
+      <div class="modal-title" id="skill-settings-title">스킬 세팅</div>
+      <div class="skill-toolbar">
+        <button type="button" class="btn" id="skill-add" onclick="addSkillSetting()">+ 추가</button>
+        <button type="button" class="btn danger" id="skill-delete" onclick="deleteSkillSettings()" disabled>삭제</button>
+        <button type="button" class="btn" id="skill-edit" aria-pressed="false" onclick="toggleSkillSettingsEdit()">수정 OFF</button>
+        <button type="button" class="btn icon" aria-label="스킬 세팅 닫기" title="닫기" onclick="closeModal('modal-skill-settings')">×</button>
+      </div>
+    </div>
+    <div class="skill-body" id="skill-settings-list"></div>
+    <div class="modal-foot">
+      <span class="skill-status" id="skill-settings-status" role="status"></span>
+      <button type="button" class="btn hidden" id="skill-retry" onclick="openSkillSettings(skillSettingsContext.charId)">다시 불러오기</button>
+      <button type="button" class="btn hidden" id="skill-cancel" onclick="cancelSkillSettingsEdit()">취소</button>
+      <button type="button" class="btn primary hidden" id="skill-save" onclick="saveSkillSettings()">저장</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1027,7 +1067,10 @@ function ensureClock(){
   clockTimer=setInterval(()=>{updateClock();checkResetBoundaryForOpenPage();},30000);
 }
 function openModal(id){document.getElementById(id).classList.add('open');}
-function closeModal(id){document.getElementById(id).classList.remove('open');}
+function closeModal(id){
+  if(id==='modal-skill-settings'&&!closeSkillSettings())return;
+  document.getElementById(id).classList.remove('open');
+}
 function withBusy(key){if(state.busy.has(key))return false;state.busy.add(key);return true;}
 function clearBusy(key){state.busy.delete(key);}
 
@@ -2224,11 +2267,144 @@ function renderOneTime(content){
   </div>`;
 }
 
+let skillSettingsContext=null;
+function skillSettingsDirty(ctx=skillSettingsContext){return !!ctx&&JSON.stringify(ctx.rows)!==JSON.stringify(ctx.original);}
+function skillSettingsError(error){
+  console.error('[skill-settings]',error);
+  const message=String(error?.message||error||'알 수 없는 오류');
+  return /42703|PGRST204/.test(error?.code||'')||/skill_settings.*(does not exist|schema cache)/i.test(message)
+    ?'20261103_character_skill_settings.sql을 Supabase SQL Editor에서 실행해주세요.'
+    :message;
+}
+async function openSkillSettings(charId){
+  const ch=state.chars.find(c=>c.id===charId);if(!ch)return;
+  const returnFocus=skillSettingsContext?.returnFocus||document.activeElement;
+  if(skillSettingsContext&&!closeSkillSettings())return;
+  const ctx={charId,original:[],rows:[],selected:new Set(),editing:false,loading:true,busy:false,error:'',testMode:isTestMode(),returnFocus};
+  skillSettingsContext=ctx;
+  document.getElementById('skill-settings-title').textContent=ch.name+' · 스킬 세팅';
+  openModal('modal-skill-settings');renderSkillSettings();
+  try{
+    let rows=ch.skill_settings||[];
+    if(!ctx.testMode){
+      const {data,error}=await sb.from('characters').select('id,skill_settings').eq('id',charId).maybeSingle();
+      if(error)throw error;
+      if(!data)throw new Error('캐릭터를 찾을 수 없습니다. 화면을 새로고침해주세요.');
+      rows=data.skill_settings;
+    }
+    if(!Array.isArray(rows)||rows.some(r=>!r||typeof r.id!=='string'||typeof r.name!=='string'||typeof r.code!=='string')||new Set(rows.map(r=>r.id)).size!==rows.length)throw new Error('세팅 데이터 형식이 올바르지 않습니다. 기존 데이터는 변경하지 않았습니다.');
+    if(skillSettingsContext!==ctx)return;
+    ctx.original=structuredClone(rows);ctx.rows=structuredClone(rows);ch.skill_settings=structuredClone(rows);
+  }catch(error){if(skillSettingsContext===ctx)ctx.error=skillSettingsError(error);}
+  finally{
+    if(skillSettingsContext===ctx){ctx.loading=false;renderSkillSettings();document.getElementById(ctx.error?'skill-retry':'skill-add').focus();}
+  }
+}
+function updateSkillSettingsControls(){
+  const ctx=skillSettingsContext;if(!ctx)return;
+  const blocked=ctx.loading||ctx.busy||!!ctx.error;
+  document.getElementById('skill-add').disabled=blocked;
+  const del=document.getElementById('skill-delete');del.disabled=blocked||!ctx.selected.size;del.textContent=ctx.selected.size?'삭제 ('+ctx.selected.size+')':'삭제';
+  const edit=document.getElementById('skill-edit');edit.disabled=blocked;edit.setAttribute('aria-pressed',String(ctx.editing));edit.textContent=ctx.editing?'수정 ON':'수정 OFF';
+  for(const id of ['skill-cancel','skill-save']){const el=document.getElementById(id);el.classList.toggle('hidden',!ctx.editing||!!ctx.error);el.disabled=blocked;}
+  document.getElementById('skill-retry').classList.toggle('hidden',!ctx.error);
+  document.getElementById('skill-save').textContent=ctx.busy?'저장 중...':'저장';
+  document.getElementById('skill-settings-status').textContent=ctx.loading?'불러오는 중...':ctx.error|| (ctx.busy?'저장 중...':(ctx.testMode?'테스트 모드 · ':'')+(skillSettingsDirty(ctx)?'저장하지 않은 변경사항':ctx.rows.length+'개 세팅'));
+  const all=document.getElementById('skill-select-all');
+  if(all){all.checked=ctx.rows.length>0&&ctx.selected.size===ctx.rows.length;all.indeterminate=ctx.selected.size>0&&!all.checked;}
+}
+function renderSkillSettings(){
+  const ctx=skillSettingsContext;if(!ctx)return;
+  const list=document.getElementById('skill-settings-list');
+  if(ctx.loading||ctx.error)list.innerHTML='';
+  else if(!ctx.rows.length)list.innerHTML='<div class="empty">등록된 스킬 세팅이 없습니다.</div>';
+  else list.innerHTML=`<div class="skill-row skill-columns"><input type="checkbox" id="skill-select-all" aria-label="세팅 전체 선택" onchange="selectSkillSettings(null,this.checked)" ${ctx.busy?'disabled':''}><span>세팅명</span><span class="skill-code-label">스킬코드</span><span>복사</span></div>`+ctx.rows.map((row,i)=>`<div class="skill-row">
+    <input type="checkbox" aria-label="${esc(row.name||'새 세팅')} 선택" onchange="selectSkillSettings(${i},this.checked)" ${ctx.selected.has(row.id)?'checked':''} ${ctx.busy?'disabled':''}>
+    ${ctx.editing?`<input class="input" aria-label="세팅명 ${i+1}" placeholder="세팅명" value="${esc(row.name)}" oninput="changeSkillSetting(${i},'name',this.value)" ${ctx.busy?'disabled':''}><textarea class="input" rows="2" aria-label="스킬코드 ${i+1}" placeholder="스킬코드" spellcheck="false" oninput="changeSkillSetting(${i},'code',this.value)" ${ctx.busy?'disabled':''}>${esc(row.code)}</textarea>`:`<span class="skill-name">${esc(row.name)}</span><span class="skill-code" title="${esc(row.code)}">${esc(row.code)}</span>`}
+    <button type="button" class="btn skill-copy" aria-label="${esc(row.name||'새 세팅')} 스킬코드 복사" title="스킬코드 복사" onclick="copySkillSetting(${i})" ${!row.code||ctx.busy?'disabled':''}>복사</button>
+  </div>`).join('');
+  updateSkillSettingsControls();
+}
+function selectSkillSettings(index,checked){
+  const ctx=skillSettingsContext;if(!ctx||ctx.busy)return;
+  if(index===null){ctx.selected=checked?new Set(ctx.rows.map(r=>r.id)):new Set();renderSkillSettings();return;}
+  const row=ctx.rows[index];if(!row)return;
+  if(checked)ctx.selected.add(row.id);else ctx.selected.delete(row.id);
+  updateSkillSettingsControls();
+}
+function changeSkillSetting(index,key,value){
+  const ctx=skillSettingsContext;if(!ctx||ctx.busy||!ctx.editing||!['name','code'].includes(key)||!ctx.rows[index])return;
+  ctx.rows[index][key]=value;updateSkillSettingsControls();
+  const copy=document.querySelectorAll('#skill-settings-list .skill-copy')[index];if(copy)copy.disabled=!ctx.rows[index].code;
+}
+function addSkillSetting(){
+  const ctx=skillSettingsContext;if(!ctx||ctx.loading||ctx.busy||ctx.error)return;
+  ctx.editing=true;ctx.rows.push({id:crypto.randomUUID(),name:'',code:''});renderSkillSettings();
+  const input=document.querySelectorAll('#skill-settings-list input.input');input[input.length-1]?.focus();
+}
+function toggleSkillSettingsEdit(){
+  const ctx=skillSettingsContext;if(!ctx||ctx.loading||ctx.busy||ctx.error)return;
+  if(ctx.editing){saveSkillSettings();return;}
+  ctx.editing=true;renderSkillSettings();
+}
+function cancelSkillSettingsEdit(){
+  const ctx=skillSettingsContext;if(!ctx||ctx.busy)return;
+  if(skillSettingsDirty(ctx)&&!confirm('저장하지 않은 세팅 변경을 취소할까요?'))return;
+  ctx.rows=structuredClone(ctx.original);ctx.selected.clear();ctx.editing=false;renderSkillSettings();
+}
+async function deleteSkillSettings(){
+  const ctx=skillSettingsContext;if(!ctx||ctx.busy||ctx.loading||ctx.error||!ctx.selected.size)return;
+  if(!confirm('선택한 세팅 '+ctx.selected.size+'개를 삭제할까요?'))return;
+  const wasEditing=ctx.editing;
+  ctx.rows=ctx.rows.filter(r=>!ctx.selected.has(r.id));ctx.selected.clear();ctx.editing=true;renderSkillSettings();
+  if(!wasEditing)await saveSkillSettings();
+}
+async function saveSkillSettings(){
+  const ctx=skillSettingsContext;if(!ctx||ctx.busy||ctx.loading||ctx.error||!ctx.editing)return;
+  if(ctx.testMode!==isTestMode()){toast('모드가 변경되었습니다. 세팅 창을 다시 열어주세요.');return;}
+  const invalid=ctx.rows.findIndex(row=>!row.name.trim()||!row.code.trim());
+  if(invalid>=0){toast((invalid+1)+'번째 세팅명과 스킬코드를 모두 입력해주세요.');return;}
+  if(!skillSettingsDirty(ctx)){ctx.editing=false;renderSkillSettings();return;}
+  const rows=ctx.rows.map(row=>({...row,name:row.name.trim()}));
+  ctx.busy=true;renderSkillSettings();
+  try{
+    if(!ctx.testMode){
+      // Compare the loaded JSON to avoid overwriting another tab's newer settings.
+      const {data,error}=await sb.from('characters').update({skill_settings:rows}).eq('id',ctx.charId).eq('skill_settings',JSON.stringify(ctx.original)).select('id').maybeSingle();
+      if(error)throw error;
+      if(!data)throw new Error('다른 창에서 세팅이 변경되었거나 캐릭터가 삭제되었습니다. 입력 내용을 확인한 뒤 창을 다시 열어주세요.');
+    }
+    const ch=state.chars.find(c=>c.id===ctx.charId);if(ch)ch.skill_settings=structuredClone(rows);
+    ctx.rows=structuredClone(rows);ctx.original=structuredClone(rows);ctx.selected.clear();ctx.editing=false;
+    toast(ctx.testMode?'테스트 모드에서만 반영했습니다.':'스킬 세팅을 저장했습니다.');
+  }catch(error){toast(skillSettingsError(error),8000);}
+  finally{ctx.busy=false;if(skillSettingsContext===ctx)renderSkillSettings();}
+}
+async function copySkillSetting(index){
+  const code=skillSettingsContext?.rows[index]?.code;if(!code)return;
+  try{
+    try{if(!navigator.clipboard?.writeText)throw new Error('clipboard unavailable');await navigator.clipboard.writeText(code);}
+    catch{
+      const focus=document.activeElement,textarea=document.createElement('textarea');
+      textarea.value=code;textarea.style.cssText='position:fixed;left:0;top:0;opacity:0';document.querySelector('#modal-skill-settings .modal').appendChild(textarea);
+      try{textarea.focus();textarea.select();if(!document.execCommand('copy'))throw new Error('복사 권한을 허용해주세요.');}
+      finally{textarea.remove();focus?.focus();}
+    }
+    toast('스킬코드를 복사했습니다.');
+  }catch(error){toast('복사 실패: '+error.message);}
+}
+function closeSkillSettings(){
+  const ctx=skillSettingsContext;if(!ctx)return true;
+  if(ctx.busy){toast('저장이 끝난 뒤 닫아주세요.');return false;}
+  if(skillSettingsDirty(ctx)&&!confirm('저장하지 않은 세팅 변경을 버리고 닫을까요?'))return false;
+  skillSettingsContext=null;if(ctx.returnFocus?.isConnected)ctx.returnFocus.focus();return true;
+}
+
 function charHeader(ch,tasks,hot=false,complete=false){
   const done=tasks.filter(isDone).length,total=tasks.length;
   const azena=ch.azena_blessing===true;
   return`<div class="char-head">
-    <div class="avatar">${ch.icon_url?`<img src="${esc(ch.icon_url)}" alt="">`:'검'}</div>
+    <button type="button" class="avatar skill-trigger" title="스킬 세팅" aria-label="${esc(ch.name)} 스킬 세팅" onclick="openSkillSettings('${ch.id}')">${ch.icon_url?`<img src="${esc(ch.icon_url)}" alt="">`:'검'}</button>
     <div class="char-meta"><div class="char-name"><span class="char-name-text">${esc(ch.name)}</span>${azena?`<span class="azena-badge" title="아제나의 축복 적용"><img src="images/goods/azena.png" alt="아제나의 축복"></span>`:''}</div><div class="char-sub"><span class="char-class">${esc(ch.class_name||'')}</span>${ch.item_level?`<span class="char-level">${Number(ch.item_level).toLocaleString()}</span>`:''}${ch.combat_power?`<span class="char-power">${Number(ch.combat_power).toLocaleString()}</span>`:''}</div></div>
     <div class="card-tools">${complete?'<span class="char-done-badge">완료</span>':''}<span class="tag ${complete?'green':''}">${done}/${total}</span><button class="btn icon" title="이 캐릭터에 숙제 추가" onclick="openCreateTask('char','${ch.id}','${state.mode==='daily'?'daily':'weekly'}')">+</button><button class="mini-btn action-only action-edit" onclick="openCharacterModal('${ch.id}')">정보</button><button class="mini-btn danger action-only action-delete" onclick="deleteCharacter('${ch.id}')">삭제</button></div>
   </div>`;
@@ -4052,14 +4228,15 @@ function renderPickerCategory(cat){
 function selectPickerImg(url){if(pickerCallback)pickerCallback(url);closeModal('modal-img-picker');}
 function pickerRemoveIcon(){if(pickerCallback)pickerCallback(null);closeModal('modal-img-picker');}
 
-document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');}));
+document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',e=>{if(e.target===ov)closeModal(ov.id);}));
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'));return;}
+  if(e.key==='Escape'){document.querySelectorAll('.overlay.open').forEach(o=>closeModal(o.id));return;}
   if(e.key!=='Enter'||e.shiftKey||e.ctrlKey||e.altKey||e.metaKey||e.isComposing)return;
   const tag=(e.target&&e.target.tagName)||'';
   if(tag==='TEXTAREA'||tag==='SELECT')return;
   if(e.target&&e.target.type==='button')return;
   const topOverlay=[...document.querySelectorAll('.overlay.open')].sort((a,b)=>Number(getComputedStyle(b).zIndex)-Number(getComputedStyle(a).zIndex))[0];
+  if(topOverlay?.id==='modal-skill-settings')return;
   const openModalEl=topOverlay?.querySelector('.modal');
   if(!openModalEl||!openModalEl.contains(e.target))return;
   // Find primary button in this modal's footer (or fallback: any .btn.primary inside modal)

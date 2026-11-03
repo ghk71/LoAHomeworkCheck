@@ -3298,3 +3298,13 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 
 - 우측 후보/배치 멤버의 전투력은 숫자만 표시하고 글자 크기와 굵기를 줄였습니다. 미등록은 `-`, 마우스 툴팁은 전투력/미등록 안내를 유지합니다. 파티 평균 표시와 계산은 변경하지 않았습니다.
 - 전투력 회귀 테스트 및 네 HTML 정적 대체 검사, git diff --check 통과. 추가 SQL 없음.
+
+## 2026-11-03 - 캐릭터 심볼에서 스킬 세팅 관리
+
+- index.html 일일/주간·월간 캐릭터 카드의 avatar를 접근 가능한 버튼으로 변경했습니다. 캐릭터별 스킬 세팅 모달에서 선택 체크박스, 세팅명, 스킬코드, 복사 버튼을 표시합니다.
+- 추가/선택 삭제/수정 ON-OFF 및 저장/취소를 지원합니다. 수정 OFF는 일괄 저장이며, 닫기/배경 클릭/Escape 시 미저장 변경을 확인합니다. 저장 중에는 중복 변경 및 닫기를 차단합니다.
+- characters.skill_settings JSONB 컬럼에만 단일 조건부 UPDATE를 수행합니다. 다른 창의 최신 변경을 덮어쓰지 않고, 저장 실패 시 입력과 선택을 보존합니다. 열기 요청의 오래된 응답을 무시하며 조회 실패를 빈 목록으로 간주하지 않습니다.
+- 테스트 모드에서는 캐릭터 메모리 상태만 변경하고 운영 DB에는 쓰지 않습니다. 스킬코드는 HTML 이스케이프하여 표시하고 복사 시 원문을 유지하며 Clipboard API 실패 시 선택 복사로 대체합니다.
+- 운영 반영 전 supabase/migrations/20261103_character_skill_settings.sql 전체 실행 필요. 운영 DB 수정/배포는 하지 않았습니다.
+- tools/test-character-skill-settings.js에서 SQL 반복 적용/CAS, 두 탭 진입, 생성/수정/선택 삭제/복사, 캐릭터 분리, 저장 실패/재시도, 동시 편집 충돌, 닫기 취소, SQL 미적용, 테스트 모드, 긴 코드 및 1280/390px 내부 스크롤을 검증했습니다. 스크린샷 확인 및 기존 tools/test-task-batch-ui.js 회귀 통과.
+- 네 HTML 문법/CSS 변수/후행 코드와 git diff --check 대체 검증 통과. check-project.js는 실행하지 않았습니다.
