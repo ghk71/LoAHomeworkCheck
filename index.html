@@ -176,6 +176,9 @@ body.manage-active .mode-done{display:inline-flex}
 .task-title>span:not(.title-actions){min-width:0;overflow:hidden;text-overflow:ellipsis}
 .task-icon{width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;overflow:hidden;flex:none}
 .task-meta{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;color:var(--dim);font-size:.69rem}
+.task-days{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.task-days label{display:flex;align-items:center;gap:5px;padding:8px;border:1px solid var(--line);border-radius:6px;cursor:pointer}
+.task-days label:has(input:checked){background:var(--panel);border-color:var(--accent)}
 .tag{border:1px solid var(--line);border-radius:999px;padding:2px 6px;color:var(--muted);background:#20252d;font-weight:800}
 .tag.gold{border-color:rgba(243,180,63,.35);color:#ffd985}
 .tag.green{border-color:rgba(24,214,107,.3);color:#8df8b8}
@@ -581,7 +584,8 @@ body.manage-active .mode-done{display:inline-flex}
             <div class="field"><label>숙제 명</label><input id="task-name" class="input" placeholder="예: 쿠르잔 전선"></div>
             <div class="field"><label>초기화 주기</label><select id="task-reset" class="select" onchange="syncCreateReset()"><option value="daily">매일</option><option value="weekly">매주</option><option value="monthly">매월</option></select></div>
             <div class="field" id="task-reset-day-wrap"><label>초기화 요일</label><select id="task-reset-day" class="select"><option value="0">일요일</option><option value="1">월요일</option><option value="2">화요일</option><option value="3" selected>수요일</option><option value="4">목요일</option><option value="5">금요일</option><option value="6">토요일</option></select></div>
-            <div class="field full"><label><input type="checkbox" id="task-activate-enabled" onchange="syncCreateActivate()"> 활성화 요일 사용</label></div>
+            <div class="field full"><label><input type="checkbox" id="task-days-enabled" onchange="syncCreateActivate()"> 개최 요일 지정</label><div id="task-days-wrap" class="hidden"><div class="task-days"><label><input type="checkbox" value="1">월</label><label><input type="checkbox" value="2">화</label><label><input type="checkbox" value="3">수</label><label><input type="checkbox" value="4">목</label><label><input type="checkbox" value="5">금</label><label><input type="checkbox" value="6">토</label><label><input type="checkbox" value="0">일</label></div><div class="task-days"><button type="button" class="btn" onclick="setTaskDays([4,6,0,1])">카오스게이트</button><button type="button" class="btn" onclick="setTaskDays([5,0,2])">필드보스</button></div></div></div>
+            <div class="field full" id="task-activate-legacy"><label><input type="checkbox" id="task-activate-enabled" onchange="syncCreateActivate()"> 활성화 요일 사용</label></div>
             <div class="field hidden" id="task-activate-wrap"><label>활성화 요일</label><select id="task-activate-day" class="select"><option value="0">일요일</option><option value="1">월요일</option><option value="2">화요일</option><option value="3">수요일</option><option value="4">목요일</option><option value="5">금요일</option><option value="6">토요일</option></select></div>
           </div>
 
@@ -1951,7 +1955,8 @@ function getResetBoundariesSince(t,latest){
     stack.unshift(new Date(b));
     b=getPreviousResetBoundary(type,b);
   }
-  return stack.filter(x=>x>cursor&&x<=latest);
+  // A reset charges the previous game day, and only if the event was open then.
+  return stack.filter(x=>x>cursor&&x<=latest&&(!Array.isArray(t.active_days)||t.active_days.includes(new Date(x.getTime()-1+3*3600000).getUTCDay())));
 }
 function getPreviousResetBoundary(type,boundary){
   const prev=new Date(boundary);
@@ -2084,8 +2089,9 @@ function isDone(t){
   return !!(t.is_completed&&t.last_completed_at&&new Date(t.last_completed_at)>=getLastResetUTC(t.reset_type||'daily',t.reset_day||3));
 }
 function isActive(t){
+  if(Array.isArray(t.active_days)&&!t.active_days.includes(new Date(getLastResetUTC('daily',3).getTime()+9*3600000).getUTCDay()))return false;
   if(t.rest_enabled&&Number(t.rest_current||0)<Number(t.rest_threshold||0))return false;
-  if(t.activate_day==null)return true;
+  if(Array.isArray(t.active_days)||t.activate_day==null)return true;
   return getLastResetUTC('weekly',t.activate_day)>=getLastResetUTC(t.reset_type||'daily',t.reset_day||3);
 }
 function isTaskPaused(t){return t?.is_paused===true;}
@@ -2103,8 +2109,9 @@ function isTaskOrAncestorPaused(t,list,byId=null){
 }
 function isDaily(t){return (t.reset_type||'daily')==='daily';}
 function isWeeklyMonthly(t){return (t.reset_type||'daily')!=='daily';}
-function resetText(t){const type=t.reset_type||'daily';if(type==='daily')return'매일 06시';if(type==='monthly')return'매월 첫째 주 수요일 06시';return`매주 ${DAYS[t.reset_day??3]}요일`;}
+function resetText(t){const type=t.reset_type||'daily';if(type==='daily')return Array.isArray(t.active_days)?`${[1,2,3,4,5,6,0].filter(d=>t.active_days.includes(d)).map(d=>DAYS[d]).join('·')} 06시`:'매일 06시';if(type==='monthly')return'매월 첫째 주 수요일 06시';return`매주 ${DAYS[t.reset_day??3]}요일`;}
 function taskMetaHTML(t){
+  if(Array.isArray(t.active_days))return`<div class="task-meta"><span class="tag">${resetText(t)}</span></div>`;
   if(hasDailyQuota(t)){
     const dailyMax=Math.max(1,Number(t.count_daily_limit)||1);
     return`<div class="task-meta"><span class="tag">${resetText(t)}</span><span class="tag">하루 최대 ${dailyMax}회</span></div>`;
@@ -3722,6 +3729,7 @@ function openDraftTaskNode(key=null,parentKey=null){
     const fields={'task-name':'name','task-reset':'reset_type','task-reset-day':'reset_day','step-max':'count_max','quota-total-max':'count_max','quota-daily-limit':'count_daily_limit','quota-total-current':'count_current','quota-daily-current':'count_daily_current','rest-max':'rest_max','rest-current':'rest_current','rest-charge':'rest_charge','rest-consume':'rest_consume','rest-threshold':'rest_threshold','rest-daily-limit':'rest_daily_limit'};
     Object.entries(fields).forEach(([id,prop])=>{if(rec[prop]!=null)document.getElementById(id).value=rec[prop];});
     setTaskIcon(rec.icon_url);
+    loadTaskDays(rec.active_days);
     document.getElementById('task-activate-enabled').checked=rec.activate_day!=null;
     if(rec.activate_day!=null)document.getElementById('task-activate-day').value=rec.activate_day;
     selectCreateType(rec.rest_enabled?'rest':hasDailyQuota(rec)?'weeklyQuota':rec.count_max!=null?'step':'check');
@@ -3842,6 +3850,7 @@ function openCreateTask(scope,id,resetType,keepDraft=false){
   setTaskIcon(null);
   document.getElementById('task-reset').value=resetType||'daily';
   document.getElementById('task-reset-day').value='3';
+  loadTaskDays(null);
   document.getElementById('task-activate-enabled').checked=false;
   document.getElementById('task-activate-day').value='3';
   document.getElementById('step-max').value='3';
@@ -3891,6 +3900,7 @@ function openEditTask(id,isExp,ownerId,allGroup=false){
   setTaskIcon(t.icon_url||null);
   document.getElementById('task-reset').value=t.reset_type||'daily';
   document.getElementById('task-reset-day').value=String(t.reset_day??3);
+  loadTaskDays(t.active_days);
   document.getElementById('task-activate-enabled').checked=t.activate_day!=null;
   if(t.activate_day!=null)document.getElementById('task-activate-day').value=String(t.activate_day);
   document.getElementById('step-max').value=t.count_max??3;
@@ -3933,8 +3943,17 @@ function selectCreateType(type){
   document.getElementById('config-step').classList.toggle('hidden',type!=='step');
   document.getElementById('config-weekly-quota').classList.toggle('hidden',type!=='weeklyQuota');
 }
-function syncCreateReset(){document.getElementById('task-reset-day-wrap').classList.toggle('hidden',document.getElementById('task-reset').value!=='weekly');}
-function syncCreateActivate(){document.getElementById('task-activate-wrap').classList.toggle('hidden',!document.getElementById('task-activate-enabled').checked);}
+function setTaskDays(days){document.querySelectorAll('#task-days-wrap input').forEach(el=>el.checked=days.includes(Number(el.value)));}
+function loadTaskDays(days){document.getElementById('task-days-enabled').checked=Array.isArray(days);setTaskDays(days||[]);}
+function syncCreateReset(){document.getElementById('task-reset-day-wrap').classList.toggle('hidden',document.getElementById('task-reset').value!=='weekly');syncCreateActivate();}
+function syncCreateActivate(){
+  const enabled=document.getElementById('task-days-enabled'),daily=document.getElementById('task-reset').value==='daily';
+  enabled.disabled=!daily;
+  const multi=daily&&enabled.checked;
+  document.getElementById('task-days-wrap').classList.toggle('hidden',!multi);
+  document.getElementById('task-activate-legacy').classList.toggle('hidden',multi);
+  document.getElementById('task-activate-wrap').classList.toggle('hidden',multi||!document.getElementById('task-activate-enabled').checked);
+}
 function renderRestPreview(){
   const fake={rest_enabled:true,rest_max:document.getElementById('rest-max').value,rest_current:document.getElementById('rest-current').value,rest_charge:document.getElementById('rest-charge').value,rest_consume:document.getElementById('rest-consume').value,rest_threshold:document.getElementById('rest-threshold').value};
   document.getElementById('rest-preview').innerHTML=`<div class="task-title">미리보기</div>${restBox(fake,false,'')}`;
@@ -3964,7 +3983,9 @@ async function submitCreatedTask(editGroup=false){
   const name=document.getElementById('task-name').value.trim();if(!name){toast('숙제명을 입력하세요');return;}
   const resetType=document.getElementById('task-reset').value;
   const resetDay=resetType==='weekly'?Number(document.getElementById('task-reset-day').value):3;
-  const activateDay=document.getElementById('task-activate-enabled').checked?Number(document.getElementById('task-activate-day').value):null;
+  const activeDays=resetType==='daily'&&document.getElementById('task-days-enabled').checked?[...document.querySelectorAll('#task-days-wrap input:checked')].map(el=>Number(el.value)):null;
+  if(activeDays&&!activeDays.length){toast('개최 요일을 하나 이상 선택하세요');return;}
+  const activateDay=!activeDays&&document.getElementById('task-activate-enabled').checked?Number(document.getElementById('task-activate-day').value):null;
   const rec={name,icon_url:state.taskIconUrl||null,reset_type:resetType,reset_day:resetDay,activate_day:activateDay,count_max:null,rest_enabled:false,rest_current:0,rest_max:200,rest_charge:20,rest_consume:40,rest_threshold:40,rest_daily_limit:1,rest_last_processed_at:null,rest_consumed_current_cycle:0};
   if(state.createType==='step'){rec.count_max=Math.max(2,Number(document.getElementById('step-max').value)||3);rec.count_current=0;}
   if(state.createType==='weeklyQuota'){
@@ -3993,6 +4014,7 @@ async function submitCreatedTask(editGroup=false){
     rec.rest_last_processed_at=getLastResetUTC(resetType,resetDay).toISOString();
   }
   const isExp=target.scope==='account';
+  rec.active_days=activeDays;
   const table=isExp?'expedition_tasks':'tasks';
   if(state.editTarget?.allGroup){await openTaskGroupEdit(rec,true);return;}
   if(editGroup){await openTaskGroupEdit(rec);return;}
@@ -4027,7 +4049,7 @@ async function submitCreatedTask(editGroup=false){
   stageTaskDraft(rec);
 }
 
-const TASK_SHARED_SETTINGS=['name','icon_url','reset_type','reset_day','activate_day','count_max','count_daily_limit','rest_enabled','rest_max','rest_charge','rest_consume','rest_threshold','rest_daily_limit'];
+const TASK_SHARED_SETTINGS=['name','icon_url','reset_type','reset_day','activate_day','active_days','count_max','count_daily_limit','rest_enabled','rest_max','rest_charge','rest_consume','rest_threshold','rest_daily_limit'];
 function sharedTaskSettings(rec){return Object.fromEntries(TASK_SHARED_SETTINGS.map(key=>[key,rec[key]??null]));}
 function taskCatalogGroups(){
   const groups=new Map(),accounts=new Map(state.accounts.map(a=>[a.id,a])),chars=new Map(state.chars.map(c=>[c.id,c]));

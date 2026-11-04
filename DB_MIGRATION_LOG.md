@@ -1,5 +1,12 @@
 # DB Migration Log
 
+## 2026-11-04 - 여러 개최 요일 숙제
+
+- 필수: `supabase/migrations/20261104_task_active_days.sql` 전체 실행. 기존 숙제 일괄 관리(20261008) SQL 적용 환경 기준이며 tasks/expedition_tasks에 nullable int[] `active_days`를 추가하고 공통 설정 RPC의 허용 컬럼을 확장합니다. null은 기존 활성화 규칙 유지, 배열은 일일 초기화에만 사용합니다.
+- 선택: `supabase/migrations/20261104_merge_account_event_tasks_optional.sql` 실행. 계정별 `카오스게이트 (목)` / `필드보스 (금요일)`처럼 요일 접미사가 있는 단순 루트 체크 숙제만 통합합니다. `account_event_task_backup_20261104`에 원본 전체를 백업하고 대표 행은 다중 요일로 변경, 나머지는 일시중지합니다. 영구 삭제하지 않습니다.
+- 통합은 오늘 06:00 이후 완료 이력을 대표 행으로 보존합니다. 하위/휴식/횟수/이미 중지한 숙제와 이미 다중 요일로 전환한 계정의 같은 이벤트는 제외합니다. 이름 형식이 다른 항목은 직접 수정해야 합니다. 반복 실행 시 이미 백업된 행을 재처리하지 않습니다.
+- `send-homework-discord`를 재배포해야 Discord 집계도 개최 요일을 따릅니다. 운영 DB 적용/배포는 에이전트가 수행하지 않았습니다.
+
 Supabase 스키마 변경 이력을 기록한다.
 
 ## 작성 규칙

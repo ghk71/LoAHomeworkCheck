@@ -3317,3 +3317,13 @@ ALTER TABLE expedition_tasks ADD COLUMN IF NOT EXISTS rest_consumed_current_cycl
 - 기존 숨김 계정 제외 정책 유지. 일시중지 관리에서 숨김 원본을 직접 클릭한 경우에만 그 소유자를 삭제창에 허용하며 다른 숨김 계정은 노출하지 않고 다음 일반 삭제창으로 예외가 이어지지 않습니다.
 - tools/test-paused-delete-and-target-order.js에서 순서 변경 반영, 선택/취소/실패 재시도, 하위 포함 삭제, 계정/상위 중지 항목/숨김 원본/테스트 모드 및 1280/390px 화면을 검증했습니다. 기존 task-batch-ui, toolbar-and-party-sync, PGlite task-batch 회귀도 통과했습니다.
 - 네 HTML 문법/CSS 변수/후행 코드와 git diff --check 대체 검증 통과. check-project.js 실행 및 운영 DB 변경 없음. 추가 SQL 없음(기존 20261008 숙제 일괄 관리 RPC 재사용).
+
+## 2026-11-04 - 카오스게이트 / 필드보스 다중 개최 요일
+
+- 일일 숙제 추가/수정에 개최 요일 체크박스와 카오스게이트(목/토/일/월), 필드보스(금/일/화) 프리셋을 추가했습니다. 하나의 숙제로 여러 개최 요일과 매일 06:00 KST 완료 초기화를 관리합니다. 단일 activate_day 기존 동작은 유지합니다.
+- tasks/expedition_tasks의 nullable active_days int[]를 공통 설정에 포함해 생성/개별·그룹 수정/하위 구성/복제에 보존합니다. 비활성 보기/계정 완료 집계는 기존 isActive 경로를 사용합니다. 휴식형과 함께 쓸 경우 개최한 게임 일자에 대해서만 누락 충전을 계산합니다.
+- send-homework-discord도 같은 요일 판정을 사용합니다. 재배포 필요.
+- 필수 SQL: supabase/migrations/20261104_task_active_days.sql. schema.sql 끝에 동일 정의를 반영했습니다. 운영 DB에 적용하지 않았습니다.
+- 선택 SQL: supabase/migrations/20261104_merge_account_event_tasks_optional.sql. 요일 접미사가 있는 단순 계정 숙제만 원본 백업 후 대표 항목으로 통합하고 나머지는 일시중지합니다. 오늘 완료는 보존하며 영구 삭제하지 않습니다. 하위/휴식/횟수/이미 중지한 항목은 자동 통합하지 않습니다.
+- tools/test-task-active-days.js: PGlite에서 반복 SQL 적용, 양쪽 테이블의 생성/수정/복제/진행 보존과 잘못된 요일 거부, 선택 통합의 백업/반복 실행을 검증했습니다. 격리 Playwright에서 두 요일 프리셋 전체 주간, KST06 경계, 완료 초기화, 비활성 보기, 수정 복원, 빈 요일 검증, Discord 판정 일치, 1280/390px 표시를 확인했습니다.
+- 기존 tools/test-task-batch-ui.js 회귀 통과. 네 HTML 인라인 JS/CSS 변수/후행 코드 및 git diff --check 대체 검증. 금지된 check-project.js는 실행하지 않았고 운영 데이터 변경/배포는 하지 않았습니다.

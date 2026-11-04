@@ -77,7 +77,7 @@ function getResetBoundariesSince(task: any, latest: Date) {
     stack.unshift(new Date(b));
     b = getPreviousResetBoundary(type, b);
   }
-  return stack.filter((x) => x > cursor && x <= latest);
+  return stack.filter((x) => x > cursor && x <= latest && (!Array.isArray(task.active_days) || task.active_days.includes(new Date(x.getTime() - 1 + 3 * 3600000).getUTCDay())));
 }
 
 function effectiveRestCurrent(task: any) {
@@ -110,8 +110,9 @@ function isDone(task: any) {
 }
 
 function isActive(task: any) {
+  if (Array.isArray(task.active_days) && !task.active_days.includes(new Date(getLastResetUTC("daily").getTime() + 9 * 3600000).getUTCDay())) return false;
   if (task.rest_enabled && effectiveRestCurrent(task) < Number(task.rest_threshold || 0)) return false;
-  if (task.activate_day == null) return true;
+  if (Array.isArray(task.active_days) || task.activate_day == null) return true;
   return getLastResetUTC("weekly", Number(task.activate_day)) >= getLastResetUTC(String(task.reset_type || "daily"), Number(task.reset_day ?? 3));
 }
 
